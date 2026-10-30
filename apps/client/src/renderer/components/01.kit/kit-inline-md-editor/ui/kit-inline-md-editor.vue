@@ -32,39 +32,37 @@ const emit = defineEmits<{
 }>()
 const markdown = defineModel<string | null>({ required: true })
 
-if (markdown.value === undefined) {
-  markdown.value = ``
-}
-
 const crepeInstance = shallowRef<Crepe | null>(null)
 const isInternalUpdate = ref(false)
 const isEditorMounted = ref(false)
-
 const htmlView = $view(htmlSchema.node, () => (node) => {
   const htmlContent = (node.attrs.value as string) || ''
   const isBlock = /<(?:iframe|div|table|p|blockquote)\b/i.test(htmlContent)
   const dom = document.createElement(isBlock ? 'div' : 'span')
   dom.className = isBlock ? 'milkdown-html-block' : 'milkdown-html-inline'
   dom.innerHTML = htmlContent
+
   return {
     dom,
     update: (updatedNode) => {
       if (updatedNode.type.name !== 'html')
         return false
+
       const val = (updatedNode.attrs.value as string) || ''
       const updatedIsBlock = /<(?:iframe|div|table|p|blockquote)\b/i.test(val)
       dom.className = updatedIsBlock ? 'milkdown-html-block' : 'milkdown-html-inline'
       dom.innerHTML = val
+
       return true
     },
   }
 })
-
 const mermaidView = $view(codeBlockSchema.node, () => (node) => {
   const language = (node.attrs.language as string) || ''
 
   if (language.toLowerCase() === 'dataviewjs') {
     const customNodeView = props.codeBlockNodeView?.(node)
+
     if (customNodeView)
       return customNodeView
   }
@@ -87,18 +85,23 @@ const mermaidView = $view(codeBlockSchema.node, () => (node) => {
     const render = async (codeText: string) => {
       const renderId = ++currentRenderId
       const uniqueId = `mermaid-${Math.random().toString(36).substring(2, 9)}`
+
       try {
         const svg = await renderMermaidDiagram(codeText, uniqueId)
+
         if (renderId !== currentRenderId)
           return
+
         if (svg) {
           diagramDiv.innerHTML = svg
           diagramDiv.style.display = 'flex'
           contentDOM.style.display = 'none'
 
           const svgEl = diagramDiv.querySelector('svg')
+
           if (svgEl) {
             const vb = svgEl.viewBox?.baseVal
+
             if (vb && vb.width > 0 && vb.height > 0) {
               svgEl.style.maxWidth = `${vb.width}px`
               svgEl.style.width = '100%'
@@ -134,9 +137,11 @@ const mermaidView = $view(codeBlockSchema.node, () => (node) => {
       update: (updatedNode) => {
         if (updatedNode.type.name !== 'code_block')
           return false
+
         if (updatedNode.textContent !== node.textContent) {
           render(updatedNode.textContent)
         }
+
         return true
       },
       ignoreMutation: (mutation) => {
@@ -151,8 +156,10 @@ const mermaidView = $view(codeBlockSchema.node, () => (node) => {
   // Standard code block
   const dom = document.createElement('pre')
   dom.className = 'milkdown-code-block'
+
   if (language)
     dom.dataset.language = language
+
   const contentDOM = document.createElement('code')
   dom.appendChild(contentDOM)
 
@@ -162,13 +169,72 @@ const mermaidView = $view(codeBlockSchema.node, () => (node) => {
     update: (updatedNode) => {
       if (updatedNode.type.name !== 'code_block')
         return false
+
       return true
     },
   }
 })
 
+watch(() => [props.readonly, props.disabled], ([isReadonly, isDisabled]) => {
+  const editor = crepeInstance.value?.editor
+
+  if (!editor || !isEditorMounted.value)
+    return
+
+  try {
+    editor.action((ctx) => {
+      const view = ctx.get(editorViewCtx)
+
+      view.setProps({
+        editable: () => !isDisabled && !isReadonly,
+      })
+    })
+  }
+  catch (e) {
+    console.error('Failed to update editor props:', e)
+  }
+})
+watch(() => props.codeBlockRefreshKey, () => {
+  queueMicrotask(() => {
+    if (!isEditorMounted.value)
+      return
+
+    crepeInstance.value?.editor.action((ctx) => {
+      ctx.get(editorViewCtx).dom.querySelectorAll('.milkdown-dataviewjs-block').forEach(node => node.dispatchEvent(new Event('dataviewjs-refresh')))
+    })
+  })
+})
+watch(markdown, (newValue) => {
+  if (isInternalUpdate.value || !isEditorMounted.value)
+    return
+
+  const editor = crepeInstance.value?.editor
+
+  if (!editor)
+    return
+
+  try {
+    editor.action((ctx) => {
+      const view = ctx.get(editorViewCtx)
+      const parser = ctx.get(parserCtx)
+      const doc = parser(newValue || '')
+
+      if (!doc)
+        return
+
+      const state = view.state
+      const tr = state.tr.replaceWith(0, state.doc.content.size, doc)
+      view.dispatch(tr)
+    })
+  }
+  catch (e) {
+    console.error('Ошибка обновления контента в редакторе:', e)
+  }
+})
+
 function getEditorAttributes(prevAttributes: any) {
   let existingClasses = ''
+
   if (prevAttributes && typeof prevAttributes.class === 'string') {
     existingClasses = prevAttributes.class
   }
@@ -180,6 +246,10 @@ function getEditorAttributes(prevAttributes: any) {
     translate: 'yes',
     class: newClasses,
   }
+}
+
+if (markdown.value === undefined) {
+  markdown.value = ``
 }
 
 useEditor((root) => {
@@ -243,63 +313,8 @@ useEditor((root) => {
     .use(listener)
 
   crepeInstance.value = crepe
+
   return crepe
-})
-
-watch(() => [props.readonly, props.disabled], ([isReadonly, isDisabled]) => {
-  const editor = crepeInstance.value?.editor
-  if (!editor || !isEditorMounted.value)
-    return
-
-  try {
-    editor.action((ctx) => {
-      const view = ctx.get(editorViewCtx)
-
-      view.setProps({
-        editable: () => !isDisabled && !isReadonly,
-      })
-    })
-  }
-  catch (e) {
-    console.error('Failed to update editor props:', e)
-  }
-})
-
-watch(() => props.codeBlockRefreshKey, () => {
-  queueMicrotask(() => {
-    if (!isEditorMounted.value)
-      return
-    crepeInstance.value?.editor.action((ctx) => {
-      ctx.get(editorViewCtx).dom.querySelectorAll('.milkdown-dataviewjs-block').forEach(node => node.dispatchEvent(new Event('dataviewjs-refresh')))
-    })
-  })
-})
-
-watch(markdown, (newValue) => {
-  if (isInternalUpdate.value || !isEditorMounted.value)
-    return
-
-  const editor = crepeInstance.value?.editor
-  if (!editor)
-    return
-
-  try {
-    editor.action((ctx) => {
-      const view = ctx.get(editorViewCtx)
-      const parser = ctx.get(parserCtx)
-      const doc = parser(newValue || '')
-
-      if (!doc)
-        return
-
-      const state = view.state
-      const tr = state.tr.replaceWith(0, state.doc.content.size, doc)
-      view.dispatch(tr)
-    })
-  }
-  catch (e) {
-    console.error('Ошибка обновления контента в редакторе:', e)
-  }
 })
 
 onBeforeUnmount(() => {

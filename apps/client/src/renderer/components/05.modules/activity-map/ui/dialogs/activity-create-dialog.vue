@@ -17,11 +17,9 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {
   isLoading: false,
 })
-
 const emit = defineEmits<{
   (e: 'create', data: any): void
 }>()
-
 const visible = defineModel<boolean>('visible', { required: true })
 
 const markType = 'dynamic'
@@ -33,17 +31,36 @@ const endTime = shallowRef<Time>(new Time(10, 0))
 
 const formattedDate = computed(() => {
   const date = selectedDate.value.toDate(getLocalTimeZone())
+
   return useDateFormat(date, 'D MMMM YYYY', { locales: 'ru-RU' }).value
+})
+
+watch(() => visible.value, (isOpen) => {
+  if (isOpen) {
+    const now = new Date()
+    title.value = ''
+    description.value = ''
+    selectedDate.value = parseDate(now.toISOString().split('T')[0])
+    startTime.value = new Time(now.getHours(), now.getMinutes())
+
+    const oneHourLater = new Date(now.getTime() + 60 * 60 * 1000)
+    endTime.value = new Time(oneHourLater.getHours(), oneHourLater.getMinutes())
+  }
 })
 
 function getIsoDateTime(date: CalendarDate, time: Time): string {
   const d = date.toDate(getLocalTimeZone())
-  d.setHours(time.hour, time.minute, 0, 0)
+  d.setHours(
+    time.hour,
+    time.minute,
+    0,
+    0,
+  )
   const offset = d.getTimezoneOffset()
   const localTime = new Date(d.getTime() - offset * 60 * 1000)
+
   return localTime.toISOString()
 }
-
 function handleSave() {
   if (props.isLoading || !title.value.trim())
     return
@@ -62,28 +79,12 @@ function handleSave() {
 
   emit('create', payload)
 }
-
 function handleUpdateVisible(value: boolean) {
   if (props.isLoading && !value)
     return
+
   visible.value = value
 }
-
-watch(
-  () => visible.value,
-  (isOpen) => {
-    if (isOpen) {
-      const now = new Date()
-      title.value = ''
-      description.value = ''
-      selectedDate.value = parseDate(now.toISOString().split('T')[0])
-      startTime.value = new Time(now.getHours(), now.getMinutes())
-
-      const oneHourLater = new Date(now.getTime() + 60 * 60 * 1000)
-      endTime.value = new Time(oneHourLater.getHours(), oneHourLater.getMinutes())
-    }
-  },
-)
 </script>
 
 <template>

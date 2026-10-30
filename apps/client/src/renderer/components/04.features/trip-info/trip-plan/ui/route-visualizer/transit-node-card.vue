@@ -45,6 +45,7 @@ const tagColor = computed(() => {
   if (props.activity.tag && solidTagColors[props.activity.tag]) {
     return solidTagColors[props.activity.tag]
   }
+
   return '#64748B'
 })
 
@@ -59,6 +60,7 @@ const displayIcon = computed(() => {
   if (props.activity.tag && activityTagIcons[props.activity.tag]) {
     return activityTagIcons[props.activity.tag]
   }
+
   return 'mdi:map-marker'
 })
 
@@ -68,29 +70,31 @@ const durationMinutes = computed(() => {
 
 const formattedDuration = computed(() => {
   const dur = durationMinutes.value
+
   if (dur < 60)
     return `${dur}м`
+
   const hours = Math.floor(dur / 60)
   const mins = dur % 60
+
   return mins > 0 ? `${hours}ч ${mins}м` : `${hours}ч`
 })
 
 const metroRides = computed(() => {
-  const metroSection = props.activity.sections?.find(
-    s => s.type === EActivitySectionType.METRO,
-  ) as ActivitySectionMetro | undefined
+  const metroSection = props.activity.sections?.find(s => s.type === EActivitySectionType.METRO) as ActivitySectionMetro | undefined
+
   return metroSection?.rides || []
 })
 
 const busRides = computed(() => {
-  const busSection = props.activity.sections?.find(
-    s => s.type === EActivitySectionType.BUS,
-  ) as ActivitySectionBus | undefined
+  const busSection = props.activity.sections?.find(s => s.type === EActivitySectionType.BUS) as ActivitySectionBus | undefined
+
   return busSection?.rides || []
 })
 
 function handleCardClick(e: MouseEvent) {
   e.stopPropagation()
+
   if (props.isEditMode) {
     emit('edit', props.activity)
   }
@@ -169,10 +173,20 @@ function handleCardClick(e: MouseEvent) {
         <button class="edit-btn" title="Редактировать" @click.stop="emit('edit', activity)">
           <Icon icon="mdi:pencil" />
         </button>
-        <button class="edit-btn" :disabled="isFirst" title="Назад" @click.stop="emit('moveUp')">
+        <button
+          class="edit-btn"
+          :disabled="isFirst"
+          title="Назад"
+          @click.stop="emit('moveUp')"
+        >
           <Icon icon="mdi:arrow-left" />
         </button>
-        <button class="edit-btn" :disabled="isLast" title="Вперед" @click.stop="emit('moveDown')">
+        <button
+          class="edit-btn"
+          :disabled="isLast"
+          title="Вперед"
+          @click.stop="emit('moveDown')"
+        >
           <Icon icon="mdi:arrow-right" />
         </button>
         <button class="edit-btn delete" title="Удалить" @click.stop="emit('delete', activity.id)">

@@ -20,7 +20,6 @@ interface IProps {
 const props = withDefaults(defineProps<IProps>(), {
   zoom: 10,
 })
-
 const emit = defineEmits<{
   (e: 'switchToList'): void
   (e: 'mapClick', coords: [number, number]): void
@@ -28,41 +27,11 @@ const emit = defineEmits<{
   (e: 'boundsChange', bounds: MapBounds): void
   (e: 'focusItem', coords: [number, number]): void
 }>()
-
 const dateRange = defineModel<DateRange>('dateRange', { required: true })
-const hoverPopupRef = ref<HTMLElement | null>(null)
 
 const isMobileScreen = useMediaQuery('(max-width: 640px)')
-const isMobileSidebarOpen = ref(false)
 
-const sidebarWidth = ref(360)
-const isResizing = ref(false)
-const minWidth = 260
-const maxWidth = 600
-const sidebarLeftOffset = 16
-
-function startResize() {
-  isResizing.value = true
-  document.addEventListener('mousemove', onResize)
-  document.addEventListener('mouseup', stopResize)
-  document.body.style.cursor = 'col-resize'
-  document.body.style.userSelect = 'none'
-}
-
-function onResize(e: MouseEvent) {
-  if (!isResizing.value)
-    return
-  const newWidth = e.clientX - sidebarLeftOffset
-  sidebarWidth.value = Math.max(minWidth, Math.min(maxWidth, newWidth))
-}
-
-function stopResize() {
-  isResizing.value = false
-  document.removeEventListener('mousemove', onResize)
-  document.removeEventListener('mouseup', stopResize)
-  document.body.style.cursor = ''
-  document.body.style.userSelect = ''
-}
+const hoverPopupRef = ref<HTMLElement | null>(null)
 
 const {
   hoveredActivity,
@@ -75,6 +44,36 @@ const {
   markers: toRef(props, 'markers'),
 })
 
+const isMobileSidebarOpen = ref(false)
+const sidebarWidth = ref(360)
+const isResizing = ref(false)
+const minWidth = 260
+const maxWidth = 600
+const sidebarLeftOffset = 16
+
+const controlsLeftPosition = computed(() => isMobileScreen.value ? '16px' : `${sidebarWidth.value + 32}px`)
+
+function startResize() {
+  isResizing.value = true
+  document.addEventListener('mousemove', onResize)
+  document.addEventListener('mouseup', stopResize)
+  document.body.style.cursor = 'col-resize'
+  document.body.style.userSelect = 'none'
+}
+function onResize(e: MouseEvent) {
+  if (!isResizing.value)
+    return
+
+  const newWidth = e.clientX - sidebarLeftOffset
+  sidebarWidth.value = Math.max(minWidth, Math.min(maxWidth, newWidth))
+}
+function stopResize() {
+  isResizing.value = false
+  document.removeEventListener('mousemove', onResize)
+  document.removeEventListener('mouseup', stopResize)
+  document.body.style.cursor = ''
+  document.body.style.userSelect = ''
+}
 function onMapReady(map: MapLibreMap) {
   initializeInteractions(map)
 
@@ -88,7 +87,6 @@ function onMapReady(map: MapLibreMap) {
 
   updateBoundsAndFetch(map)
 }
-
 function updateBoundsAndFetch(map: MapLibreMap) {
   const bounds = map.getBounds()
   const center = map.getCenter()
@@ -105,13 +103,10 @@ function updateBoundsAndFetch(map: MapLibreMap) {
 
   emit('boundsChange', mapBounds)
 }
-
 function handleSidebarItemClick(act: ActivityItem) {
   focusOnLocation(act.coords)
   emit('focusItem', act.coords)
 }
-
-const controlsLeftPosition = computed(() => isMobileScreen.value ? '16px' : `${sidebarWidth.value + 32}px`)
 </script>
 
 <template>
@@ -175,7 +170,12 @@ const controlsLeftPosition = computed(() => isMobileScreen.value ? '16px' : `${s
     />
 
     <div class="floating-controls" :style="{ left: controlsLeftPosition }">
-      <KitBtn icon="mdi:format-list-bulleted" variant="tonal" class="glass-btn" @click="emit('switchToList')">
+      <KitBtn
+        icon="mdi:format-list-bulleted"
+        variant="tonal"
+        class="glass-btn"
+        @click="emit('switchToList')"
+      >
         Список
       </KitBtn>
       <KitBtn

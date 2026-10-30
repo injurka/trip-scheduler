@@ -34,7 +34,12 @@ const emit = defineEmits<{
         @update:model-value="val => emit('update:searchQuery', String(val ?? ''))"
       >
         <template #prepend>
-          <Icon icon="mdi:magnify" width="16" height="16" class="search-icon" />
+          <Icon
+            icon="mdi:magnify"
+            width="16"
+            height="16"
+            class="search-icon"
+          />
         </template>
       </KitInput>
     </div>
@@ -56,7 +61,12 @@ const emit = defineEmits<{
         :class="{ 'is-active': selectedCategory === cat.id }"
         @click="emit('update:selectedCategory', cat.id)"
       >
-        <Icon :icon="cat.icon" width="14" height="14" :style="{ color: cat.color }" />
+        <Icon
+          :icon="cat.icon"
+          width="14"
+          height="14"
+          :style="{ color: cat.color }"
+        />
         <span>{{ cat.label }}</span>
         <span v-if="(categoryCounts.get(cat.id) || 0) > 0" class="chip-count">
           {{ categoryCounts.get(cat.id) }}

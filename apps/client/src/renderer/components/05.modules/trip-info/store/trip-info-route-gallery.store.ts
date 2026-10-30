@@ -41,6 +41,7 @@ export const useTripInfoGalleryStore = defineStore('tripInfoRouteGallery', {
     async fetchTripImages() {
       if (!this.currentTripId) {
         console.error('Trip ID не установлен для загрузки изображений.')
+
         return
       }
 
@@ -65,6 +66,7 @@ export const useTripInfoGalleryStore = defineStore('tripInfoRouteGallery', {
     async uploadImage(file: File): Promise<TripMedia | null> {
       if (!this.currentTripId) {
         console.error('Trip ID не установлен для загрузки изображения.')
+
         return null
       }
 

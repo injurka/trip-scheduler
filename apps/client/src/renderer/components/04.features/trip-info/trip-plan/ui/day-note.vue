@@ -8,16 +8,24 @@ import { lazyComponent } from '~/shared/lib/lazy-component'
 import { trpc } from '~/shared/services/trpc/trpc.service'
 import LlmCanvasAssistant from './llm-canvas-assistant.vue'
 
-const KitInlineMdEditorWrapper = lazyComponent(
-  () => import('~/components/01.kit/kit-inline-md-editor').then(module => module.KitInlineMdEditorWrapper),
-)
-
 const { ui, plan } = useModuleStore(['ui', 'plan'])
+
+const KitInlineMdEditorWrapper = lazyComponent(() => import('~/components/01.kit/kit-inline-md-editor').then(module => module.KitInlineMdEditorWrapper))
 const { isViewMode } = storeToRefs(ui)
 const { getSelectedDay, isLoadingUpdateNote, isLoadingNote } = storeToRefs(plan)
 
+const saveToDb = useDebounceFn((val: string) => {
+  if (!getSelectedDay.value)
+    return
+
+  plan.updateDayNote(getSelectedDay.value.id, val)
+}, 1000)
+
 const noteContent = ref('')
 const isInitialized = ref(false)
+const assistantRef = ref<InstanceType<typeof LlmCanvasAssistant> | null>(null)
+const generatedDraft = ref<string | null>(null)
+const isGeneratingDraft = ref(false)
 
 watch(getSelectedDay, async (newDay) => {
   if (!newDay)
@@ -26,6 +34,7 @@ watch(getSelectedDay, async (newDay) => {
   isInitialized.value = false
 
   const cachedNote = plan.getNoteForCurrentDay
+
   if (cachedNote !== null) {
     noteContent.value = cachedNote
   }
@@ -39,12 +48,6 @@ watch(getSelectedDay, async (newDay) => {
   isInitialized.value = true
 }, { immediate: true })
 
-const saveToDb = useDebounceFn((val: string) => {
-  if (!getSelectedDay.value)
-    return
-  plan.updateDayNote(getSelectedDay.value.id, val)
-}, 1000)
-
 function onContentUpdate(val: string) {
   noteContent.value = val
 
@@ -52,14 +55,10 @@ function onContentUpdate(val: string) {
     saveToDb(val)
   }
 }
-
-const assistantRef = ref<InstanceType<typeof LlmCanvasAssistant> | null>(null)
-const generatedDraft = ref<string | null>(null)
-const isGeneratingDraft = ref(false)
-
 async function handleGenerate({ prompt, useDaysContext }: { prompt: string, useDaysContext: boolean }) {
   if (!getSelectedDay.value)
     return
+
   isGeneratingDraft.value = true
 
   try {
@@ -81,14 +80,13 @@ async function handleGenerate({ prompt, useDaysContext }: { prompt: string, useD
     assistantRef.value?.finishGeneration()
   }
 }
-
 function acceptDraft() {
   if (generatedDraft.value !== null) {
     onContentUpdate(generatedDraft.value)
   }
+
   generatedDraft.value = null
 }
-
 function discardDraft() {
   generatedDraft.value = null
 }
@@ -96,7 +94,12 @@ function discardDraft() {
 
 <template>
   <div class="day-note">
-    <LlmCanvasAssistant v-if="!isViewMode" ref="assistantRef" hide-canvas-ref @generate="handleGenerate" />
+    <LlmCanvasAssistant
+      v-if="!isViewMode"
+      ref="assistantRef"
+      hide-canvas-ref
+      @generate="handleGenerate"
+    />
 
     <div class="note-container" :class="{ 'is-draft': generatedDraft !== null }">
       <div class="status-bar">

@@ -3,19 +3,16 @@ import { Icon } from '@iconify/vue'
 import { KitMarkdownViewer } from '~/components/01.kit/kit-markdown-viewer'
 import { lazyComponent } from '~/shared/lib/lazy-component'
 
-defineProps<Props>()
-
-const KitInlineMdEditorWrapper = lazyComponent(
-  () => import('~/components/01.kit/kit-inline-md-editor').then(module => module.KitInlineMdEditorWrapper),
-)
-
 interface Props {
   label: string
   icon?: string
   readonly: boolean
 }
 
+defineProps<Props>()
 const modelValue = defineModel<string>()
+
+const KitInlineMdEditorWrapper = lazyComponent(() => import('~/components/01.kit/kit-inline-md-editor').then(module => module.KitInlineMdEditorWrapper))
 
 const internalModel = computed({
   get: () => modelValue.value ?? '',

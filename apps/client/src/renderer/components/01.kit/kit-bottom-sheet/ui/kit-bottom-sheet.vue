@@ -13,24 +13,21 @@ const props = withDefaults(defineProps<Props>(), {
   closeOnBackdrop: true,
   maxHeight: '85dvh',
 })
-
 const emit = defineEmits<{
   (e: 'update:modelValue', value: boolean): void
 }>()
-
-function close() {
-  emit('update:modelValue', false)
-}
 
 const startY = ref(0)
 const dragY = ref(0)
 const isDragging = ref(false)
 
+function close() {
+  emit('update:modelValue', false)
+}
 function onTouchStart(e: TouchEvent) {
   startY.value = e.touches[0].clientY
   isDragging.value = true
 }
-
 function onTouchMove(e: TouchEvent) {
   if (!isDragging.value)
     return
@@ -39,11 +36,11 @@ function onTouchMove(e: TouchEvent) {
   const delta = e.touches[0].clientY - startY.value
   dragY.value = Math.max(0, delta)
 }
-
 function onTouchEnd() {
   if (dragY.value > 120) {
     close()
   }
+
   dragY.value = 0
   isDragging.value = false
 }

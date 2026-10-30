@@ -46,8 +46,6 @@ const {
 
 const isAiCreatorViewOpen = ref(false)
 const isAddDialogOpen = ref(false)
-const timelineGroups = computed(() => groupTimelineBookings(allBookingsSorted.value))
-
 const cardComponents = {
   flight: FlightCard,
   hotel: HotelCard,
@@ -57,16 +55,16 @@ const cardComponents = {
   other: OtherCard,
 }
 
+const timelineGroups = computed(() => groupTimelineBookings(allBookingsSorted.value))
+
 function onAiSave(booking: Omit<Booking, 'id'>) {
   addCompletedBooking(booking)
   isAiCreatorViewOpen.value = false
 }
-
 function handleAddBooking(type: BookingType) {
   addBooking(type)
   isAddDialogOpen.value = false
 }
-
 function getCardComponent(type: Booking['type']) {
   return cardComponents[type]
 }
@@ -100,7 +98,12 @@ function getCardComponent(type: Booking['type']) {
       <KitTabs v-model="activeTab" :items="tabItems">
         <template #timeline>
           <div class="bookings-timeline">
-            <section v-for="group in timelineGroups" :key="group.key" class="timeline-day" :aria-label="group.label">
+            <section
+              v-for="group in timelineGroups"
+              :key="group.key"
+              class="timeline-day"
+              :aria-label="group.label"
+            >
               <header class="timeline-date">
                 <span class="timeline-date-marker"><Icon :icon="group.date ? 'mdi:calendar-outline' : 'mdi:calendar-question'" /></span>
                 <div class="timeline-date-text">

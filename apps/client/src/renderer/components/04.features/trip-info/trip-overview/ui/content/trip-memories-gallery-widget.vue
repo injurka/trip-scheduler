@@ -9,8 +9,7 @@ const { memories } = storeToRefs(store.memories)
 
 const photoMemories = computed(() =>
   memories.value.filter(m => !!m.imageId)
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()),
-)
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()))
 
 const previewImages = computed(() => photoMemories.value.slice(0, 4))
 const totalCount = computed(() => photoMemories.value.length)

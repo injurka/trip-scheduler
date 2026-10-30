@@ -72,46 +72,14 @@ const {
   isAddingFolder,
   resetFilters,
 } = useDocumentsSection(props, emit)
-
-const dropZoneRef = ref<HTMLElement>()
-
-// Диалог редактирования документа
-const editDialogVisible = ref(false)
-const editingDocument = ref<DocumentFile | null>(null)
-
-// Диалог встроенного предпросмотра
-const previewDialogVisible = ref(false)
-const previewDocument = ref<DocumentFile | null>(null)
-
 // Просмотрщик картинок KitImageViewer
 const imageViewer = useImageViewer()
-
-const imageDocuments = computed(() => {
-  return filteredDocuments.value.filter((d) => {
-    const ext = d.url.split('.').pop()?.toLowerCase().split('?')[0] || ''
-    return ['jpg', 'jpeg', 'png', 'gif', 'webp', 'avif', 'heic'].includes(ext)
-  })
-})
-
-const viewerImages = computed(() => {
-  return imageDocuments.value.map(d => ({
-    url: d.url,
-    alt: d.title || d.originalName,
-    meta: { imageId: d.id },
-  }))
-})
-
 // Загрузка через системный диалог выбора файлов
 const { open: openFileDialog, onChange: onFileChange, reset: resetFileDialog } = useFileDialog({
   multiple: true,
 })
 
-onFileChange((files) => {
-  if (files && files.length > 0) {
-    uploadFiles([...files], currentFolderId.value, 'private')
-    resetFileDialog()
-  }
-})
+const dropZoneRef = ref<HTMLElement>()
 
 // Перетаскивание файлов в основную область
 const { isOverDropZone } = useDropZone(dropZoneRef, {
@@ -122,14 +90,38 @@ const { isOverDropZone } = useDropZone(dropZoneRef, {
   },
 })
 
+// Диалог редактирования документа
+const editDialogVisible = ref(false)
+const editingDocument = ref<DocumentFile | null>(null)
+// Диалог встроенного предпросмотра
+const previewDialogVisible = ref(false)
+const previewDocument = ref<DocumentFile | null>(null)
+
+const imageDocuments = computed(() => {
+  return filteredDocuments.value.filter((d) => {
+    const ext = d.url.split('.').pop()?.toLowerCase().split('?')[0] || ''
+
+    return ['jpg', 'jpeg', 'png', 'gif', 'webp', 'avif', 'heic'].includes(ext)
+  })
+})
+const viewerImages = computed(() => {
+  return imageDocuments.value.map(d => ({
+    url: d.url,
+    alt: d.title || d.originalName,
+    meta: { imageId: d.id },
+  }))
+})
+
 function handleOpenPreview(doc: DocumentFile) {
   const ext = doc.url.split('.').pop()?.toLowerCase().split('?')[0] || ''
   const isImg = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'avif', 'heic'].includes(ext)
 
   if (isImg) {
     const index = viewerImages.value.findIndex(img => img.meta.imageId === doc.id)
+
     if (index !== -1) {
       imageViewer.open(viewerImages.value, index)
+
       return
     }
   }
@@ -137,11 +129,17 @@ function handleOpenPreview(doc: DocumentFile) {
   previewDocument.value = doc
   previewDialogVisible.value = true
 }
-
 function handleOpenEdit(doc: DocumentFile) {
   editingDocument.value = { ...doc }
   editDialogVisible.value = true
 }
+
+onFileChange((files) => {
+  if (files && files.length > 0) {
+    uploadFiles([...files], currentFolderId.value, 'private')
+    resetFileDialog()
+  }
+})
 </script>
 
 <template>
@@ -277,7 +275,12 @@ function handleOpenEdit(doc: DocumentFile) {
             v-else-if="searchQuery.trim() || selectedCategory !== 'all' || onlyFavorites"
             class="filter-empty-state"
           >
-            <Icon icon="mdi:file-search-outline" width="48" height="48" class="empty-icon" />
+            <Icon
+              icon="mdi:file-search-outline"
+              width="48"
+              height="48"
+              class="empty-icon"
+            />
             <h4>Ничего не найдено</h4>
             <p>Попробуйте изменить поисковый запрос или сбросить активные фильтры</p>
             <KitBtn variant="outlined" size="sm" @click="resetFilters">
@@ -287,7 +290,12 @@ function handleOpenEdit(doc: DocumentFile) {
 
           <!-- Папка пуста -->
           <div v-else-if="currentFolderId" class="empty-folder-state">
-            <Icon icon="mdi:folder-open-outline" width="48" height="48" class="empty-icon" />
+            <Icon
+              icon="mdi:folder-open-outline"
+              width="48"
+              height="48"
+              class="empty-icon"
+            />
             <h4>Папка пуста</h4>
             <p v-if="!readonly">
               Перетащите файлы сюда или нажмите «Загрузить»
@@ -295,7 +303,12 @@ function handleOpenEdit(doc: DocumentFile) {
             <p v-else>
               В этой папке пока нет файлов
             </p>
-            <KitBtn v-if="!readonly" size="sm" icon="mdi:cloud-upload-outline" @click="openFileDialog()">
+            <KitBtn
+              v-if="!readonly"
+              size="sm"
+              icon="mdi:cloud-upload-outline"
+              @click="openFileDialog()"
+            >
               Загрузить в эту папку
             </KitBtn>
           </div>

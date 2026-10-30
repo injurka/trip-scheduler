@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { KitInlineMdEditorWrapper } from '~/components/01.kit/kit-inline-md-editor'
 
-defineProps<{ content: string }>()
+interface Props { content: string }
+
+defineProps<Props>()
 </script>
 
 <template>

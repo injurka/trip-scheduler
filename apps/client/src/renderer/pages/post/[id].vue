@@ -12,12 +12,11 @@ const router = useRouter()
 const postStore = usePostStore()
 
 const id = route.params.id as string
-
 const post = ref<PostDetail | undefined>(postStore.getPostById(id))
 const isLoadingDetails = ref(false)
-const hasDetails = computed(() => !!post.value?.stages)
-
 const isMapPinned = ref(false)
+
+const hasDetails = computed(() => !!post.value?.stages)
 
 onMounted(async () => {
   isLoadingDetails.value = true

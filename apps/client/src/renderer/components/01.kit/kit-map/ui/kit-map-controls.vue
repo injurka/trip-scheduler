@@ -3,7 +3,6 @@ import type { Map as MapLibreMap } from 'maplibre-gl'
 import type { MapLayerOption } from '../models/types'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitDropdown } from '~/components/01.kit/kit-dropdown'
-
 import { CustomTileSettingsDialog } from '~/components/02.shared/custom-tile-settings-dialog'
 import { useAppSettingsStore } from '~/shared/store/app-settings.store'
 
@@ -16,7 +15,6 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {
   layers: () => [],
 })
-
 const emit = defineEmits<{
   (e: 'zoomIn'): void
   (e: 'zoomOut'): void
@@ -25,12 +23,8 @@ const emit = defineEmits<{
 }>()
 
 const appSettingsStore = useAppSettingsStore()
-const isTileSettingsOpen = ref(false)
 
-function handleTileApplied(sourceId: 'custom' | 'maptilerStreets') {
-  emit('update:activeLayerId', sourceId)
-  emit('tileSettingsApplied', sourceId)
-}
+const isTileSettingsOpen = ref(false)
 
 const dropDownLayers = computed(() => {
   return [
@@ -47,15 +41,23 @@ const dropDownLayers = computed(() => {
   ]
 })
 
+function handleTileApplied(sourceId: 'custom' | 'maptilerStreets') {
+  emit('update:activeLayerId', sourceId)
+  emit('tileSettingsApplied', sourceId)
+}
 function handleLayerSelect(val: any) {
   if (val === 'configure_custom') {
     isTileSettingsOpen.value = true
+
     return
   }
+
   if (val === 'custom' && !appSettingsStore.customTileUrl) {
     isTileSettingsOpen.value = true
+
     return
   }
+
   emit('update:activeLayerId', val as string)
 }
 </script>

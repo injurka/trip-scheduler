@@ -50,21 +50,515 @@ export interface IOfflineState {
 function extractUrlsFromMarkdown(text: string | null | undefined): string[] {
   if (!text)
     return []
+
   const urls: string[] = []
   const mdImgRegex = /!\[.*?\]\((https?:\/\/[^\s)]+|\/[^\s)]+)\)/g
   let match: RegExpExecArray | null
+
   // eslint-disable-next-line no-cond-assign
   while ((match = mdImgRegex.exec(text)) !== null) {
     if (match[1])
       urls.push(match[1])
   }
+
   const htmlImgRegex = /<img[^>]+src=["'](https?:\/\/[^"']+|\/[^"']+)["']/gi
+
   // eslint-disable-next-line no-cond-assign
   while ((match = htmlImgRegex.exec(text)) !== null) {
     if (match[1])
       urls.push(match[1])
   }
+
   return urls
+}
+
+function addOfflineUrl(urls: Set<string>, url: string | null | undefined) {
+  if (!url || url.startsWith('blob:') || url.startsWith('data:') || url.includes('/memories/'))
+    return
+
+  urls.add(url)
+}
+
+function addMarkdownUrls(urls: Set<string>, text: string | null | undefined) {
+  extractUrlsFromMarkdown(text).forEach(url => addOfflineUrl(urls, url))
+}
+
+function collectDescriptionMediaUrls(trip: TripWithDays, urls: Set<string>) {
+  addOfflineUrl(urls, trip.imageUrl)
+  trip.participants?.forEach(participant => addOfflineUrl(urls, participant.avatarUrl))
+  addMarkdownUrls(urls, trip.description)
+  addMarkdownUrls(urls, trip.descriptionShort)
+}
+
+function collectNoteMediaUrls(notes: TripNote[], urls: Set<string>) {
+  notes.forEach((note) => {
+    note.images?.forEach((image) => {
+      if (image.sources)
+        Object.values(image.sources).forEach(url => addOfflineUrl(urls, url))
+    })
+
+    addMarkdownUrls(urls, note.content)
+  })
+}
+
+function collectDocumentSectionUrls(section: any, urls: Set<string>) {
+  if (section.type === 'documents' && Array.isArray(section.content?.documents))
+    section.content.documents.forEach((doc: any) => addOfflineUrl(urls, doc.url))
+
+  if (section.type === 'bookings' && Array.isArray(section.content?.bookings)) {
+    section.content.bookings.forEach((booking: any) => {
+      addOfflineUrl(urls, booking.attachmentUrl)
+      addOfflineUrl(urls, booking.ticketUrl)
+      addOfflineUrl(urls, booking.fileUrl)
+    })
+  }
+}
+
+function collectMediaSectionUrls(section: any, urls: Set<string>) {
+  if (section.type === 'gallery' && Array.isArray(section.content?.imageUrls))
+    section.content.imageUrls.forEach((url: string) => addOfflineUrl(urls, url))
+
+  if (typeof section.content?.markdown === 'string')
+    addMarkdownUrls(urls, section.content.markdown)
+
+  if (typeof section.content?.text === 'string')
+    addMarkdownUrls(urls, section.content.text)
+}
+
+function collectSectionUrls(
+  section: any,
+  includeMedia: boolean,
+  includeDocuments: boolean,
+  urls: Set<string>,
+) {
+  if (includeDocuments)
+    collectDocumentSectionUrls(section, urls)
+
+  if (includeMedia)
+    collectMediaSectionUrls(section, urls)
+}
+
+function collectActivitySectionUrls(section: any, urls: Set<string>) {
+  if (section.type === 'gallery') {
+    if (Array.isArray(section.imageUrls))
+      section.imageUrls.forEach((url: string) => addOfflineUrl(urls, url))
+
+    if (Array.isArray(section.content?.imageUrls))
+      section.content.imageUrls.forEach((url: string) => addOfflineUrl(urls, url))
+  }
+
+  if (section.type === 'geolocation' && Array.isArray(section.points)) {
+    section.points.forEach((point: any) => {
+      addOfflineUrl(urls, point.imageUrl)
+      addOfflineUrl(urls, point.style?.iconUrl)
+    })
+  }
+
+  if (section.type === 'description' && section.text)
+    addMarkdownUrls(urls, section.text)
+}
+
+function collectTripDayUrls(trip: TripWithDays, urls: Set<string>) {
+  trip.days?.forEach((day) => {
+    addMarkdownUrls(urls, day.description)
+    addMarkdownUrls(urls, day.note)
+
+    day.activities?.forEach((activity) => {
+      addMarkdownUrls(urls, activity.explanation)
+      activity.sections?.forEach(section => collectActivitySectionUrls(section, urls))
+    })
+  })
+}
+
+function collectOfflineUrls(
+  trip: TripWithDays,
+  options: Required<OfflineDownloadOptions>,
+  notes: TripNote[],
+  documents: TripDocumentResponse[],
+): Set<string> {
+  const urls = new Set<string>()
+
+  if (options.includeMedia)
+    collectDescriptionMediaUrls(trip, urls)
+
+  if (options.includeNotes && options.includeMedia)
+    collectNoteMediaUrls(notes, urls)
+
+  if (options.includeDocuments)
+    documents.forEach(document => addOfflineUrl(urls, document.url))
+
+  trip.sections?.forEach(section => collectSectionUrls(
+    section,
+    options.includeMedia,
+    options.includeDocuments,
+    urls,
+  ))
+
+  if (options.includeMedia)
+    collectTripDayUrls(trip, urls)
+
+  return urls
+}
+
+function getTripMapTileUrls(trip: TripWithDays, includeMapTiles: boolean): string[] {
+  if (!includeMapTiles)
+    return []
+
+  const bounds = calculateTripBoundingBox(trip)
+
+  if (!bounds)
+    return []
+
+  const tiles = getTilesForBBox(
+    bounds,
+    10,
+    15,
+    450,
+  )
+
+  if (MAPTILER_KEY) {
+    const urls = [
+      `https://api.maptiler.com/maps/streets-v4/style.json?key=${MAPTILER_KEY}`,
+      `https://api.maptiler.com/maps/outdoor-v4/style.json?key=${MAPTILER_KEY}`,
+    ]
+
+    tiles.forEach(({ z, x, y }) => {
+      urls.push(`https://api.maptiler.com/maps/streets-v4/${z}/${x}/${y}.pbf?key=${MAPTILER_KEY}`)
+      urls.push(`https://api.maptiler.com/maps/outdoor-v4/${z}/${x}/${y}.pbf?key=${MAPTILER_KEY}`)
+    })
+
+    return urls
+  }
+
+  return tiles.map(({ z, x, y }) => `https://a.tile.openstreetmap.org/${z}/${x}/${y}.png`)
+}
+
+interface OfflineMetadataResult {
+  notes: TripNote[]
+  notesFetchSuccess: boolean
+  documents: TripDocumentResponse[]
+  documentsFetchSuccess: boolean
+  failureCount: number
+}
+
+async function fetchOfflineMetadata(tripId: string, options: Required<OfflineDownloadOptions>): Promise<OfflineMetadataResult> {
+  const [notesResult, documentsResult] = await Promise.all([
+    options.includeNotes ? fetchOfflineNotes(tripId) : Promise.resolve({ items: [], success: false, failed: 0 }),
+    options.includeDocuments ? fetchOfflineDocuments(tripId) : Promise.resolve({ items: [], success: false, failed: 0 }),
+  ])
+
+  return {
+    notes: notesResult.items,
+    notesFetchSuccess: notesResult.success,
+    documents: documentsResult.items,
+    documentsFetchSuccess: documentsResult.success,
+    failureCount: notesResult.failed + documentsResult.failed,
+  }
+}
+
+async function fetchOfflineNotes(tripId: string) {
+  try {
+    const notes: unknown = await trpc.note.getByTripId.query({ tripId })
+
+    if (Array.isArray(notes))
+      return { items: notes as TripNote[], success: true, failed: 0 }
+
+    console.warn('[Offline] Не удалось загрузить свежие заметки: некорректный ответ')
+
+    return { items: [] as TripNote[], success: false, failed: 1 }
+  }
+  catch (error) {
+    console.warn('[Offline] Не удалось загрузить свежие заметки:', error)
+
+    return { items: [] as TripNote[], success: false, failed: 1 }
+  }
+}
+
+async function fetchOfflineDocuments(tripId: string) {
+  try {
+    const documents: unknown = await trpc.image.listDocuments.query({ tripId })
+
+    if (Array.isArray(documents))
+      return { items: documents as unknown as TripDocumentResponse[], success: true, failed: 0 }
+
+    console.warn('[Offline] Не удалось загрузить свежие документы: некорректный ответ')
+
+    return { items: [] as TripDocumentResponse[], success: false, failed: 1 }
+  }
+  catch (error) {
+    console.warn('[Offline] Не удалось загрузить свежие документы:', error)
+
+    return { items: [] as TripDocumentResponse[], success: false, failed: 1 }
+  }
+}
+
+async function fetchOfflineMediaResponse(url: string): Promise<Response | null> {
+  try {
+    return await fetch(url, { mode: 'cors', cache: 'reload' })
+  }
+  catch {
+    try {
+      return await fetch(url, { mode: 'no-cors', cache: 'reload' })
+    }
+    catch {
+      return null
+    }
+  }
+}
+
+async function cacheOfflineUrl(cache: Cache, rawUrl: string): Promise<boolean> {
+  const url = resolveApiUrl(rawUrl)
+  const urlWithoutToken = stripAuthTokenFromUrl(url)
+
+  try {
+    const cached = await cache.match(url)
+      || (urlWithoutToken ? await cache.match(urlWithoutToken) : null)
+
+    if (cached)
+      return true
+
+    const response = await fetchOfflineMediaResponse(url)
+
+    if (!response || (!response.ok && response.type !== 'opaque'))
+      return false
+
+    await cache.put(url, response.clone())
+
+    if (urlWithoutToken && urlWithoutToken !== url)
+      await cache.put(urlWithoutToken, response.clone())
+
+    return true
+  }
+  catch (error) {
+    console.warn(`[Offline] Ошибка кэширования: ${url}`, error)
+
+    return false
+  }
+}
+
+interface CacheResult {
+  loadedCount: number
+  failedCount: number
+}
+
+async function cacheOfflineMediaUrls(urls: string[], onProgress: (loadedCount: number) => void): Promise<CacheResult> {
+  let loadedCount = 0
+  let failedCount = 0
+
+  try {
+    if (typeof caches === 'undefined')
+      throw new Error('Cache Storage API недоступен')
+
+    const cache = await caches.open(OFFLINE_MEDIA_CACHE_NAME)
+
+    for (let offset = 0; offset < urls.length; offset += 4) {
+      const results = await Promise.all(urls.slice(offset, offset + 4).map(url => cacheOfflineUrl(cache, url)))
+
+      results.forEach((success) => {
+        if (!success)
+          failedCount++
+
+        loadedCount++
+        onProgress(loadedCount)
+      })
+    }
+  }
+  catch (error) {
+    console.warn('[Offline] caches API error:', error)
+    const remaining = urls.length - loadedCount
+    failedCount += remaining
+    loadedCount += remaining
+
+    if (remaining > 0)
+      onProgress(loadedCount)
+  }
+
+  return { loadedCount, failedCount }
+}
+
+async function cacheMapTiles(
+  tripId: string,
+  tileUrls: string[],
+  mediaCount: number,
+  totalCount: number,
+  state: IOfflineState,
+): Promise<{ failedCount: number, successCount: number }> {
+  try {
+    return await mapTileCacheManager.precacheUrls(tileUrls, (loaded) => {
+      const currentLoaded = mediaCount + loaded
+      const progress = Math.min(100, Math.round((currentLoaded / totalCount) * 100))
+      state.downloadProgress[tripId] = progress
+      state.downloadStatus[tripId] = {
+        progress,
+        total: totalCount,
+        loaded: currentLoaded,
+        stage: 'caching',
+        statusText: `Кэширование тайлов карты (${loaded}/${tileUrls.length})...`,
+      }
+    })
+  }
+  catch (error) {
+    console.warn('[Offline] Не удалось сохранить тайлы карты:', error)
+    const currentLoaded = mediaCount + tileUrls.length
+    const progress = Math.min(100, Math.round((currentLoaded / totalCount) * 100))
+    state.downloadProgress[tripId] = progress
+    state.downloadStatus[tripId] = {
+      progress,
+      total: totalCount,
+      loaded: currentLoaded,
+      stage: 'caching',
+      statusText: `Кэширование тайлов карты (${tileUrls.length}/${tileUrls.length})...`,
+    }
+
+    return { failedCount: tileUrls.length, successCount: 0 }
+  }
+}
+
+function normalizeDownloadOptions(options?: OfflineDownloadOptions): Required<OfflineDownloadOptions> {
+  return {
+    includeMedia: options?.includeMedia ?? true,
+    includeNotes: options?.includeNotes ?? true,
+    includeDocuments: options?.includeDocuments ?? true,
+    includeMapTiles: options?.includeMapTiles ?? false,
+  }
+}
+
+function setInitialDownloadStatus(state: IOfflineState, tripId: string) {
+  state.isDownloading[tripId] = true
+  state.downloadProgress[tripId] = 0
+  state.downloadStatus[tripId] = {
+    progress: 0,
+    total: 0,
+    loaded: 0,
+    stage: 'fetching',
+    statusText: 'Подготовка данных и загрузка заметок...',
+  }
+}
+
+function setInitialCacheStatus(state: IOfflineState, tripId: string, totalCount: number) {
+  if (totalCount === 0) {
+    state.downloadProgress[tripId] = 100
+    state.downloadStatus[tripId] = {
+      progress: 100,
+      total: 0,
+      loaded: 0,
+      stage: 'completed',
+      statusText: 'Все данные сохранены!',
+    }
+
+    return
+  }
+
+  state.downloadStatus[tripId] = {
+    progress: 0,
+    total: totalCount,
+    loaded: 0,
+    stage: 'caching',
+    statusText: `Кэширование файлов (0/${totalCount})...`,
+  }
+}
+
+function updateMediaCacheProgress(
+  state: IOfflineState,
+  tripId: string,
+  totalCount: number,
+  loaded: number,
+) {
+  const progress = Math.min(100, Math.round((loaded / totalCount) * 100))
+  state.downloadProgress[tripId] = progress
+  state.downloadStatus[tripId] = {
+    progress,
+    total: totalCount,
+    loaded,
+    stage: 'caching',
+    statusText: `Кэширование файлов (${loaded}/${totalCount})...`,
+  }
+}
+
+function getDocumentsToSave(current: OfflineTripEntry | undefined, options: Required<OfflineDownloadOptions>, metadata: OfflineMetadataResult): TripDocumentResponse[] {
+  if (options.includeDocuments && metadata.documentsFetchSuccess)
+    return metadata.documents
+
+  return current?.documents ?? []
+}
+
+function getNotesToSave(current: OfflineTripEntry | undefined, options: Required<OfflineDownloadOptions>, metadata: OfflineMetadataResult): TripNote[] {
+  if (options.includeNotes && metadata.notesFetchSuccess)
+    return metadata.notes
+
+  return current?.notes ?? []
+}
+
+function shouldIncludeOfflineTiles(
+  current: OfflineTripEntry | undefined,
+  options: Required<OfflineDownloadOptions>,
+  tileCount: number,
+  tileSuccesses: number,
+  tileFailures: number,
+): boolean {
+  if (!options.includeMapTiles)
+    return current?.includesTiles ?? false
+
+  const tilesSuccessfullyCached = tileCount > 0 && tileSuccesses > 0
+
+  return tilesSuccessfullyCached || Boolean(current?.includesTiles && tileFailures === 0)
+}
+
+function createOfflineTripEntry(
+  trip: TripWithDays,
+  current: OfflineTripEntry | undefined,
+  documents: TripDocumentResponse[],
+  notes: TripNote[],
+  mediaCount: number,
+  includesTiles: boolean,
+): OfflineTripEntry {
+  return {
+    ...current,
+    payloadSchemaVersion: 2,
+    id: trip.id,
+    title: trip.title,
+    savedAt: Date.now(),
+    imageCount: mediaCount,
+    data: JSON.parse(JSON.stringify(trip)),
+    notes,
+    documents,
+    includesTiles,
+  }
+}
+
+function setOfflineSaveCompletion(
+  state: IOfflineState,
+  trip: TripWithDays,
+  totalCount: number,
+  failedCount: number,
+  metadataFailureCount: number,
+  toast: ReturnType<typeof useToast>,
+) {
+  state.downloadProgress[trip.id] = 100
+
+  if (failedCount > 0 || metadataFailureCount > 0) {
+    const totalFailures = failedCount + metadataFailureCount
+    const successCount = Math.max(0, totalCount - failedCount)
+    state.downloadStatus[trip.id] = {
+      progress: 100,
+      total: totalCount,
+      loaded: successCount,
+      stage: 'completed',
+      statusText: `Сохранено с предупреждением (${totalFailures} элементов недоступно)`,
+    }
+    toast.warn(`Путешествие сохранено не полностью: недоступно элементов — ${totalFailures}.`)
+
+    return
+  }
+
+  state.downloadStatus[trip.id] = {
+    progress: 100,
+    total: totalCount,
+    loaded: totalCount,
+    stage: 'completed',
+    statusText: 'Все данные успешно сохранены!',
+  }
+  toast.success(`Путешествие "${trip.title}" сохранено оффлайн!`)
 }
 
 export const useOfflineStore = defineStore('offline', {
@@ -96,6 +590,7 @@ export const useOfflineStore = defineStore('offline', {
     async initStorage() {
       if (this.isInitialized)
         return
+
       try {
         const trips = await offlineStorageService.loadAllTrips()
         this.savedTrips = Object.fromEntries(Object.entries(trips).map(([id, entry]) => [id, {
@@ -118,12 +613,16 @@ export const useOfflineStore = defineStore('offline', {
         return
 
       const toast = useToast()
+
       try {
         const tripData = await trpc.trip.getByIdWithDays.query({ tripId })
+
         if (!tripData) {
           toast.error('Не удалось загрузить данные путешествия для оффлайн сохранения.')
+
           return
         }
+
         await this.saveTripForOffline(tripData as unknown as TripWithDays, options)
       }
       catch (e) {
@@ -136,432 +635,88 @@ export const useOfflineStore = defineStore('offline', {
       if (this.isDownloading[trip.id])
         return
 
-      const downloadOpts: Required<OfflineDownloadOptions> = {
-        includeMedia: options?.includeMedia ?? true,
-        includeNotes: options?.includeNotes ?? true,
-        includeDocuments: options?.includeDocuments ?? true,
-        includeMapTiles: options?.includeMapTiles ?? false,
-      }
-
-      this.isDownloading[trip.id] = true
-      this.downloadProgress[trip.id] = 0
-      this.downloadStatus[trip.id] = {
-        progress: 0,
-        total: 0,
-        loaded: 0,
-        stage: 'fetching',
-        statusText: 'Подготовка данных и загрузка заметок...',
-      }
+      const downloadOpts = normalizeDownloadOptions(options)
+      setInitialDownloadStatus(this, trip.id)
       const toast = useToast()
 
       try {
-        const urlsToCache = new Set<string>()
-
-        const addUrl = (url: string | null | undefined) => {
-          if (!url)
-            return
-          if (url.startsWith('blob:') || url.startsWith('data:'))
-            return
-          if (url.includes('/memories/'))
-            return
-          urlsToCache.add(url)
-        }
-
-        if (downloadOpts.includeMedia) {
-          // Обложка путешествия
-          addUrl(trip.imageUrl)
-
-          // Аватары участников
-          trip.participants?.forEach((p) => {
-            if (p.avatarUrl)
-              addUrl(p.avatarUrl)
-          })
-
-          // Markdown в описаниях путешествия
-          extractUrlsFromMarkdown(trip.description).forEach(addUrl)
-          extractUrlsFromMarkdown(trip.descriptionShort).forEach(addUrl)
-        }
-
-        // 1. Загрузка заметок (Notes)
-        let loadedNotes: TripNote[] = []
-        let notesFetchSuccess = false
-        // 2. Загрузка документов (Documents)
-        let loadedDocuments: TripDocumentResponse[] = []
-        let documentsFetchSuccess = false
-        let metadataFailureCount = 0
-
-        const fetchPromises: Promise<any>[] = []
-
-        if (downloadOpts.includeNotes) {
-          fetchPromises.push(
-            trpc.note.getByTripId.query({ tripId: trip.id })
-              .then((notes: unknown) => {
-                if (Array.isArray(notes)) {
-                  loadedNotes = notes as TripNote[]
-                  notesFetchSuccess = true
-                }
-                else {
-                  metadataFailureCount++
-                  console.warn('[Offline] Не удалось загрузить свежие заметки: некорректный ответ')
-                }
-              })
-              .catch((err: unknown) => {
-                metadataFailureCount++
-                console.warn('[Offline] Не удалось загрузить свежие заметки:', err)
-              }),
-          )
-        }
-
-        if (downloadOpts.includeDocuments) {
-          fetchPromises.push(
-            trpc.image.listDocuments.query({ tripId: trip.id })
-              .then((docs: unknown) => {
-                if (Array.isArray(docs)) {
-                  loadedDocuments = docs as unknown as TripDocumentResponse[]
-                  documentsFetchSuccess = true
-                }
-                else {
-                  metadataFailureCount++
-                  console.warn('[Offline] Не удалось загрузить свежие документы: некорректный ответ')
-                }
-              })
-              .catch((err: unknown) => {
-                metadataFailureCount++
-                console.warn('[Offline] Не удалось загрузить свежие документы:', err)
-              }),
-          )
-        }
-
-        await Promise.allSettled(fetchPromises)
-
-        // Кэширование изображений заметок
-        if (downloadOpts.includeNotes && downloadOpts.includeMedia) {
-          loadedNotes.forEach((note) => {
-            if (note.images && Array.isArray(note.images)) {
-              note.images.forEach((img) => {
-                if (img.sources) {
-                  Object.values(img.sources).forEach(src => addUrl(src))
-                }
-              })
-            }
-            if (note.content) {
-              extractUrlsFromMarkdown(note.content).forEach(addUrl)
-            }
-          })
-        }
-
-        // Кэширование файлов документов
-        if (downloadOpts.includeDocuments) {
-          loadedDocuments.forEach((doc) => {
-            if (doc.url) {
-              addUrl(doc.url)
-            }
-          })
-        }
-
-        // Кэширование секций путешествия
-        trip.sections?.forEach((section: any) => {
-          if (downloadOpts.includeDocuments) {
-            if (section.type === 'documents' && Array.isArray(section.content?.documents)) {
-              section.content.documents.forEach((doc: any) => {
-                addUrl(doc.url)
-              })
-            }
-            if (section.type === 'bookings' && Array.isArray(section.content?.bookings)) {
-              section.content.bookings.forEach((b: any) => {
-                if (b.attachmentUrl)
-                  addUrl(b.attachmentUrl)
-                if (b.ticketUrl)
-                  addUrl(b.ticketUrl)
-                if (b.fileUrl)
-                  addUrl(b.fileUrl)
-              })
-            }
-          }
-
-          if (downloadOpts.includeMedia) {
-            if (section.type === 'gallery' && Array.isArray(section.content?.imageUrls)) {
-              section.content.imageUrls.forEach(addUrl)
-            }
-            if (typeof section.content?.markdown === 'string') {
-              extractUrlsFromMarkdown(section.content.markdown).forEach(addUrl)
-            }
-            if (typeof section.content?.text === 'string') {
-              extractUrlsFromMarkdown(section.content.text).forEach(addUrl)
-            }
-          }
-        })
-
-        // Кэширование дней и активностей
-        if (downloadOpts.includeMedia) {
-          trip.days?.forEach((day) => {
-            if (day.description)
-              extractUrlsFromMarkdown(day.description).forEach(addUrl)
-            if (day.note)
-              extractUrlsFromMarkdown(day.note).forEach(addUrl)
-
-            day.activities?.forEach((activity) => {
-              if (activity.explanation)
-                extractUrlsFromMarkdown(activity.explanation).forEach(addUrl)
-
-              activity.sections?.forEach((section: any) => {
-                if (section.type === 'gallery') {
-                  if (Array.isArray(section.imageUrls))
-                    section.imageUrls.forEach(addUrl)
-                  if (Array.isArray(section.content?.imageUrls))
-                    section.content.imageUrls.forEach(addUrl)
-                }
-                if (section.type === 'geolocation' && Array.isArray(section.points)) {
-                  section.points.forEach((point: any) => {
-                    if (point.imageUrl)
-                      addUrl(point.imageUrl)
-                    if (point.style?.iconUrl)
-                      addUrl(point.style.iconUrl)
-                  })
-                }
-                if (section.type === 'description' && section.text) {
-                  extractUrlsFromMarkdown(section.text).forEach(addUrl)
-                }
-              })
-            })
-          })
-        }
-
-        // Подготовка тайлов карты
-        const tileUrls: string[] = []
-        if (downloadOpts.includeMapTiles) {
-          const bbox = calculateTripBoundingBox(trip)
-          if (bbox) {
-            const tiles = getTilesForBBox(bbox, 10, 15, 450)
-            if (MAPTILER_KEY) {
-              tileUrls.push(`https://api.maptiler.com/maps/streets-v4/style.json?key=${MAPTILER_KEY}`)
-              tileUrls.push(`https://api.maptiler.com/maps/outdoor-v4/style.json?key=${MAPTILER_KEY}`)
-              tiles.forEach(({ z, x, y }) => {
-                tileUrls.push(`https://api.maptiler.com/maps/streets-v4/${z}/${x}/${y}.pbf?key=${MAPTILER_KEY}`)
-                tileUrls.push(`https://api.maptiler.com/maps/outdoor-v4/${z}/${x}/${y}.pbf?key=${MAPTILER_KEY}`)
-              })
-            }
-            else {
-              tiles.forEach(({ z, x, y }) => {
-                tileUrls.push(`https://a.tile.openstreetmap.org/${z}/${x}/${y}.png`)
-              })
-            }
-          }
-        }
-
-        const urlsArray = Array.from(urlsToCache)
+        const metadata = await fetchOfflineMetadata(trip.id, downloadOpts)
+        const urlsArray = Array.from(collectOfflineUrls(
+          trip,
+          downloadOpts,
+          metadata.notes,
+          metadata.documents,
+        ))
+        const tileUrls = getTripMapTileUrls(trip, downloadOpts.includeMapTiles)
         const totalCount = urlsArray.length + tileUrls.length
-        let loadedCount = 0
+
+        setInitialCacheStatus(this, trip.id, totalCount)
+
         let failedCount = 0
 
-        if (totalCount === 0) {
-          this.downloadProgress[trip.id] = 100
-          this.downloadStatus[trip.id] = {
-            progress: 100,
-            total: 0,
-            loaded: 0,
-            stage: 'completed',
-            statusText: 'Все данные сохранены!',
-          }
-        }
-        else {
-          this.downloadStatus[trip.id] = {
-            progress: 0,
-            total: totalCount,
-            loaded: 0,
-            stage: 'caching',
-            statusText: `Кэширование файлов (0/${totalCount})...`,
-          }
-        }
-
-        // 1. Кэширование медиа-файлов
         if (urlsArray.length > 0) {
-          const loadedBeforeMedia = loadedCount
-          try {
-            if (typeof caches === 'undefined') {
-              throw new Error('Cache Storage API недоступен')
-            }
-            const cache = await caches.open(OFFLINE_MEDIA_CACHE_NAME)
-            const BATCH_SIZE = 4
-            for (let i = 0; i < urlsArray.length; i += BATCH_SIZE) {
-              const batch = urlsArray.slice(i, i + BATCH_SIZE)
-
-              await Promise.all(batch.map(async (rawUrl) => {
-                const url = resolveApiUrl(rawUrl)
-                const urlWithoutToken = stripAuthTokenFromUrl(url)
-                let success = false
-                try {
-                  const match = await cache.match(url)
-                    || (urlWithoutToken ? await cache.match(urlWithoutToken) : null)
-                  if (match) {
-                    success = true
-                  }
-                  else {
-                    let response: Response | null = null
-                    try {
-                      response = await fetch(url, { mode: 'cors', cache: 'reload' })
-                    }
-                    catch {
-                      try {
-                        response = await fetch(url, { mode: 'no-cors', cache: 'reload' })
-                      }
-                      catch {
-                        // fetch failed
-                      }
-                    }
-
-                    if (response && (response.ok || response.type === 'opaque')) {
-                      await cache.put(url, response.clone())
-                      if (urlWithoutToken && urlWithoutToken !== url) {
-                        await cache.put(urlWithoutToken, response.clone())
-                      }
-                      success = true
-                    }
-                  }
-                }
-                catch (e) {
-                  console.warn(`[Offline] Ошибка кэширования: ${url}`, e)
-                }
-                finally {
-                  if (!success) {
-                    failedCount++
-                  }
-                  loadedCount++
-                  const pct = Math.min(100, Math.round((loadedCount / totalCount) * 100))
-                  this.downloadProgress[trip.id] = pct
-                  this.downloadStatus[trip.id] = {
-                    progress: pct,
-                    total: totalCount,
-                    loaded: loadedCount,
-                    stage: 'caching',
-                    statusText: `Кэширование файлов (${loadedCount}/${totalCount})...`,
-                  }
-                }
-              }))
-            }
-          }
-          catch (e) {
-            console.warn('[Offline] caches API error:', e)
-            const unprocessedCount = urlsArray.length - (loadedCount - loadedBeforeMedia)
-            if (unprocessedCount > 0) {
-              failedCount += unprocessedCount
-              loadedCount += unprocessedCount
-              const pct = Math.min(100, Math.round((loadedCount / totalCount) * 100))
-              this.downloadProgress[trip.id] = pct
-              this.downloadStatus[trip.id] = {
-                progress: pct,
-                total: totalCount,
-                loaded: loadedCount,
-                stage: 'caching',
-                statusText: `Кэширование файлов (${loadedCount}/${totalCount})...`,
-              }
-            }
-          }
+          const cacheResult = await cacheOfflineMediaUrls(urlsArray, loaded => updateMediaCacheProgress(
+            this,
+            trip.id,
+            totalCount,
+            loaded,
+          ))
+          failedCount = cacheResult.failedCount
         }
 
-        // 2. Предзагрузка тайлов карты через mapTileCacheManager
         let tileFailures = 0
         let tileSuccesses = 0
+
         if (tileUrls.length > 0) {
           this.downloadStatus[trip.id] = {
             ...this.downloadStatus[trip.id],
-            statusText: `Предзагрузка тайлов карты зоны поездки...`,
+            statusText: 'Предзагрузка тайлов карты зоны поездки...',
           }
-          try {
-            const tileResult = await mapTileCacheManager.precacheUrls(tileUrls, (loaded, _total) => {
-              const currentTotalLoaded = urlsArray.length + loaded
-              const pct = Math.min(100, Math.round((currentTotalLoaded / totalCount) * 100))
-              this.downloadProgress[trip.id] = pct
-              this.downloadStatus[trip.id] = {
-                progress: pct,
-                total: totalCount,
-                loaded: currentTotalLoaded,
-                stage: 'caching',
-                statusText: `Кэширование тайлов карты (${loaded}/${tileUrls.length})...`,
-              }
-            })
-            tileFailures = tileResult.failedCount
-            tileSuccesses = tileResult.successCount
-            failedCount += tileResult.failedCount
-          }
-          catch (e) {
-            console.warn('[Offline] Не удалось сохранить тайлы карты:', e)
-            tileFailures = tileUrls.length
-            failedCount += tileFailures
-            const currentTotalLoaded = urlsArray.length + tileUrls.length
-            const pct = Math.min(100, Math.round((currentTotalLoaded / totalCount) * 100))
-            this.downloadProgress[trip.id] = pct
-            this.downloadStatus[trip.id] = {
-              progress: pct,
-              total: totalCount,
-              loaded: currentTotalLoaded,
-              stage: 'caching',
-              statusText: `Кэширование тайлов карты (${tileUrls.length}/${tileUrls.length})...`,
-            }
-          }
+
+          const tileResult = await cacheMapTiles(
+            trip.id,
+            tileUrls,
+            urlsArray.length,
+            totalCount,
+            this,
+          )
+          tileFailures = tileResult.failedCount
+          tileSuccesses = tileResult.successCount
+          failedCount += tileResult.failedCount
         }
 
-        const documentsToSave = downloadOpts.includeDocuments
-          ? (documentsFetchSuccess ? loadedDocuments : (this.savedTrips[trip.id]?.documents ?? []))
-          : (this.savedTrips[trip.id]?.documents ?? [])
+        const current = this.savedTrips[trip.id]
+        const documents = getDocumentsToSave(current, downloadOpts, metadata)
+        const notes = getNotesToSave(current, downloadOpts, metadata)
+        const includesTiles = shouldIncludeOfflineTiles(
+          current,
+          downloadOpts,
+          tileUrls.length,
+          tileSuccesses,
+          tileFailures,
+        )
+        const entry = createOfflineTripEntry(
+          trip,
+          current,
+          documents,
+          notes,
+          urlsArray.length,
+          includesTiles,
+        )
 
-        const notesToSave = downloadOpts.includeNotes
-          ? (notesFetchSuccess ? loadedNotes : (this.savedTrips[trip.id]?.notes ?? []))
-          : (this.savedTrips[trip.id]?.notes ?? [])
-
-        // Тайлы считаются сохранёнными, если хотя бы часть тайлов успешно загрузилась/уже в кэше,
-        // либо если сохранение тайлов не запрашивалось заново, но было ранее сохранено без сбоя
-        const tilesSuccessfullyCached = tileUrls.length > 0
-          ? tileSuccesses > 0
-          : false
-
-        const includesTilesToSave = downloadOpts.includeMapTiles
-          ? (tilesSuccessfullyCached || Boolean(this.savedTrips[trip.id]?.includesTiles && tileFailures === 0))
-          : (this.savedTrips[trip.id]?.includesTiles ?? false)
-
-        const newEntry: OfflineTripEntry = {
-          ...this.savedTrips[trip.id],
-          payloadSchemaVersion: 2,
-          id: trip.id,
-          title: trip.title,
-          savedAt: Date.now(),
-          imageCount: urlsArray.length,
-          data: JSON.parse(JSON.stringify(trip)),
-          notes: notesToSave,
-          documents: documentsToSave,
-          includesTiles: includesTilesToSave,
-        }
-
-        // Персистентное сохранение в IndexedDB
-        await offlineStorageService.saveTrip(newEntry)
-        this.savedTrips[trip.id] = newEntry
-
-        this.downloadProgress[trip.id] = 100
-        if (failedCount > 0 || metadataFailureCount > 0) {
-          const totalFailures = failedCount + metadataFailureCount
-          const successCount = Math.max(0, totalCount - failedCount)
-          this.downloadStatus[trip.id] = {
-            progress: 100,
-            total: totalCount,
-            loaded: successCount,
-            stage: 'completed',
-            statusText: `Сохранено с предупреждением (${totalFailures} элементов недоступно)`,
-          }
-          toast.warn(`Путешествие сохранено не полностью: недоступно элементов — ${totalFailures}.`)
-        }
-        else {
-          this.downloadStatus[trip.id] = {
-            progress: 100,
-            total: totalCount,
-            loaded: totalCount,
-            stage: 'completed',
-            statusText: 'Все данные успешно сохранены!',
-          }
-          toast.success(`Путешествие "${trip.title}" сохранено оффлайн!`)
-        }
+        await offlineStorageService.saveTrip(entry)
+        this.savedTrips[trip.id] = entry
+        setOfflineSaveCompletion(
+          this,
+          trip,
+          totalCount,
+          failedCount,
+          metadata.failureCount,
+          toast,
+        )
       }
-      catch (e) {
-        console.error('[Offline] Ошибка сохранения:', e)
+      catch (error) {
+        console.error('[Offline] Ошибка сохранения:', error)
         this.downloadStatus[trip.id] = {
           progress: this.downloadProgress[trip.id] || 0,
           total: 0,
@@ -585,6 +740,7 @@ export const useOfflineStore = defineStore('offline', {
         return
 
       const toast = useToast()
+
       try {
         await offlineStorageService.removeTrip(tripId)
         delete this.savedTrips[tripId]

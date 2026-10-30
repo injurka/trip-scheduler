@@ -6,7 +6,6 @@ import { KitTooltip } from '~/components/01.kit/kit-tooltip'
 import { useModuleStore } from '~/components/05.modules/trip-info/composables/use-trip-info-module'
 import { AppRoutePaths } from '~/shared/constants/routes'
 import { formatDate } from '~/shared/lib/date-time'
-
 import { calculateTripBoundingBox } from '~/shared/lib/tile-calc'
 import { useOfflineStore } from '~/shared/store/offline.store'
 import OfflineDownloadDialog from './offline-download-dialog.vue'
@@ -41,6 +40,7 @@ async function handleDelete(id: string, title: string) {
     type: 'danger',
     confirmText: 'Удалить',
   })
+
   if (isConfirmed) {
     await offlineStore.removeOfflineTrip(id)
   }
@@ -68,6 +68,7 @@ async function handleConfirmDownload(options: OfflineDownloadOptions) {
     return
 
   const id = selectedTripForUpdate.value.id
+
   if (moduleStore.plan.currentTripId === id && moduleStore.plan.trip) {
     await offlineStore.saveTripForOffline({
       ...moduleStore.plan.trip,

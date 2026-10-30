@@ -17,20 +17,18 @@ interface FinancesCategory {
   icon: string
   isDefault?: boolean
 }
-
+interface Props {
+  categories: FinancesCategory[]
+  settings: FinancesSettings
+}
 type CreatorState = 'input' | 'loading' | 'preview' | 'error'
-
 type GeneratedTransaction = Omit<Transaction, 'id' | 'categoryId'> & {
   categorySuggestion?: string
   categoryId: string | null
   isSpontaneous?: boolean
 }
 
-const props = defineProps<{
-  categories: FinancesCategory[]
-  settings: FinancesSettings
-}>()
-
+const props = defineProps<Props>()
 const emit = defineEmits<{
   (e: 'save', transactions: Partial<Transaction>[]): void
   (e: 'close'): void
@@ -41,8 +39,8 @@ const error = ref<string | null>(null)
 const userInput = ref('')
 const generatedTransactions = ref<GeneratedTransaction[]>([])
 const uploadedFile = ref<File | null>(null)
-
 const GENERATE_FINANCES_KEY = 'finances:generate'
+
 const isLoading = useRequestStatus(GENERATE_FINANCES_KEY)
 
 const categoryOptions = computed(() => {
@@ -52,9 +50,9 @@ const categoryOptions = computed(() => {
     icon: cat.icon,
   }))
 })
-
 const currencyOptions = computed(() => {
   const currencies = new Set([props.settings.mainCurrency, ...Object.keys(props.settings.exchangeRates)])
+
   return Array.from(currencies).map(c => ({
     label: c,
     value: c,
@@ -69,7 +67,6 @@ function getCategoryIcon(categoryId: string | null): string {
 
   return category?.icon || 'mdi:shape-outline'
 }
-
 function resetState() {
   state.value = 'input'
   error.value = null
@@ -77,18 +74,20 @@ function resetState() {
   uploadedFile.value = null
   generatedTransactions.value = []
 }
-
 async function handleGenerate() {
   if (!userInput.value.trim() && !uploadedFile.value) {
     useToast().error('Пожалуйста, введите описание или прикрепите файл.')
+
     return
   }
+
   state.value = 'loading'
   error.value = null
 
   try {
     const formData = new FormData()
     formData.append('text', userInput.value)
+
     if (uploadedFile.value)
       formData.append('file', uploadedFile.value)
 
@@ -107,6 +106,7 @@ async function handleGenerate() {
 
     generatedTransactions.value = response.map((tx: any) => {
       let foundCategory = tx.categoryId ? props.categories.find(cat => cat.id === tx.categoryId) : undefined
+
       if (!foundCategory && tx.categorySuggestion) {
         foundCategory = props.categories.find(cat => cat.name === tx.categorySuggestion)
       }
@@ -135,7 +135,6 @@ async function handleGenerate() {
     state.value = 'error'
   }
 }
-
 function handleSave() {
   if (generatedTransactions.value.length > 0) {
     const transactionsToSave = generatedTransactions.value.map(tx => ({
@@ -151,7 +150,6 @@ function handleSave() {
     resetState()
   }
 }
-
 function getCalendarDate(tx: GeneratedTransaction): CalendarDate | null {
   try {
     return tx.date ? parseDate(tx.date) : null
@@ -160,7 +158,6 @@ function getCalendarDate(tx: GeneratedTransaction): CalendarDate | null {
     return null
   }
 }
-
 function updateTransactionDate(tx: GeneratedTransaction, newDate: CalendarDate | null) {
   tx.date = newDate ? newDate.toString() : undefined
 }
@@ -223,12 +220,23 @@ function updateTransactionDate(tx: GeneratedTransaction, newDate: CalendarDate |
             <div class="pi-row">
               <div class="pi-input-group pi-title-group">
                 <Icon icon="mdi:text-box-outline" class="pi-input-icon" />
-                <KitInput v-model="tx.title" placeholder="Название траты..." size="sm" class="pi-title" />
+                <KitInput
+                  v-model="tx.title"
+                  placeholder="Название траты..."
+                  size="sm"
+                  class="pi-title"
+                />
               </div>
 
               <div class="pi-input-group pi-amount-currency">
                 <Icon icon="mdi:cash" class="pi-input-icon pi-ac-icon" />
-                <KitInput v-model.number="tx.amount" placeholder="0" type="number" size="sm" class="pi-amount" />
+                <KitInput
+                  v-model.number="tx.amount"
+                  placeholder="0"
+                  type="number"
+                  size="sm"
+                  class="pi-amount"
+                />
                 <span class="pi-ac-separator" />
                 <KitSelectWithSearch
                   v-model="tx.currency"

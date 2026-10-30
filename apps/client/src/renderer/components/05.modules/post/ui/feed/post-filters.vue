@@ -10,13 +10,9 @@ function handleTabChange(tab: 'explore' | 'saved' | 'drafts') {
   store.setTab(tab)
 }
 
-watchDebounced(
-  () => filters.value.search,
-  () => {
-    store.fetchPosts(true)
-  },
-  { debounce: 300 },
-)
+watchDebounced(() => filters.value.search, () => {
+  store.fetchPosts(true)
+}, { debounce: 300 })
 </script>
 
 <template>

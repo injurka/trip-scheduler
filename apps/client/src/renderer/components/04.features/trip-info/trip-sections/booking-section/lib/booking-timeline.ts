@@ -22,18 +22,40 @@ function getStart(booking: Booking): string | undefined {
   }
 }
 
+function getValidTimelineDate(start?: string): string | undefined {
+  const date = start?.match(/^\d{4}-\d{2}-\d{2}(?=T|$)/)?.[0]
+
+  if (!date)
+    return undefined
+
+  const parsed = new Date(`${date}T00:00:00Z`)
+
+  if (Number.isNaN(parsed.getTime()) || !parsed.toISOString().startsWith(date))
+    return undefined
+
+  return date
+}
+
+function getTimelineTime(start: string | undefined, date: string | undefined): string | undefined {
+  if (!date)
+    return undefined
+
+  return start?.match(/T((?:[01]\d|2[0-3]):[0-5]\d)/)?.[1]
+}
+
+function getBookingKind(booking: Booking) {
+  if (booking.type === 'car' || booking.type === 'other')
+    return resolveBookingKind(booking.type, booking.data.kind, booking.icon)
+
+  return null
+}
+
 export function getTimelineEntry(booking: Booking) {
   const start = getStart(booking)
   // Dates and times belong to the activity's location, not the viewer's timezone.
-  const date = start?.match(/^\d{4}-\d{2}-\d{2}(?=T|$)/)?.[0]
-  const parsed = date ? new Date(`${date}T00:00:00Z`) : null
-  const validDate = parsed && !Number.isNaN(parsed.getTime()) && parsed.toISOString().startsWith(date!)
-    ? date
-    : undefined
-  const time = validDate ? start?.match(/T((?:[01]\d|2[0-3]):[0-5]\d)/)?.[1] : undefined
-  const kind = booking.type === 'car' || booking.type === 'other'
-    ? resolveBookingKind(booking.type, booking.data.kind, booking.icon)
-    : null
+  const validDate = getValidTimelineDate(start)
+  const time = getTimelineTime(start, validDate)
+  const kind = getBookingKind(booking)
 
   return {
     booking,
@@ -47,8 +69,10 @@ export function getTimelineEntry(booking: Booking) {
 export function groupTimelineBookings(bookings: Booking[]) {
   const groups: { key: string, date?: string, label: string, weekday: string, entries: ReturnType<typeof getTimelineEntry>[] }[] = []
   const entries = bookings.map(getTimelineEntry)
+
   for (const entry of [...entries.filter(entry => entry.date), ...entries.filter(entry => !entry.date)]) {
     let group = groups.at(-1)
+
     if (!group || group.date !== entry.date) {
       const date = entry.date ? new Date(`${entry.date}T00:00:00Z`) : null
       group = {
@@ -62,7 +86,9 @@ export function groupTimelineBookings(bookings: Booking[]) {
       }
       groups.push(group)
     }
+
     group.entries.push(entry)
   }
+
   return groups
 }

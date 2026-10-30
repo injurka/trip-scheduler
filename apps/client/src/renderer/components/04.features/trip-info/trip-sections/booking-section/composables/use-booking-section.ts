@@ -24,59 +24,75 @@ export const BOOKING_TYPES_CONFIG = {
   other: { label: 'Другое', icon: 'mdi:dots-horizontal-circle-outline', defaultTitle: 'Новое перемещение' },
 } as const
 
+interface BookingDateStrings {
+  start?: string
+  end?: string
+}
+
+function normalizeHotelCheckIn(checkInDate?: string): string | undefined {
+  if (!checkInDate)
+    return undefined
+
+  return checkInDate.includes('T') ? checkInDate : `${checkInDate}T14:00:00`
+}
+
+function getBookingDateStrings(booking: Booking): BookingDateStrings {
+  switch (booking.type) {
+    case 'flight':
+      return getFlightBookingDateStrings(booking)
+    case 'hotel':
+      return { start: normalizeHotelCheckIn(booking.data.checkInDate) }
+    case 'train':
+      return { start: booking.data.departureDateTime, end: booking.data.arrivalDateTime }
+    case 'car':
+      return { start: booking.data.pickupDateTime, end: booking.data.dropoffDateTime }
+    case 'attraction':
+      return { start: booking.data.dateTime }
+    case 'other':
+      return { start: booking.data.startDateTime, end: booking.data.endDateTime }
+  }
+}
+
+function getFlightBookingDateStrings(booking: Extract<Booking, { type: 'flight' }>): BookingDateStrings {
+  const segments = booking.data.segments
+
+  return {
+    start: segments?.[0]?.departureDateTime,
+    end: segments?.[segments.length - 1]?.arrivalDateTime,
+  }
+}
+
+function parseBookingDate(value?: string): Date | null {
+  if (!value)
+    return null
+
+  const date = new Date(value)
+
+  return Number.isNaN(date.getTime()) ? null : date
+}
+
+function getBookingEndDate(startDate: Date, endValue?: string): Date {
+  if (!endValue)
+    return new Date(startDate.getTime() + 60 * 60 * 1000)
+
+  const parsedEndDate = parseBookingDate(endValue)
+
+  return parsedEndDate ?? startDate
+}
+
 /**
  * Возвращает интервал времени (начало, конец) для бронирования.
  * Если конец неизвестен, он равен началу (точечное событие).
  */
 function getBookingTimeRange(booking: Booking): { start: number, end: number } | null {
   try {
-    let startStr: string | undefined
-    let endStr: string | undefined
+    const { start: startValue, end: endValue } = getBookingDateStrings(booking)
+    const startDate = parseBookingDate(startValue)
 
-    switch (booking.type) {
-      case 'flight':
-        startStr = booking.data.segments?.[0]?.departureDateTime
-        endStr = booking.data.segments?.[booking.data.segments.length - 1]?.arrivalDateTime
-        break
-      case 'hotel':
-        if (booking.data.checkInDate)
-          startStr = booking.data.checkInDate.includes('T') ? booking.data.checkInDate : `${booking.data.checkInDate}T14:00:00`
-        break
-      case 'train':
-        startStr = booking.data.departureDateTime
-        endStr = booking.data.arrivalDateTime
-        break
-      case 'car':
-        startStr = booking.data.pickupDateTime
-        endStr = booking.data.dropoffDateTime
-        break
-      case 'attraction':
-        startStr = booking.data.dateTime
-        endStr = undefined
-        break
-      case 'other':
-        startStr = booking.data.startDateTime
-        endStr = booking.data.endDateTime
-        break
-    }
-
-    if (!startStr)
+    if (!startDate)
       return null
 
-    const startDate = new Date(startStr)
-    if (Number.isNaN(startDate.getTime()))
-      return null
-
-    let endDate = startDate
-    if (endStr) {
-      const parsedEnd = new Date(endStr)
-      if (!Number.isNaN(parsedEnd.getTime())) {
-        endDate = parsedEnd
-      }
-    }
-    else {
-      endDate = new Date(startDate.getTime() + 60 * 60 * 1000)
-    }
+    const endDate = getBookingEndDate(startDate, endValue)
 
     return { start: startDate.getTime(), end: endDate.getTime() }
   }
@@ -94,6 +110,7 @@ function getCurrentTimeZoneOffset(): string {
   const abs = Math.abs(offsetMinutes)
   const hours = String(Math.floor(abs / 60)).padStart(2, '0')
   const minutes = String(abs % 60).padStart(2, '0')
+
   return `${sign}${hours}:${minutes}`
 }
 
@@ -104,10 +121,7 @@ export type HighlightStatus = 'active' | 'next' | 'closest' | null
  * @param props - Входящие параметры компонента.
  * @param emit - Функция для отправки событий.
  */
-export function useBookingSection(
-  props: UseBookingSectionProps,
-  emit: (event: 'updateSection', payload: any) => void,
-) {
+export function useBookingSection(props: UseBookingSectionProps, emit: (event: 'updateSection', payload: any) => void) {
   const bookings = ref<Booking[]>(JSON.parse(JSON.stringify(props.section.content?.bookings || [])))
   const activeTab = ref<string>('timeline')
 
@@ -124,6 +138,7 @@ export function useBookingSection(
         acc[booking.type] = []
 
       acc[booking.type].push(booking)
+
       return acc
     }, {} as Record<string, Booking[]>)
   })
@@ -135,8 +150,10 @@ export function useBookingSection(
 
       if (!rangeA && !rangeB)
         return 0
+
       if (!rangeA)
         return 1
+
       if (!rangeB)
         return -1
 
@@ -151,11 +168,13 @@ export function useBookingSection(
     const highlightableBookings = allBookingsSorted.value.filter((b) => {
       if (b.type === 'hotel')
         return false
+
       return getBookingTimeRange(b) !== null
     })
 
     const activeIndex = highlightableBookings.findIndex((b) => {
       const range = getBookingTimeRange(b)
+
       return range && now >= range.start && now <= range.end
     })
 
@@ -170,6 +189,7 @@ export function useBookingSection(
     else {
       const closestBooking = highlightableBookings.find((b) => {
         const range = getBookingTimeRange(b)
+
         return range && range.start > now
       })
 
@@ -194,13 +214,16 @@ export function useBookingSection(
 
     if (bookings.value.length > 0) {
       const timelineTab = { id: 'timeline', label: 'Лента', icon: 'mdi:timeline-outline' }
+
       return [timelineTab, ...typeTabs]
     }
+
     return []
   })
 
   watch(tabItems, (newTabs) => {
     const currentTabExists = newTabs.some(tab => tab.id === activeTab.value)
+
     if (!currentTabExists && newTabs.length > 0) {
       activeTab.value = newTabs[0].id
     }
@@ -219,6 +242,7 @@ export function useBookingSection(
 
     if (type === 'train' || type === 'car' || type === 'other') {
       const tz = getCurrentTimeZoneOffset()
+
       if (type === 'other') {
         initialData.startTimeZone = tz
         initialData.endTimeZone = tz
@@ -261,11 +285,13 @@ export function useBookingSection(
   function deleteBooking(id: string) {
     if (props.readonly)
       return
+
     bookings.value = bookings.value.filter(b => b.id !== id)
   }
 
   function updateBooking(updatedBooking: Booking) {
     const index = bookings.value.findIndex(b => b.id === updatedBooking.id)
+
     if (index !== -1) {
       bookings.value.splice(index, 1, updatedBooking)
     }

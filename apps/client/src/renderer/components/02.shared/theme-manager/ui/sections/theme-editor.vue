@@ -14,6 +14,8 @@ import RadiusEditorGrid from './radius-editor-grid.vue'
 import RadiusPresetSelector from './radius-preset-selector.vue'
 import ShadowEditorSection from './shadow-editor-section.vue'
 
+type EditorTab = 'presets' | 'colors' | 'radius' | 'shadows' | 'background'
+
 const emit = defineEmits<{
   (e: 'upload'): void
   (e: 'reset'): void
@@ -23,12 +25,10 @@ const emit = defineEmits<{
 }>()
 
 const themeStore = useThemeStore()
+const { mdAndDown } = useDisplay()
+
 const { customThemePalette, customThemeRadius } = storeToRefs(themeStore)
-
-type EditorTab = 'presets' | 'colors' | 'radius' | 'shadows' | 'background'
-
 const activeTab = ref<EditorTab>('presets')
-
 const viewItems: ViewSwitcherItem<EditorTab>[] = [
   { id: 'presets', label: 'Пресеты', icon: 'mdi:palette-swatch-outline' },
   { id: 'colors', label: 'Цвета', icon: 'mdi:eyedropper-variant' },
@@ -40,12 +40,9 @@ const viewItems: ViewSwitcherItem<EditorTab>[] = [
 function applyPreset(palette: ColorPalette) {
   Object.assign(customThemePalette.value, palette)
 }
-
 function applyRadiusPreset(radius: RadiusPalette) {
   themeStore.applyCustomRadius(radius)
 }
-
-const { mdAndDown } = useDisplay()
 </script>
 
 <template>
@@ -64,10 +61,20 @@ const { mdAndDown } = useDisplay()
       <template #colors>
         <div class="tab-pane">
           <div class="tab-pane-actions">
-            <KitBtn icon="mdi:upload" variant="outlined" color="secondary" @click="emit('upload')">
+            <KitBtn
+              icon="mdi:upload"
+              variant="outlined"
+              color="secondary"
+              @click="emit('upload')"
+            >
               {{ mdAndDown ? '' : 'Загрузить' }}
             </KitBtn>
-            <KitBtn icon="mdi:restore" variant="outlined" color="secondary" @click="emit('reset')">
+            <KitBtn
+              icon="mdi:restore"
+              variant="outlined"
+              color="secondary"
+              @click="emit('reset')"
+            >
               {{ mdAndDown ? '' : 'Сбросить цвета' }}
             </KitBtn>
           </div>
@@ -84,7 +91,12 @@ const { mdAndDown } = useDisplay()
             <h3 class="pane-subtitle">
               Ручная настройка
             </h3>
-            <KitBtn icon="mdi:restore" variant="outlined" color="secondary" @click="emit('resetRadius')">
+            <KitBtn
+              icon="mdi:restore"
+              variant="outlined"
+              color="secondary"
+              @click="emit('resetRadius')"
+            >
               {{ mdAndDown ? '' : 'Сбросить радиус' }}
             </KitBtn>
           </div>
@@ -98,7 +110,12 @@ const { mdAndDown } = useDisplay()
           <ShadowEditorSection />
 
           <div class="tab-pane-actions">
-            <KitBtn icon="mdi:restore" variant="outlined" color="secondary" @click="emit('resetShadows')">
+            <KitBtn
+              icon="mdi:restore"
+              variant="outlined"
+              color="secondary"
+              @click="emit('resetShadows')"
+            >
               {{ mdAndDown ? '' : 'Сбросить тени' }}
             </KitBtn>
           </div>
@@ -111,7 +128,12 @@ const { mdAndDown } = useDisplay()
           <BackgroundEditorSection />
 
           <div class="tab-pane-actions">
-            <KitBtn icon="mdi:restore" variant="outlined" color="secondary" @click="emit('resetBackground')">
+            <KitBtn
+              icon="mdi:restore"
+              variant="outlined"
+              color="secondary"
+              @click="emit('resetBackground')"
+            >
               {{ mdAndDown ? '' : 'Сбросить фон' }}
             </KitBtn>
           </div>

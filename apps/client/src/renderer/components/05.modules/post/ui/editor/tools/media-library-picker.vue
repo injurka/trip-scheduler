@@ -27,7 +27,6 @@ const props = withDefaults(defineProps<Props>(), {
   mode: 'select',
   single: false,
 })
-
 const emit = defineEmits<{
   (e: 'update:visible', value: boolean): void
   (e: 'confirm', media: PostMedia[]): void
@@ -56,16 +55,23 @@ const searchQuery = ref('')
 const mediaTypeFilter = ref<'all' | PostMedia['type']>('all')
 const previewMedia = ref<PostMedia | null>(null)
 const isVideoPreviewOpen = ref(false)
+const isProcessing = ref(false)
+const processedCount = ref(0)
+const totalToProcess = ref(0)
+
 const filteredMedia = computed(() => {
   const query = searchQuery.value.trim().toLocaleLowerCase()
+
   return post.value.media.filter((media) => {
     const matchesType = mediaTypeFilter.value === 'all' || media.type === mediaTypeFilter.value
     const matchesName = !query || (media.originalName || '').toLocaleLowerCase().includes(query)
+
     return matchesType && matchesName
   })
 })
 const displayedMedia = computed(() => {
   const media = post.value.media
+
   if (props.mode !== 'select')
     return media
 
@@ -74,6 +80,7 @@ const displayedMedia = computed(() => {
     .sort((a, b) => {
       if (!a.capturedAt || !b.capturedAt)
         return a.capturedAt ? -1 : b.capturedAt ? 1 : a.index - b.index
+
       return a.capturedAt.localeCompare(b.capturedAt) || a.index - b.index
     })
     .map(({ item }) => item)
@@ -90,9 +97,14 @@ const videoPreviewUrl = computed(() => {
   return media ? resolveApiUrl(media.variants?.web || media.metadata?.variants?.web || media.url) : ''
 })
 
-const isProcessing = ref(false)
-const processedCount = ref(0)
-const totalToProcess = ref(0)
+watch(() => props.visible, (isOpen) => {
+  if (isOpen) {
+    isFullscreen.value = false
+    clearMediaFilters()
+    localSelectedIds.value = [...props.selectedIds]
+    void store.refreshMedia()
+  }
+})
 
 function toggleSelection(id: string) {
   if (props.mode === 'manage' && !props.allowTimeline)
@@ -105,6 +117,7 @@ function toggleSelection(id: string) {
     else {
       localSelectedIds.value = [id]
     }
+
     return
   }
 
@@ -115,11 +128,12 @@ function toggleSelection(id: string) {
     localSelectedIds.value.push(id)
   }
 }
-
 function toggleVisibleSelection() {
   const visibleIds = visibleMediaIds.value
+
   if (allVisibleMediaSelected.value) {
     localSelectedIds.value = localSelectedIds.value.filter(id => !visibleIds.has(id))
+
     return
   }
 
@@ -127,43 +141,46 @@ function toggleVisibleSelection() {
   visibleIds.forEach(id => selectedIds.add(id))
   localSelectedIds.value = post.value.media.filter(media => selectedIds.has(media.id)).map(media => media.id)
 }
-
 function clearMediaFilters() {
   searchQuery.value = ''
   mediaTypeFilter.value = 'all'
 }
-
 function handleConfirm() {
   const selectedMedia = post.value.media.filter(m => localSelectedIds.value.includes(m.id))
   emit('confirm', selectedMedia)
   emit('update:visible', false)
 }
-
 function togglePrivacy(media: PostMedia) {
   store.toggleMediaPrivacy(media.id)
 }
-
-function getMediaThumbnail(media: PostMedia) {
-  if (media.type === 'video') {
-    return media.variants?.poster || media.metadata?.variants?.poster || media.variants?.small || media.metadata?.variants?.small || media.url
-  }
-  return media.variants?.small || media.metadata?.variants?.small || media.url
+function getMediaVariant(media: PostMedia, name: string): string | undefined {
+  return media.variants?.[name] || media.metadata?.variants?.[name]
 }
+function getVideoThumbnail(media: PostMedia): string {
+  return getMediaVariant(media, 'poster')
+    || getMediaVariant(media, 'small')
+    || media.url
+}
+function getMediaThumbnail(media: PostMedia) {
+  if (media.type === 'video')
+    return getVideoThumbnail(media)
 
+  return getMediaVariant(media, 'small') || media.url
+}
 function getMediaCaptureDateTime(media: PostMedia) {
   const capturedAt = readStoredTimelineMedia(media).capturedAt
+
   if (!capturedAt)
     return 'Дата не указана'
 
   const date = new Date(capturedAt)
+
   return Number.isFinite(date.getTime()) ? captureDateTimeFormatter.format(date) : 'Дата не указана'
 }
-
 function openVideoPreview(media: PostMedia) {
   previewMedia.value = media
   isVideoPreviewOpen.value = true
 }
-
 async function handleDelete(id: string) {
   const isConfirmed = await confirm({
     title: 'Удалить медиа из поста?',
@@ -174,10 +191,16 @@ async function handleDelete(id: string) {
 
   if (isConfirmed) {
     const removed = await store.removeGlobalMedia(id)
+
     if (!removed)
       return
+
     localSelectedIds.value = localSelectedIds.value.filter(sid => sid !== id)
   }
+}
+function handleTimeline() {
+  emit('timeline', post.value.media.filter(media => localSelectedIds.value.includes(media.id)))
+  emit('update:visible', false)
 }
 
 onChange(async (files) => {
@@ -186,6 +209,7 @@ onChange(async (files) => {
 
   isProcessing.value = true
   emit('busy', true)
+
   try {
     totalToProcess.value = files.length
     processedCount.value = 0
@@ -194,6 +218,7 @@ onChange(async (files) => {
 
     for (const file of filesArray) {
       const added = await store.uploadSingleMedia(file)
+
       if (added && (props.mode === 'select' || props.allowTimeline)) {
         if (props.single) {
           localSelectedIds.value = [added.id]
@@ -202,26 +227,13 @@ onChange(async (files) => {
           localSelectedIds.value.push(added.id)
         }
       }
+
       processedCount.value++
     }
   }
   finally {
     isProcessing.value = false
     emit('busy', false)
-  }
-})
-
-function handleTimeline() {
-  emit('timeline', post.value.media.filter(media => localSelectedIds.value.includes(media.id)))
-  emit('update:visible', false)
-}
-
-watch(() => props.visible, (isOpen) => {
-  if (isOpen) {
-    isFullscreen.value = false
-    clearMediaFilters()
-    localSelectedIds.value = [...props.selectedIds]
-    void store.refreshMedia()
   }
 })
 </script>
@@ -264,11 +276,24 @@ watch(() => props.visible, (isOpen) => {
           <span v-if="localSelectedIds.length" class="selected-summary">Выбрано: {{ localSelectedIds.length }}</span>
         </div>
         <div class="toolbar-actions">
-          <KitBtn variant="tonal" size="sm" icon="mdi:plus" :disabled="isProcessing" @click="open()">
+          <KitBtn
+            variant="tonal"
+            size="sm"
+            icon="mdi:plus"
+            :disabled="isProcessing"
+            @click="open()"
+          >
             Добавить медиа
           </KitBtn>
 
-          <KitBtn v-if="!single && (mode === 'select' || allowTimeline)" variant="text" color="secondary" size="sm" :disabled="isProcessing || !filteredMedia.length" @click="toggleVisibleSelection">
+          <KitBtn
+            v-if="!single && (mode === 'select' || allowTimeline)"
+            variant="text"
+            color="secondary"
+            size="sm"
+            :disabled="isProcessing || !filteredMedia.length"
+            @click="toggleVisibleSelection"
+          >
             {{ allVisibleMediaSelected ? 'Снять видимые' : 'Выбрать видимые' }}
           </KitBtn>
         </div>
@@ -283,13 +308,31 @@ watch(() => props.visible, (isOpen) => {
           />
         </div>
         <div class="media-type-filters" role="group" aria-label="Фильтр по типу медиа">
-          <button type="button" class="media-filter" :class="{ active: mediaTypeFilter === 'all' }" :aria-pressed="mediaTypeFilter === 'all'" @click="mediaTypeFilter = 'all'">
+          <button
+            type="button"
+            class="media-filter"
+            :class="{ active: mediaTypeFilter === 'all' }"
+            :aria-pressed="mediaTypeFilter === 'all'"
+            @click="mediaTypeFilter = 'all'"
+          >
             Все <span class="filter-count">{{ post.media.length }}</span>
           </button>
-          <button type="button" class="media-filter" :class="{ active: mediaTypeFilter === 'image' }" :aria-pressed="mediaTypeFilter === 'image'" @click="mediaTypeFilter = 'image'">
+          <button
+            type="button"
+            class="media-filter"
+            :class="{ active: mediaTypeFilter === 'image' }"
+            :aria-pressed="mediaTypeFilter === 'image'"
+            @click="mediaTypeFilter = 'image'"
+          >
             Фото <span class="filter-count">{{ imageCount }}</span>
           </button>
-          <button type="button" class="media-filter" :class="{ active: mediaTypeFilter === 'video' }" :aria-pressed="mediaTypeFilter === 'video'" @click="mediaTypeFilter = 'video'">
+          <button
+            type="button"
+            class="media-filter"
+            :class="{ active: mediaTypeFilter === 'video' }"
+            :aria-pressed="mediaTypeFilter === 'video'"
+            @click="mediaTypeFilter = 'video'"
+          >
             Видео <span class="filter-count">{{ videoCount }}</span>
           </button>
         </div>
@@ -310,7 +353,12 @@ watch(() => props.visible, (isOpen) => {
           <strong>Ничего не найдено</strong>
           <p>Измените запрос или выберите другой тип медиа.</p>
         </div>
-        <KitBtn variant="text" color="secondary" size="sm" @click="clearMediaFilters">
+        <KitBtn
+          variant="text"
+          color="secondary"
+          size="sm"
+          @click="clearMediaFilters"
+        >
           Сбросить фильтры
         </KitBtn>
       </div>
@@ -367,7 +415,14 @@ watch(() => props.visible, (isOpen) => {
               <Icon :icon="media.isPrivate ? 'mdi:lock' : 'mdi:lock-open-variant-outline'" />
             </button>
 
-            <button v-if="mode === 'select' || allowTimeline" type="button" class="selection-overlay" :aria-label="media.originalName || 'Выбрать медиа'" :aria-pressed="localSelectedIds.includes(media.id)" @click.stop="toggleSelection(media.id)">
+            <button
+              v-if="mode === 'select' || allowTimeline"
+              type="button"
+              class="selection-overlay"
+              :aria-label="media.originalName || 'Выбрать медиа'"
+              :aria-pressed="localSelectedIds.includes(media.id)"
+              @click.stop="toggleSelection(media.id)"
+            >
               <div class="checkbox">
                 <Icon v-if="localSelectedIds.includes(media.id)" icon="mdi:check" />
               </div>
@@ -376,7 +431,13 @@ watch(() => props.visible, (isOpen) => {
             <span class="media-caption" :title="media.originalName || (media.type === 'video' ? 'Видео' : 'Фото')">
               {{ getMediaCaptureDateTime(media) }}
             </span>
-            <button type="button" class="delete-btn" :title="`Удалить ${media.originalName || 'медиа'}`" :aria-label="`Удалить ${media.originalName || 'медиа'}`" @click.stop="handleDelete(media.id)">
+            <button
+              type="button"
+              class="delete-btn"
+              :title="`Удалить ${media.originalName || 'медиа'}`"
+              :aria-label="`Удалить ${media.originalName || 'медиа'}`"
+              @click.stop="handleDelete(media.id)"
+            >
               <Icon icon="mdi:trash-can-outline" />
             </button>
           </div>
@@ -384,7 +445,12 @@ watch(() => props.visible, (isOpen) => {
       </draggable>
 
       <div class="footer-actions">
-        <KitBtn variant="text" color="secondary" :disabled="isProcessing" @click="emit('update:visible', false)">
+        <KitBtn
+          variant="text"
+          color="secondary"
+          :disabled="isProcessing"
+          @click="emit('update:visible', false)"
+        >
           {{ mode === 'select' ? 'Отмена' : 'Закрыть' }}
         </KitBtn>
         <KitBtn

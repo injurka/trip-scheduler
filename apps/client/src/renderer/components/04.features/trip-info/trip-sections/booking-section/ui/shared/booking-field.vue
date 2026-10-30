@@ -50,7 +50,13 @@ const href = computed(() => {
       </label>
       <div class="readonly-content">
         <Icon v-if="icon" :icon="icon" class="field-icon" />
-        <a v-if="modelValue && linkType" :href="href" target="_blank" rel="noopener noreferrer" class="readonly-value link-value">{{ modelValue }}</a>
+        <a
+          v-if="modelValue && linkType"
+          :href="href"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="readonly-value link-value"
+        >{{ modelValue }}</a>
         <span v-else-if="modelValue" class="readonly-value">{{ modelValue }}</span>
         <span v-else class="readonly-placeholder">...</span>
       </div>

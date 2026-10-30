@@ -2,9 +2,11 @@
 import type { RadiusPreset } from '../../constants/radius-presets'
 import type { RadiusPalette } from '~/shared/store/theme.store'
 
-defineProps<{
+interface Props {
   presets: RadiusPreset[]
-}>()
+}
+
+defineProps<Props>()
 
 const emit = defineEmits<{
   (e: 'applyPreset', palette: RadiusPalette): void

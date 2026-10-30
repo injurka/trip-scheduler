@@ -43,6 +43,7 @@ export function useTripInfoLayout() {
       label: section.title,
       icon: section.icon || 'mdi:file-document-outline',
     }))
+
     return [overviewTab, mapTab, ...sectionTabs]
   })
 
@@ -52,28 +53,35 @@ export function useTripInfoLayout() {
 
     if (dayQuery) {
       activeTabId.value = 'daily-route'
+
       return
     }
 
     if (!sectionQuery) {
       activeTabId.value = 'overview'
+
       return
     }
 
     if (sectionQuery === 'map') {
       activeTabId.value = 'trip-map'
+
       return
     }
 
     const sectionBySlug = sortedSections.value.find(s => SECTION_TYPE_MAP[s.type] === sectionQuery)
+
     if (sectionBySlug) {
       activeTabId.value = sectionBySlug.id
+
       return
     }
 
     const sectionById = sortedSections.value.find(s => s.id === sectionQuery)
+
     if (sectionById) {
       activeTabId.value = sectionById.id
+
       return
     }
 
@@ -84,6 +92,7 @@ export function useTripInfoLayout() {
     if (activeTabId.value === 'daily-route') {
       return { id: 'daily-route', label: 'Маршрут по дням', icon: 'mdi:calendar-month-outline' }
     }
+
     return tabItems.value.find(item => item.id === activeTabId.value)
   })
 
@@ -98,6 +107,7 @@ export function useTripInfoLayout() {
         { value: 'clear', label: 'Очистить', icon: 'mdi:broom' },
         { value: 'delete', label: 'Удалить', icon: 'mdi:trash-can-outline' },
       ]
+
       return [...sectionActions, ...baseItems]
     }
 
@@ -128,6 +138,7 @@ export function useTripInfoLayout() {
     }
     else {
       const section = sortedSections.value.find(s => s.id === id)
+
       if (section) {
         const slug = SECTION_TYPE_MAP[section.type] || section.id
         router.push({ query: { ...currentQuery, section: slug } })
@@ -151,11 +162,15 @@ export function useTripInfoLayout() {
 
   function openEditDialog(targetSectionId?: string) {
     const id = targetSectionId || activeTab.value?.id
+
     if (!id || ['daily-route', 'overview', 'trip-map'].includes(id))
       return
+
     const section = sortedSections.value.find((s: TripSection) => s.id === id)
+
     if (!section)
       return
+
     sectionToEdit.value = {
       id: section.id,
       title: section.title,
@@ -174,6 +189,7 @@ export function useTripInfoLayout() {
         icon: data.icon,
       })
     }
+
     isEditSectionDialogOpen.value = false
   }
 
@@ -187,6 +203,7 @@ export function useTripInfoLayout() {
       confirmText: 'Очистить',
       type: 'danger',
     })
+
     if (isConfirmed)
       await store.sections.clearSection(activeTab.value.id)
   }
@@ -194,12 +211,14 @@ export function useTripInfoLayout() {
   async function handleDeleteSection() {
     if (!activeTab.value || ['daily-route', 'overview', 'trip-map'].includes(activeTab.value.id))
       return
+
     const isConfirmed = await confirm({
       title: `Удалить раздел "${activeTab.value.label}"?`,
       description: 'Это действие нельзя отменить.',
       confirmText: 'Удалить',
       type: 'danger',
     })
+
     if (isConfirmed) {
       const sectionIdToDelete = activeTab.value.id
       selectSection('overview')
@@ -209,6 +228,7 @@ export function useTripInfoLayout() {
 
   function handleMenuAction(item: KitDropdownItem | string) {
     const value = typeof item === 'object' && item !== null ? item.value : item
+
     if (!value)
       return
 
@@ -231,10 +251,13 @@ export function useTripInfoLayout() {
 
   function navigate(direction: 'prev' | 'next') {
     const currentIndex = tabItems.value.findIndex(item => item.id === activeTabId.value)
+
     if (currentIndex === -1)
       return
+
     const totalItems = tabItems.value.length
     let nextIndex
+
     if (direction === 'next')
       nextIndex = (currentIndex + 1) % totalItems
     else
@@ -261,12 +284,9 @@ export function useTripInfoLayout() {
     if (!mainNavigationRef.value)
       return
 
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        isNavigationVisible.value = entry.isIntersecting
-      },
-      { threshold: 0.1 },
-    )
+    const observer = new IntersectionObserver(([entry]) => {
+      isNavigationVisible.value = entry.isIntersecting
+    }, { threshold: 0.1 })
 
     observer.observe(mainNavigationRef.value)
 

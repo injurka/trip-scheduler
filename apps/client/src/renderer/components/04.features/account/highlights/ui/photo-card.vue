@@ -7,12 +7,13 @@ import { KitImage } from '~/components/01.kit/kit-image'
 import { KitTooltip } from '~/components/01.kit/kit-tooltip'
 import { getImageUrl } from '~/shared/lib/url'
 
-const props = defineProps<{
+interface Props {
   photo: Highlight
   quality: HighlightImageQuality
   isOwner: boolean
-}>()
+}
 
+const props = defineProps<Props>()
 const emit = defineEmits<{
   (e: 'click'): void
   (e: 'edit', photo: Highlight): void
@@ -20,14 +21,15 @@ const emit = defineEmits<{
 }>()
 
 const isTooltipOpen = ref(false)
+const maxCommentLength = 80
 
 const dynamicAspectRatio = computed(() => {
   if (props.photo.width && props.photo.height) {
     return props.photo.width / props.photo.height
   }
+
   return 4 / 5
 })
-
 const photoUrl = computed(() => {
   const variants = props.photo.variants as Record<string, string> | undefined
   let src = props.photo.imageUrl
@@ -43,33 +45,27 @@ const photoUrl = computed(() => {
 
   return getImageUrl(src, options)
 })
-
 const locationName = computed(() =>
-  [props.photo.city, props.photo.country?.name].filter(Boolean).join(', ') || 'Локация не указана',
-)
-
-const maxCommentLength = 80
-
+  [props.photo.city, props.photo.country?.name].filter(Boolean).join(', ') || 'Локация не указана')
 const isCommentTruncated = computed(() => {
   return props.photo.comment && props.photo.comment.trim().length > maxCommentLength
 })
-
 const shortComment = computed(() => {
   const comment = props.photo.comment?.trim()
+
   if (!comment)
     return 'Без описания'
 
   if (isCommentTruncated.value) {
     return `${comment.slice(0, maxCommentLength)}...`
   }
+
   return comment
 })
-
 const date = computed(() =>
   props.photo.takenAt
     ? new Date(props.photo.takenAt).toLocaleDateString('ru-RU')
-    : '',
-)
+    : '')
 
 function toggleTooltip(e: Event) {
   e.stopPropagation()

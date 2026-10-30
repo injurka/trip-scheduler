@@ -5,7 +5,13 @@ import { useExploreStore } from '~/components/04.features/explore-hub/store/expl
 import { PlacesFilters, PlacesList, PlacesListSkeleton, PlacesMap } from '~/components/04.features/explore-hub/ui'
 
 const exploreStore = useExploreStore()
-const { filteredPlaces, tags, isLoading, selectedTagIds, currentCity } = storeToRefs(exploreStore)
+const {
+  filteredPlaces,
+  tags,
+  isLoading,
+  selectedTagIds,
+  currentCity,
+} = storeToRefs(exploreStore)
 
 const viewMode = ref<'list' | 'map'>('list')
 
@@ -26,6 +32,7 @@ const mapCenter = computed((): [number, number] => {
   if (filteredPlaces.value.length > 0) {
     return [filteredPlaces.value[0].coordinates.lon, filteredPlaces.value[0].coordinates.lat]
   }
+
   return [106.5517, 29.563]
 })
 

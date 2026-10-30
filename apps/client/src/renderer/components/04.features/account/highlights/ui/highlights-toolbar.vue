@@ -8,54 +8,55 @@ import { KitCalendarRange } from '~/components/01.kit/kit-calendar-range'
 import { KitDropdown } from '~/components/01.kit/kit-dropdown'
 import { GeoPlacePicker } from '~/components/03.domain/geo-place-picker'
 
-const props = defineProps<{
+interface Props {
   quality: HighlightImageQuality
   selectedPlaces: GeoPlaceRef[]
   dateRange: HighlightDateRange | null
-}>()
+}
 
+const props = defineProps<Props>()
 const emit = defineEmits<{
   (e: 'update:quality', value: HighlightImageQuality): void
   (e: 'update:selectedPlaces', value: GeoPlaceRef[]): void
   (e: 'update:dateRange', value: HighlightDateRange | null): void
 }>()
 
-const localQuality = computed({
-  get: () => props.quality,
-  set: value => emit('update:quality', value),
-})
-
-const localPlaces = computed({
-  get: () => props.selectedPlaces,
-  set: (value: GeoPlaceRef | GeoPlaceRef[] | null) => emit('update:selectedPlaces', Array.isArray(value) ? value : value ? [value] : []),
-})
-
-const localDateRange = computed({
-  get: () => props.dateRange,
-  set: value => emit('update:dateRange', value),
-})
-
-const dateRangeLabel = computed(() => {
-  if (!props.dateRange?.start && !props.dateRange?.end)
-    return 'Даты'
-
-  const format = (d: CalendarDate | null | undefined) =>
-    d ? `${d.day.toString().padStart(2, '0')}.${d.month.toString().padStart(2, '0')}.${d.year}` : '...'
-
-  const start = format(props.dateRange?.start)
-  const end = format(props.dateRange?.end)
-
-  if (!props.dateRange?.end && props.dateRange?.start)
-    return start
-
-  return `${start} - ${end}`
-})
-
 const qualityOptions: KitDropdownItem<HighlightImageQuality>[] = [
   { value: 'medium', label: 'Среднее', icon: 'mdi:quality-medium' },
   { value: 'large', label: 'Высокое', icon: 'mdi:quality-high' },
   { value: 'original', label: 'Оригинал', icon: 'mdi:raw' },
 ]
+
+const localQuality = computed({
+  get: () => props.quality,
+  set: value => emit('update:quality', value),
+})
+const localPlaces = computed({
+  get: () => props.selectedPlaces,
+  set: (value: GeoPlaceRef | GeoPlaceRef[] | null) => emit('update:selectedPlaces', Array.isArray(value) ? value : value ? [value] : []),
+})
+const localDateRange = computed({
+  get: () => props.dateRange,
+  set: value => emit('update:dateRange', value),
+})
+const dateRangeLabel = computed(() => formatDateRangeLabel(props.dateRange))
+
+function formatDateRangeLabel(range: HighlightDateRange | null): string {
+  if (!range?.start && !range?.end)
+    return 'Даты'
+
+  const start = formatCalendarDate(range.start)
+  const end = formatCalendarDate(range.end)
+
+  if (!range.end && range.start)
+    return start
+
+  return `${start} - ${end}`
+}
+
+function formatCalendarDate(date: CalendarDate | null | undefined): string {
+  return date ? `${date.day.toString().padStart(2, '0')}.${date.month.toString().padStart(2, '0')}.${date.year}` : '...'
+}
 </script>
 
 <template>

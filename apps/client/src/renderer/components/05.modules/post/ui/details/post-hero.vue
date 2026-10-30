@@ -18,21 +18,27 @@ const props = withDefaults(defineProps<IProps>(), {
 const formattedStartDate = computed(() => {
   if (!props.post.startDate)
     return ''
+
   const d = new Date(props.post.startDate)
+
   return d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric' })
 })
 
 const formattedDuration = computed(() => {
   const hours = props.post.statsDetail?.duration || 0
+
   if (!hours)
     return ''
+
   if (hours >= 24 && hours % 24 === 0)
     return `${hours / 24} дн.`
+
   return `${hours} ч.`
 })
 
 const heroMedia = computed(() => {
   const media = props.post.media?.[0]
+
   if (!media || media.hasAccess === false)
     return null
 
@@ -44,20 +50,25 @@ const heroMediaUrl = computed(() => {
     return ''
 
   const variants = getPostMediaVariants(heroMedia.value)
+
   return variants.large || heroMedia.value.url
 })
 
 const heroVideoUrl = computed(() => {
   if (!heroMedia.value || heroMedia.value.type !== 'video')
     return ''
+
   const variants = getPostMediaVariants(heroMedia.value)
+
   return variants.web || heroMedia.value.url
 })
 
 const heroVideoPoster = computed(() => {
   if (!heroMedia.value || heroMedia.value.type !== 'video')
     return ''
+
   const variants = getPostMediaVariants(heroMedia.value)
+
   return variants.poster || variants.medium || variants.small || ''
 })
 </script>

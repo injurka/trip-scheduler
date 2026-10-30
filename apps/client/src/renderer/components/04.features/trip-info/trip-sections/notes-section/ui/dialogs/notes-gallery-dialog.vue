@@ -10,85 +10,95 @@ import { KitTooltip } from '~/components/01.kit/kit-tooltip'
 import { useRequest, useRequestStatusByPrefix } from '~/plugins/request'
 import { resolveApiUrl } from '~/shared/lib/url'
 
-const props = defineProps<{
+interface Props {
   visible: boolean
   tripId: string
   images: NoteImageUsage[]
   readonly: boolean
-}>()
+}
 
+const props = defineProps<Props>()
 const emit = defineEmits<{
   'update:visible': [value: boolean]
   'refresh': []
   'insertImage': [markdownSnippet: string]
 }>()
 
+const { copy } = useClipboard()
+
 const dropZoneRef = ref<HTMLElement | null>(null)
-const fileInputRef = ref<HTMLInputElement | null>(null)
 
 const { isOverDropZone } = useDropZone(dropZoneRef, { onDrop: handleDroppedFiles })
 
+const fileInputRef = ref<HTMLInputElement | null>(null)
 const UPLOAD_KEY_PREFIX = 'notes:upload-image'
+
 const isUploading = useRequestStatusByPrefix(UPLOAD_KEY_PREFIX)
+
+const viewerVisible = ref(false)
+const viewerIndex = ref(0)
+
+const viewerImages = computed(() => {
+  return props.images.map(img => ({
+    url: img.sources.original,
+    variants: img.sources,
+  }))
+})
 
 async function uploadFiles(files: File[]): Promise<void> {
   if (props.readonly)
     return
+
   const imageFiles = files.filter(f => f.type.startsWith('image/'))
+
   if (!imageFiles.length)
     return
 
-  await Promise.allSettled(
-    imageFiles.map(file =>
-      useRequest({
-        key: `${UPLOAD_KEY_PREFIX}:${file.name}-${Date.now()}`,
-        cancelPrevious: false,
-        fn: db => db.files.uploadFile(file, props.tripId, 'trip', 'notes'),
-      }),
-    ),
-  )
+  await Promise.allSettled(imageFiles.map(file =>
+    useRequest({
+      key: `${UPLOAD_KEY_PREFIX}:${file.name}-${Date.now()}`,
+      cancelPrevious: false,
+      fn: db => db.files.uploadFile(
+        file,
+        props.tripId,
+        'trip',
+        'notes',
+      ),
+    })))
 
   emit('refresh')
   useToast().success(`Загружено изображений: ${imageFiles.length}`)
 }
-
 function handleDroppedFiles(files: File[] | null): void {
   if (files?.length)
     uploadFiles(files)
 }
-
 function handleFileInputChange(event: Event): void {
   const input = event.target as HTMLInputElement
+
   if (input.files?.length) {
     uploadFiles(Array.from(input.files))
     input.value = ''
   }
 }
-
 function openFilePicker(): void {
   fileInputRef.value?.click()
 }
-
-const { copy } = useClipboard()
-
 function copyMarkdownLink(url: string): void {
   const absoluteUrl = resolveApiUrl(url)
   copy(`![image](${absoluteUrl})`)
   useToast().success('Markdown-ссылка скопирована')
 }
-
 function copyUrl(url: string): void {
   const absoluteUrl = resolveApiUrl(url)
   copy(`${absoluteUrl}`)
   useToast().success('Ссылка скопирована')
 }
-
 function insertIntoEditor(url: string): void {
   const absoluteUrl = resolveApiUrl(url)
   emit('insertImage', `![image](${absoluteUrl})`)
   emit('update:visible', false)
 }
-
 async function deleteImage(id: string): Promise<void> {
   const usedCount = props.images.find(img => img.id === id)?.usedIn.length ?? 0
   const description = usedCount > 0
@@ -100,6 +110,7 @@ async function deleteImage(id: string): Promise<void> {
     description,
     type: 'danger',
   })
+
   if (!isConfirmed)
     return
 
@@ -114,17 +125,6 @@ async function deleteImage(id: string): Promise<void> {
     },
   })
 }
-
-const viewerVisible = ref(false)
-const viewerIndex = ref(0)
-
-const viewerImages = computed(() => {
-  return props.images.map(img => ({
-    url: img.sources.original,
-    variants: img.sources,
-  }))
-})
-
 function openPreview(index: number): void {
   viewerIndex.value = index
   viewerVisible.value = true

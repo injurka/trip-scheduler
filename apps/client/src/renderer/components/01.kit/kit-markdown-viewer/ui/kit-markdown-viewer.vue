@@ -17,7 +17,6 @@ const markdownParser = new Marked({ gfm: true })
 const contentRef = ref<HTMLElement | null>(null)
 let renderGeneration = 0
 let mermaidId = 0
-
 const calloutTypes: Record<string, { label: string, className: string }> = {
   tip: { label: 'Совет', className: 'milkdown-callout-tip' },
   hint: { label: 'Подсказка', className: 'milkdown-callout-tip' },
@@ -34,46 +33,9 @@ const calloutTypes: Record<string, { label: string, className: string }> = {
   example: { label: 'Пример', className: 'milkdown-callout-example' },
 }
 
-function decorateCallouts(html: string) {
-  const parsed = new DOMParser().parseFromString(html, 'text/html')
-
-  parsed.body.querySelectorAll('blockquote').forEach((blockquote) => {
-    const paragraph = blockquote.querySelector(':scope > p')
-    const firstText = paragraph?.firstChild
-    if (!paragraph || firstText?.nodeType !== Node.TEXT_NODE)
-      return
-
-    const text = firstText.textContent || ''
-    const match = text.match(/^(\s*)\[!([a-z]+)[+-]?\][ \t]*/i)
-    if (!match)
-      return
-
-    const callout = calloutTypes[match[2].toLowerCase()] || {
-      label: match[2].toUpperCase(),
-      className: 'milkdown-callout-note',
-    }
-
-    firstText.textContent = `${match[1]}${text.slice(match[0].length)}`
-    blockquote.classList.add('milkdown-callout', callout.className)
-
-    const header = parsed.createElement('div')
-    header.className = 'milkdown-callout-header'
-
-    const title = parsed.createElement('span')
-    title.className = 'milkdown-callout-title'
-    title.textContent = callout.label
-    header.appendChild(title)
-    blockquote.prepend(header)
-
-    if (!paragraph.textContent?.trim() && paragraph.children.length === 0)
-      paragraph.remove()
-  })
-
-  return parsed.body.innerHTML
-}
-
 const renderedHtml = computed(() => {
   const value = props.markdown?.trim()
+
   if (!value)
     return ''
 
@@ -86,22 +48,76 @@ const renderedHtml = computed(() => {
   return decorateCallouts(sanitizedHtml)
 })
 
+watch(renderedHtml, async () => {
+  renderGeneration++
+  await nextTick()
+  void renderMermaidBlocks()
+})
+
+function decorateCallouts(html: string) {
+  const parsed = new DOMParser().parseFromString(html, 'text/html')
+
+  parsed.body.querySelectorAll('blockquote').forEach(blockquote => decorateCalloutBlockquote(blockquote, parsed))
+
+  return parsed.body.innerHTML
+}
+
+function decorateCalloutBlockquote(blockquote: HTMLElement, parsed: Document): void {
+  const paragraph = blockquote.querySelector(':scope > p')
+  const firstText = paragraph?.firstChild
+
+  if (!paragraph || firstText?.nodeType !== Node.TEXT_NODE)
+    return
+
+  const text = firstText.textContent || ''
+  const match = text.match(/^(\s*)\[!([a-z]+)[+-]?\][ \t]*/i)
+
+  if (!match)
+    return
+
+  const callout = getCalloutType(match[2])
+  firstText.textContent = `${match[1]}${text.slice(match[0].length)}`
+  blockquote.classList.add('milkdown-callout', callout.className)
+
+  const header = parsed.createElement('div')
+  header.className = 'milkdown-callout-header'
+
+  const title = parsed.createElement('span')
+  title.className = 'milkdown-callout-title'
+  title.textContent = callout.label
+  header.appendChild(title)
+  blockquote.prepend(header)
+
+  if (!paragraph.textContent?.trim() && paragraph.children.length === 0)
+    paragraph.remove()
+}
+
+function getCalloutType(type: string) {
+  return calloutTypes[type.toLowerCase()] || {
+    label: type.toUpperCase(),
+    className: 'milkdown-callout-note',
+  }
+}
 async function renderMermaidBlocks() {
   const currentGeneration = renderGeneration
   const container = contentRef.value
+
   if (!container)
     return
 
   const codeBlocks = Array.from(container.querySelectorAll('pre > code.language-mermaid'))
+
   if (codeBlocks.length === 0)
     return
 
   const { addFullscreenButton, renderMermaidDiagram } = await import('~/components/01.kit/kit-inline-md-editor/lib/mermaid-renderer')
+
   if (currentGeneration !== renderGeneration)
     return
 
   for (const code of codeBlocks) {
     const pre = code.parentElement
+
     if (!pre)
       continue
 
@@ -118,40 +134,38 @@ async function renderMermaidBlocks() {
 
     const render = async (): Promise<boolean> => {
       const svg = await renderMermaidDiagram(source.textContent || '', `markdown-viewer-${++mermaidId}`)
+
       if (currentGeneration !== renderGeneration || !wrapper.isConnected || !svg)
         return false
 
       diagram.innerHTML = DOMPurify.sanitize(svg, { USE_PROFILES: { svg: true } })
       const svgElement = diagram.querySelector('svg')
+
       if (svgElement) {
         svgElement.style.maxWidth = '100%'
         svgElement.style.width = '100%'
         svgElement.style.height = 'auto'
       }
+
       return true
     }
 
     pre.replaceWith(wrapper)
     wrapper.addEventListener('mermaid-theme-change', () => void render())
     const rendered = await render()
+
     if (!rendered) {
       wrapper.replaceWith(pre)
       continue
     }
+
     addFullscreenButton(wrapper, () => diagram.querySelector('svg'))
   }
 }
 
-watch(renderedHtml, async () => {
-  renderGeneration++
-  await nextTick()
-  void renderMermaidBlocks()
-})
-
 onMounted(() => {
   void renderMermaidBlocks()
 })
-
 onBeforeUnmount(() => {
   renderGeneration++
 })
@@ -159,7 +173,12 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="kit-markdown-viewer">
-    <div v-if="renderedHtml" ref="contentRef" class="kit-markdown-viewer__content" v-html="renderedHtml" />
+    <div
+      v-if="renderedHtml"
+      ref="contentRef"
+      class="kit-markdown-viewer__content"
+      v-html="renderedHtml"
+    />
     <p v-else-if="placeholder" class="kit-markdown-viewer__placeholder">
       {{ placeholder }}
     </p>

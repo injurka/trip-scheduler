@@ -11,7 +11,9 @@ let isMermaidInitialized = false
 function cssProp(name: string, fallback: string): string {
   if (typeof document === 'undefined')
     return fallback
+
   const val = getComputedStyle(document.documentElement).getPropertyValue(name).trim()
+
   return val || fallback
 }
 
@@ -101,6 +103,7 @@ function getMermaidConfig() {
 function initMermaidFallback() {
   if (isMermaidInitialized)
     return
+
   isMermaidInitialized = true
   mermaid.initialize(getMermaidConfig())
 }
@@ -117,11 +120,13 @@ export function updateMermaidTheme() {
 
 export async function renderMermaidDiagram(code: string, id: string): Promise<string> {
   const cleanCode = code.trim()
+
   if (!cleanCode)
     return ''
 
   try {
     const options = getBeautifulMermaidOptions()
+
     return renderMermaidSVG(cleanCode, options)
   }
   catch {
@@ -130,10 +135,12 @@ export async function renderMermaidDiagram(code: string, id: string): Promise<st
       initMermaidFallback()
       mermaid.initialize(getMermaidConfig())
       const { svg } = await mermaid.render(id, cleanCode)
+
       return svg
     }
     catch (err) {
       console.warn('Mermaid render error:', err)
+
       return ''
     }
   }
@@ -147,17 +154,22 @@ let themeObserver: MutationObserver | null = null
 function startMermaidThemeWatcher() {
   if (typeof document === 'undefined' || themeObserver)
     return
+
   themeObserver = new MutationObserver(() => {
     updateMermaidTheme()
     // Trigger re-render on every visible .mermaid-diagram container
     document.querySelectorAll<HTMLElement>('.mermaid-diagram').forEach((el) => {
       // Find the sibling <pre> that holds the raw code
       const container = el.closest<HTMLElement>('.milkdown-mermaid-container')
+
       if (!container)
         return
+
       const pre = container.querySelector<HTMLElement>('.mermaid-raw-code')
+
       if (!pre || !pre.textContent)
         return
+
       // Re-render by triggering the editor's update mechanism.
       // Dispatch a custom event that the mermaidView can pick up.
       container.dispatchEvent(new CustomEvent('mermaid-theme-change'))
@@ -195,7 +207,23 @@ interface ZoomPanState {
 }
 
 function createZoomPanState(): ZoomPanState {
-  return { scale: 1, translateX: 0, translateY: 0, isDragging: false, dragStartX: 0, dragStartY: 0, origTranslateX: 0, origTranslateY: 0 }
+  return {
+    scale: 1,
+    translateX: 0,
+    translateY: 0,
+    isDragging: false,
+    dragStartX: 0,
+    dragStartY: 0,
+    origTranslateX: 0,
+    origTranslateY: 0,
+  }
+}
+
+function getSvgDimension(viewBoxDimension: number | undefined, attributeDimension: number | undefined, fallback: number): number {
+  if (viewBoxDimension && viewBoxDimension > 0)
+    return viewBoxDimension
+
+  return attributeDimension || fallback
 }
 
 function setupFullscreenOverlay(svgClone: SVGSVGElement) {
@@ -225,8 +253,8 @@ function setupFullscreenOverlay(svgClone: SVGSVGElement) {
   const svgView = svgClone.cloneNode(true) as SVGSVGElement
   // Get natural SVG dimensions
   const vb = svgView.viewBox?.baseVal
-  const svgW = (vb && vb.width > 0) ? vb.width : (svgView.width?.baseVal?.value || 800)
-  const svgH = (vb && vb.height > 0) ? vb.height : (svgView.height?.baseVal?.value || 600)
+  const svgW = getSvgDimension(vb?.width, svgView.width?.baseVal?.value, 800)
+  const svgH = getSvgDimension(vb?.height, svgView.height?.baseVal?.value, 600)
 
   // Calculate initial fit: fill available space while preserving aspect ratio
   const winW = window.innerWidth * 0.85
@@ -266,6 +294,7 @@ function setupFullscreenOverlay(svgClone: SVGSVGElement) {
   const onPointerMove = (e: PointerEvent) => {
     if (!state.isDragging)
       return
+
     state.translateX = state.origTranslateX + (e.clientX - state.dragStartX)
     state.translateY = state.origTranslateY + (e.clientY - state.dragStartY)
     applyTransform()
@@ -290,6 +319,7 @@ function setupFullscreenOverlay(svgClone: SVGSVGElement) {
     window.removeEventListener('pointerup', onPointerUp)
     window.removeEventListener('pointercancel', onPointerUp)
     window.removeEventListener('keydown', onKeyDown)
+
     if (overlay.parentNode) {
       overlay.parentNode.removeChild(overlay)
     }
@@ -398,8 +428,10 @@ function setupFullscreenOverlay(svgClone: SVGSVGElement) {
   overlay.addEventListener('pointerdown', (e) => {
     if ((e.target as HTMLElement).closest('button'))
       return
+
     if (!e.isPrimary)
       return
+
     state.isDragging = true
     state.dragStartX = e.clientX
     state.dragStartY = e.clientY
@@ -436,6 +468,7 @@ export function addFullscreenButton(container: HTMLElement, getSvg: () => SVGSVG
   container.appendChild(btn)
 
   const isTouchDevice = window.matchMedia('(hover: none), (pointer: coarse)').matches
+
   if (isTouchDevice)
     btn.style.opacity = '1'
 
@@ -450,6 +483,7 @@ export function addFullscreenButton(container: HTMLElement, getSvg: () => SVGSVG
   })
   btn.addEventListener('mouseleave', () => {
     delete btn.dataset.keep
+
     if (!isTouchDevice)
       btn.style.opacity = '0'
   })
@@ -457,6 +491,7 @@ export function addFullscreenButton(container: HTMLElement, getSvg: () => SVGSVG
   btn.addEventListener('click', (e) => {
     e.stopPropagation()
     const svg = getSvg()
+
     if (svg)
       setupFullscreenOverlay(svg)
   })

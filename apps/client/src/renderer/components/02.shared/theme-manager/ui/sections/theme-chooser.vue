@@ -2,9 +2,11 @@
 import type { ThemeType } from '~/shared/types/models/theme'
 import ThemeCard from './theme-card.vue'
 
-defineProps<{
+interface Props {
   activeThemeName: ThemeType
-}>()
+}
+
+defineProps<Props>()
 
 const emit = defineEmits<{
   (e: 'selectTheme', themeName: ThemeType): void

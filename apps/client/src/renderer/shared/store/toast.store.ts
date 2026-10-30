@@ -39,6 +39,7 @@ export const useToastStore = defineStore('toast', {
 
     remove(id: string) {
       const index = this.messages.findIndex((m: { id: string }) => m.id === id)
+
       if (index !== -1) {
         this.messages.splice(index, 1)
       }

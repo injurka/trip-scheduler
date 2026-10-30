@@ -14,6 +14,7 @@ const props = defineProps<Props>()
 const activeSegments = computed(() => {
   if (props.totalDistanceM <= 0)
     return []
+
   return props.activities
     .filter(item => item.distanceM > 0)
     .map(item => ({

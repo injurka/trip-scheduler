@@ -35,12 +35,14 @@ export class MemoryRepository implements IMemoryRepository {
   @throttle(500)
   async applyTakenAtTimestamp(id: string): Promise<Memory> {
     const result = await trpc.memory.applyTakenAt.mutate({ id })
+
     return result as Memory
   }
 
   @throttle(500)
   async unassignTimestamp(id: string): Promise<Memory> {
     const result = await trpc.memory.unassignDate.mutate({ id })
+
     return result as Memory
   }
 }

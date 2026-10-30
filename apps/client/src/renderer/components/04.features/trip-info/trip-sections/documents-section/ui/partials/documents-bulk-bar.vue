@@ -24,7 +24,12 @@ const emit = defineEmits<{
 <template>
   <div class="bulk-action-bar">
     <div class="bulk-info">
-      <Icon icon="mdi:check-circle" width="18" height="18" class="bulk-icon" />
+      <Icon
+        icon="mdi:check-circle"
+        width="18"
+        height="18"
+        class="bulk-icon"
+      />
       <span>Выбрано: <strong>{{ selectedCount }}</strong></span>
     </div>
 

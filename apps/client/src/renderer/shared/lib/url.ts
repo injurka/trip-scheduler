@@ -3,6 +3,57 @@ import { SERVER_URL } from './env'
 const serverUrl = SERVER_URL
 const IMAGE_ROUTE = 'image'
 
+function isOurServerUrl(base: string, isRelativeApiPath: boolean): boolean {
+  const normalizedServerUrl = serverUrl.replace(/\/+$/, '')
+
+  return isRelativeApiPath
+    || (normalizedServerUrl.length > 0 && (base === normalizedServerUrl || base.startsWith(`${normalizedServerUrl}/`)))
+}
+
+function appendAuthToken(base: string, token: string): string {
+  try {
+    const url = new URL(base)
+    url.searchParams.set('token', token)
+
+    return url.toString()
+  }
+  catch {
+    const separator = base.includes('?') ? '&' : '?'
+
+    return `${base}${separator}token=${encodeURIComponent(token)}`
+  }
+}
+
+function createImageSearchParams(options: ImageOptions): URLSearchParams {
+  const params = new URLSearchParams()
+
+  if (options.w)
+    params.set('w', String(options.w))
+
+  if (options.h)
+    params.set('h', String(options.h))
+
+  if (options.fmt)
+    params.set('fmt', options.fmt)
+
+  if (options.q)
+    params.set('q', String(options.q))
+
+  return params
+}
+
+function appendImageOptions(base: string, options: ImageOptions): string {
+  const params = createImageSearchParams(options)
+  const query = params.toString()
+
+  if (!query)
+    return base
+
+  const separator = base.includes('?') ? '&' : '?'
+
+  return `${base}${separator}${query}`
+}
+
 /**
  * Преобразует относительный путь API в полный, абсолютный URL для статического ресурса.
  * @param path - Относительный путь к файлу (например, /avatars/user1.jpg).
@@ -18,6 +69,7 @@ export function resolveApiUrl(path: string | null | undefined): string {
   const isRelativeApiPath = !isHttpUrl && !isBlobUrl
 
   let base = path
+
   if (isRelativeApiPath) {
     const cleanedServer = serverUrl.endsWith('/') ? serverUrl.slice(0, -1) : serverUrl
     const cleanedPath = path.startsWith('/') ? path.slice(1) : path
@@ -26,22 +78,10 @@ export function resolveApiUrl(path: string | null | undefined): string {
 
   if (typeof window !== 'undefined') {
     const token = localStorage.getItem('auth_token')
-    if (token) {
-      const normalizedServerUrl = serverUrl.replace(/\/+$/, '')
-      const isOurServer = isRelativeApiPath
-        || (normalizedServerUrl.length > 0 && (base === normalizedServerUrl || base.startsWith(`${normalizedServerUrl}/`)))
 
-      if (isOurServer) {
-        try {
-          const url = new URL(base)
-          url.searchParams.set('token', token)
-          return url.toString()
-        }
-        catch {
-          const separator = base.includes('?') ? '&' : '?'
-          return `${base}${separator}token=${encodeURIComponent(token)}`
-        }
-      }
+    if (token) {
+      if (isOurServerUrl(base, isRelativeApiPath))
+        return appendAuthToken(base, token)
     }
   }
 
@@ -55,49 +95,28 @@ export interface ImageOptions {
   q?: number
 }
 
-export function getImageUrl(
-  path: string | null | undefined,
-  options?: ImageOptions,
-): string | undefined {
+export function getImageUrl(path: string | null | undefined, options?: ImageOptions): string | undefined {
   if (!path)
     return undefined
 
   const base = resolveApiUrl(path)
+
   if (!base)
     return undefined
 
   if (!options)
     return base
 
+  const params = createImageSearchParams(options)
+
   try {
     const url = new URL(base)
-    if (options.w)
-      url.searchParams.set('w', String(options.w))
-    if (options.h)
-      url.searchParams.set('h', String(options.h))
-    if (options.fmt)
-      url.searchParams.set('fmt', options.fmt)
-    if (options.q)
-      url.searchParams.set('q', String(options.q))
+    params.forEach((value, key) => url.searchParams.set(key, value))
+
     return url.toString()
   }
   catch {
-    const params = new URLSearchParams()
-    if (options.w)
-      params.set('w', String(options.w))
-    if (options.h)
-      params.set('h', String(options.h))
-    if (options.fmt)
-      params.set('fmt', options.fmt)
-    if (options.q)
-      params.set('q', String(options.q))
-
-    const query = params.toString()
-    if (!query)
-      return base
-
-    const separator = base.includes('?') ? '&' : '?'
-    return `${base}${separator}${query}`
+    return appendImageOptions(base, options)
   }
 }
 
@@ -111,13 +130,17 @@ export function stripAuthTokenFromUrl(url: string | null | undefined): string {
   try {
     const isAbsolute = url.startsWith('http://') || url.startsWith('https://')
     const parsed = new URL(url, isAbsolute ? undefined : 'http://localhost')
+
     if (parsed.searchParams.has('token')) {
       parsed.searchParams.delete('token')
     }
+
     if (!isAbsolute) {
       const search = parsed.search ? parsed.search : ''
+
       return `${parsed.pathname}${search}`
     }
+
     return parsed.toString()
   }
   catch {

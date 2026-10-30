@@ -5,8 +5,8 @@ import { isMobile } from '~/shared/lib/env'
 import { useThemeStore } from '~/shared/store/theme.store'
 
 const themeStore = useThemeStore()
-const { backgroundSettings } = storeToRefs(themeStore)
 
+const { backgroundSettings } = storeToRefs(themeStore)
 const travelIcons = [
   'mdi:airplane',
   'mdi:map-marker-outline',
@@ -27,11 +27,6 @@ const travelIcons = [
   'mdi:ship-wheel',
   'mdi:flag-variant-outline',
 ]
-
-function getRandomIcon() {
-  return travelIcons[Math.floor(Math.random() * travelIcons.length)]
-}
-
 const symbols = isMobile
   ? []
   : Array.from({ length: 40 }, () => ({
@@ -42,6 +37,10 @@ const symbols = isMobile
       duration: 10 + Math.random() * 15,
       size: 1 + Math.random() * 0.8,
     }))
+
+function getRandomIcon() {
+  return travelIcons[Math.floor(Math.random() * travelIcons.length)]
+}
 
 onMounted(() => {
   if (!isMobile) {

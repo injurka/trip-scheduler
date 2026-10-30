@@ -18,33 +18,16 @@ interface Props {
 }
 
 const props = defineProps<Props>()
-
 const emit = defineEmits<{
   (e: 'save', activityData: Partial<IActivity>): void
   (e: 'delete', activityId: string): void
 }>()
-
 const visible = defineModel<boolean>('visible', { required: true })
 
 const title = ref('')
 const selectedTag = ref<EActivityTag>(EActivityTag.ACTIVITY)
 const startTimeVal = shallowRef<Time | null>(null)
 const endTimeVal = shallowRef<Time | null>(null)
-
-function parseTimeToTime(timeStr?: string): Time {
-  if (!timeStr)
-    return new Time(9, 0)
-  const [h, m] = timeStr.split(':').map(Number)
-  return new Time(Number.isNaN(h) ? 9 : h, Number.isNaN(m) ? 0 : m)
-}
-
-function timeObjectToString(t: Time | null): string {
-  if (!t)
-    return '09:00'
-  const h = t.hour.toString().padStart(2, '0')
-  const m = t.minute.toString().padStart(2, '0')
-  return `${h}:${m}`
-}
 
 watch(() => visible.value, (isOpen) => {
   if (isOpen) {
@@ -65,6 +48,23 @@ watch(() => visible.value, (isOpen) => {
   }
 }, { immediate: true })
 
+function parseTimeToTime(timeStr?: string): Time {
+  if (!timeStr)
+    return new Time(9, 0)
+
+  const [h, m] = timeStr.split(':').map(Number)
+
+  return new Time(Number.isNaN(h) ? 9 : h, Number.isNaN(m) ? 0 : m)
+}
+function timeObjectToString(t: Time | null): string {
+  if (!t)
+    return '09:00'
+
+  const h = t.hour.toString().padStart(2, '0')
+  const m = t.minute.toString().padStart(2, '0')
+
+  return `${h}:${m}`
+}
 function handleSave() {
   const sTime = timeObjectToString(startTimeVal.value)
   const eTime = timeObjectToString(endTimeVal.value)
@@ -86,7 +86,6 @@ function handleSave() {
   emit('save', payload)
   visible.value = false
 }
-
 function handleDelete() {
   if (props.activity?.id) {
     emit('delete', props.activity.id)
@@ -160,10 +159,20 @@ function handleDelete() {
           Удалить
         </KitBtn>
         <div class="spacer" />
-        <KitBtn variant="outlined" color="secondary" size="sm" @click="visible = false">
+        <KitBtn
+          variant="outlined"
+          color="secondary"
+          size="sm"
+          @click="visible = false"
+        >
           Отмена
         </KitBtn>
-        <KitBtn variant="solid" color="primary" size="sm" @click="handleSave">
+        <KitBtn
+          variant="solid"
+          color="primary"
+          size="sm"
+          @click="handleSave"
+        >
           <Icon icon="mdi:check" />
           Сохранить
         </KitBtn>

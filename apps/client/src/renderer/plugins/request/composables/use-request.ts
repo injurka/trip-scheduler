@@ -7,24 +7,87 @@ import { useRequestStore } from '../store/request.store'
 
 const pendingPromises = new Map<string, Promise<any | null>>()
 
-export async function useRequest<T>(
-  options: UseRequestOptions<T>,
-): Promise<T | null> {
+type NormalizedRequestOptions<T> = Omit<UseRequestOptions<T>, 'initialData' | 'force' | 'cache' | 'cancelPrevious' | 'abortOnUnmount' | 'onError'> & {
+  initialData: T | null
+  force: boolean
+  cache: boolean
+  cancelPrevious: boolean
+  abortOnUnmount: boolean
+  onError: NonNullable<UseRequestOptions<T>['onError']>
+}
+
+function normalizeRequestOptions<T>(options: UseRequestOptions<T>, defaultErrorHandler: ReturnType<typeof createApiErrorHandler>): NormalizedRequestOptions<T> {
+  return {
+    ...options,
+    initialData: options.initialData ?? null,
+    force: options.force ?? true,
+    cache: options.cache ?? false,
+    cancelPrevious: options.cancelPrevious ?? true,
+    abortOnUnmount: options.abortOnUnmount ?? false,
+    onError: options.onError ?? ((error: unknown) => defaultErrorHandler({ error: error as IError })),
+  }
+}
+
+function getServerErrorMessage(error: any): string | null {
+  const responseData = error.response?.data || error.data
+
+  if (Array.isArray(responseData) && responseData[0]?.error?.message)
+    return responseData[0].error.message
+
+  if (responseData?.error?.message)
+    return responseData.error.message
+
+  return null
+}
+
+async function handleRequestFailure(
+  error: any,
+  key: string,
+  store: ReturnType<typeof useRequestStore>,
+  onAbort: UseRequestOptions<unknown>['onAbort'],
+  onError: NonNullable<UseRequestOptions<unknown>['onError']>,
+): Promise<void> {
+  if (error.name === 'AbortError') {
+    store.setStatus(key, 'aborted')
+    await onAbort?.()
+
+    return
+  }
+
+  const serverMessage = getServerErrorMessage(error)
+  const displayMessage = serverMessage || error.message || 'Произошла ошибка'
+
+  store.setError(key, displayMessage)
+  store.setStatus(key, 'error')
+  console.error(`[useRequest Error] (key: ${key}):`, displayMessage)
+
+  error.customMessage = displayMessage
+  await onError({ error })
+}
+
+function recordRequestTimestamp(key: string, touch: (key: string) => void, peek: (key: string) => void): void {
+  if (navigator.onLine)
+    touch(key)
+  else
+    peek(key)
+}
+
+export async function useRequest<T>(options: UseRequestOptions<T>): Promise<T | null> {
   const defaultErrorHandler = createApiErrorHandler()
   const { touch, peek } = useDataTimestamp()
-
+  const normalizedOptions = normalizeRequestOptions(options, defaultErrorHandler)
   const {
     key,
     fn,
-    initialData = null,
+    initialData,
     onSuccess,
-    onError = (error: unknown) => defaultErrorHandler({ error: error as IError }),
+    onError,
     onAbort,
-    force = true,
-    cache = false,
-    cancelPrevious = true,
-    abortOnUnmount = false,
-  } = options
+    force,
+    cache,
+    cancelPrevious,
+    abortOnUnmount,
+  } = normalizedOptions
 
   const store = useRequestStore()
 
@@ -41,6 +104,7 @@ export async function useRequest<T>(
   if (cache && !force && store.statuses.get(key) === 'success' && store.cache.has(key)) {
     peek(key)
     await onSuccess?.(toRaw(store.cache.get(key)))
+
     return toRaw(store.cache.get(key))
   }
 
@@ -65,48 +129,26 @@ export async function useRequest<T>(
       store.setCache(key, result)
       store.setStatus(key, 'success')
 
-      if (navigator.onLine) {
-        touch(key)
-      }
-      else {
-        peek(key)
-      }
+      recordRequestTimestamp(key, touch, peek)
 
       await onSuccess?.(result)
+
       return result
     }
     catch (e: any) {
-      if (e.name === 'AbortError') {
-        store.setStatus(key, 'aborted')
-        await onAbort?.()
-      }
-      else {
-        const responseData = e.response?.data || e.data
-
-        let serverMessage = null
-
-        if (Array.isArray(responseData) && responseData[0]?.error?.message) {
-          serverMessage = responseData[0].error.message
-        }
-        else if (responseData?.error?.message) {
-          serverMessage = responseData.error.message
-        }
-
-        const displayMessage = serverMessage || e.message || 'Произошла ошибка'
-
-        store.setError(key, displayMessage)
-        store.setStatus(key, 'error')
-
-        console.error(`[useRequest Error] (key: ${key}):`, displayMessage)
-
-        e.customMessage = displayMessage
-        await onError?.({ error: e })
-      }
+      await handleRequestFailure(
+        e,
+        key,
+        store,
+        onAbort,
+        onError,
+      )
 
       return initialData
     }
     finally {
       pendingPromises.delete(key)
+
       if (store.controllers.get(key) === controller)
         store.controllers.delete(key)
     }

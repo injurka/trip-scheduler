@@ -26,67 +26,35 @@ interface Props {
 
 const props = defineProps<Props>()
 const emit = defineEmits(['updateSection'])
-const route = useRoute()
 
+const route = useRoute()
 const store = useModuleStore(['routeGallery', 'ui'])
+const fetchError = useRequestError(ETripGalleryKeys.FETCH_IMAGES)
+const imageViewer = useImageViewer({
+  enableKeyboard: true,
+})
+
 const { tripImages, isUploadingImage, isFetchingImages, loadedTripId } = storeToRefs(store.routeGallery)
 const { isViewMode } = storeToRefs(store.ui)
-
 const fileInput = ref<HTMLInputElement | null>(null)
 const isImagePickerOpen = ref(false)
 const isLinkDialogOpen = ref(false)
 const linkInput = ref('')
 
-const fetchError = useRequestError(ETripGalleryKeys.FETCH_IMAGES)
-
 const imageUrls = computed(() => props.section.imageUrls || [])
 const tripId = computed(() => route.params.id as string)
-
-function isApiHostedImage(url: string) {
-  try {
-    const mediaOrigin = new URL(resolveApiUrl(url), window.location.origin).origin
-    const apiOrigin = new URL(SERVER_URL || window.location.origin).origin
-    return mediaOrigin === apiOrigin
-  }
-  catch {
-    return false
-  }
-}
-
 const hasApiHostedImages = computed(() => imageUrls.value.some(isApiHostedImage))
 const isImageMetadataLoading = computed(() =>
-  hasApiHostedImages.value && (isFetchingImages.value || (loadedTripId.value !== tripId.value && !fetchError.value)),
-)
-
-function normalizeMediaUrl(url: string) {
-  const resolved = resolveApiUrl(url)
-  try {
-    const parsed = new URL(resolved, window.location.origin)
-    return `${parsed.origin}${parsed.pathname}`
-  }
-  catch {
-    return resolved
-  }
-}
-
-function loadImages() {
-  if (tripId.value) {
-    store.routeGallery.setTripId(tripId.value)
-    store.routeGallery.fetchTripImages()
-  }
-}
-
-onMounted(() => {
-  loadImages()
-})
-
+  hasApiHostedImages.value && (isFetchingImages.value || (loadedTripId.value !== tripId.value && !fetchError.value)))
 const fullImagesData = computed(() => {
   return imageUrls.value.map((url) => {
     const requestedUrl = normalizeMediaUrl(url)
     const existingImg = tripImages.value.find((tripImg) => {
       const mediaUrls = [tripImg.url, ...Object.values(tripImg.variants || {})].filter((value): value is string => !!value)
+
       return mediaUrls.some(mediaUrl => normalizeMediaUrl(mediaUrl) === requestedUrl)
     })
+
     if (existingImg)
       return existingImg
 
@@ -103,54 +71,73 @@ const fullImagesData = computed(() => {
     } as TripMedia
   })
 })
-
 const displayData = computed(() => fullImagesData.value.length > 0 ? fullImagesData.value : null)
-
 const viewerImages = computed<ImageViewerImage[]>(() =>
-  fullImagesData.value.map(tripImage => tripMediaToViewerImage(tripImage)),
-)
-
-const imageViewer = useImageViewer({
-  enableKeyboard: true,
-})
-
+  fullImagesData.value.map(tripImage => tripMediaToViewerImage(tripImage)))
 const galleryClass = computed(() => {
   const count = imageUrls.value.length
+
   if (count <= 3)
     return 'gallery-small'
+
   if (count <= 6)
     return 'gallery-medium'
+
   return 'gallery-large'
 })
-
 const maxVisibleImages = computed(() => {
   const count = fullImagesData.value.length
+
   return count <= 4 ? count : 4
 })
-
 const remainingImagesCount = computed(() =>
-  Math.max(0, fullImagesData.value.length - maxVisibleImages.value),
-)
-
+  Math.max(0, fullImagesData.value.length - maxVisibleImages.value))
 const visibleImages = computed(() =>
-  fullImagesData.value.slice(0, maxVisibleImages.value),
-)
+  fullImagesData.value.slice(0, maxVisibleImages.value))
 const moreImage = computed(() => fullImagesData.value[maxVisibleImages.value])
 const moreImageSrc = computed(() => moreImage.value?.variants?.small || moreImage.value?.variants?.medium || moreImage.value?.url)
 const moreImageVariants = computed(() => {
   const mediumVariant = moreImage.value?.variants?.medium
+
   return mediumVariant ? { medium: mediumVariant, large: mediumVariant } : undefined
 })
 
+function isApiHostedImage(url: string) {
+  try {
+    const mediaOrigin = new URL(resolveApiUrl(url), window.location.origin).origin
+    const apiOrigin = new URL(SERVER_URL || window.location.origin).origin
+
+    return mediaOrigin === apiOrigin
+  }
+  catch {
+    return false
+  }
+}
+function normalizeMediaUrl(url: string) {
+  const resolved = resolveApiUrl(url)
+
+  try {
+    const parsed = new URL(resolved, window.location.origin)
+
+    return `${parsed.origin}${parsed.pathname}`
+  }
+  catch {
+    return resolved
+  }
+}
+function loadImages() {
+  if (tripId.value) {
+    store.routeGallery.setTripId(tripId.value)
+    store.routeGallery.fetchTripImages()
+  }
+}
 function deleteImage(index: number) {
   const updatedUrls = imageUrls.value.filter((_, i) => i !== index)
   emit('updateSection', { ...props.section, imageUrls: updatedUrls })
 }
-
 function triggerFileUpload() {
   fileInput.value?.click()
 }
-
 async function handleFileUpload(event: Event) {
   const target = event.target as HTMLInputElement
   const files = target.files
@@ -159,8 +146,7 @@ async function handleFileUpload(event: Event) {
     return
 
   const uploadPromises = Array.from(files).map(file =>
-    store.routeGallery.uploadImage(file),
-  )
+    store.routeGallery.uploadImage(file))
 
   const newImageRecords = await Promise.all(uploadPromises)
 
@@ -175,19 +161,15 @@ async function handleFileUpload(event: Event) {
 
   target.value = ''
 }
-
 function handlePickerConfirm(selectedUrls: string[]) {
   emit('updateSection', { ...props.section, imageUrls: selectedUrls })
 }
-
 function openViewer(index: number) {
   imageViewer.open(viewerImages.value, index)
 }
-
 function isValidUrl(str: string) {
   return URL.canParse(str)
 }
-
 function handleAddLink() {
   if (!isValidUrl(linkInput.value))
     return
@@ -198,6 +180,10 @@ function handleAddLink() {
   linkInput.value = ''
   isLinkDialogOpen.value = false
 }
+
+onMounted(() => {
+  loadImages()
+})
 </script>
 
 <template>

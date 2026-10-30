@@ -68,7 +68,12 @@ function clearDate() {
           <template #footer>
             <div v-if="props.clearable || $slots.footer" class="calendar-footer">
               <slot name="footer" :close="closeCalendar" />
-              <KitBtn v-if="props.clearable" variant="text" size="sm" @click="clearDate">
+              <KitBtn
+                v-if="props.clearable"
+                variant="text"
+                size="sm"
+                @click="clearDate"
+              >
                 Очистить дату
               </KitBtn>
             </div>

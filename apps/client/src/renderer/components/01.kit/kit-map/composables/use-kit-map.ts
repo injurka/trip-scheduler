@@ -7,14 +7,17 @@ import { useBaseMap } from './use-base-map'
 
 function getAvailableFont(map: maplibregl.Map): string[] {
   const layers = map.getStyle()?.layers || []
+
   for (const layer of layers) {
     if (layer.type === 'symbol' && layer.layout && 'text-font' in layer.layout) {
       const font = (layer.layout as Record<string, any>)['text-font']
+
       if (Array.isArray(font) && font.length) {
         return font
       }
     }
   }
+
   return ['Open Sans Regular', 'Arial Unicode MS Regular']
 }
 
@@ -22,6 +25,7 @@ function getLabelColors(): { color: string, haloColor: string } {
   if (typeof document !== 'undefined' && document.documentElement.classList.contains('dark')) {
     return { color: '#f3f4f6', haloColor: '#18181b' }
   }
+
   return { color: '#1f2937', haloColor: '#ffffff' }
 }
 
@@ -41,17 +45,21 @@ export function useKitMap() {
 
   const clearCircleMarkers = (map: maplibregl.Map | null | undefined) => {
     circleMarkersData = []
+
     if (circleHoverPopup) {
       circleHoverPopup.remove()
       circleHoverPopup = null
     }
+
     if (!map)
       return
 
     if (map.getLayer(circleLabelsLayerId))
       map.removeLayer(circleLabelsLayerId)
+
     if (map.getLayer(circleLayerId))
       map.removeLayer(circleLayerId)
+
     if (map.getSource(circleSourceId))
       map.removeSource(circleSourceId)
   }
@@ -60,6 +68,7 @@ export function useKitMap() {
     if (map.getLayer(circleLayerId)) {
       map.moveLayer(circleLayerId)
     }
+
     if (map.getLayer(circleLabelsLayerId)) {
       map.moveLayer(circleLabelsLayerId)
     }
@@ -86,13 +95,17 @@ export function useKitMap() {
     }
 
     const existingSource = map.getSource(circleSourceId) as maplibregl.GeoJSONSource | undefined
+
     if (existingSource) {
       existingSource.setData(geojson)
+
       if (map.getLayer(circleLabelsLayerId)) {
         const hasAnyLabelVisible = circleMarkers.some(m => m.showLabel)
         map.setLayoutProperty(circleLabelsLayerId, 'visibility', hasAnyLabelVisible ? 'visible' : 'none')
       }
+
       bringCircleMarkersToFront(map)
+
       return
     }
 
@@ -131,6 +144,7 @@ export function useKitMap() {
 
     // 2. Подписи станций при включенном режиме "Названия станций"
     const hasGlyphs = Boolean(map.getStyle()?.glyphs)
+
     if (hasGlyphs) {
       const fontStack = getAvailableFont(map)
       const labelColors = getLabelColors()
@@ -174,9 +188,11 @@ export function useKitMap() {
       map.on('mouseenter', circleLayerId, (e) => {
         map.getCanvas().style.cursor = 'pointer'
         const feature = e.features?.[0]
+
         if (feature && feature.geometry.type === 'Point') {
           const coords = (feature.geometry as GeoJSON.Point).coordinates.slice() as [number, number]
           const title = feature.properties?.title
+
           if (title) {
             if (!circleHoverPopup) {
               circleHoverPopup = new maplibregl.Popup({
@@ -186,6 +202,7 @@ export function useKitMap() {
                 className: 'maplibre-station-hover-wrapper',
               })
             }
+
             circleHoverPopup
               .setLngLat(coords)
               .setHTML(`<div class="station-label-popup">${title}</div>`)
@@ -211,6 +228,7 @@ export function useKitMap() {
 
   const updateMarkers = (markers: MapMarker[]) => {
     const map = baseMap.mapInstance.value
+
     if (!map)
       return
 
@@ -229,87 +247,115 @@ export function useKitMap() {
       }
     })
 
-    if (!domMarkers.length)
+    domMarkers.forEach(marker => updateDomMarker(map, marker))
+  }
+
+  function updateDomMarker(map: maplibregl.Map, marker: MapMarker) {
+    const existing = markersMap.get(marker.id)
+    const markerInstance = existing || createDomMarker(map, marker)
+
+    if (existing)
+      existing.setLngLat([marker.coords.lon, marker.coords.lat])
+
+    markerInstance.getElement().classList.toggle('show-label', Boolean(marker.showLabel))
+  }
+
+  function createDomMarker(map: maplibregl.Map, marker: MapMarker): maplibregl.Marker {
+    const isConnect = marker.pointType === 'connect'
+    const element = createMarkerElement({
+      color: marker.color || '#3399CC',
+      scale: marker.scale || 1.1,
+      pointType: marker.pointType || 'poi',
+      shape: marker.shape,
+      isConnect,
+      label: marker.shape === 'circle' ? marker.title : marker.label,
+    })
+    const instance = new maplibregl.Marker({
+      element,
+      anchor: isConnect || marker.shape === 'circle' ? 'center' : 'bottom',
+    }).setLngLat([marker.coords.lon, marker.coords.lat])
+
+    if (marker.imageUrl) {
+      attachImagePopup(instance, element, marker.imageUrl)
+    }
+    else {
+      attachCommentPopup(
+        map,
+        instance,
+        element,
+        marker,
+      )
+    }
+
+    instance.addTo(map)
+    markersMap.set(marker.id, instance)
+
+    return instance
+  }
+
+  function attachImagePopup(instance: maplibregl.Marker, element: HTMLElement, imageUrl: string) {
+    const resolvedUrl = resolveApiUrl(imageUrl)
+
+    if (!resolvedUrl)
       return
 
-    domMarkers.forEach((marker) => {
-      let markerInstance = markersMap.get(marker.id)
+    const popup = new maplibregl.Popup({
+      offset: 28,
+      closeButton: false,
+      className: 'kit-map-image-popup',
+    }).setHTML(`<img src="${resolvedUrl}" style="width:200px; height:120px; object-fit: cover; border-radius:4px; display:block;" />`)
+    instance.setPopup(popup)
+    element.addEventListener('mouseenter', () => instance.togglePopup())
+    element.addEventListener('mouseleave', () => instance.togglePopup())
+  }
 
-      if (!markerInstance) {
-        const isConnect = marker.pointType === 'connect'
-        const el = createMarkerElement({
-          color: marker.color || '#3399CC',
-          scale: marker.scale || 1.1,
-          pointType: marker.pointType || 'poi',
-          shape: marker.shape,
-          isConnect,
-          label: marker.shape === 'circle' ? marker.title : marker.label,
-        })
+  function getMarkerPopupText(marker: MapMarker): { text: string, isDistinctComment: boolean } {
+    const isDistinctComment = Boolean(marker.comment && marker.comment.trim() !== '' && marker.comment.trim() !== marker.address?.trim())
+    const address = marker.pointType !== 'connect' && marker.address?.trim() ? marker.address : marker.title || ''
 
-        markerInstance = new maplibregl.Marker({
-          element: el,
-          anchor: isConnect || marker.shape === 'circle' ? 'center' : 'bottom',
-        }).setLngLat([marker.coords.lon, marker.coords.lat])
+    return { text: isDistinctComment ? marker.comment! : address, isDistinctComment }
+  }
 
-        if (marker.imageUrl) {
-          const resolvedUrl = resolveApiUrl(marker.imageUrl)
-          if (resolvedUrl) {
-            const popup = new maplibregl.Popup({
-              offset: 28,
-              closeButton: false,
-              className: 'kit-map-image-popup',
-            }).setHTML(
-              `<img src="${resolvedUrl}" style="width:200px; height:120px; object-fit: cover; border-radius:4px; display:block;" />`,
-            )
-            markerInstance.setPopup(popup)
+  function attachCommentPopup(
+    map: maplibregl.Map,
+    instance: maplibregl.Marker,
+    element: HTMLElement,
+    marker: MapMarker,
+  ) {
+    if (marker.pointType === 'connect' || marker.shape === 'circle')
+      return
 
-            el.addEventListener('mouseenter', () => markerInstance?.togglePopup())
-            el.addEventListener('mouseleave', () => markerInstance?.togglePopup())
-          }
-        }
-        else {
-          const hasDistinctComment = Boolean(marker.comment && marker.comment.trim() !== '' && marker.comment.trim() !== marker.address?.trim())
-          const popupText = hasDistinctComment
-            ? marker.comment!
-            : (marker.pointType !== 'connect' && marker.address && marker.address.trim() !== '' ? marker.address : (marker.title || ''))
+    const { text, isDistinctComment } = getMarkerPopupText(marker)
 
-          if (popupText && marker.pointType !== 'connect' && marker.shape !== 'circle') {
-            const popupElement = document.createElement('div')
-            popupElement.className = 'ol-popup-comment'
-            popupElement.textContent = popupText
+    if (!text)
+      return
 
-            const popup = new maplibregl.Popup({
-              offset: 32,
-              closeButton: false,
-              closeOnClick: false,
-              closeOnMove: false,
-              className: 'maplibre-point-comment-wrapper',
-            }).setDOMContent(popupElement)
+    const popupElement = document.createElement('div')
+    popupElement.className = 'ol-popup-comment'
+    popupElement.textContent = text
+    const popup = new maplibregl.Popup({
+      offset: 32,
+      closeButton: false,
+      closeOnClick: false,
+      closeOnMove: false,
+      className: 'maplibre-point-comment-wrapper',
+    }).setDOMContent(popupElement)
 
-            markerInstance.setPopup(popup)
-            if (hasDistinctComment) {
-              popup.addTo(map)
-            }
-            else {
-              el.addEventListener('mouseenter', () => {
-                if (!popup.isOpen())
-                  popup.addTo(map)
-              })
-              el.addEventListener('mouseleave', () => {
-                if (popup.isOpen())
-                  popup.remove()
-              })
-            }
-          }
-        }
+    instance.setPopup(popup)
 
-        markerInstance.addTo(map)
-        markersMap.set(marker.id, markerInstance)
-      }
-      else {
-        markerInstance.setLngLat([marker.coords.lon, marker.coords.lat])
-      }
-      markerInstance.getElement().classList.toggle('show-label', Boolean(marker.showLabel))
+    if (isDistinctComment) {
+      popup.addTo(map)
+
+      return
+    }
+
+    element.addEventListener('mouseenter', () => {
+      if (!popup.isOpen())
+        popup.addTo(map)
+    })
+    element.addEventListener('mouseleave', () => {
+      if (popup.isOpen())
+        popup.remove()
     })
   }
 
@@ -317,34 +363,20 @@ export function useKitMap() {
     if (!route.geometry || route.geometry.length < 2)
       return
 
-    const sourceId = `kit-route-src-${route.id}`
-    const shadowLayerId = `kit-route-shadow-${route.id}`
-    const casingLayerId = `kit-route-casing-${route.id}`
-    const lineLayerId = `kit-route-line-${route.id}`
-
-    const geojson: GeoJSON.Feature<GeoJSON.LineString> = {
-      type: 'Feature',
-      properties: {
-        id: route.id,
-        color: route.color || '#4363D8',
-      },
-      geometry: {
-        type: 'LineString',
-        coordinates: route.geometry,
-      },
-    }
-
+    const sourceId = getRouteSourceId(route.id)
+    const lineLayerId = getRouteLayerId(route.id, 'line')
+    const geojson = createRouteGeojson(route)
     const existingSource = map.getSource(sourceId) as maplibregl.GeoJSONSource | undefined
+
     if (existingSource) {
-      existingSource.setData(geojson)
-      if (map.getLayer(lineLayerId)) {
-        map.setPaintProperty(lineLayerId, 'line-color', route.color || '#4363D8')
-        map.setPaintProperty(
-          lineLayerId,
-          'line-dasharray',
-          route.isDirect ? [2, 2] : undefined,
-        )
-      }
+      updateExistingRoute(
+        map,
+        existingSource,
+        lineLayerId,
+        route,
+        geojson,
+      )
+
       return
     }
 
@@ -352,12 +384,58 @@ export function useKitMap() {
       type: 'geojson',
       data: geojson,
     })
+    addRouteLayers(
+      map,
+      sourceId,
+      route,
+      lineLayerId,
+      circleLayerId,
+    )
+  }
 
-    const beforeLayerId = map.getLayer(circleLayerId) ? circleLayerId : undefined
+  function getRouteSourceId(routeId: string): string {
+    return `kit-route-src-${routeId}`
+  }
 
-    // 1. Слой тени (shadow)
+  function getRouteLayerId(routeId: string, layer: 'line' | 'casing' | 'shadow'): string {
+    return `kit-route-${layer}-${routeId}`
+  }
+
+  function createRouteGeojson(route: KitMapRoute): GeoJSON.Feature<GeoJSON.LineString> {
+    return {
+      type: 'Feature',
+      properties: { id: route.id, color: route.color || '#4363D8' },
+      geometry: { type: 'LineString', coordinates: route.geometry! },
+    }
+  }
+
+  function updateExistingRoute(
+    map: maplibregl.Map,
+    source: maplibregl.GeoJSONSource,
+    lineLayerId: string,
+    route: KitMapRoute,
+    geojson: GeoJSON.Feature<GeoJSON.LineString>,
+  ) {
+    source.setData(geojson)
+
+    if (!map.getLayer(lineLayerId))
+      return
+
+    map.setPaintProperty(lineLayerId, 'line-color', route.color || '#4363D8')
+    map.setPaintProperty(lineLayerId, 'line-dasharray', route.isDirect ? [2, 2] : undefined)
+  }
+
+  function addRouteLayers(
+    map: maplibregl.Map,
+    sourceId: string,
+    route: KitMapRoute,
+    lineLayerId: string,
+    markerLayerId: string,
+  ) {
+    const beforeLayerId = map.getLayer(markerLayerId) ? markerLayerId : undefined
+
     map.addLayer({
-      id: shadowLayerId,
+      id: getRouteLayerId(route.id, 'shadow'),
       type: 'line',
       source: sourceId,
       layout: { 'line-cap': 'round', 'line-join': 'round' },
@@ -370,9 +448,8 @@ export function useKitMap() {
       },
     }, beforeLayerId)
 
-    // 2. Белая подложка (casing)
     map.addLayer({
-      id: casingLayerId,
+      id: getRouteLayerId(route.id, 'casing'),
       type: 'line',
       source: sourceId,
       layout: { 'line-cap': 'round', 'line-join': 'round' },
@@ -383,7 +460,6 @@ export function useKitMap() {
       },
     }, beforeLayerId)
 
-    // 3. Основная линия
     map.addLayer({
       id: lineLayerId,
       type: 'line',
@@ -400,16 +476,21 @@ export function useKitMap() {
   const removeRoute = (routeId: string) => {
     routesMap.delete(routeId)
     const map = baseMap.mapInstance.value
+
     if (!map)
       return
 
     const sourceId = `kit-route-src-${routeId}`
+
     if (map.getLayer(`kit-route-line-${routeId}`))
       map.removeLayer(`kit-route-line-${routeId}`)
+
     if (map.getLayer(`kit-route-casing-${routeId}`))
       map.removeLayer(`kit-route-casing-${routeId}`)
+
     if (map.getLayer(`kit-route-shadow-${routeId}`))
       map.removeLayer(`kit-route-shadow-${routeId}`)
+
     if (map.getSource(sourceId))
       map.removeSource(sourceId)
   }
@@ -420,6 +501,7 @@ export function useKitMap() {
 
   const updateRoutes = (routes: KitMapRoute[]) => {
     const map = baseMap.mapInstance.value
+
     if (!map)
       return
 
@@ -431,6 +513,7 @@ export function useKitMap() {
 
     routes.forEach((route) => {
       routesMap.set(route.id, route)
+
       if (route.isVisible !== false) {
         renderRoute(map, route)
       }
@@ -444,6 +527,7 @@ export function useKitMap() {
 
   const fitViewToMarkers = () => {
     const map = baseMap.mapInstance.value
+
     if (!map)
       return
 
@@ -454,12 +538,16 @@ export function useKitMap() {
 
     markersMap.forEach((marker) => {
       const lngLat = marker.getLngLat()
+
       if (lngLat.lng < minLon)
         minLon = lngLat.lng
+
       if (lngLat.lng > maxLon)
         maxLon = lngLat.lng
+
       if (lngLat.lat < minLat)
         minLat = lngLat.lat
+
       if (lngLat.lat > maxLat)
         maxLat = lngLat.lat
     })
@@ -467,12 +555,16 @@ export function useKitMap() {
     circleMarkersData.forEach((marker) => {
       const lon = marker.coords.lon
       const lat = marker.coords.lat
+
       if (lon < minLon)
         minLon = lon
+
       if (lon > maxLon)
         maxLon = lon
+
       if (lat < minLat)
         minLat = lat
+
       if (lat > maxLat)
         maxLat = lat
     })
@@ -482,10 +574,13 @@ export function useKitMap() {
         route.geometry.forEach(([lon, lat]) => {
           if (lon < minLon)
             minLon = lon
+
           if (lon > maxLon)
             maxLon = lon
+
           if (lat < minLat)
             minLat = lat
+
           if (lat > maxLat)
             maxLat = lat
         })
@@ -493,18 +588,16 @@ export function useKitMap() {
     })
 
     if (minLon !== Number.POSITIVE_INFINITY && maxLon !== Number.NEGATIVE_INFINITY) {
-      baseMap.fitBounds(
-        [
-          [minLon, minLat],
-          [maxLon, maxLat],
-        ],
-        { padding: { top: 60, right: 60, bottom: 60, left: 60 }, maxZoom: 14.8 },
-      )
+      baseMap.fitBounds([
+        [minLon, minLat],
+        [maxLon, maxLat],
+      ], { padding: { top: 60, right: 60, bottom: 60, left: 60 }, maxZoom: 14.8 })
     }
   }
 
   const setSearchResult = (coords: { lat: number, lon: number }) => {
     const map = baseMap.mapInstance.value
+
     if (!map)
       return
 
@@ -521,7 +614,12 @@ export function useKitMap() {
       searchMarker.setLngLat([coords.lon, coords.lat])
     }
 
-    baseMap.flyTo(coords.lon, coords.lat, 14, 800)
+    baseMap.flyTo(
+      coords.lon,
+      coords.lat,
+      14,
+      800,
+    )
   }
 
   const clearSearchResult = () => {
@@ -531,11 +629,7 @@ export function useKitMap() {
     }
   }
 
-  const initMap = async (
-    container: HTMLElement,
-    _popupEl?: HTMLElement | null,
-    options: KitMapOptions = { center: [0, 0] },
-  ): Promise<void> => {
+  const initMap = async (container: HTMLElement, _popupEl?: HTMLElement | null, options: KitMapOptions = { center: [0, 0] }): Promise<void> => {
     await baseMap.initMap({
       container,
       center: options.center,
@@ -550,10 +644,13 @@ export function useKitMap() {
     baseMap.onStyleLoad((map) => {
       routesMap.forEach(route => renderRoute(map, route))
       markersMap.forEach(marker => marker.addTo(map))
+
       if (searchMarker) {
         searchMarker.addTo(map)
       }
+
       isHoverListenersAttached = false
+
       if (circleMarkersData.length > 0) {
         renderCircleMarkers(map, circleMarkersData)
       }

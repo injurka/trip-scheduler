@@ -4,14 +4,26 @@ import { useRoute, useRouter } from 'vue-router'
 let pendingQuery: Record<string, any> | null = null
 let updatePromise: Promise<void> | null = null
 
-export function useQuerySync<T>(
-  key: string,
-  defaultValue: T,
-  options: {
-    parse?: (val: string | string[]) => T
-    serialize?: (val: T) => string | string[] | undefined
-  } = {},
-) {
+function parseQueryValue<T>(value: string | string[], defaultValue: T, parse?: (value: string | string[]) => T): T {
+  if (parse)
+    return parse(value)
+
+  if (typeof defaultValue === 'number')
+    return Number(value) as unknown as T
+
+  if (typeof defaultValue === 'boolean')
+    return (value === 'true') as unknown as T
+
+  if (Array.isArray(defaultValue))
+    return (Array.isArray(value) ? value : [value]) as unknown as T
+
+  return value as unknown as T
+}
+
+export function useQuerySync<T>(key: string, defaultValue: T, options: {
+  parse?: (val: string | string[]) => T
+  serialize?: (val: T) => string | string[] | undefined
+} = {}) {
   const route = useRoute()
   const router = useRouter()
 
@@ -47,41 +59,31 @@ export function useQuerySync<T>(
   return computed<T>({
     get() {
       const val = route.query[key] as string | string[] | undefined
+
       if (val === undefined || val === null || val === '') {
         hasParsed = false
         lastRawKey = undefined
+
         return defaultValue
       }
 
       const rawKey = JSON.stringify(val)
+
       if (hasParsed && rawKey === lastRawKey) {
         return lastParsedResult
       }
 
-      let parsed: T
-      if (options.parse) {
-        parsed = options.parse(val)
-      }
-      else if (typeof defaultValue === 'number') {
-        parsed = Number(val) as unknown as T
-      }
-      else if (typeof defaultValue === 'boolean') {
-        parsed = (val === 'true') as unknown as T
-      }
-      else if (Array.isArray(defaultValue)) {
-        parsed = (Array.isArray(val) ? val : [val]) as unknown as T
-      }
-      else {
-        parsed = val as unknown as T
-      }
+      const parsed = parseQueryValue(val, defaultValue, options.parse)
 
       lastRawKey = rawKey
       lastParsedResult = parsed
       hasParsed = true
+
       return parsed
     },
     set(newVal) {
       let isDefault = newVal === defaultValue || (newVal === '' && defaultValue === null)
+
       if (!isDefault && typeof newVal === 'object' && newVal !== null) {
         isDefault = JSON.stringify(newVal) === JSON.stringify(defaultValue)
       }

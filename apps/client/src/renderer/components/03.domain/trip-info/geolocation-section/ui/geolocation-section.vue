@@ -12,58 +12,39 @@ import { POI_COLORS } from '../constant'
 import GeolocationPoiList from './geolocation-poi-list.vue'
 import GeolocationRouteList from './geolocation-route-list.vue'
 
-const props = withDefaults(defineProps<Props>(), {
-  readonly: false,
-  height: '450px',
-})
-
-const emit = defineEmits<{
-  (e: 'updateSection', value: ActivitySectionGeolocation): void
-}>()
-
-const GeolocationMap = lazyComponent(() => import('./geolocation-map.vue'))
-
 interface Props {
   section: ActivitySectionGeolocation
   readonly?: boolean
   height?: string
 }
-
-const isInitialized = ref(false)
-const sectionContainerRef = ref<HTMLElement | null>(null)
-const mapMountTargetRef = ref<HTMLElement | null>(null)
-const shouldMountMap = ref(typeof IntersectionObserver === 'undefined')
-const mapController = shallowRef<ReturnType<typeof useGeolocationMap>>()
-let unsubDragEnd: (() => void) | null = null
-
-const { stop: stopMapObserver } = useIntersectionObserver(
-  mapMountTargetRef,
-  ([entry]) => {
-    if (entry?.isIntersecting) {
-      shouldMountMap.value = true
-      stopMapObserver()
-    }
-  },
-  { rootMargin: '500px 0px' },
-)
-
-const activeView = ref<'points' | 'routes'>(
-  (!props.section?.points || props.section.points.length === 0) && (props.section?.routes && props.section.routes.length > 0)
-    ? 'routes'
-    : 'points',
-)
-const activeRouteId = ref<string | null>(null)
-const isMapFullscreen = ref(false)
-const isPanelVisible = ref(false)
-const searchQuery = ref('')
-const routePointType = ref<'via' | 'connect'>('via')
-
 interface SelectedLocationState {
   coords: Coordinate
   address?: string
   isFetchingAddress: boolean
 }
-const selectedLocation = ref<SelectedLocationState | null>(null)
+
+const props = withDefaults(defineProps<Props>(), {
+  readonly: false,
+  height: '450px',
+})
+const emit = defineEmits<{
+  (e: 'updateSection', value: ActivitySectionGeolocation): void
+}>()
+
+const GeolocationMap = lazyComponent(() => import('./geolocation-map.vue'))
+const isInitialized = ref(false)
+const sectionContainerRef = ref<HTMLElement | null>(null)
+const mapMountTargetRef = ref<HTMLElement | null>(null)
+const shouldMountMap = ref(typeof IntersectionObserver === 'undefined')
+
+const { stop: stopMapObserver } = useIntersectionObserver(mapMountTargetRef, ([entry]) => {
+  if (entry?.isIntersecting) {
+    shouldMountMap.value = true
+    stopMapObserver()
+  }
+}, { rootMargin: '500px 0px' })
+
+const mapController = shallowRef<ReturnType<typeof useGeolocationMap>>()
 
 const {
   points,
@@ -79,7 +60,6 @@ const {
   refreshPointAddress,
   setInitialPoints,
 } = useGeolocationPoints(mapController)
-
 const {
   routes,
   isLoading: isRoutesLoading,
@@ -93,7 +73,6 @@ const {
   setInitialRoutes,
   setRouteTransportMode,
 } = useGeolocationRoutes(mapController)
-
 const debouncedUpdate = useDebounceFn(() => {
   if (!isInitialized.value)
     return
@@ -111,8 +90,18 @@ const debouncedUpdate = useDebounceFn(() => {
   })
 }, 1000)
 
-const isLoading = computed(() => isPointsLoading.value || isRoutesLoading.value)
+let unsubDragEnd: (() => void) | null = null
+const activeView = ref<'points' | 'routes'>((!props.section?.points || props.section.points.length === 0) && (props.section?.routes && props.section.routes.length > 0)
+  ? 'routes'
+  : 'points')
+const activeRouteId = ref<string | null>(null)
+const isMapFullscreen = ref(false)
+const isPanelVisible = ref(false)
+const searchQuery = ref('')
+const routePointType = ref<'via' | 'connect'>('via')
+const selectedLocation = ref<SelectedLocationState | null>(null)
 
+const isLoading = computed(() => isPointsLoading.value || isRoutesLoading.value)
 const poiPointsWithStyle = computed(() => points.value.map((point, index) => ({
   ...point,
   style: {
@@ -120,10 +109,10 @@ const poiPointsWithStyle = computed(() => points.value.map((point, index) => ({
     color: POI_COLORS[index % POI_COLORS.length],
   },
 })))
-
 const allMapPoints = computed(() => {
   const routePoints = routes.value.flatMap(r => r.points.map((p, index) => {
     let type: MapPoint['type'] = p.type
+
     if (r.points.length > 1) {
       if (index === 0)
         type = 'start'
@@ -148,15 +137,32 @@ const allMapPoints = computed(() => {
 
   return [...poiPointsWithStyle.value, ...routePoints]
 })
-
 const mapCenter = computed<Coordinate>(() => {
   if (props.section?.center)
     return props.section.center
+
   if (props.section?.points?.length > 0)
     return props.section.points[0].coordinates
+
   if (props.section?.routes?.length > 0 && props.section.routes[0].points.length > 0)
     return props.section.routes[0].points[0].coordinates
+
   return [37.6176, 55.7558]
+})
+
+watch(searchQuery, (newQuery) => {
+  if (newQuery.trim() === '')
+    mapController.value?.clearSearchResult()
+})
+watch(() => [props.readonly, points.value.length, routes.value.length], () => {
+  if (props.readonly && points.value.length === 0 && routes.value.length > 0 && activeView.value === 'points') {
+    activeView.value = 'routes'
+  }
+}, { immediate: true })
+watch(activeView, () => {
+  mode.value = 'pan'
+  activeRouteId.value = null
+  selectedLocation.value = null
 })
 
 async function handleMapClick(coords: Coordinate) {
@@ -166,11 +172,14 @@ async function handleMapClick(coords: Coordinate) {
   if (mode.value === 'add_route_point') {
     if (!activeRouteId.value) {
       const newRoute = await createNewRoute(coords)
+
       if (newRoute) {
         activeRouteId.value = newRoute.id
       }
+
       return
     }
+
     await addPointToRoute(activeRouteId.value, coords, routePointType.value)
   }
   else if (mode.value === 'move_point' && pointToMoveId.value) {
@@ -188,45 +197,49 @@ async function handleMapClick(coords: Coordinate) {
       coords,
       isFetchingAddress: false,
     }
+
     if (isMapFullscreen.value) {
       isPanelVisible.value = true
     }
   }
 }
-
 async function handleCreatePoiFromSelection() {
   if (!selectedLocation.value)
     return
+
   await addPoiPoint(selectedLocation.value.coords)
   selectedLocation.value = null
   activeView.value = 'points'
 }
-
 async function handleStartRouteFromSelection() {
   if (!selectedLocation.value)
     return
+
   const newRoute = await createNewRoute(selectedLocation.value.coords)
+
   if (newRoute) {
     activeRouteId.value = newRoute.id
     activeView.value = 'routes'
     mode.value = 'add_route_point'
   }
+
   selectedLocation.value = null
 }
-
 async function handleAddToActiveRouteFromSelection() {
   if (!selectedLocation.value || !activeRouteId.value)
     return
+
   await addPointToRoute(activeRouteId.value, selectedLocation.value.coords, routePointType.value)
   selectedLocation.value = null
 }
-
 async function handleFetchAddressForSelection() {
   if (!selectedLocation.value || !mapController.value)
     return
+
   selectedLocation.value.isFetchingAddress = true
   const info = await mapController.value.fetchAddress(selectedLocation.value.coords)
   selectedLocation.value.isFetchingAddress = false
+
   if (info?.address) {
     selectedLocation.value.address = info.address
   }
@@ -234,51 +247,44 @@ async function handleFetchAddressForSelection() {
     useToast().error('Адрес не найден.')
   }
 }
-
 function handleCenterOnSelection() {
   if (!selectedLocation.value)
     return
+
   mapController.value?.flyToLocation(selectedLocation.value.coords[0], selectedLocation.value.coords[1])
 }
-
 async function handleSearch() {
   if (!searchQuery.value.trim() || !mapController.value)
     return
+
   const found = await mapController.value.searchLocation(searchQuery.value)
+
   if (!found)
     useToast().error('Местоположение не найдено.')
 }
-
 function clearSearch() {
   searchQuery.value = ''
 }
-
-watch(searchQuery, (newQuery) => {
-  if (newQuery.trim() === '')
-    mapController.value?.clearSearchResult()
-})
-
 function handleFocusOnPoint(point: MapPoint) {
   mapController.value?.flyToLocation(point.coordinates[0], point.coordinates[1], 14)
 }
-
 function handleStartMovePoint(pointId: string) {
   startMovePoint(pointId)
   mode.value = 'move_point'
   selectedLocation.value = null
 }
-
 function handleRouteUpdate(route: MapRoute) {
   const pointRouteIndex = routes.value.findIndex(r => r.id === route.id)
+
   if (pointRouteIndex !== -1) {
     const prevMode = routes.value[pointRouteIndex].transportMode
     routes.value[pointRouteIndex] = { ...routes.value[pointRouteIndex], ...route }
+
     if (route.transportMode && route.transportMode !== prevMode) {
       setRouteTransportMode(route.id, route.transportMode)
     }
   }
 }
-
 function handleTransportModeChange(routeId: string, mode: TransportMode) {
   void setRouteTransportMode(routeId, mode)
   // Persist the selected mode immediately, independently of route calculation.
@@ -288,26 +294,23 @@ function handleTransportModeChange(routeId: string, mode: TransportMode) {
     routes: JSON.parse(JSON.stringify(toRaw(routes.value))),
   })
 }
-
 function setActiveRoute(routeId: string | null) {
   activeRouteId.value = routeId
+
   if (routeId) {
     mode.value = 'add_route_point'
     const targetRoute = routes.value.find(r => r.id === routeId)
+
     if (targetRoute && ((targetRoute.points?.length ?? 0) > 0 || (targetRoute.geometry?.length ?? 0) > 0)) {
-      mapController.value?.fitToContent(
-        [],
-        [targetRoute],
-        { duration: 400, padding: 60, maxZoom: 14.8 },
-      )
+      mapController.value?.fitToContent([], [targetRoute], { duration: 400, padding: 60, maxZoom: 14.8 })
     }
   }
   else {
     mode.value = 'pan'
   }
+
   selectedLocation.value = null
 }
-
 async function handleToggleFullscreen() {
   if (!sectionContainerRef.value)
     return
@@ -336,18 +339,17 @@ async function handleToggleFullscreen() {
       isMapFullscreen.value = true
     }
   }
+
   nextTick(() => {
     mapController.value?.mapInstance.value?.resize()
   })
 }
-
 function handleFullscreenChange() {
   isMapFullscreen.value = document.fullscreenElement === sectionContainerRef.value
   nextTick(() => {
     mapController.value?.mapInstance.value?.resize()
   })
 }
-
 function handleKeyDown(e: KeyboardEvent) {
   if (e.key === 'Escape' && isMapFullscreen.value && !document.fullscreenElement) {
     isMapFullscreen.value = false
@@ -356,7 +358,6 @@ function handleKeyDown(e: KeyboardEvent) {
     })
   }
 }
-
 async function onMapReady(controller: ReturnType<typeof useGeolocationMap>) {
   mapController.value = controller
   setInitialPoints(props.section.points)
@@ -370,6 +371,7 @@ async function onMapReady(controller: ReturnType<typeof useGeolocationMap>) {
   })
 
   isInitialized.value = true
+
   if ((!points.value || points.value.length === 0) && routes.value && routes.value.length > 0) {
     activeView.value = 'routes'
   }
@@ -377,33 +379,18 @@ async function onMapReady(controller: ReturnType<typeof useGeolocationMap>) {
   watch([points, routes], debouncedUpdate, { deep: true })
 }
 
-watch(
-  () => [props.readonly, points.value.length, routes.value.length],
-  () => {
-    if (props.readonly && points.value.length === 0 && routes.value.length > 0 && activeView.value === 'points') {
-      activeView.value = 'routes'
-    }
-  },
-  { immediate: true },
-)
-
-watch(activeView, () => {
-  mode.value = 'pan'
-  activeRouteId.value = null
-  selectedLocation.value = null
-})
-
 onMounted(() => {
   document.addEventListener('fullscreenchange', handleFullscreenChange)
   window.addEventListener('keydown', handleKeyDown)
 })
-
 onUnmounted(() => {
   stopMapObserver()
+
   if (unsubDragEnd) {
     unsubDragEnd()
     unsubDragEnd = null
   }
+
   document.removeEventListener('fullscreenchange', handleFullscreenChange)
   window.removeEventListener('keydown', handleKeyDown)
 })
@@ -451,7 +438,12 @@ onUnmounted(() => {
             class="search-input"
             @keydown.enter="handleSearch"
           >
-          <button v-if="searchQuery" type="button" class="clear-search-btn" @click="clearSearch">
+          <button
+            v-if="searchQuery"
+            type="button"
+            class="clear-search-btn"
+            @click="clearSearch"
+          >
             <Icon icon="mdi:close-circle" />
           </button>
           <button type="button" class="search-submit-btn" @click="handleSearch">

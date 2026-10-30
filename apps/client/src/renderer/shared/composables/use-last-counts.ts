@@ -28,6 +28,7 @@ export function useLastCounts() {
   function setCount(key: string, count: number) {
     if (typeof count !== 'number' || Number.isNaN(count)) {
       console.warn(`[useLastCounts] Неверное значение для ключа "${key}". Ожидалось число.`)
+
       return
     }
 
@@ -50,6 +51,7 @@ export function useLastCounts() {
       if (typeof storedValue === 'number' && !Number.isNaN(storedValue)) {
         return storedValue
       }
+
       return defaultValue
     })
   }

@@ -17,7 +17,6 @@ import HighlightsErrorState from './states/highlights-error-state.vue'
 import HighlightsSkeleton from './states/highlights-skeleton.vue'
 
 const authStore = useAuthStore()
-
 const {
   userId,
   highlights,
@@ -53,13 +52,12 @@ const {
   deleteHighlight,
 } = useHighlights()
 
-const isOwner = computed(() => authStore.user?.id === userId.value)
-
 const viewerVisible = ref(false)
 const viewerIndex = ref(0)
 const isViewerFetching = ref(false)
 const pendingViewerIndex = ref<number | null>(null)
 
+const isOwner = computed(() => authStore.user?.id === userId.value)
 const viewerImages = computed<ImageViewerImage[]>(() =>
   filteredHighlights.value.map((item: Highlight) => ({
     url: item.imageUrl,
@@ -74,31 +72,24 @@ const viewerImages = computed<ImageViewerImage[]>(() =>
       height: item.height ?? null,
       imageId: item.id,
     } as IImageViewerImageMeta & { imageId: string },
-  })),
-)
-
+  })))
 const currentViewerHighlight = computed<Highlight | null>(() =>
-  filteredHighlights.value[viewerIndex.value] ?? null,
-)
-
+  filteredHighlights.value[viewerIndex.value] ?? null)
 const viewerLocation = computed(() => {
   const item = currentViewerHighlight.value
+
   if (!item)
     return 'Локация не указана'
 
   return [item.city, item.country?.name].filter(Boolean).join(', ') || 'Локация не указана'
 })
-
 const viewerAddress = computed(() =>
-  currentViewerHighlight.value?.address?.trim() || '',
-)
-
+  currentViewerHighlight.value?.address?.trim() || '')
 const viewerComment = computed(() =>
-  currentViewerHighlight.value?.comment?.trim() || '',
-)
-
+  currentViewerHighlight.value?.comment?.trim() || '')
 const viewerDate = computed(() => {
   const takenAt = currentViewerHighlight.value?.takenAt
+
   if (!takenAt)
     return ''
 
@@ -109,31 +100,6 @@ const viewerDate = computed(() => {
   })
 })
 
-function openViewer(photo: Highlight) {
-  const index = filteredHighlights.value.findIndex((item: Highlight) => item.id === photo.id)
-  if (index < 0)
-    return
-
-  viewerIndex.value = index
-  viewerVisible.value = true
-}
-
-function handleViewerNextPage() {
-  if (currentPage.value * itemsPerPage < totalItems.value) {
-    isViewerFetching.value = true
-    pendingViewerIndex.value = 0
-    currentPage.value++
-  }
-}
-
-function handleViewerPrevPage() {
-  if (currentPage.value > 1) {
-    isViewerFetching.value = true
-    pendingViewerIndex.value = itemsPerPage - 1
-    currentPage.value--
-  }
-}
-
 watch(highlights, () => {
   if (isViewerFetching.value && pendingViewerIndex.value !== null) {
     viewerIndex.value = pendingViewerIndex.value
@@ -141,17 +107,40 @@ watch(highlights, () => {
     isViewerFetching.value = false
   }
 })
-
 watch(isLoading, (loading) => {
   if (!loading && isViewerFetching.value) {
     if (pendingViewerIndex.value !== null) {
       viewerIndex.value = pendingViewerIndex.value
       pendingViewerIndex.value = null
     }
+
     isViewerFetching.value = false
   }
 })
 
+function openViewer(photo: Highlight) {
+  const index = filteredHighlights.value.findIndex((item: Highlight) => item.id === photo.id)
+
+  if (index < 0)
+    return
+
+  viewerIndex.value = index
+  viewerVisible.value = true
+}
+function handleViewerNextPage() {
+  if (currentPage.value * itemsPerPage < totalItems.value) {
+    isViewerFetching.value = true
+    pendingViewerIndex.value = 0
+    currentPage.value++
+  }
+}
+function handleViewerPrevPage() {
+  if (currentPage.value > 1) {
+    isViewerFetching.value = true
+    pendingViewerIndex.value = itemsPerPage - 1
+    currentPage.value--
+  }
+}
 function clearFilters() {
   setSelectedCityRefs([])
   dateRange.value = null

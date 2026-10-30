@@ -19,6 +19,45 @@ function shouldUseMultipartUpload(file: File): boolean {
   return file.size > MULTIPART_UPLOAD_THRESHOLD || isVideoFile(file)
 }
 
+function isUnauthorizedError(error: any): boolean {
+  return error.status === 401 || error.statusCode === 401 || error.response?.status === 401
+}
+
+function createUploadFormData(
+  file: File,
+  entityId: string,
+  entityType: EntityType,
+  placement?: string | null,
+  timestamp?: string | null,
+  comment?: string | null,
+  metadata?: Record<string, any>,
+): FormData {
+  const formData = new FormData()
+  formData.append('file', file)
+  formData.append('entityId', entityId)
+  formData.append('entityType', entityType)
+
+  if (placement)
+    formData.append('placement', placement)
+
+  if (timestamp)
+    formData.append('timestamp', timestamp)
+
+  if (comment)
+    formData.append('comment', comment)
+
+  if (metadata)
+    formData.append('metadata', JSON.stringify(metadata))
+
+  return formData
+}
+
+function getAccessToken(): string | null {
+  const authStore = useAuthStore()
+
+  return authStore.tokenPair?.accessToken || localStorage.getItem(TOKEN_KEY)
+}
+
 export class FileRepository implements IFileRepository {
   /**
    * Загружает файл на сервер, используя multipart для видео и крупных файлов.
@@ -33,70 +72,85 @@ export class FileRepository implements IFileRepository {
     metadata?: Record<string, any>,
   ): Promise<TripMedia> {
     if (shouldUseMultipartUpload(file)) {
-      const signal = new AbortController().signal
-      const uploadMultipart = () => this.uploadMultipartWithProgress(
+      return this.uploadMultipartWithRetry(
         file,
         entityId,
         entityType,
-        placement || null,
-        () => {},
-        signal,
+        placement,
         metadata,
       )
-
-      try {
-        return await uploadMultipart()
-      }
-      catch (err: any) {
-        if (err.status !== 401 && err.statusCode !== 401 && err.response?.status !== 401)
-          throw err
-
-        const refreshed = await refreshTokensIfNeeded()
-        if (!refreshed)
-          throw err
-
-        return await uploadMultipart()
-      }
     }
 
-    const formData = new FormData()
-    formData.append('file', file)
-    formData.append('entityId', entityId)
-    formData.append('entityType', entityType)
+    const formData = createUploadFormData(
+      file,
+      entityId,
+      entityType,
+      placement,
+      timestamp,
+      comment,
+      metadata,
+    )
 
-    if (placement)
-      formData.append('placement', placement)
-    if (timestamp)
-      formData.append('timestamp', timestamp)
-    if (comment)
-      formData.append('comment', comment)
-    if (metadata)
-      formData.append('metadata', JSON.stringify(metadata))
+    return this.uploadDirectWithRetry(formData)
+  }
 
-    const authStore = useAuthStore()
-    let accessToken = authStore.tokenPair?.accessToken || localStorage.getItem(TOKEN_KEY)
+  private async uploadMultipartWithRetry(
+    file: File,
+    entityId: string,
+    entityType: EntityType,
+    placement?: string | null,
+    metadata?: Record<string, any>,
+  ): Promise<TripMedia> {
+    const signal = new AbortController().signal
+    const uploadMultipart = () => this.uploadMultipartWithProgress(
+      file,
+      entityId,
+      entityType,
+      placement || null,
+      () => {},
+      signal,
+      metadata,
+    )
 
     try {
-      return await ofetch<TripMedia>(`${SERVER_URL}/api/upload`, {
-        method: 'POST',
-        body: formData,
-        headers: { Authorization: `Bearer ${accessToken}` },
-      })
+      return await uploadMultipart()
     }
     catch (err: any) {
-      if (err.status === 401 || err.statusCode === 401 || err.response?.status === 401) {
-        const refreshed = await refreshTokensIfNeeded()
-        if (refreshed) {
-          accessToken = authStore.tokenPair?.accessToken || localStorage.getItem(TOKEN_KEY)
-          return await ofetch<TripMedia>(`${SERVER_URL}/api/upload`, {
-            method: 'POST',
-            body: formData,
-            headers: { Authorization: `Bearer ${accessToken}` },
-          })
-        }
-      }
-      throw err
+      if (!isUnauthorizedError(err))
+        throw err
+
+      const refreshed = await refreshTokensIfNeeded()
+
+      if (!refreshed)
+        throw err
+
+      return await uploadMultipart()
     }
+  }
+
+  private async uploadDirectWithRetry(formData: FormData): Promise<TripMedia> {
+    try {
+      return await this.uploadDirect(formData, getAccessToken())
+    }
+    catch (error: any) {
+      if (!isUnauthorizedError(error))
+        throw error
+
+      const refreshed = await refreshTokensIfNeeded()
+
+      if (!refreshed)
+        throw error
+
+      return this.uploadDirect(formData, getAccessToken())
+    }
+  }
+
+  private uploadDirect(formData: FormData, accessToken: string | null): Promise<TripMedia> {
+    return ofetch<TripMedia>(`${SERVER_URL}/api/upload`, {
+      method: 'POST',
+      body: formData,
+      headers: { Authorization: `Bearer ${accessToken}` },
+    })
   }
 
   /**
@@ -121,21 +175,18 @@ export class FileRepository implements IFileRepository {
     }
 
     // 1. Инициализация составной загрузки
-    const initRes = await ofetch<{ uploadId: string, key: string, chunkSize: number }>(
-      `${serverUrl}/api/upload/multipart/initiate`,
-      {
-        method: 'POST',
-        headers,
-        body: {
-          entityType,
-          entityId,
-          placement,
-          fileName: file.name,
-          fileSize: file.size,
-          fileType: file.type || 'application/octet-stream',
-        },
+    const initRes = await ofetch<{ uploadId: string, key: string, chunkSize: number }>(`${serverUrl}/api/upload/multipart/initiate`, {
+      method: 'POST',
+      headers,
+      body: {
+        entityType,
+        entityId,
+        placement,
+        fileName: file.name,
+        fileSize: file.size,
+        fileType: file.type || 'application/octet-stream',
       },
-    )
+    })
 
     const { uploadId, key, chunkSize } = initRes
     const totalParts = Math.ceil(file.size / chunkSize)
@@ -215,6 +266,7 @@ export class FileRepository implements IFileRepository {
       })
 
       onProgress(100)
+
       return completeRes
     }
     catch (err: any) {
@@ -226,6 +278,7 @@ export class FileRepository implements IFileRepository {
         })
       }
       catch { }
+
       throw err
     }
   }
@@ -242,7 +295,14 @@ export class FileRepository implements IFileRepository {
     signal: AbortSignal,
   ): Promise<TripMedia> {
     if (shouldUseMultipartUpload(file)) {
-      return this.uploadMultipartWithProgress(file, entityId, entityType, placement, onProgress, signal)
+      return this.uploadMultipartWithProgress(
+        file,
+        entityId,
+        entityType,
+        placement,
+        onProgress,
+        signal,
+      )
     }
 
     return new Promise((resolve, reject) => {
@@ -274,12 +334,15 @@ export class FileRepository implements IFileRepository {
         }
         else {
           let errorMessage = `Ошибка HTTP: ${xhr.status}`
+
           try {
             const errorResponse = JSON.parse(xhr.responseText)
+
             if (errorResponse.message)
               errorMessage = errorResponse.message
           }
           catch { }
+
           reject(new Error(errorMessage))
         }
       }
@@ -333,15 +396,14 @@ export class FileRepository implements IFileRepository {
   @throttle(500)
   async listDocuments(tripId: string): Promise<TripDocumentResponse[]> {
     const result = await trpc.image.listDocuments.query({ tripId })
+
     return result as unknown as TripDocumentResponse[]
   }
 
   @throttle(500)
-  async updateDocumentMeta(
-    id: string,
-    metadata: { access?: 'public' | 'private', folderId?: string | null },
-  ): Promise<TripDocumentResponse> {
+  async updateDocumentMeta(id: string, metadata: { access?: 'public' | 'private', folderId?: string | null }): Promise<TripDocumentResponse> {
     const result = await trpc.image.updateDocumentMeta.mutate({ id, metadata })
+
     return result as unknown as TripDocumentResponse
   }
 }

@@ -14,26 +14,23 @@ const props = withDefaults(defineProps<InteractiveGridPatternProps>(), {
   squares: () => [24, 24],
 })
 
+const hoveredSquare = ref<number | null>(null)
+
 const horizontal = computed(() => props.squares[0])
 const vertical = computed(() => props.squares[1])
 const totalSquares = computed(() => horizontal.value * vertical.value)
-const hoveredSquare = ref<number | null>(null)
-
 const gridWidth = computed(() => props.width * horizontal.value)
 const gridHeight = computed(() => props.height * vertical.value)
 
 function getX(index: number) {
   return (index % horizontal.value) * props.width
 }
-
 function getY(index: number) {
   return Math.floor(index / horizontal.value) * props.height
 }
-
 function handleMouseEnter(index: number) {
   hoveredSquare.value = index
 }
-
 function handleMouseLeave() {
   hoveredSquare.value = null
 }
@@ -43,11 +40,18 @@ function handleMouseLeave() {
   <svg
     :width="gridWidth"
     :height="gridHeight"
-    class="interactive-grid-svg" :class="[className]"
+    class="interactive-grid-svg"
+    :class="[className]"
     @mouseleave="handleMouseLeave"
   >
     <defs>
-      <linearGradient id="hover-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <linearGradient
+        id="hover-gradient"
+        x1="0%"
+        y1="0%"
+        x2="100%"
+        y2="100%"
+      >
         <stop offset="0%" stop-color="var(--bg-hover-color)" />
         <stop offset="100%" stop-color="var(--bg-accent-color)" />
       </linearGradient>
@@ -60,7 +64,8 @@ function handleMouseLeave() {
       :y="getY(index)"
       :width="width"
       :height="height"
-      class="grid-square" :class="[{ 'is-hovered': hoveredSquare === index }]"
+      class="grid-square"
+      :class="[{ 'is-hovered': hoveredSquare === index }]"
       @mouseenter="handleMouseEnter(index)"
     />
   </svg>

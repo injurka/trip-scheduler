@@ -66,6 +66,7 @@ export const useTripCommentsStore = defineStore('tripComments', {
         return
 
       const collection = this.comments.get(parentId)
+
       if (!collection || !collection.hasMore || this.isLoadingMore)
         return
 
@@ -91,8 +92,10 @@ export const useTripCommentsStore = defineStore('tripComments', {
 
     async addComment(text: string, parentId: string, parentType: CommentParentType) {
       const authStore = useAuthStore()
+
       if (!authStore.user) {
         useToast().error('Вы должны быть авторизованы, чтобы оставлять комментарии.')
+
         return
       }
 
@@ -113,6 +116,7 @@ export const useTripCommentsStore = defineStore('tripComments', {
       }
 
       const collection = this.comments.get(parentId)
+
       if (collection) {
         collection.comments.push(optimisticComment)
         collection.total++
@@ -132,6 +136,7 @@ export const useTripCommentsStore = defineStore('tripComments', {
         onSuccess: (newComment) => {
           const currentCollection = this.comments.get(parentId)!
           const index = currentCollection.comments.findIndex((c: Comment) => c.id === tempId)
+
           if (index !== -1) {
             currentCollection.comments[index] = newComment as Comment
           }
@@ -147,11 +152,13 @@ export const useTripCommentsStore = defineStore('tripComments', {
 
     async deleteComment(commentId: string, parentId: string) {
       const collection = this.comments.get(parentId)
+
       if (!collection)
         return
 
       const commentsList = collection.comments
       const index = commentsList.findIndex((c: Comment) => c.id === commentId)
+
       if (index === -1)
         return
 

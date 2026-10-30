@@ -1,11 +1,7 @@
 import { addCollection } from '@iconify/vue'
 import { addPluginListener } from '@tauri-apps/api/core'
-import { createHead } from '@vueuse/head'
-
-// файл генерируется скриптом
-import iconsBundle from '~/assets/icons-bundle.json'
-
-import { initializeDeepLinks } from '~/shared/lib/deep-link'
+import { createHead } from '@vueuse/head'// файл генерируется скриптом
+import iconsBundle from '~/assets/icons-bundle.json'import { initializeDeepLinks } from '~/shared/lib/deep-link'
 import { isMobileApp, isTauri } from '~/shared/lib/env'
 import router from '~/shared/lib/router'
 import { initializePwaUpdater } from '~/shared/services/pwa/pwa.service'
@@ -75,6 +71,7 @@ async function initializeApp() {
   watch(() => authStore.user?.id, (userId, previousUserId) => {
     if (userId !== previousUserId)
       notificationStore.subscribedTripIds.clear()
+
     if (userId)
       void notificationStore.syncNativePushToken()
   }, { immediate: true })

@@ -3,11 +3,13 @@ import type { KitRadioOption } from '../models/types'
 import { Icon } from '@iconify/vue'
 import { RadioGroupIndicator, RadioGroupItem, RadioGroupRoot } from 'reka-ui'
 
-withDefaults(defineProps<{
+export interface Props<T extends string | number> {
   options: KitRadioOption<T>[]
   disabled?: boolean
   orientation?: 'vertical' | 'horizontal'
-}>(), {
+}
+
+withDefaults(defineProps<Props<T>>(), {
   disabled: false,
   orientation: 'vertical',
 })

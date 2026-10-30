@@ -4,20 +4,19 @@ import { KitDialogWithClose } from '~/components/01.kit/kit-dialog-with-close'
 import { KitInput } from '~/components/01.kit/kit-input'
 import { useAuthStore } from '~/shared/store/auth.store'
 
-const props = defineProps<{
+interface Props {
   visible: boolean
-}>()
+}
 
+const props = defineProps<Props>()
 const emit = defineEmits<{
   (e: 'update:visible', value: boolean): void
 }>()
 
 const authStore = useAuthStore()
-const user = computed(() => authStore.user)
 
 const statusText = ref('')
 const statusEmoji = ref('')
-
 const emojis = [
   '🙂',
   '😀',
@@ -33,6 +32,8 @@ const emojis = [
   '😴',
 ]
 
+const user = computed(() => authStore.user)
+
 watch(() => props.visible, (isVisible) => {
   if (isVisible && user.value) {
     statusText.value = user.value.statusText || ''
@@ -47,7 +48,6 @@ async function handleSave() {
   })
   emit('update:visible', false)
 }
-
 function clearStatus() {
   statusText.value = ''
   statusEmoji.value = ''

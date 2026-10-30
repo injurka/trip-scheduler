@@ -16,14 +16,10 @@ const appStore = useAppStore(['auth', 'layout'])
 
 const isProfileDrawerOpen = ref(false)
 const isNavMenuOpen = ref(false)
-
 const isScrolled = ref(false)
 const isHeaderVisible = ref(true)
 const lastScrollY = ref(0)
 const isSmallScreen = ref(false)
-
-watch(isHeaderVisible, isVisible => appStore.layout.setHeaderVisibility(isVisible))
-
 const navItems = [
   {
     id: 'trips',
@@ -53,47 +49,19 @@ const navItems = [
     icon: 'mdi:link-variant',
     color: '#27ae60',
   },
-  {
-    id: 'blog',
-    label: 'Блог',
-    desc: 'Новости и обновления',
-    icon: 'mdi:notebook-outline',
-    color: '#e67e22',
-  },
 ]
-
-function isItemActive(item: typeof navItems[0]): boolean {
-  switch (item.id) {
-    case 'trips':
-      return (
-        route.path === '/'
-        || route.path.startsWith('/trip')
-        || route.name === AppRouteNames.TripList
-        || route.name === AppRouteNames.TripInfo
-      )
-    case 'posts':
-      return (
-        route.path.startsWith('/post')
-        || route.name === AppRouteNames.PostList
-        || route.name === AppRouteNames.PostDetails
-        || route.name === AppRouteNames.PostCreate
-      )
-    case 'links':
-      return (
-        route.name === AppRouteNames.UsefulLinks
-        || route.path.startsWith('/useful-links')
-      )
-    case 'blog':
-      return (
-        route.path.startsWith('/blog')
-        || route.name === AppRouteNames.BlogList
-        || route.name === AppRouteNames.BlogArticle
-      )
-    default:
-      return false
-  }
+const activeRouteChecks: Record<string, () => boolean> = {
+  trips: () => route.path === '/' || route.path.startsWith('/trip') || route.name === AppRouteNames.TripList || route.name === AppRouteNames.TripInfo,
+  posts: () => route.path.startsWith('/post') || route.name === AppRouteNames.PostList || route.name === AppRouteNames.PostDetails || route.name === AppRouteNames.PostCreate,
+  links: () => route.name === AppRouteNames.UsefulLinks || route.path.startsWith('/useful-links'),
+  blog: () => route.path.startsWith('/blog') || route.name === AppRouteNames.BlogList || route.name === AppRouteNames.BlogArticle,
 }
 
+watch(isHeaderVisible, isVisible => appStore.layout.setHeaderVisibility(isVisible))
+
+function isItemActive(item: typeof navItems[0]): boolean {
+  return activeRouteChecks[item.id]?.() ?? false
+}
 function handleNavigation(item: typeof navItems[0]) {
   switch (item.id) {
     case 'trips':
@@ -112,20 +80,18 @@ function handleNavigation(item: typeof navItems[0]) {
       router.push({ name: AppRouteNames.BlogList })
       break
   }
+
   isNavMenuOpen.value = false
 }
-
 function checkScreenSize() {
   isSmallScreen.value = window.innerWidth < 1400
 }
-
 function goToSignIn() {
   router.push({
     path: AppRoutePaths.Auth.SignIn,
     query: { returnUrl: route.fullPath },
   })
 }
-
 function handleClickProfile() {
   if (appStore.auth.isAuthenticated)
     isProfileDrawerOpen.value = true
@@ -141,12 +107,14 @@ onMounted(() => {
     if (!ticking) {
       requestAnimationFrame(() => {
         const currentScrollY = window.scrollY
+
         if (currentScrollY > lastScrollY.value && currentScrollY > 100) {
           isHeaderVisible.value = false
         }
         else {
           isHeaderVisible.value = true
         }
+
         isScrolled.value = currentScrollY > 10
         lastScrollY.value = currentScrollY
         ticking = false
@@ -159,7 +127,6 @@ onMounted(() => {
     window.removeEventListener('scroll', handleScroll)
   })
 })
-
 onMounted(() => {
   checkScreenSize()
   window.addEventListener('resize', checkScreenSize)
@@ -187,7 +154,12 @@ onMounted(() => {
         preserveAspectRatio="xMidYMid slice"
         xmlns="http://www.w3.org/2000/svg"
       >
-        <g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+        <g
+          fill="none"
+          stroke="currentColor"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
           <!-- Контурные изолинии высот -->
           <path stroke-width="1" d="M -20,145 C 200,165 300,110 490,130 C 670,155 800,95 1030,120 C 1240,145 1380,110 1460,135" />
           <path stroke-width="1" d="M -20,120 C 180,140 320,80 500,105 C 680,130 820,70 1020,95 C 1220,120 1360,85 1460,110" />
@@ -205,9 +177,33 @@ onMounted(() => {
           <path stroke-width="1" d="M 720,35 C 800,10 880,5 960,25 C 1040,45 1100,20 1180,20" />
         </g>
         <!-- Высотные отметки (изолинии рельефа) -->
-        <text x="140" y="92" font-size="9" font-family="var(--font-mono)" fill="currentColor" opacity="0.6" transform="rotate(8 140 92)">1150</text>
-        <text x="400" y="78" font-size="9" font-family="var(--font-mono)" fill="currentColor" opacity="0.6" transform="rotate(-5 400 78)">1250</text>
-        <text x="890" y="42" font-size="9" font-family="var(--font-mono)" fill="currentColor" opacity="0.6" transform="rotate(6 890 42)">1400</text>
+        <text
+          x="140"
+          y="92"
+          font-size="9"
+          font-family="var(--font-mono)"
+          fill="currentColor"
+          opacity="0.6"
+          transform="rotate(8 140 92)"
+        >1150</text>
+        <text
+          x="400"
+          y="78"
+          font-size="9"
+          font-family="var(--font-mono)"
+          fill="currentColor"
+          opacity="0.6"
+          transform="rotate(-5 400 78)"
+        >1250</text>
+        <text
+          x="890"
+          y="42"
+          font-size="9"
+          font-family="var(--font-mono)"
+          fill="currentColor"
+          opacity="0.6"
+          transform="rotate(6 890 42)"
+        >1400</text>
       </svg>
       <div class="topo-overlay-gradient" />
     </div>
@@ -229,7 +225,12 @@ onMounted(() => {
               aria-label="Навигация Trip Scheduler"
             >
               <div class="logo">
-                <Icon width="20" height="20" class="logo-icon" icon="mdi:map-marker-path" />
+                <Icon
+                  width="20"
+                  height="20"
+                  class="logo-icon"
+                  icon="mdi:map-marker-path"
+                />
                 <span class="logo-text">Trip Scheduler</span>
               </div>
               <Icon

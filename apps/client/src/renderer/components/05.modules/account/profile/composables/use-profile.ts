@@ -23,8 +23,7 @@ function useProfile() {
   const isPasswordFormValid = computed(() =>
     passwordForm.currentPassword
     && passwordForm.newPassword.length >= 6
-    && passwordForm.newPassword === passwordForm.confirmPassword,
-  )
+    && passwordForm.newPassword === passwordForm.confirmPassword)
 
   const deleteForm = reactive({
     password: '',
@@ -33,6 +32,7 @@ function useProfile() {
 
   async function updateProfile(data?: { name?: string, avatarUrl?: string }) {
     isUpdatingProfile.value = true
+
     try {
       const payload = data || { name: profileForm.name }
       await store.auth.updateUser(payload)
@@ -51,6 +51,7 @@ function useProfile() {
       return
 
     isChangingPassword.value = true
+
     try {
       // TODO
     }
@@ -74,6 +75,7 @@ function useProfile() {
       return
 
     isDeletingAccount.value = true
+
     try {
       // TODO
     }
@@ -88,10 +90,12 @@ function useProfile() {
 
   async function handleAvatarUpload(event: Event) {
     const file = (event.target as HTMLInputElement).files?.[0]
+
     if (!file)
       return
 
     isUpdatingProfile.value = true
+
     try {
       await store.auth.uploadAvatar(file)
       toast.success('Аватар успешно обновлен')

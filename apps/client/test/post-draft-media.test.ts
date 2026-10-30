@@ -7,16 +7,27 @@ const remove = mock(async (_input: unknown) => ({ success: true }))
 const update = mock(async (_input: unknown) => ({ id: 'server-post' }))
 const getById = mock(async (_input: unknown) => ({ media: [] as any[] }))
 const deletePost = mock(async (_input: unknown) => ({ id: 'server-post' }))
-const api = { posts: { create, deleteMedia: remove, update, getById, delete: deletePost }, files: { uploadFile: upload } }
+const api = {
+  posts: {
+    create,
+    deleteMedia: remove,
+    update,
+    getById,
+    delete: deletePost,
+  },
+  files: { uploadFile: upload },
+}
 mock.module('~/plugins/request', () => ({
   useRequest: async (options: any) => {
     try {
       const result = await options.fn(api)
       options.onSuccess?.(result)
+
       return result
     }
     catch (error) {
       options.onError?.({ error: { customMessage: String(error) } })
+
       return null
     }
   },
@@ -27,8 +38,10 @@ const { usePostDraftStore } = await import('../src/renderer/components/05.module
 
 beforeEach(() => {
   setActivePinia(createPinia())
+
   for (const fn of [create, upload, remove, update, getById, deletePost])
     fn.mockClear()
+
   const storage = new Map<string, string>()
   Object.defineProperty(globalThis, 'localStorage', { configurable: true, value: { getItem: (key: string) => storage.get(key) || null, setItem: (key: string, value: string) => storage.set(key, value), removeItem: (key: string) => storage.delete(key) } })
 })
@@ -45,14 +58,28 @@ describe('post media ownership and draft recovery', () => {
   it('does not save an invisible initial placeholder as a timeline activity', async () => {
     const store = usePostDraftStore()
     expect(store.post.stages).toHaveLength(0)
-    store.post.stages = [{ id: 'legacy-placeholder', title: 'Начало', day: 1, time: '', order: 0, blocks: [] }]
+    store.post.stages = [{
+      id: 'legacy-placeholder',
+      title: 'Начало',
+      day: 1,
+      time: '',
+      order: 0,
+      blocks: [],
+    }]
     await store.savePost(true, 'draft')
     expect((update.mock.calls[0][0] as any).data.elements).toEqual([])
   })
   it('saves gallery references without uploading the files again', async () => {
     const store = usePostDraftStore()
     const media = await store.uploadSingleMedia(new File([''], 'IMG_20261104_090000.jpg'))
-    store.post.stages = [{ id: 'stage', title: 'Прогулка', day: 1, time: '09:00', order: 0, blocks: [{ id: 'gallery', type: 'gallery', images: [media!] }] }]
+    store.post.stages = [{
+      id: 'stage',
+      title: 'Прогулка',
+      day: 1,
+      time: '09:00',
+      order: 0,
+      blocks: [{ id: 'gallery', type: 'gallery', images: [media!] }],
+    }]
     await store.savePost(true, 'draft')
     const payload = update.mock.calls[0][0] as any
     expect(payload.data.status).toBe('draft')

@@ -9,6 +9,18 @@ export interface UseDayTrackTimezoneOptions {
   t: Ref<number>
 }
 
+function lookupTimezone(lat: number | null | undefined, lng: number | null | undefined): string | undefined {
+  if (lat == null || lng == null)
+    return undefined
+
+  try {
+    return tzLookup(lat, lng)
+  }
+  catch {
+    return undefined
+  }
+}
+
 export function useDayTrackTimezone(options: UseDayTrackTimezoneOptions) {
   const { currentPoint, dayData, t } = options
 
@@ -16,24 +28,14 @@ export function useDayTrackTimezone(options: UseDayTrackTimezoneOptions) {
   const deviceTimezone = new Intl.DateTimeFormat().resolvedOptions().timeZone
 
   const trackTimezone = computed<string | undefined>(() => {
-    if (currentPoint.value?.lat != null && currentPoint.value?.lng != null) {
-      try {
-        return tzLookup(currentPoint.value.lat, currentPoint.value.lng)
-      }
-      catch {
-        // ignore
-      }
-    }
+    const pointTimezone = lookupTimezone(currentPoint.value?.lat, currentPoint.value?.lng)
+
+    if (pointTimezone)
+      return pointTimezone
+
     const firstPt = dayData.value?.points?.[0]
-    if (firstPt?.lat != null && firstPt?.lng != null) {
-      try {
-        return tzLookup(firstPt.lat, firstPt.lng)
-      }
-      catch {
-        // ignore
-      }
-    }
-    return undefined
+
+    return lookupTimezone(firstPt?.lat, firstPt?.lng)
   })
 
   function toggleTimezone() {
@@ -44,19 +46,20 @@ export function useDayTrackTimezone(options: UseDayTrackTimezoneOptions) {
     if (timezoneMode.value === 'device') {
       return undefined
     }
+
     if (pt?.lat != null && pt?.lng != null) {
-      try {
-        return tzLookup(pt.lat, pt.lng)
-      }
-      catch {
-        // fallback
-      }
+      const pointTimezone = lookupTimezone(pt.lat, pt.lng)
+
+      if (pointTimezone)
+        return pointTimezone
     }
+
     return trackTimezone.value
   }
 
   function formatPointTime(tsUtc: number, pt?: { lat: number, lng: number } | null): string {
     const tz = getTimezoneForPoint(pt)
+
     return new Date(tsUtc).toLocaleTimeString('ru-RU', {
       hour: '2-digit',
       minute: '2-digit',
@@ -68,7 +71,9 @@ export function useDayTrackTimezone(options: UseDayTrackTimezoneOptions) {
   const timeLabel = computed(() => {
     if (t.value <= 0)
       return '--:--'
+
     const tz = getTimezoneForPoint(currentPoint.value)
+
     return new Date(t.value).toLocaleTimeString('ru-RU', {
       hour: '2-digit',
       minute: '2-digit',
@@ -80,7 +85,9 @@ export function useDayTrackTimezone(options: UseDayTrackTimezoneOptions) {
   function fmtRange(ms: number) {
     if (ms <= 0)
       return '--:--'
+
     const tz = timezoneMode.value === 'track' ? trackTimezone.value : undefined
+
     return new Date(ms).toLocaleTimeString('ru-RU', {
       hour: '2-digit',
       minute: '2-digit',

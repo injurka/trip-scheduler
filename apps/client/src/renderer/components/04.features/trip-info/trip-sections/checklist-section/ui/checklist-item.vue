@@ -20,7 +20,6 @@ const emit = defineEmits<{
 }>()
 
 const { canEdit } = useTripPermissions()
-const canCheck = computed(() => canEdit.value)
 
 const isEditingDescription = ref(false)
 const isEditingLink = ref(false)
@@ -30,9 +29,7 @@ const isPriorityPickerOpen = ref(false)
 const isSubtasksExpanded = ref(true)
 const newSubtaskText = ref('')
 const isAddingSubtask = ref(false)
-
 const priorityPickerMenuRef = ref(null)
-
 const priorityMap: Record<ChecklistPriority, string> = {
   5: 'Критический',
   4: 'Высокий',
@@ -40,74 +37,84 @@ const priorityMap: Record<ChecklistPriority, string> = {
   2: 'Низкий',
   1: 'Без приоритета',
 }
+// Pre-compiled regexes for maximum markdown rendering performance
+const BOLD_REGEX = /\*\*(.*?)\*\*/g
+const ITALIC_REGEX = /\*(.*?)\*/g
+const CODE_REGEX = /`([^`]+)`/g
+const LINK_REGEX = /\[(.*?)\]\((https?:\/\/[^\s)]+)\)/g
 
-onClickOutside(priorityPickerMenuRef, () => {
-  isPriorityPickerOpen.value = false
-})
-
-function updateField<K extends keyof ChecklistItem>(key: K, value: ChecklistItem[K]) {
-  if (key !== 'completed' && props.readonly)
-    return
-  if (key === 'completed' && !canCheck.value)
-    return
-  emit('update:item', { ...props.item, [key]: value })
-}
-
-function setPriority(priority: ChecklistPriority) {
-  if (props.readonly)
-    return
-  updateField('priority', priority)
-  isPriorityPickerOpen.value = false
-}
-
-function handleDescriptionUpdate(value: string) {
-  updateField('description', value)
-  if (!value)
-    isEditingDescription.value = false
-}
-
-function handleLinkUpdate(value: string) {
-  updateField('link', value)
-  if (!value)
-    isEditingLink.value = false
-}
-
-function handleCostUpdate(value: string) {
-  updateField('cost', value)
-  if (!value)
-    isEditingCost.value = false
-}
-
-function handleLocationUpdate(value: string) {
-  updateField('location', value)
-  if (!value)
-    isEditingLocation.value = false
-}
-
+const canCheck = computed(() => canEdit.value)
 // Subtasks
 const subtasks = computed(() => props.item.subtasks || [])
 const subtasksStats = computed(() => {
   const total = subtasks.value.length
+
   if (total === 0)
     return null
+
   const completed = subtasks.value.filter(s => s.completed).length
+
   return { completed, total, allDone: completed === total }
 })
+const renderedText = computed(() => renderMarkdown(props.item.text))
+const renderedDescription = computed(() => renderMarkdown(props.item.description))
 
+function updateField<K extends keyof ChecklistItem>(key: K, value: ChecklistItem[K]) {
+  if (key !== 'completed' && props.readonly)
+    return
+
+  if (key === 'completed' && !canCheck.value)
+    return
+
+  emit('update:item', { ...props.item, [key]: value })
+}
+function setPriority(priority: ChecklistPriority) {
+  if (props.readonly)
+    return
+
+  updateField('priority', priority)
+  isPriorityPickerOpen.value = false
+}
+function handleDescriptionUpdate(value: string) {
+  updateField('description', value)
+
+  if (!value)
+    isEditingDescription.value = false
+}
+function handleLinkUpdate(value: string) {
+  updateField('link', value)
+
+  if (!value)
+    isEditingLink.value = false
+}
+function handleCostUpdate(value: string) {
+  updateField('cost', value)
+
+  if (!value)
+    isEditingCost.value = false
+}
+function handleLocationUpdate(value: string) {
+  updateField('location', value)
+
+  if (!value)
+    isEditingLocation.value = false
+}
 function handleToggleSubtask(subtaskId: string) {
   if (!canCheck.value)
     return
+
   const updated = subtasks.value.map((s) => {
     if (s.id === subtaskId)
       return { ...s, completed: !s.completed }
+
     return s
   })
   updateField('subtasks', updated)
 }
-
 function handleAddSubtask() {
   if (props.readonly || !newSubtaskText.value.trim())
     return
+
   const newSubtask: ChecklistSubtask = {
     id: uuidv4(),
     text: newSubtaskText.value.trim(),
@@ -117,31 +124,25 @@ function handleAddSubtask() {
   newSubtaskText.value = ''
   isSubtasksExpanded.value = true
 }
-
 function handleDeleteSubtask(subtaskId: string) {
   if (props.readonly)
     return
+
   const updated = subtasks.value.filter(s => s.id !== subtaskId)
   updateField('subtasks', updated)
 }
-
 function handleUpdateSubtaskText(subtaskId: string, text: string) {
   if (props.readonly)
     return
+
   const updated = subtasks.value.map((s) => {
     if (s.id === subtaskId)
       return { ...s, text }
+
     return s
   })
   updateField('subtasks', updated)
 }
-
-// Pre-compiled regexes for maximum markdown rendering performance
-const BOLD_REGEX = /\*\*(.*?)\*\*/g
-const ITALIC_REGEX = /\*(.*?)\*/g
-const CODE_REGEX = /`([^`]+)`/g
-const LINK_REGEX = /\[(.*?)\]\((https?:\/\/[^\s)]+)\)/g
-
 function renderMarkdown(text?: string | null): string {
   if (!text)
     return ''
@@ -159,8 +160,9 @@ function renderMarkdown(text?: string | null): string {
     .replace(/\n/g, '<br>')
 }
 
-const renderedText = computed(() => renderMarkdown(props.item.text))
-const renderedDescription = computed(() => renderMarkdown(props.item.description))
+onClickOutside(priorityPickerMenuRef, () => {
+  isPriorityPickerOpen.value = false
+})
 </script>
 
 <template>
@@ -354,13 +356,24 @@ const renderedDescription = computed(() => renderMarkdown(props.item.description
             class="details-input"
             @update:model-value="handleLinkUpdate"
           />
-          <a v-else :href="item.link" target="_blank" rel="noopener noreferrer" class="detail-link">{{ item.link }}</a>
+          <a
+            v-else
+            :href="item.link"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="detail-link"
+          >{{ item.link }}</a>
         </div>
 
         <!-- Описание / Гайд -->
         <div v-if="item.description || isEditingDescription" class="detail-block">
           <div class="icon-wrapper">
-            <Icon icon="mdi:text-box-outline" class="detail-icon" width="14" height="14" />
+            <Icon
+              icon="mdi:text-box-outline"
+              class="detail-icon"
+              width="14"
+              height="14"
+            />
           </div>
           <KitEditable
             v-if="isEditingDescription"
@@ -378,7 +391,12 @@ const renderedDescription = computed(() => renderMarkdown(props.item.description
 
       <!-- Блок вложенных подзадач (Sub-tasks) -->
       <div v-if="(subtasks.length > 0 || isAddingSubtask) && isSubtasksExpanded" class="subtasks-container">
-        <div v-for="sub in subtasks" :key="sub.id" class="subtask-row" :class="{ completed: sub.completed }">
+        <div
+          v-for="sub in subtasks"
+          :key="sub.id"
+          class="subtask-row"
+          :class="{ completed: sub.completed }"
+        >
           <KitCheckbox
             :model-value="sub.completed"
             color="accent"
@@ -393,7 +411,12 @@ const renderedDescription = computed(() => renderMarkdown(props.item.description
           />
           <!-- eslint-disable-next-line vue/no-v-html -->
           <div v-else class="subtask-text-view" v-html="renderMarkdown(sub.text)" />
-          <button v-if="!readonly" class="delete-subtask-btn" title="Удалить подпункт" @click="handleDeleteSubtask(sub.id)">
+          <button
+            v-if="!readonly"
+            class="delete-subtask-btn"
+            title="Удалить подпункт"
+            @click="handleDeleteSubtask(sub.id)"
+          >
             <Icon icon="mdi:close" />
           </button>
         </div>

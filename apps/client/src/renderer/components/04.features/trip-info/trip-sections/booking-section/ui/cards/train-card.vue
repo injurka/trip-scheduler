@@ -21,6 +21,7 @@ interface Props {
   highlightStatus?: HighlightStatus
   showDragHandle?: boolean
 }
+
 const props = withDefaults(defineProps<Props>(), {
   highlightStatus: null,
   showDragHandle: true,
@@ -30,11 +31,28 @@ const emit = defineEmits<{
   (e: 'update:booking', value: Booking & { type: 'train' }): void
 }>()
 
+const route = useRoute()
+const tripPlanStore = useTripPlanStore()
+
 const isDepartureLocationPickerOpen = ref(false)
 const isArrivalLocationPickerOpen = ref(false)
-
 const isDepartureLocationViewerOpen = ref(false)
 const isArrivalLocationViewerOpen = ref(false)
+
+const tripId = computed(() => (route?.params?.id as string) || tripPlanStore?.currentTripId || '')
+const photosList = computed<string[]>(() => props.booking.data.photos || props.booking.data.imageUrls || [])
+const totalDurationMs = computed(() => {
+  const startDate = createDateWithTimezone(props.booking.data.departureDateTime, props.booking.data.departureTimeZone)
+  const endDate = createDateWithTimezone(props.booking.data.arrivalDateTime, props.booking.data.arrivalTimeZone)
+
+  if (!startDate || !endDate)
+    return null
+
+  return endDate.getTime() - startDate.getTime()
+})
+const totalDurationFormatted = computed(() => {
+  return totalDurationMs.value === null ? 'Время уточняется' : formatDuration(totalDurationMs.value)
+})
 
 function updateDataField<K extends keyof TrainData>(key: K, value: TrainData[K]) {
   emit('update:booking', {
@@ -42,17 +60,9 @@ function updateDataField<K extends keyof TrainData>(key: K, value: TrainData[K])
     data: { ...props.booking.data, [key]: value },
   })
 }
-
 function updateTitle(newTitle: string) {
   emit('update:booking', { ...props.booking, title: newTitle })
 }
-
-const route = useRoute()
-const tripPlanStore = useTripPlanStore()
-const tripId = computed(() => (route?.params?.id as string) || tripPlanStore?.currentTripId || '')
-
-const photosList = computed<string[]>(() => props.booking.data.photos || props.booking.data.imageUrls || [])
-
 function updatePhotos(newPhotos: string[]) {
   emit('update:booking', {
     ...props.booking,
@@ -63,57 +73,52 @@ function updatePhotos(newPhotos: string[]) {
     },
   })
 }
-
 function createDateWithTimezone(dateTime?: string, timeZone?: string): Date | null {
   if (!dateTime || !dateTime.includes('T'))
     return null
+
   const hasOffset = /Z|[+-]\d{2}(?::\d{2})?$/.test(dateTime)
+
   if (hasOffset) {
     const date = new Date(dateTime)
+
     return Number.isNaN(date.getTime()) ? null : date
   }
+
   if (timeZone) {
     const fullIso = `${dateTime}${timeZone}`
     const date = new Date(fullIso)
+
     return Number.isNaN(date.getTime()) ? null : date
   }
+
   return null
 }
-
 function formatDisplayDateTime(localDateTime?: string) {
   if (!localDateTime)
     return { time: '', date: '' }
+
   try {
     const time = localDateTime.substring(11, 16)
     const dateOnly = localDateTime.substring(0, 10)
     const dateObj = new Date(`${dateOnly}T12:00:00Z`)
     const dateStr = dateObj.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', weekday: 'short' })
+
     return { time, date: dateStr }
   }
   catch {
     return { time: '??:??', date: 'Неверная дата' }
   }
 }
-
 function formatDuration(ms: number) {
   if (ms < 0)
     return '---'
+
   const hours = Math.floor(ms / (1000 * 60 * 60))
   const minutes = Math.round((ms % (1000 * 60 * 60)) / (1000 * 60))
+
   return `${hours}ч ${minutes}м`
 }
-
-const totalDurationMs = computed(() => {
-  const startDate = createDateWithTimezone(props.booking.data.departureDateTime, props.booking.data.departureTimeZone)
-  const endDate = createDateWithTimezone(props.booking.data.arrivalDateTime, props.booking.data.arrivalTimeZone)
-  if (!startDate || !endDate)
-    return null
-  return endDate.getTime() - startDate.getTime()
-})
-
-const totalDurationFormatted = computed(() => {
-  return totalDurationMs.value === null ? 'Время уточняется' : formatDuration(totalDurationMs.value)
-})
 </script>
 
 <template>
@@ -177,32 +182,137 @@ const totalDurationFormatted = computed(() => {
     <template #details>
       <div class="details-grid">
         <div class="address-field-wrapper span-2">
-          <BookingField :model-value="booking.data.departureStation" label="Станция отправления" icon="mdi:map-marker-radius-outline" :readonly="readonly" @update:model-value="updateDataField('departureStation', $event)" />
-          <KitBtn v-if="!readonly" icon="mdi:map-marker-outline" title="Указать на карте" @click="isDepartureLocationPickerOpen = true" />
-          <KitBtn v-if="readonly && booking.data.departureStationLocation" icon="mdi:map-search-outline" title="Посмотреть на карте" variant="text" @click="isDepartureLocationViewerOpen = true" />
+          <BookingField
+            :model-value="booking.data.departureStation"
+            label="Станция отправления"
+            icon="mdi:map-marker-radius-outline"
+            :readonly="readonly"
+            @update:model-value="updateDataField('departureStation', $event)"
+          />
+          <KitBtn
+            v-if="!readonly"
+            icon="mdi:map-marker-outline"
+            title="Указать на карте"
+            @click="isDepartureLocationPickerOpen = true"
+          />
+          <KitBtn
+            v-if="readonly && booking.data.departureStationLocation"
+            icon="mdi:map-search-outline"
+            title="Посмотреть на карте"
+            variant="text"
+            @click="isDepartureLocationViewerOpen = true"
+          />
         </div>
         <div class="address-field-wrapper span-2">
-          <BookingField :model-value="booking.data.arrivalStation" label="Станция прибытия" icon="mdi:map-marker-radius-outline" :readonly="readonly" @update:model-value="updateDataField('arrivalStation', $event)" />
-          <KitBtn v-if="!readonly" icon="mdi:map-marker-outline" title="Указать на карте" @click="isArrivalLocationPickerOpen = true" />
-          <KitBtn v-if="readonly && booking.data.arrivalStationLocation" icon="mdi:map-search-outline" title="Посмотреть на карте" variant="text" @click="isArrivalLocationViewerOpen = true" />
+          <BookingField
+            :model-value="booking.data.arrivalStation"
+            label="Станция прибытия"
+            icon="mdi:map-marker-radius-outline"
+            :readonly="readonly"
+            @update:model-value="updateDataField('arrivalStation', $event)"
+          />
+          <KitBtn
+            v-if="!readonly"
+            icon="mdi:map-marker-outline"
+            title="Указать на карте"
+            @click="isArrivalLocationPickerOpen = true"
+          />
+          <KitBtn
+            v-if="readonly && booking.data.arrivalStationLocation"
+            icon="mdi:map-search-outline"
+            title="Посмотреть на карте"
+            variant="text"
+            @click="isArrivalLocationViewerOpen = true"
+          />
         </div>
 
-        <BookingDateTimeField :model-value="booking.data.departureDateTime" label="Время отправления" icon="mdi:clock-start" :readonly="readonly" type="datetime" @update:model-value="updateDataField('departureDateTime', $event)" />
-        <BookingField :model-value="booking.data.departureTimeZone" label="Часовой пояс отправления" icon="mdi:clock-time-four-outline" :readonly="readonly" placeholder="+03:00" @update:model-value="updateDataField('departureTimeZone', $event)" />
+        <BookingDateTimeField
+          :model-value="booking.data.departureDateTime"
+          label="Время отправления"
+          icon="mdi:clock-start"
+          :readonly="readonly"
+          type="datetime"
+          @update:model-value="updateDataField('departureDateTime', $event)"
+        />
+        <BookingField
+          :model-value="booking.data.departureTimeZone"
+          label="Часовой пояс отправления"
+          icon="mdi:clock-time-four-outline"
+          :readonly="readonly"
+          placeholder="+03:00"
+          @update:model-value="updateDataField('departureTimeZone', $event)"
+        />
 
-        <BookingDateTimeField :model-value="booking.data.arrivalDateTime" label="Время прибытия" icon="mdi:clock-end" :readonly="readonly" type="datetime" @update:model-value="updateDataField('arrivalDateTime', $event)" />
-        <BookingField :model-value="booking.data.arrivalTimeZone" label="Часовой пояс прибытия" icon="mdi:clock-time-four-outline" :readonly="readonly" placeholder="+08:00" @update:model-value="updateDataField('arrivalTimeZone', $event)" />
+        <BookingDateTimeField
+          :model-value="booking.data.arrivalDateTime"
+          label="Время прибытия"
+          icon="mdi:clock-end"
+          :readonly="readonly"
+          type="datetime"
+          @update:model-value="updateDataField('arrivalDateTime', $event)"
+        />
+        <BookingField
+          :model-value="booking.data.arrivalTimeZone"
+          label="Часовой пояс прибытия"
+          icon="mdi:clock-time-four-outline"
+          :readonly="readonly"
+          placeholder="+08:00"
+          @update:model-value="updateDataField('arrivalTimeZone', $event)"
+        />
 
-        <BookingField :model-value="booking.data.departurePlatform" label="Платформа (отпр.)" icon="mdi:sign-direction" :readonly="readonly" @update:model-value="updateDataField('departurePlatform', $event)" />
-        <BookingField :model-value="booking.data.arrivalPlatform" label="Платформа (приб.)" icon="mdi:sign-direction" :readonly="readonly" @update:model-value="updateDataField('arrivalPlatform', $event)" />
+        <BookingField
+          :model-value="booking.data.departurePlatform"
+          label="Платформа (отпр.)"
+          icon="mdi:sign-direction"
+          :readonly="readonly"
+          @update:model-value="updateDataField('departurePlatform', $event)"
+        />
+        <BookingField
+          :model-value="booking.data.arrivalPlatform"
+          label="Платформа (приб.)"
+          icon="mdi:sign-direction"
+          :readonly="readonly"
+          @update:model-value="updateDataField('arrivalPlatform', $event)"
+        />
 
-        <BookingField :model-value="booking.data.trainNumber" label="Номер поезда" icon="mdi:pound" :readonly="readonly" @update:model-value="updateDataField('trainNumber', $event)" />
-        <BookingField :model-value="totalDurationFormatted" label="В пути" icon="mdi:timer-sand" :readonly="readonly" disabled />
+        <BookingField
+          :model-value="booking.data.trainNumber"
+          label="Номер поезда"
+          icon="mdi:pound"
+          :readonly="readonly"
+          @update:model-value="updateDataField('trainNumber', $event)"
+        />
+        <BookingField
+          :model-value="totalDurationFormatted"
+          label="В пути"
+          icon="mdi:timer-sand"
+          :readonly="readonly"
+          disabled
+        />
 
-        <BookingField :model-value="booking.data.carriage" label="Вагон" icon="mdi:train-car" :readonly="readonly" @update:model-value="updateDataField('carriage', $event)" />
-        <BookingField :model-value="booking.data.seat" label="Место" icon="mdi:seat-passenger" :readonly="readonly" @update:model-value="updateDataField('seat', $event)" />
+        <BookingField
+          :model-value="booking.data.carriage"
+          label="Вагон"
+          icon="mdi:train-car"
+          :readonly="readonly"
+          @update:model-value="updateDataField('carriage', $event)"
+        />
+        <BookingField
+          :model-value="booking.data.seat"
+          label="Место"
+          icon="mdi:seat-passenger"
+          :readonly="readonly"
+          @update:model-value="updateDataField('seat', $event)"
+        />
 
-        <BookingField :model-value="booking.data.bookingReference" label="Номер бронирования" icon="mdi:barcode-scan" :readonly="readonly" class="span-2" @update:model-value="updateDataField('bookingReference', $event)" />
+        <BookingField
+          :model-value="booking.data.bookingReference"
+          label="Номер бронирования"
+          icon="mdi:barcode-scan"
+          :readonly="readonly"
+          class="span-2"
+          @update:model-value="updateDataField('bookingReference', $event)"
+        />
 
         <BookingField
           v-if="!readonly"

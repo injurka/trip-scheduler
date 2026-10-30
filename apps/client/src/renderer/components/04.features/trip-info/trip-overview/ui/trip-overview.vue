@@ -29,9 +29,7 @@ import { exportToMapsMe } from '../lib/mapsme-export'
 import CountdownWidget from './content/countdown-widget.vue'
 import TripMapWidget from './content/map-widget.vue'
 import StatsWidget from './content/stats-widget.vue'
-
 import WeatherWidget from './content/weather-widget.vue'
-
 import {
   AttractionsListDialog,
   CitiesListDialog,
@@ -60,12 +58,10 @@ const appStore = useAppStore(['auth', 'notif'])
 const { canEdit, canDelete } = useTripPermissions()
 const offlineStore = useOfflineStore()
 const moduleStore = useModuleStore(['plan', 'ui'])
-const { isViewMode } = storeToRefs(moduleStore.ui)
-const isEditable = computed(() => canEdit.value && !isViewMode.value)
-
-const isMoreMenuOpen = ref(false)
 const isDeleting = useRequestStatusByPrefix(ETripPlanKeys.DELETE_TRIP)
 
+const { isViewMode } = storeToRefs(moduleStore.ui)
+const isMoreMenuOpen = ref(false)
 const isDaysDialogVisible = ref(false)
 const isCitiesDialogVisible = ref(false)
 const isParticipantsDialogVisible = ref(false)
@@ -74,40 +70,31 @@ const isExportDialogVisible = ref(false)
 const isOfflineDownloadDialogVisible = ref(false)
 const isShareDialogVisible = ref(false)
 const shareDialogInitialSlug = ref('')
-
 const isDescriptionExpanded = ref(false)
 const descriptionShortText = ref('')
 const descriptionFullText = ref('')
 const isMobileTagsOpen = ref(false)
-
-function formatTag(tag: string): string {
-  if (!tag)
-    return ''
-
-  return tag.charAt(0).toUpperCase() + tag.slice(1).toLowerCase()
+const menuActionHandlers: Record<string, () => void | Promise<void>> = {
+  share: shareTripFromMenu,
+  subscribe_trip: subscribeToTrip,
+  unsubscribe_trip: unsubscribeFromTrip,
+  sign_in_to_subscribe_trip: signInToSubscribe,
+  edit: handleEditTrip,
+  delete: deleteTripIfAllowed,
+  export: () => { isExportDialogVisible.value = true },
+  export_mapsme: exportToMapsMeFromMenu,
+  save_offline: showOfflineDownloadDialog,
+  update_offline: showOfflineDownloadDialog,
 }
 
-watch(
-  () => props.trip,
-  (newTrip) => {
-    descriptionShortText.value = newTrip?.descriptionShort || newTrip?.description || ''
-    descriptionFullText.value = newTrip?.description || ''
-    isMobileTagsOpen.value = false
-  },
-  { immediate: true, deep: true },
-)
-
-const hasExpandableDescription = computed(
-  () => !!props.trip?.descriptionShort && !!props.trip?.description,
-)
-
+const isEditable = computed(() => canEdit.value && !isViewMode.value)
+const hasExpandableDescription = computed(() => !!props.trip?.descriptionShort && !!props.trip?.description)
 const isTripUpcoming = computed(() => {
   if (!props.trip)
     return false
 
   return props.trip.status === TripStatus.PLANNED && new Date(props.trip.startDate) > new Date()
 })
-
 const isSubscribedToCurrentTrip = computed(() => {
   return props.trip ? appStore.notif.isSubscribedToTrip(props.trip.id) : false
 })
@@ -118,9 +105,7 @@ const isWebPushAvailable = computed(() =>
   && 'serviceWorker' in navigator
   && 'PushManager' in window
   && 'Notification' in window
-  && !!import.meta.env.VITE_VAPID_PUBLIC_KEY,
-)
-
+  && !!import.meta.env.VITE_VAPID_PUBLIC_KEY)
 const formattedDates = computed(() => {
   if (!props.trip)
     return ''
@@ -135,33 +120,28 @@ const formattedDates = computed(() => {
 
   if (start.getFullYear() === end.getFullYear())
     return `${formatter.format(start)} - ${formatter.format(end)} ${start.getFullYear()}`
-  else
-    return `${formatter.format(start)} ${start.getFullYear()} - ${formatter.format(end)} ${end.getFullYear()}`
+
+  return `${formatter.format(start)} ${start.getFullYear()} - ${formatter.format(end)} ${end.getFullYear()}`
 })
-
-function getRussianPlural(count: number, titles: [string, string, string]): string {
-  const cases = [2, 0, 1, 1, 1, 2]
-  const index = count % 100 > 4 && count % 100 < 20 ? 2 : cases[count % 10 < 5 ? count % 10 : 5]
-  return titles[index]
-}
-
 const tripDurationDays = computed(() => {
   if (!props.trip)
     return 0
+
   const start = new Date(props.trip.startDate)
   const end = new Date(props.trip.endDate)
   const diffTime = Math.abs(end.getTime() - start.getTime())
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1
+
   return diffDays
 })
-
 const formattedDuration = computed(() => {
   if (!tripDurationDays.value)
     return ''
+
   const label = getRussianPlural(tripDurationDays.value, ['день', 'дня', 'дней'])
+
   return `${tripDurationDays.value} ${label}`
 })
-
 const displayCityLabels = computed(() => {
   if (!props.trip)
     return []
@@ -173,6 +153,7 @@ const displayCityLabels = computed(() => {
   }))].sort((a, b) => a.position - b.position)
 
   const counts = new Map<string, number>()
+
   for (const entry of entries)
     counts.set(entry.name, (counts.get(entry.name) ?? 0) + 1)
 
@@ -180,14 +161,14 @@ const displayCityLabels = computed(() => {
     ? `${entry.name} · ${entry.countryName}`
     : entry.name)
 })
-
 const formattedCities = computed(() => displayCityLabels.value.join(' · '))
-
 const citiesSummary = computed(() => {
   if (!displayCityLabels.value.length)
     return { first: '', count: 0, hasMore: false }
+
   const first = displayCityLabels.value[0]
   const count = displayCityLabels.value.length
+
   return {
     first,
     count,
@@ -195,25 +176,20 @@ const citiesSummary = computed(() => {
     moreCount: count - 1,
   }
 })
-
 const overviewCalendarDays = computed(() =>
   props.days
     .filter(d => !!d.date)
-    .sort((a, b) => new Date(a.date!).getTime() - new Date(b.date!).getTime()),
-)
-
+    .sort((a, b) => new Date(a.date!).getTime() - new Date(b.date!).getTime()))
 const overviewDraftDays = computed(() =>
-  props.days.filter(d => !d.date),
-)
-
+  props.days.filter(d => !d.date))
 const attractionCount = computed(() => {
   if (!props.days)
     return 0
+
   return props.days.reduce((total, day) => {
     return total + day.activities.filter(activity => activity.tag === EActivityTag.ATTRACTION).length
   }, 0)
 })
-
 const allGeoSections = computed(() => {
   const sections: { section: any, activityTag: string | null }[] = []
   props.days.forEach((day) => {
@@ -225,21 +201,18 @@ const allGeoSections = computed(() => {
       })
     })
   })
+
   return sections
 })
-
 const allPoints = computed<any[]>(() =>
   allGeoSections.value.flatMap(s =>
-    (s.section.points || []).map((p: any) => ({ ...p, activityTag: s.activityTag })),
-  ),
-)
+    (s.section.points || []).map((p: any) => ({ ...p, activityTag: s.activityTag }))))
 const allRoutes = computed<MapRoute[]>(() =>
-  allGeoSections.value.flatMap(s => s.section.routes || []),
-)
-
+  allGeoSections.value.flatMap(s => s.section.routes || []))
 const hasCoordinates = computed(() => {
   if (!props.trip)
     return false
+
   return (
     allPoints.value.length > 0
     || allRoutes.value.length > 0
@@ -250,13 +223,12 @@ const hasCoordinates = computed(() => {
     }))
   )
 })
-
 const visibleParticipants = computed(() => props.trip?.participants.slice(0, 5) || [])
 const hiddenParticipantsCount = computed(() => Math.max(0, (props.trip?.participants.length || 0) - 5))
-
 const statusInfo = computed(() => {
   if (!props.trip)
     return {}
+
   switch (props.trip.status) {
     case 'completed':
       return { text: 'Завершено', class: 'completed', icon: 'mdi:check-circle-outline' }
@@ -266,7 +238,6 @@ const statusInfo = computed(() => {
       return { text: 'Черновик', class: 'draft', icon: 'mdi:pencil-circle-outline' }
   }
 })
-
 const visibilityInfo = computed(() => {
   if (!props.trip)
     return { icon: 'mdi:lock-outline', label: 'Приватное' }
@@ -280,7 +251,6 @@ const visibilityInfo = computed(() => {
       return { icon: 'mdi:lock-outline', label: 'Приватное путешествие' }
   }
 })
-
 const formattedBudget = computed(() => {
   if (!props.trip || !props.trip.budget || !props.trip.currency)
     return null
@@ -291,47 +261,9 @@ const formattedBudget = computed(() => {
     minimumFractionDigits: 0,
   }).format(props.trip.budget)
 })
-
-function navigateToDay(dayId: string) {
-  router.push({ query: { day: dayId } })
-}
-
-function navigateToSection(sectionId: string) {
-  router.push({ query: { section: sectionId } })
-}
-
-function navigateToProfile(userId: string) {
-  router.push(AppRoutePaths.User.Profile(userId))
-}
-
-function handleEditTrip() {
-  emit('edit')
-}
-
-async function handleDeleteTrip() {
-  if (!canDelete.value || isDeleting.value)
-    return
-
-  const isConfirmed = await confirm({
-    title: 'Удалить путешествие?',
-    description: 'Это действие необратимо. Все дни, планы и воспоминания будут удалены.',
-    type: 'danger',
-    confirmText: 'Удалить',
-  })
-  if (isConfirmed)
-    await emit('delete')
-}
-
-function handleWeatherUpdated(data: TripWeatherPayload) {
-  if (moduleStore.plan.trip) {
-    moduleStore.plan.trip.weatherByPlaceId = data.weatherByPlaceId
-  }
-}
-
 const isCached = computed(() => props.trip && offlineStore.isTripCached(props.trip.id))
 const isDownloading = computed(() => props.trip && offlineStore.isTripDownloading(props.trip.id))
 const progress = computed(() => props.trip ? offlineStore.getDownloadProgress(props.trip.id) : 0)
-
 const moreMenuItems = computed((): KitDropdownItem<string>[] => {
   const items: KitDropdownItem<string>[] = [
     { value: 'export', label: 'Экспорт', icon: 'mdi:export-variant' },
@@ -397,61 +329,115 @@ const moreMenuItems = computed((): KitDropdownItem<string>[] => {
       items.push({ value: 'delete', label: 'Удалить', icon: 'mdi:trash-can-outline', isDestructive: true })
     }
   }
+
   return items
 })
 
-async function handleMenuAction(action: string) {
-  if (action === 'share') {
-    if (!props.trip)
-      return
+watch(() => props.trip, (newTrip) => {
+  descriptionShortText.value = newTrip?.descriptionShort || newTrip?.description || ''
+  descriptionFullText.value = newTrip?.description || ''
+  isMobileTagsOpen.value = false
+}, { immediate: true, deep: true })
+watch([() => props.trip?.id, () => appStore.auth.user?.id], ([tripId, userId]) => {
+  if (tripId && userId)
+    void appStore.notif.checkTripSubscription(tripId)
+}, { immediate: true })
 
-    const shareSlug = await useRequest({
-      key: `trip-overview:share:${props.trip.id}`,
-      fn: db => db.trips.getOrCreateShareSlug(props.trip!.id),
-    })
+function formatTag(tag: string): string {
+  if (!tag)
+    return ''
 
-    if (!shareSlug)
-      return
-    shareDialogInitialSlug.value = shareSlug
-    isShareDialogVisible.value = true
+  return tag.charAt(0).toUpperCase() + tag.slice(1).toLowerCase()
+}
+function getRussianPlural(count: number, titles: [string, string, string]): string {
+  const cases = [2, 0, 1, 1, 1, 2]
+  const index = count % 100 > 4 && count % 100 < 20 ? 2 : cases[count % 10 < 5 ? count % 10 : 5]
+
+  return titles[index]
+}
+function navigateToDay(dayId: string) {
+  router.push({ query: { day: dayId } })
+}
+function navigateToSection(sectionId: string) {
+  router.push({ query: { section: sectionId } })
+}
+function navigateToProfile(userId: string) {
+  router.push(AppRoutePaths.User.Profile(userId))
+}
+function handleEditTrip() {
+  emit('edit')
+}
+async function handleDeleteTrip() {
+  if (!canDelete.value || isDeleting.value)
+    return
+
+  const isConfirmed = await confirm({
+    title: 'Удалить путешествие?',
+    description: 'Это действие необратимо. Все дни, планы и воспоминания будут удалены.',
+    type: 'danger',
+    confirmText: 'Удалить',
+  })
+
+  if (isConfirmed)
+    await emit('delete')
+}
+function handleWeatherUpdated(data: TripWeatherPayload) {
+  if (moduleStore.plan.trip) {
+    moduleStore.plan.trip.weatherByPlaceId = data.weatherByPlaceId
   }
-  else if (action === 'subscribe_trip' && props.trip) {
+}
+async function shareTripFromMenu() {
+  const trip = props.trip
+
+  if (!trip)
+    return
+
+  const shareSlug = await useRequest({
+    key: `trip-overview:share:${trip.id}`,
+    fn: db => db.trips.getOrCreateShareSlug(trip.id),
+  })
+
+  if (!shareSlug)
+    return
+
+  shareDialogInitialSlug.value = shareSlug
+  isShareDialogVisible.value = true
+}
+async function subscribeToTrip() {
+  if (props.trip)
     await appStore.notif.subscribeToTrip(props.trip.id)
-  }
-  else if (action === 'unsubscribe_trip' && props.trip) {
+}
+async function unsubscribeFromTrip() {
+  if (props.trip)
     await appStore.notif.unsubscribeFromTrip(props.trip.id)
+}
+async function signInToSubscribe() {
+  await router.push({
+    path: AppRoutePaths.Auth.SignIn,
+    query: { returnUrl: router.currentRoute.value.fullPath },
+  })
+}
+async function deleteTripIfAllowed() {
+  if (canDelete.value)
+    await handleDeleteTrip()
+}
+function exportToMapsMeFromMenu() {
+  try {
+    exportToMapsMe(props.trip, allPoints.value, allRoutes.value)
+    toast.success('Файл успешно подготовлен и скачан')
   }
-  else if (action === 'sign_in_to_subscribe_trip') {
-    await router.push({
-      path: AppRoutePaths.Auth.SignIn,
-      query: { returnUrl: router.currentRoute.value.fullPath },
-    })
+  catch {
+    toast.error('Произошла ошибка при экспорте гео-данных')
   }
-  else if (action === 'edit') {
-    handleEditTrip()
-  }
-  else if (action === 'delete' && canDelete.value) {
-    handleDeleteTrip()
-  }
-  else if (action === 'export') {
-    isExportDialogVisible.value = true
-  }
-  else if (action === 'export_mapsme') {
-    try {
-      exportToMapsMe(props.trip, allPoints.value, allRoutes.value)
-      toast.success('Файл успешно подготовлен и скачан')
-    }
-    catch {
-      toast.error('Произошла ошибка при экспорте гео-данных')
-    }
-  }
-  else if (action === 'save_offline' || action === 'update_offline') {
-    isOfflineDownloadDialogVisible.value = true
-  }
+}
+function showOfflineDownloadDialog() {
+  isOfflineDownloadDialogVisible.value = true
+}
+async function handleMenuAction(action: string) {
+  await menuActionHandlers[action]?.()
 
   isMoreMenuOpen.value = false
 }
-
 async function handleConfirmOfflineDownload(options: OfflineDownloadOptions) {
   if (moduleStore.plan.trip) {
     const fullTripData = {
@@ -462,11 +448,6 @@ async function handleConfirmOfflineDownload(options: OfflineDownloadOptions) {
     await offlineStore.saveTripForOffline(fullTripData, options)
   }
 }
-
-watch([() => props.trip?.id, () => appStore.auth.user?.id], ([tripId, userId]) => {
-  if (tripId && userId)
-    void appStore.notif.checkTripSubscription(tripId)
-}, { immediate: true })
 </script>
 
 <template>
@@ -511,7 +492,12 @@ watch([() => props.trip?.id, () => appStore.auth.user?.id], ([tripId, userId]) =
                 :disabled="item.value === 'downloading' || item.value === 'deleting'"
                 @click="handleMenuAction(item.value)"
               >
-                <Icon v-if="item.icon" :icon="item.icon" class="item-icon" :class="{ 'spin-icon': item.value === 'downloading' || item.value === 'deleting' }" />
+                <Icon
+                  v-if="item.icon"
+                  :icon="item.icon"
+                  class="item-icon"
+                  :class="{ 'spin-icon': item.value === 'downloading' || item.value === 'deleting' }"
+                />
                 <span class="item-label">{{ item.label }}</span>
               </DropdownMenuItem>
             </KitDropdown>
@@ -595,7 +581,12 @@ watch([() => props.trip?.id, () => appStore.auth.user?.id], ([tripId, userId]) =
             </button>
 
             <div v-if="trip.tags?.length" class="trip-tags">
-              <span v-for="tag in trip.tags" :key="tag" v-ripple class="tag">#{{ formatTag(tag) }}</span>
+              <span
+                v-for="tag in trip.tags"
+                :key="tag"
+                v-ripple
+                class="tag"
+              >#{{ formatTag(tag) }}</span>
             </div>
           </div>
 
@@ -629,7 +620,12 @@ watch([() => props.trip?.id, () => appStore.auth.user?.id], ([tripId, userId]) =
     <!-- Мобильная полоса тегов вне баннера, если они есть и раскрыты -->
     <Transition name="tags-expand">
       <div v-if="trip.tags?.length && isMobileTagsOpen" class="mobile-trip-tags">
-        <span v-for="tag in trip.tags" :key="tag" v-ripple class="tag">#{{ formatTag(tag) }}</span>
+        <span
+          v-for="tag in trip.tags"
+          :key="tag"
+          v-ripple
+          class="tag"
+        >#{{ formatTag(tag) }}</span>
       </div>
     </Transition>
 
@@ -796,9 +792,19 @@ watch([() => props.trip?.id, () => appStore.auth.user?.id], ([tripId, userId]) =
     <DaysListDialog v-model:visible="isDaysDialogVisible" :days="days" @navigate="navigateToDay" />
     <CitiesListDialog v-model:visible="isCitiesDialogVisible" :city-refs="trip.cityRefs" />
     <ParticipantsListDialog v-model:visible="isParticipantsDialogVisible" :participants="trip.participants" />
-    <ShareTripDialog v-model:visible="isShareDialogVisible" :trip="trip" :initial-slug="shareDialogInitialSlug" :can-edit="canEdit" />
+    <ShareTripDialog
+      v-model:visible="isShareDialogVisible"
+      :trip="trip"
+      :initial-slug="shareDialogInitialSlug"
+      :can-edit="canEdit"
+    />
     <AttractionsListDialog v-model:visible="isAttractionsDialogVisible" :days="days" @navigate="navigateToDay" />
-    <ExportTripDialog v-model:visible="isExportDialogVisible" :trip="trip" :days="days" :sections="sections" />
+    <ExportTripDialog
+      v-model:visible="isExportDialogVisible"
+      :trip="trip"
+      :days="days"
+      :sections="sections"
+    />
     <OfflineDownloadDialog
       v-model:visible="isOfflineDownloadDialogVisible"
       :trip-title="trip?.title"
@@ -809,7 +815,12 @@ watch([() => props.trip?.id, () => appStore.auth.user?.id], ([tripId, userId]) =
 
   <Teleport to="body">
     <Transition name="deleting-overlay-fade">
-      <div v-if="isDeleting" class="trip-deleting-overlay" role="status" aria-live="polite">
+      <div
+        v-if="isDeleting"
+        class="trip-deleting-overlay"
+        role="status"
+        aria-live="polite"
+      >
         <div class="trip-deleting-overlay__card">
           <Icon icon="mdi:loading" class="trip-deleting-overlay__spinner" />
           <span>Удаляем путешествие…</span>

@@ -11,10 +11,7 @@ import { useRequestStore } from '../store/request.store'
  * @param status - Статус для проверки ('idle', 'pending', 'success', 'error').
  * @returns ComputedRef<boolean>
  */
-export function useRequestStatusByPrefix(
-  prefix: MaybeRef<string>,
-  status: RequestStatus = 'pending',
-) {
+export function useRequestStatusByPrefix(prefix: MaybeRef<string>, status: RequestStatus = 'pending') {
   const store = useRequestStore()
   const unwrappedPrefix = computed(() => unref(prefix))
 
@@ -24,6 +21,7 @@ export function useRequestStatusByPrefix(
         return true
       }
     }
+
     return false
   })
 }

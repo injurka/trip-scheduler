@@ -35,11 +35,13 @@ export const useTripInfoUiStore = defineStore('tripInfoUi', {
     areAllActivitiesCollapsed: state => (allIds: string[]) => {
       if (allIds.length === 0)
         return false
+
       return allIds.every(id => state.collapsedActivities.has(id))
     },
     areAllMemoryGroupsCollapsed: state => (allGroupKeys: string[]) => {
       if (allGroupKeys.length > 0)
         return allGroupKeys.every(key => state.collapsedMemoryGroups.has(key))
+
       return false
     },
   },
@@ -81,6 +83,7 @@ export const useTripInfoUiStore = defineStore('tripInfoUi', {
 
     setActiveView(view: ActiveView) {
       this.activeView = view
+
       if (view !== 'plan') {
         this.isParallelPlanView = false
       }
@@ -95,6 +98,7 @@ export const useTripInfoUiStore = defineStore('tripInfoUi', {
 
     toggleAllActivities(allIds: string[]) {
       const allCollapsed = allIds.length > 0 && allIds.every(id => this.collapsedActivities.has(id))
+
       if (allCollapsed)
         allIds.forEach(id => this.collapsedActivities.delete(id))
       else
@@ -110,6 +114,7 @@ export const useTripInfoUiStore = defineStore('tripInfoUi', {
 
     toggleAllMemoryGroups(allGroupKeys: string[]) {
       const allCollapsed = allGroupKeys.length > 0 && allGroupKeys.every(key => this.collapsedMemoryGroups.has(key))
+
       if (allCollapsed)
         allGroupKeys.forEach(key => this.collapsedMemoryGroups.delete(key))
       else

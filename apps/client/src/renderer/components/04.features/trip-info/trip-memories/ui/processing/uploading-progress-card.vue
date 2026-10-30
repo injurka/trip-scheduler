@@ -19,7 +19,12 @@ const emit = defineEmits<{
 <template>
   <div class="uploading-progress-card" :class="`status-${memory.status}`">
     <div class="thumbnail">
-      <video v-if="memory.file.type.startsWith('video/')" :src="memory.previewUrl" muted playsinline />
+      <video
+        v-if="memory.file.type.startsWith('video/')"
+        :src="memory.previewUrl"
+        muted
+        playsinline
+      />
       <img v-else :src="memory.previewUrl" alt="preview">
     </div>
     <div class="details">

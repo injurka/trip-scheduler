@@ -17,17 +17,15 @@ interface Props {
   days: IDay[]
   sections: TripSection[]
 }
+type ExportFormat = 'json' | 'text'
 
 const props = defineProps<Props>()
 const emit = defineEmits<{
   (e: 'update:visible', value: boolean): void
 }>()
 
-type ExportFormat = 'json' | 'text'
-
 const selectedFormat = ref<ExportFormat>('text')
 const isExporting = ref(false)
-
 const options = ref({
   includeActivityDetails: true, // Текстовые заметки внутри активностей
   includeDayMeta: true, // Мета-информация дня (бейджи)
@@ -35,7 +33,6 @@ const options = ref({
   includeChecklist: true, // Секция чек-листа
   includeFinances: true, // Секция финансов
 })
-
 const formats = [
   { id: 'text', label: 'Plain Text', description: 'Читаемый текстовый формат. Удобно для заметок и мессенджеров.', icon: 'mdi:text-box-outline' },
   { id: 'json', label: 'JSON', description: 'Структурированные данные. Подходит для резервного копирования.', icon: 'mdi:code-json' },
@@ -52,13 +49,12 @@ function stripMarkdown(text: string): string {
     .replace(/^#+\s/gm, '') // Headers
     .trim()
 }
-
 function formatCurrency(amount: number, currency: string) {
   return new Intl.NumberFormat('ru-RU', { style: 'currency', currency }).format(amount)
 }
-
 function getBookingsText(sections: TripSection[]): string[] {
   const bookingSection = sections.find(s => s.type === TripSectionType.BOOKINGS)
+
   if (!bookingSection)
     return []
 
@@ -68,6 +64,7 @@ function getBookingsText(sections: TripSection[]): string[] {
 
   if (!content.bookings || content.bookings.length === 0) {
     lines.push('  Нет бронирований')
+
     return lines
   }
 
@@ -76,6 +73,7 @@ function getBookingsText(sections: TripSection[]): string[] {
 
     if (b.type === 'flight') {
       const segs = b.data.segments || []
+
       if (segs.length) {
         const first = segs[0]
         const last = segs[segs.length - 1]
@@ -93,11 +91,12 @@ function getBookingsText(sections: TripSection[]): string[] {
       lines.push(`  Отправление: ${b.data.departureDateTime?.replace('T', ' ')}`)
     }
   })
+
   return lines
 }
-
 function getChecklistText(sections: TripSection[]): string[] {
   const checklistSection = sections.find(s => s.type === TripSectionType.CHECKLIST)
+
   if (!checklistSection)
     return []
 
@@ -114,6 +113,7 @@ function getChecklistText(sections: TripSection[]): string[] {
 
   tabs.forEach((tab) => {
     const tabItems = items.filter(i => i.type === tab.id)
+
     if (tabItems.length === 0)
       return
 
@@ -124,22 +124,28 @@ function getChecklistText(sections: TripSection[]): string[] {
 
     tabItems.forEach((item) => {
       const gid = item.groupId || 'ungrouped'
+
       if (!groupedItems[gid])
         groupedItems[gid] = []
+
       groupedItems[gid].push(item)
     })
 
     tabGroups.forEach((g) => {
       const gItems = groupedItems[g.id]
+
       if (gItems && gItems.length > 0) {
         lines.push(`\n[${g.name.toUpperCase()}]`)
         gItems.forEach((i) => {
           const status = i.completed ? '[x]' : '[ ]'
           let line = `  ${status} ${i.text}`
+
           if (i.cost)
             line += ` (💰 ${i.cost})`
+
           if (i.location)
             line += ` (📍 ${i.location})`
+
           lines.push(line)
 
           if (i.description)
@@ -160,10 +166,13 @@ function getChecklistText(sections: TripSection[]): string[] {
       groupedItems.ungrouped.forEach((i) => {
         const status = i.completed ? '[x]' : '[ ]'
         let line = `  ${status} ${i.text}`
+
         if (i.cost)
           line += ` (💰 ${i.cost})`
+
         if (i.location)
           line += ` (📍 ${i.location})`
+
         lines.push(line)
 
         if (i.description)
@@ -181,9 +190,9 @@ function getChecklistText(sections: TripSection[]): string[] {
 
   return lines
 }
-
 function getFinancesText(sections: TripSection[]): string[] {
   const financeSection = sections.find(s => s.type === TripSectionType.FINANCES)
+
   if (!financeSection)
     return []
 
@@ -202,7 +211,6 @@ function getFinancesText(sections: TripSection[]): string[] {
 
   return lines
 }
-
 function generateTextContent(): string {
   const { trip, days, sections } = props
   const lines: string[] = []
@@ -213,10 +221,13 @@ function generateTextContent(): string {
   lines.push(`📅 Даты: ${start} - ${end}`)
   const cityEntries = [...(trip.cityRefs ?? []).map(place => ({ position: place.position, name: place.name, countryName: place.countryName }))]
     .sort((a, b) => a.position - b.position)
+
   if (cityEntries.length) {
     const counts = new Map<string, number>()
+
     for (const city of cityEntries)
       counts.set(city.name, (counts.get(city.name) ?? 0) + 1)
+
     const labels = cityEntries.map(city => (counts.get(city.name) ?? 0) > 1 && city.countryName
       ? `${city.name} · ${city.countryName}`
       : city.name)
@@ -232,9 +243,11 @@ function generateTextContent(): string {
   if (options.value.includeBookings) {
     lines.push(...getBookingsText(sections))
   }
+
   if (options.value.includeChecklist) {
     lines.push(...getChecklistText(sections))
   }
+
   if (options.value.includeFinances) {
     lines.push(...getFinancesText(sections))
   }
@@ -267,6 +280,7 @@ function generateTextContent(): string {
           act.sections.forEach((sec) => {
             if (sec.type === EActivitySectionType.DESCRIPTION) {
               const textSec = sec as ActivitySectionText
+
               if (textSec.text) {
                 const cleanText = stripMarkdown(textSec.text).replace(/\n/g, '\n    ')
                 lines.push(`    ${cleanText}`)
@@ -283,9 +297,9 @@ function generateTextContent(): string {
 
   return lines.join('\n')
 }
-
 function handleExport() {
   isExporting.value = true
+
   try {
     const { trip, days, sections } = props
     let content = ''
@@ -296,10 +310,13 @@ function handleExport() {
       const filteredSections = sections.filter((s) => {
         if (s.type === TripSectionType.BOOKINGS && !options.value.includeBookings)
           return false
+
         if (s.type === TripSectionType.CHECKLIST && !options.value.includeChecklist)
           return false
+
         if (s.type === TripSectionType.FINANCES && !options.value.includeFinances)
           return false
+
         return true
       })
 

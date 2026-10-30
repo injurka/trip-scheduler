@@ -18,31 +18,72 @@ import { KitSkeleton } from '~/components/01.kit/kit-skeleton'
       <div class="card-content">
         <div class="card-meta">
           <div class="meta-item-skeleton">
-            <KitSkeleton width="24px" height="24px" border-radius="50%" color="var(--bg-tertiary-color)" />
+            <KitSkeleton
+              width="24px"
+              height="24px"
+              border-radius="50%"
+              color="var(--bg-tertiary-color)"
+            />
             <KitSkeleton width="20%" height="20px" color="var(--bg-tertiary-color)" />
           </div>
           <div class="meta-item-skeleton">
-            <KitSkeleton width="24px" height="24px" border-radius="50%" color="var(--bg-tertiary-color)" />
+            <KitSkeleton
+              width="24px"
+              height="24px"
+              border-radius="50%"
+              color="var(--bg-tertiary-color)"
+            />
             <KitSkeleton width="60%" height="20px" color="var(--bg-tertiary-color)" />
           </div>
           <div class="meta-item-skeleton">
-            <KitSkeleton width="24px" height="24px" border-radius="50%" color="var(--bg-tertiary-color)" />
+            <KitSkeleton
+              width="24px"
+              height="24px"
+              border-radius="50%"
+              color="var(--bg-tertiary-color)"
+            />
             <KitSkeleton width="70%" height="20px" color="var(--bg-tertiary-color)" />
           </div>
           <div class="meta-item-skeleton">
-            <KitSkeleton width="24px" height="24px" border-radius="50%" color="var(--bg-tertiary-color)" />
+            <KitSkeleton
+              width="24px"
+              height="24px"
+              border-radius="50%"
+              color="var(--bg-tertiary-color)"
+            />
             <KitSkeleton width="40%" height="20px" color="var(--bg-tertiary-color)" />
           </div>
         </div>
 
         <div class="card-footer">
           <div class="card-participants-skeleton">
-            <KitSkeleton width="32px" height="32px" border-radius="50%" color="var(--bg-tertiary-color)" />
-            <KitSkeleton width="32px" height="32px" border-radius="50%" class="avatar-overlap" color="var(--bg-tertiary-color)" />
+            <KitSkeleton
+              width="32px"
+              height="32px"
+              border-radius="50%"
+              color="var(--bg-tertiary-color)"
+            />
+            <KitSkeleton
+              width="32px"
+              height="32px"
+              border-radius="50%"
+              class="avatar-overlap"
+              color="var(--bg-tertiary-color)"
+            />
           </div>
           <div class="card-tags-skeleton">
-            <KitSkeleton width="80px" height="26px" border-radius="16px" color="var(--bg-tertiary-color)" />
-            <KitSkeleton width="60px" height="26px" border-radius="16px" color="var(--bg-tertiary-color)" />
+            <KitSkeleton
+              width="80px"
+              height="26px"
+              border-radius="16px"
+              color="var(--bg-tertiary-color)"
+            />
+            <KitSkeleton
+              width="60px"
+              height="26px"
+              border-radius="16px"
+              color="var(--bg-tertiary-color)"
+            />
           </div>
         </div>
       </div>

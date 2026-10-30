@@ -20,33 +20,60 @@ const authStore = useAuthStore()
 const confirm = useConfirm()
 const router = useRouter()
 
-function getPlural(n: number, one: string, two: string, five: string) {
-  let num = Math.abs(n)
-  num %= 100
-  if (num >= 5 && num <= 20)
-    return five
-
-  num %= 10
-  if (num === 1)
-    return one
-
-  if (num >= 2 && num <= 4)
-    return two
-
-  return five
-}
-
 const messages: UseTimeAgoMessages = {
   justNow: 'только что',
   past: n => `${n} назад`,
   future: n => `через ${n}`,
-  month: (n, past) => n === 1 ? (past ? 'месяц' : 'через месяц') : `${n} ${getPlural(n, 'месяц', 'месяца', 'месяцев')}`,
-  year: (n, past) => n === 1 ? (past ? 'год' : 'через год') : `${n} ${getPlural(n, 'год', 'года', 'лет')}`,
-  day: (n, past) => n === 1 ? (past ? 'вчера' : 'завтра') : `${n} ${getPlural(n, 'день', 'дня', 'дней')}`,
-  week: (n, past) => n === 1 ? (past ? 'неделю' : 'через неделю') : `${n} ${getPlural(n, 'неделю', 'недели', 'недель')}`,
-  hour: n => `${n} ${getPlural(n, 'час', 'часа', 'часов')}`,
-  minute: n => `${n} ${getPlural(n, 'минуту', 'минуты', 'минут')}`,
-  second: n => `${n} ${getPlural(n, 'секунду', 'секунды', 'секунд')}`,
+  month: (n, past) => n === 1
+    ? (past ? 'месяц' : 'через месяц')
+    : `${n} ${getPlural(
+      n,
+      'месяц',
+      'месяца',
+      'месяцев',
+    )}`,
+  year: (n, past) => n === 1
+    ? (past ? 'год' : 'через год')
+    : `${n} ${getPlural(
+      n,
+      'год',
+      'года',
+      'лет',
+    )}`,
+  day: (n, past) => n === 1
+    ? (past ? 'вчера' : 'завтра')
+    : `${n} ${getPlural(
+      n,
+      'день',
+      'дня',
+      'дней',
+    )}`,
+  week: (n, past) => n === 1
+    ? (past ? 'неделю' : 'через неделю')
+    : `${n} ${getPlural(
+      n,
+      'неделю',
+      'недели',
+      'недель',
+    )}`,
+  hour: n => `${n} ${getPlural(
+    n,
+    'час',
+    'часа',
+    'часов',
+  )}`,
+  minute: n => `${n} ${getPlural(
+    n,
+    'минуту',
+    'минуты',
+    'минут',
+  )}`,
+  second: n => `${n} ${getPlural(
+    n,
+    'секунду',
+    'секунды',
+    'секунд',
+  )}`,
   invalid: 'некорректная дата',
 }
 
@@ -56,16 +83,38 @@ const canDelete = computed(() => {
   return authStore.user?.id === props.comment.user.id
 })
 
+function getPlural(
+  n: number,
+  one: string,
+  two: string,
+  five: string,
+) {
+  let num = Math.abs(n)
+  num %= 100
+
+  if (num >= 5 && num <= 20)
+    return five
+
+  num %= 10
+
+  if (num === 1)
+    return one
+
+  if (num >= 2 && num <= 4)
+    return two
+
+  return five
+}
 async function handleDelete() {
   const isConfirmed = await confirm({
     title: 'Удалить комментарий?',
     description: 'Это действие необратимо.',
   })
+
   if (isConfirmed) {
     emit('delete')
   }
 }
-
 function navigateToProfile() {
   router.push(AppRoutePaths.User.Profile(props.comment.user.id))
 }

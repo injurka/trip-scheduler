@@ -38,6 +38,7 @@ function triggerUpload() {
 async function uploadFile(file: File) {
   if (!file.type.startsWith('image/')) {
     toast.error('Пожалуйста, выберите изображение')
+
     return
   }
 
@@ -52,6 +53,7 @@ async function uploadFile(file: File) {
 
 async function handleFileChange(event: Event) {
   const input = event.target as HTMLInputElement
+
   if (!input.files?.length)
     return
 

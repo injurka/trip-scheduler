@@ -12,11 +12,13 @@ export const DOCUMENT_CATEGORIES: DocumentCategoryMeta[] = [
 export function getCategoryMeta(category?: string | null): DocumentCategoryMeta | undefined {
   if (!category)
     return undefined
+
   return DOCUMENT_CATEGORIES.find(c => c.id === category)
 }
 
 export function getFileTypeInfo(extension: string) {
   const ext = extension.toLowerCase().replace(/^\./, '')
+
   if (['pdf'].includes(ext)) {
     return {
       type: 'pdf',
@@ -27,6 +29,7 @@ export function getFileTypeInfo(extension: string) {
       badgeColor: '#ef4444',
     }
   }
+
   if (['doc', 'docx', 'rtf'].includes(ext)) {
     return {
       type: 'doc',
@@ -37,6 +40,7 @@ export function getFileTypeInfo(extension: string) {
       badgeColor: '#2563eb',
     }
   }
+
   if (['xls', 'xlsx', 'csv'].includes(ext)) {
     return {
       type: 'sheet',
@@ -47,6 +51,7 @@ export function getFileTypeInfo(extension: string) {
       badgeColor: '#16a34a',
     }
   }
+
   if (['jpg', 'jpeg', 'png', 'webp', 'avif', 'gif', 'heic'].includes(ext)) {
     return {
       type: 'image',
@@ -57,6 +62,7 @@ export function getFileTypeInfo(extension: string) {
       badgeColor: '#a855f7',
     }
   }
+
   if (['zip', 'rar', '7z', 'tar', 'gz'].includes(ext)) {
     return {
       type: 'archive',
@@ -67,6 +73,7 @@ export function getFileTypeInfo(extension: string) {
       badgeColor: '#f97316',
     }
   }
+
   if (['txt', 'md', 'json'].includes(ext)) {
     return {
       type: 'text',
@@ -77,6 +84,7 @@ export function getFileTypeInfo(extension: string) {
       badgeColor: '#0ea5e9',
     }
   }
+
   return {
     type: 'other',
     label: 'Файл',
@@ -90,8 +98,10 @@ export function getFileTypeInfo(extension: string) {
 export function formatBytes(bytes: number, decimals = 1): string {
   if (!bytes || bytes === 0)
     return '0 Байт'
+
   const k = 1024
   const sizes = ['Байт', 'КБ', 'МБ', 'ГБ']
   const i = Math.floor(Math.log(bytes) / Math.log(k))
+
   return `${Number.parseFloat((bytes / k ** i).toFixed(decimals))} ${sizes[i]}`
 }

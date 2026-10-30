@@ -33,6 +33,7 @@ watch(() => props.visible, (val) => {
 function handleSave() {
   if (!canSave.value)
     return
+
   emit('save', text.value.trim(), time.value)
   emit('update:visible', false)
 }

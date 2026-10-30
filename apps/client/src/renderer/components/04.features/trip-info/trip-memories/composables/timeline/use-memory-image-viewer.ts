@@ -14,6 +14,28 @@ interface UseMemoryImageViewerProps {
   isMorphed: Ref<boolean>
 }
 
+function getMemoryImageDate(meta: CustomImageViewerImageMeta, memory?: IMemory): Date | null {
+  if (memory?.timestamp)
+    return new Date(memory.timestamp)
+
+  if (!meta.takenAt)
+    return null
+
+  const baseDate = new Date(meta.takenAt)
+
+  if (!meta.timezoneOffset)
+    return baseDate
+
+  return new Date(baseDate.getTime() + meta.timezoneOffset * 60 * 1000)
+}
+
+function getMemoryActivityTitle(memoryId: string | undefined, groups?: any[]): string {
+  if (!memoryId)
+    return ''
+
+  return groups?.find(group => group.memories.some((memory: IMemory) => memory.id === memoryId))?.title ?? ''
+}
+
 export function useMemoryImageViewer(props: UseMemoryImageViewerProps) {
   const { memories, plan } = useModuleStore(['memories', 'plan'])
   const { updateMemory } = memories
@@ -36,11 +58,13 @@ export function useMemoryImageViewer(props: UseMemoryImageViewerProps) {
       return
 
     const imageList = props.galleryImages ?? []
+
     if (imageList.length === 0)
       return
 
     const startIndex = imageList.findIndex((img) => {
       const meta = img.meta as CustomImageViewerImageMeta | undefined
+
       return meta?.memoryId === props.memory.id
     })
 
@@ -62,10 +86,12 @@ export function useMemoryImageViewer(props: UseMemoryImageViewerProps) {
   function saveViewerTime() {
     const meta = imageViewer.currentImage.value?.meta as CustomImageViewerImageMeta | undefined
     const day = getSelectedDay.value
+
     if (!meta?.memoryId || !activeViewerTime.value || !day || !day.date)
       return
 
     const originalMemory = memories.memories.find((m: IMemory) => m.id === meta.memoryId)
+
     if (!originalMemory)
       return
 
@@ -78,41 +104,20 @@ export function useMemoryImageViewer(props: UseMemoryImageViewerProps) {
   }
 
   watch(imageViewer.currentImage, (newImage) => {
-    if (newImage?.meta) {
-      const meta = newImage.meta as CustomImageViewerImageMeta
-      activeViewerComment.value = newImage.caption || ''
+    if (!newImage?.meta)
+      return
 
-      const memoryId = meta.memoryId
-      const correspondingMemory = memoryId ? memories.memories.find((m: IMemory) => m.id === memoryId) : undefined
+    const meta = newImage.meta as CustomImageViewerImageMeta
+    activeViewerComment.value = newImage.caption || ''
 
-      let dateToUse: Date | null = null
-      if (correspondingMemory?.timestamp) {
-        dateToUse = new Date(correspondingMemory.timestamp)
-      }
-      else if (meta.takenAt) {
-        const baseDate = new Date(meta.takenAt)
-        if (meta.timezoneOffset) {
-          const localTimeMs = baseDate.getTime() + meta.timezoneOffset * 60 * 1000
-          dateToUse = new Date(localTimeMs)
-        }
-        else {
-          dateToUse = baseDate
-        }
-      }
+    const memoryId = meta.memoryId
+    const correspondingMemory = memoryId ? memories.memories.find((memory: IMemory) => memory.id === memoryId) : undefined
+    const dateToUse = getMemoryImageDate(meta, correspondingMemory)
 
-      if (dateToUse)
-        activeViewerTime.value = new Time(dateToUse.getUTCHours(), dateToUse.getUTCMinutes())
-      else
-        activeViewerTime.value = null
-
-      if (memoryId) {
-        const group = props.timelineGroups?.find(g => g.memories.some((m: IMemory) => m.id === memoryId))
-        activeViewerActivityTitle.value = group ? group.title : ''
-      }
-      else {
-        activeViewerActivityTitle.value = ''
-      }
-    }
+    activeViewerTime.value = dateToUse
+      ? new Time(dateToUse.getUTCHours(), dateToUse.getUTCMinutes())
+      : null
+    activeViewerActivityTitle.value = getMemoryActivityTitle(memoryId, props.timelineGroups)
   }, { deep: true })
 
   return {

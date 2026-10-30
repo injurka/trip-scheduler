@@ -7,19 +7,14 @@ export interface UsePaginationReturn<T> {
   reset: () => void
 }
 
-export function usePagination<T>(
-  items: MaybeRefOrGetter<T[]>,
-  batchSize: number = 20,
-): UsePaginationReturn<T> {
+export function usePagination<T>(items: MaybeRefOrGetter<T[]>, batchSize: number = 20): UsePaginationReturn<T> {
   const visibleCount = ref(batchSize)
 
   const visibleItems = computed(() =>
-    toValue(items).slice(0, visibleCount.value),
-  )
+    toValue(items).slice(0, visibleCount.value))
 
   const hasMore = computed(() =>
-    visibleCount.value < toValue(items).length,
-  )
+    visibleCount.value < toValue(items).length)
 
   function loadMore() {
     if (hasMore.value)
@@ -30,10 +25,7 @@ export function usePagination<T>(
     visibleCount.value = batchSize
   }
 
-  watch(
-    () => toValue(items),
-    () => reset(),
-  )
+  watch(() => toValue(items), () => reset())
 
   return { visibleItems, hasMore, loadMore, reset }
 }

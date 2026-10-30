@@ -1,15 +1,22 @@
 <script setup lang="ts">
 import { Icon } from '@iconify/vue'
 
-defineProps<{
+interface Props {
   folderName: string | null
-}>()
+}
+
+defineProps<Props>()
 </script>
 
 <template>
   <div class="dropzone-overlay">
     <div class="dropzone-content">
-      <Icon icon="mdi:cloud-upload-outline" width="64" height="64" class="drop-icon" />
+      <Icon
+        icon="mdi:cloud-upload-outline"
+        width="64"
+        height="64"
+        class="drop-icon"
+      />
       <h3>Отпустите файлы для загрузки</h3>
       <p>
         {{ folderName ? `В папку: «${folderName}»` : 'В общие документы' }}

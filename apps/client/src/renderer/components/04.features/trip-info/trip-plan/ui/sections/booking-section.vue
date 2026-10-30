@@ -28,21 +28,8 @@ const emit = defineEmits<{
 const store = useModuleStore(['sections', 'plan'])
 const router = useRouter()
 const route = useRoute()
+
 const isSelectBookingOpen = ref(false)
-
-const bookingSection = computed(() =>
-  store.sections.sections.find(s => s.type === TripSectionType.BOOKINGS),
-)
-
-const currentBooking = computed<Booking | null>(() => {
-  if (!bookingSection.value)
-    return null
-  const content = bookingSection.value.content as BookingSectionContent | undefined
-  if (!content?.bookings)
-    return null
-  return content.bookings.find(b => b.id === props.section.bookingId) || null
-})
-
 const cardComponents = {
   flight: FlightCard,
   hotel: HotelCard,
@@ -52,11 +39,27 @@ const cardComponents = {
   other: OtherCard,
 }
 
+const bookingSection = computed(() =>
+  store.sections.sections.find(s => s.type === TripSectionType.BOOKINGS))
+const currentBooking = computed<Booking | null>(() => {
+  if (!bookingSection.value)
+    return null
+
+  const content = bookingSection.value.content as BookingSectionContent | undefined
+
+  if (!content?.bookings)
+    return null
+
+  return content.bookings.find(b => b.id === props.section.bookingId) || null
+})
+
 function handleUpdateBooking(updatedBooking: any) {
   if (!bookingSection.value)
     return
+
   const content = bookingSection.value.content as BookingSectionContent
   const index = content.bookings.findIndex(b => b.id === updatedBooking.id)
+
   if (index !== -1) {
     const newBookings = [...content.bookings]
     newBookings[index] = updatedBooking
@@ -66,14 +69,12 @@ function handleUpdateBooking(updatedBooking: any) {
     })
   }
 }
-
 function handleBookingSelected(newBooking: Booking) {
   emit('updateSection', {
     ...props.section,
     bookingId: newBooking.id,
   })
 }
-
 function goToBookingsSection() {
   router.push({
     path: route.path,

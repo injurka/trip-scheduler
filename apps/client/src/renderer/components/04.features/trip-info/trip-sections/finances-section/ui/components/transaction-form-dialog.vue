@@ -27,64 +27,52 @@ const emit = defineEmits<{
   (e: 'openCategoryManager'): void
 }>()
 
-const form = ref<Partial<Transaction>>({})
-const isTimeless = ref(false)
-
 // Formatting
 const { format: formatCurrency } = useCurrencyFormatter()
 
-// Title
-const title = computed(() => props.transaction ? 'Редактировать расход' : 'Новый расход')
-
+const form = ref<Partial<Transaction>>({})
+const isTimeless = ref(false)
 // Currencies
 const isCurrencyPickerOpen = ref(false)
 const currencyPickerRef = ref<HTMLElement | null>(null)
 const currencySearchQuery = ref('')
+const popularCurrencies = ['USD', 'EUR', 'RUB', 'CNY', 'JPY', 'TRY', 'GEL', 'AED', 'THB', 'KZT', 'GBP']
+// Date & Calendar
+const isCalendarOpen = ref(false)
+const datePickerWrapperRef = ref<HTMLElement | null>(null)
 
-onClickOutside(currencyPickerRef, () => {
-  isCurrencyPickerOpen.value = false
-})
-
+// Title
+const title = computed(() => props.transaction ? 'Редактировать расход' : 'Новый расход')
 const tripCurrencies = computed(() => {
   const set = new Set<string>()
+
   if (props.mainCurrency)
     set.add(props.mainCurrency.toUpperCase())
+
   if (props.exchangeRates) {
     for (const code of Object.keys(props.exchangeRates)) {
       const upper = code.trim().toUpperCase()
+
       if (upper)
         set.add(upper)
     }
   }
+
   return Array.from(set)
 })
-
-const popularCurrencies = ['USD', 'EUR', 'RUB', 'CNY', 'JPY', 'TRY', 'GEL', 'AED', 'THB', 'KZT', 'GBP']
-
 const filteredCurrencies = computed(() => {
   const query = currencySearchQuery.value.trim().toUpperCase()
   const base = popularCurrencies.filter(c => !tripCurrencies.value.includes(c))
+
   if (!query)
     return base
+
   return base.filter(c => c.includes(query))
 })
-
-function selectCurrency(code: string) {
-  form.value.currency = code.toUpperCase()
-  isCurrencyPickerOpen.value = false
-  currencySearchQuery.value = ''
-}
-
-function applyCustomCurrency(val: string) {
-  const cleaned = val.trim().toUpperCase().slice(0, 3)
-  if (cleaned.length === 3) {
-    selectCurrency(cleaned)
-  }
-}
-
 // Live Conversion Preview
 const conversionPreview = computed(() => {
   const amt = Number(form.value.amount)
+
   if (!amt || amt <= 0)
     return null
 
@@ -94,72 +82,32 @@ const conversionPreview = computed(() => {
   if (!curr || !main || curr === main)
     return null
 
-  const rates = props.exchangeRates || {}
-  const rate = rates[curr]
-
-  if (rate && rate > 0) {
-    const totalInMain = amt * rate
-    return {
-      convertedText: `≈ ${formatCurrency(totalInMain, main)}`,
-      rateText: `1 ${curr} = ${rate} ${main}`,
-    }
-  }
-
-  return {
-    convertedText: null,
-    rateText: `Курс для ${curr} не указан в настройках бюджета`,
-  }
+  return getConversionPreview(
+    amt,
+    curr,
+    main,
+    props.exchangeRates?.[curr],
+    formatCurrency,
+  )
 })
 
 // Categories
 const categoryItems = computed(() =>
-  props.categories.map(c => ({ value: c.id, label: c.name, icon: c.icon })),
-)
-
+  props.categories.map(c => ({ value: c.id, label: c.name, icon: c.icon })))
 const quickCategories = computed(() => {
   return props.categories.slice(0, 4)
 })
-
-// Date & Calendar
-const isCalendarOpen = ref(false)
-const datePickerWrapperRef = ref<HTMLElement | null>(null)
-
-onClickOutside(datePickerWrapperRef, () => {
-  isCalendarOpen.value = false
-})
-
 const todayStr = computed(() => today(getLocalTimeZone()).toString())
 const yesterdayStr = computed(() => today(getLocalTimeZone()).subtract({ days: 1 }).toString())
-
-function isTodayDate(d?: string) {
-  return d === todayStr.value
-}
-
-function isYesterdayDate(d?: string) {
-  return d === yesterdayStr.value
-}
-
-function setToday() {
-  isTimeless.value = false
-  form.value.date = todayStr.value
-  isCalendarOpen.value = false
-}
-
-function setYesterday() {
-  isTimeless.value = false
-  form.value.date = yesterdayStr.value
-  isCalendarOpen.value = false
-}
-
 const formattedDate = computed(() => {
   if (!form.value.date)
     return 'Выберите дату'
 
   const [year, month, day] = form.value.date.split('-').map(Number)
   const dateObj = new Date(Date.UTC(year, month - 1, day))
+
   return useDateFormat(dateObj, 'D MMMM YYYY г.', { locales: 'ru-RU' }).value
 })
-
 const calendarDate = computed<CalendarDate>({
   get() {
     try {
@@ -169,35 +117,23 @@ const calendarDate = computed<CalendarDate>({
     catch {
       console.error('Invalid date format:', form.value.date)
     }
+
     return today(getLocalTimeZone())
   },
   set(newDate: CalendarDate | null) {
     if (newDate)
       form.value.date = newDate.toString()
+
     isCalendarOpen.value = false
   },
 })
-
 // Validation
 const isSaveDisabled = computed(() => {
   const hasTitle = Boolean(form.value.title?.trim())
   const hasAmount = form.value.amount !== null && form.value.amount !== undefined && Number(form.value.amount) >= 0
+
   return !hasTitle || !hasAmount
 })
-
-function handleSubmit() {
-  if (isSaveDisabled.value)
-    return
-
-  const payload = { ...form.value }
-  payload.amount = Number(payload.amount) || 0
-  payload.currency = (payload.currency || props.mainCurrency || 'RUB').toUpperCase()
-
-  if (isTimeless.value)
-    delete payload.date
-
-  emit('save', payload)
-}
 
 watch(() => props.visible, (isVisible) => {
   if (isVisible) {
@@ -220,10 +156,78 @@ watch(() => props.visible, (isVisible) => {
     isTimeless.value = !form.value.date
   }
 })
-
 watch(isTimeless, (isNowTimeless) => {
   if (!isNowTimeless && !form.value.date)
     form.value.date = todayStr.value
+})
+
+function getConversionPreview(
+  amount: number,
+  currency: string,
+  mainCurrency: string,
+  rate: number | undefined,
+  format: (amount: number, currency: string) => string,
+) {
+  if (rate && rate > 0) {
+    return {
+      convertedText: `≈ ${format(amount * rate, mainCurrency)}`,
+      rateText: `1 ${currency} = ${rate} ${mainCurrency}`,
+    }
+  }
+
+  return {
+    convertedText: null,
+    rateText: `Курс для ${currency} не указан в настройках бюджета`,
+  }
+}
+
+function selectCurrency(code: string) {
+  form.value.currency = code.toUpperCase()
+  isCurrencyPickerOpen.value = false
+  currencySearchQuery.value = ''
+}
+function applyCustomCurrency(val: string) {
+  const cleaned = val.trim().toUpperCase().slice(0, 3)
+
+  if (cleaned.length === 3) {
+    selectCurrency(cleaned)
+  }
+}
+function isTodayDate(d?: string) {
+  return d === todayStr.value
+}
+function isYesterdayDate(d?: string) {
+  return d === yesterdayStr.value
+}
+function setToday() {
+  isTimeless.value = false
+  form.value.date = todayStr.value
+  isCalendarOpen.value = false
+}
+function setYesterday() {
+  isTimeless.value = false
+  form.value.date = yesterdayStr.value
+  isCalendarOpen.value = false
+}
+function handleSubmit() {
+  if (isSaveDisabled.value)
+    return
+
+  const payload = { ...form.value }
+  payload.amount = Number(payload.amount) || 0
+  payload.currency = (payload.currency || props.mainCurrency || 'RUB').toUpperCase()
+
+  if (isTimeless.value)
+    delete payload.date
+
+  emit('save', payload)
+}
+
+onClickOutside(currencyPickerRef, () => {
+  isCurrencyPickerOpen.value = false
+})
+onClickOutside(datePickerWrapperRef, () => {
+  isCalendarOpen.value = false
 })
 </script>
 

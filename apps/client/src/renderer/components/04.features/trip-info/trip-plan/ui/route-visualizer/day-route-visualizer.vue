@@ -19,34 +19,34 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {
   readonly: false,
 })
-
 const emit = defineEmits<{
   (e: 'close'): void
   (e: 'scrollToActivity', activityId: string): void
 }>()
 
 const store = useModuleStore(['plan', 'ui'])
-const { isViewMode } = storeToRefs(store.ui)
 
+const { isViewMode } = storeToRefs(store.ui)
 const isLocalEditMode = ref(false)
 const isFullscreen = ref(false)
 const canvasRef = ref<InstanceType<typeof TransitCanvas> | null>(null)
+// Quick Activity Dialog
+const isQuickDialogVisible = ref(false)
+const selectedActivityForEdit = ref<IActivity | null>(null)
+const customDefaultStart = ref<string | undefined>()
+const customDefaultEnd = ref<string | undefined>()
 
 const isEditModeActive = computed(() => {
   if (props.readonly || isViewMode.value)
     return false
+
   return isLocalEditMode.value
 })
-
 const sortedActivities = computed(() => {
-  return (props.day.activities || []).slice().sort(
-    (a, b) => timeToMinutes(a.startTime) - timeToMinutes(b.startTime),
-  )
+  return (props.day.activities || []).slice().sort((a, b) => timeToMinutes(a.startTime) - timeToMinutes(b.startTime))
 })
-
 // Statistics
 const totalStops = computed(() => sortedActivities.value.length)
-
 const metroLinesCount = computed(() => {
   const lineNames = new Set<string>()
   sortedActivities.value.forEach((act) => {
@@ -61,18 +61,20 @@ const metroLinesCount = computed(() => {
       }
     })
   })
+
   return lineNames.size
 })
-
 const dayTimeSpan = computed(() => {
   if (sortedActivities.value.length === 0)
     return null
+
   const first = sortedActivities.value[0]
   const last = sortedActivities.value[sortedActivities.value.length - 1]
   const diffMin = timeRangeDurationMinutes(first.startTime, last.endTime)
   const hours = Math.floor(diffMin / 60)
   const mins = diffMin % 60
   const durationStr = mins > 0 ? `${hours}ч ${mins}м` : `${hours}ч`
+
   return {
     start: first.startTime,
     end: last.endTime,
@@ -80,29 +82,22 @@ const dayTimeSpan = computed(() => {
   }
 })
 
-// Quick Activity Dialog
-const isQuickDialogVisible = ref(false)
-const selectedActivityForEdit = ref<IActivity | null>(null)
-const customDefaultStart = ref<string | undefined>()
-const customDefaultEnd = ref<string | undefined>()
-
 function handleOpenAddDialog(payload?: { startTime?: string, endTime?: string }) {
   selectedActivityForEdit.value = null
   customDefaultStart.value = payload?.startTime
   customDefaultEnd.value = payload?.endTime
   isQuickDialogVisible.value = true
 }
-
 function handleOpenEditDialog(activity: IActivity) {
   selectedActivityForEdit.value = activity
   customDefaultStart.value = undefined
   customDefaultEnd.value = undefined
   isQuickDialogVisible.value = true
 }
-
 function handleSaveActivity(activityData: Partial<IActivity>) {
   if (activityData.id) {
     const existing = sortedActivities.value.find(a => a.id === activityData.id)
+
     if (existing) {
       store.plan.updateActivity(props.day.id, {
         ...existing,
@@ -114,21 +109,19 @@ function handleSaveActivity(activityData: Partial<IActivity>) {
     store.plan.addActivity(props.day.id, activityData as Omit<IActivity, 'id'>)
   }
 }
-
 function handleDeleteActivity(activityId: string) {
   store.plan.removeActivity(props.day.id, activityId)
 }
-
 function handleToggleStatus({ activity, status }: { activity: IActivity, status: EActivityStatus }) {
   store.plan.updateActivity(props.day.id, {
     ...activity,
     status,
   } as IActivity)
 }
-
 function handleMoveActivity({ activity, direction }: { activity: IActivity, direction: 'up' | 'down' }) {
   const list = [...sortedActivities.value]
   const currentIndex = list.findIndex(a => a.id === activity.id)
+
   if (currentIndex === -1)
     return
 
@@ -141,14 +134,13 @@ function handleMoveActivity({ activity, direction }: { activity: IActivity, dire
     store.plan.reorderActivities(list)
   }
 }
-
 function handleSelectActivity(activityId: string) {
   if (isFullscreen.value) {
     isFullscreen.value = false
   }
+
   emit('scrollToActivity', activityId)
 }
-
 function toggleFullscreen() {
   isFullscreen.value = !isFullscreen.value
   nextTick(() => {

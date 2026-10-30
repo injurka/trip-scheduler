@@ -6,9 +6,11 @@ import { formatDate } from '~/shared/lib/date-time'
 import { resolveApiUrl } from '~/shared/lib/url'
 import { describeDateRange, isRemoteImageReference } from '../../lib/note-frontmatter'
 
-const props = defineProps<{
+interface Props {
   properties: NoteProperty[]
-}>()
+}
+
+const props = defineProps<Props>()
 
 const isCollapsed = ref(false)
 const failedImages = ref<string[]>([])
@@ -18,6 +20,7 @@ const dateRange = computed(() => describeDateRange(props.properties))
 function displayValue(property: NoteProperty): string {
   if (property.date)
     return formatDate(property.date, { day: 'numeric', month: 'long', year: 'numeric' })
+
   return property.text
 }
 

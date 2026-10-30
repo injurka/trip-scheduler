@@ -24,10 +24,39 @@ export const DOCUMENT_SORT_OPTIONS: SortOptionItem[] = [
   { id: 'size_asc', label: 'Сначала компактные', icon: 'mdi:sort-numeric-ascending' },
 ]
 
-export function useDocumentFilters(
-  documents: Ref<DocumentFile[]>,
-  currentFolderId: Ref<string | null>,
-) {
+function matchesSearch(document: DocumentFile, query: string): boolean {
+  return Boolean(document.title?.toLowerCase().includes(query))
+    || document.originalName.toLowerCase().includes(query)
+    || Boolean(document.note?.toLowerCase().includes(query))
+}
+
+function compareDocumentNames(a: DocumentFile, b: DocumentFile, ascending: boolean): number {
+  const nameA = (a.title || a.originalName).toLowerCase()
+  const nameB = (b.title || b.originalName).toLowerCase()
+  const comparison = nameA.localeCompare(nameB)
+
+  return ascending ? comparison : -comparison
+}
+
+function compareDocuments(a: DocumentFile, b: DocumentFile, sortOption: DocumentSortOption): number {
+  if (sortOption === 'date_desc' && a.isFavorite !== b.isFavorite)
+    return a.isFavorite ? -1 : 1
+
+  if (sortOption === 'name_asc' || sortOption === 'name_desc')
+    return compareDocumentNames(a, b, sortOption === 'name_asc')
+
+  if (sortOption === 'size_desc')
+    return b.sizeBytes - a.sizeBytes
+
+  if (sortOption === 'size_asc')
+    return a.sizeBytes - b.sizeBytes
+
+  const direction = sortOption === 'date_asc' ? 1 : -1
+
+  return (new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()) * direction
+}
+
+export function useDocumentFilters(documents: Ref<DocumentFile[]>, currentFolderId: Ref<string | null>) {
   const searchQuery = ref('')
   const selectedCategory = ref<DocumentCategory>('all')
   const onlyFavorites = ref(false)
@@ -48,6 +77,7 @@ export function useDocumentFilters(
     DOCUMENT_CATEGORIES.forEach((cat) => {
       map.set(cat.id, relevantDocs.filter(d => d.category === cat.id).length)
     })
+
     return map
   })
 
@@ -61,14 +91,8 @@ export function useDocumentFilters(
     }
 
     // Фильтр по поисковой строке
-    if (searchQuery.value.trim()) {
-      const q = searchQuery.value.toLowerCase().trim()
-      list = list.filter(d =>
-        (d.title && d.title.toLowerCase().includes(q))
-        || d.originalName.toLowerCase().includes(q)
-        || (d.note && d.note.toLowerCase().includes(q)),
-      )
-    }
+    if (searchQuery.value.trim())
+      list = list.filter(d => matchesSearch(d, searchQuery.value.toLowerCase().trim()))
 
     // Фильтр по категории
     if (selectedCategory.value !== 'all') {
@@ -81,34 +105,7 @@ export function useDocumentFilters(
     }
 
     // Сортировка
-    return [...list].sort((a, b) => {
-      // Избранные всегда сверху при дефолтной сортировке по дате
-      if (sortOption.value === 'date_desc' && a.isFavorite !== b.isFavorite) {
-        return a.isFavorite ? -1 : 1
-      }
-
-      switch (sortOption.value) {
-        case 'date_asc':
-          return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-        case 'name_asc': {
-          const nameA = (a.title || a.originalName).toLowerCase()
-          const nameB = (b.title || b.originalName).toLowerCase()
-          return nameA.localeCompare(nameB)
-        }
-        case 'name_desc': {
-          const nameA = (a.title || a.originalName).toLowerCase()
-          const nameB = (b.title || b.originalName).toLowerCase()
-          return nameB.localeCompare(nameA)
-        }
-        case 'size_desc':
-          return b.sizeBytes - a.sizeBytes
-        case 'size_asc':
-          return a.sizeBytes - b.sizeBytes
-        case 'date_desc':
-        default:
-          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      }
-    })
+    return [...list].sort((a, b) => compareDocuments(a, b, sortOption.value))
   })
 
   function resetFilters() {

@@ -17,6 +17,26 @@ export interface GroupedMemory {
 export type SortType = 'date-desc' | 'date-asc' | 'rating-desc' | 'rating-asc'
 export type MemoriesGridSize = 'sm' | 'md' | 'lg'
 
+function compareMemoryDates(a: Memory, b: Memory, direction: 1 | -1): number {
+  return (new Date(a.timestamp ?? 0).getTime() - new Date(b.timestamp ?? 0).getTime()) * direction
+}
+
+function compareMemoryRatings(a: Memory, b: Memory, direction: 1 | -1): number {
+  const ratingDifference = ((a.rating ?? 0) - (b.rating ?? 0)) * direction
+
+  return ratingDifference || compareMemoryDates(a, b, -1)
+}
+
+function compareMemories(a: Memory, b: Memory, sortType: SortType): number {
+  if (sortType.startsWith('date'))
+    return compareMemoryDates(a, b, sortType === 'date-asc' ? 1 : -1)
+
+  if (sortType.startsWith('rating'))
+    return compareMemoryRatings(a, b, sortType === 'rating-asc' ? 1 : -1)
+
+  return 0
+}
+
 export function useMemoriesView(memories: Ref<Memory[]>, days: Ref<Day[]>) {
   const sortType = ref<SortType>('date-asc')
   const filterDay = ref<string>('all')
@@ -42,6 +62,7 @@ export function useMemoriesView(memories: Ref<Memory[]>, days: Ref<Day[]>) {
       label: days.value.find(day => day.date?.slice(0, 10) === date)?.title
         || formatDate(date, { day: 'numeric', month: 'long' }),
     }))
+
     return [{ value: 'all', label: 'Все дни' }, ...options]
   })
 
@@ -54,26 +75,7 @@ export function useMemoriesView(memories: Ref<Memory[]>, days: Ref<Day[]>) {
     if (filterRating.value > 0)
       result = result.filter(m => (m.rating ?? 0) >= filterRating.value)
 
-    result.sort((a, b) => {
-      if (sortType.value.startsWith('date')) {
-        const timeA = new Date(a.timestamp ?? 0).getTime()
-        const timeB = new Date(b.timestamp ?? 0).getTime()
-        return sortType.value === 'date-asc' ? timeA - timeB : timeB - timeA
-      }
-
-      if (sortType.value.startsWith('rating')) {
-        const ratingA = a.rating ?? 0
-        const ratingB = b.rating ?? 0
-        if (ratingA === ratingB) {
-          const timeA = new Date(a.timestamp ?? 0).getTime()
-          const timeB = new Date(b.timestamp ?? 0).getTime()
-          return timeB - timeA
-        }
-        return sortType.value === 'rating-desc' ? ratingB - ratingA : ratingA - ratingB
-      }
-
-      return 0
-    })
+    result.sort((a, b) => compareMemories(a, b, sortType.value))
 
     return result
   })
@@ -90,8 +92,10 @@ export function useMemoriesView(memories: Ref<Memory[]>, days: Ref<Day[]>) {
 
     visibleMemories.value.forEach((memory) => {
       const dateKey = memory.timestamp ? memory.timestamp.split('T')[0] : 'no-date'
+
       if (!groups[dateKey])
         groups[dateKey] = []
+
       groups[dateKey].push(memory)
     })
 
@@ -120,15 +124,11 @@ export function useMemoriesView(memories: Ref<Memory[]>, days: Ref<Day[]>) {
   const viewerImages = computed<ImageViewerImage[]>(() =>
     allFilteredMemories.value
       .map(memoryToViewerImage)
-      .filter((img): img is ImageViewerImage => !!img),
-  )
+      .filter((img): img is ImageViewerImage => !!img))
 
   watch([filterDay, sortType, filterRating], () => {
     resetPagination()
-    setTimeout(
-      () => document.querySelector('.memories-section')?.scrollIntoView({ behavior: 'smooth' }),
-      50,
-    )
+    setTimeout(() => document.querySelector('.memories-section')?.scrollIntoView({ behavior: 'smooth' }), 50)
   })
 
   return {

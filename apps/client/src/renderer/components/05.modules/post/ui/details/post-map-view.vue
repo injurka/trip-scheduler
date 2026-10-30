@@ -12,7 +12,6 @@ import { KitTooltip } from '~/components/01.kit/kit-tooltip'
 import GeolocationMap from '~/components/03.domain/trip-info/geolocation-section/ui/geolocation-map.vue'
 import { getPostMediaVariants } from '~/components/05.modules/post/lib/media-variants'
 import { resolveApiUrl } from '~/shared/lib/url'
-
 import { isValidCoordinate } from '~/shared/services/geo'
 
 interface Props {
@@ -28,54 +27,28 @@ const props = withDefaults(defineProps<Props>(), {
   focusBlockId: null,
   focusRequest: 0,
 })
-
 const emit = defineEmits<{
   (e: 'update:visible', value: boolean): void
   (e: 'update:pinned', value: boolean): void
 }>()
+
+const isMobileScreen = useMediaQuery('(max-width: 959px)')
+const { isOpen, open, currentIndex } = useImageViewer()
 
 const isDragging = ref(false)
 const position = ref({ x: 0, y: 0 })
 const dragStart = ref({ x: 0, y: 0 })
 const initialPos = ref({ x: 0, y: 0 })
 const isMapFullscreen = ref(false)
-const isMobileScreen = useMediaQuery('(max-width: 959px)')
+const controller = shallowRef<ReturnType<typeof useGeolocationMap> | null>(null)
+const showPhotoPoints = ref(true)
+const mapBodyRef = ref<HTMLElement | null>(null)
+const photoMarkers: Marker[] = []
+let photoPopup: Popup | null = null
 
 const hasActiveFocus = computed(() => {
   return props.focusBlockId && props.focusBlockId !== 'null' && props.focusBlockId !== 'undefined'
 })
-
-function getColorForIndex(index: number) {
-  const colors = ['#7367F0', '#28C76F', '#EA5455', '#FF9F43', '#00CFE8']
-  return colors[index % colors.length]
-}
-
-function getPointStyleConfig(index: number, blockId: string) {
-  const baseColor = getColorForIndex(index)
-  if (hasActiveFocus.value) {
-    const isFocused = props.focusBlockId === blockId
-    return {
-      color: baseColor,
-      opacity: isFocused ? 1.0 : 0.35, // Делаем сильно прозрачными (35% видимости)
-      scale: isFocused ? 1.6 : 1.1, // Фокусированная точка крупнее
-    }
-  }
-  return {
-    color: baseColor,
-    opacity: 1.0,
-    scale: 1.3,
-  }
-}
-
-function getRouteColor(index: number, blockId: string) {
-  const baseColor = getColorForIndex(index)
-  if (hasActiveFocus.value) {
-    // 59 в HEX — это примерно 35% непрозрачности (более прозрачно)
-    return props.focusBlockId === blockId ? baseColor : `${baseColor}59`
-  }
-  return baseColor
-}
-
 const mapPoints = computed<MapPoint[]>(() => {
   const points: MapPoint[] = []
   props.post.elements?.forEach((element, sIndex) => {
@@ -83,13 +56,16 @@ const mapPoints = computed<MapPoint[]>(() => {
       if (block.type === 'location' && block.location && (block.location.lat != null || block.location.lng != null)) {
         let lat = Number(block.location.lat)
         let lng = Number(block.location.lng)
+
         // Защита от перепутанных lat/lng
         if (Math.abs(lat) > 90 && Math.abs(lng) <= 90) {
           const temp = lat
           lat = lng
           lng = temp
         }
+
         const coords: [number, number] = [lng, lat]
+
         if (!isValidCoordinate(coords))
           return
 
@@ -112,9 +88,9 @@ const mapPoints = computed<MapPoint[]>(() => {
       }
     })
   })
+
   return points
 })
-
 const mapRoutes = computed<MapRoute[]>(() => {
   const routes: MapRoute[] = []
   props.post.elements?.forEach((element, sIndex) => {
@@ -129,12 +105,15 @@ const mapRoutes = computed<MapRoute[]>(() => {
         rawPoints.forEach((p: any, idx: number) => {
           let lat = Number(p.lat)
           let lng = Number(p.lng)
+
           if (Math.abs(lat) > 90 && Math.abs(lng) <= 90) {
             const temp = lat
             lat = lng
             lng = temp
           }
+
           const coords: [number, number] = [lng, lat]
+
           if (!isValidCoordinate(coords))
             return
 
@@ -153,9 +132,7 @@ const mapRoutes = computed<MapRoute[]>(() => {
           })
         })
 
-        const validGeometry: [number, number][] = (block.route.geometry as [number, number][]).filter(
-          coord => isValidCoordinate(coord),
-        )
+        const validGeometry: [number, number][] = (block.route.geometry as [number, number][]).filter(coord => isValidCoordinate(coord))
 
         if (validGeometry.length >= 2) {
           routes.push({
@@ -171,20 +148,15 @@ const mapRoutes = computed<MapRoute[]>(() => {
       }
     })
   })
+
   return routes
 })
-
-const controller = shallowRef<ReturnType<typeof useGeolocationMap> | null>(null)
-const showPhotoPoints = ref(true)
-const { isOpen, open, currentIndex } = useImageViewer()
-const mapBodyRef = ref<HTMLElement | null>(null)
-const photoMarkers: Marker[] = []
-let photoPopup: Popup | null = null
-
 const photos = computed(() => {
   const media = new Map<string, PostMedia>()
+
   for (const photo of props.post.media || [])
     media.set(photo.id, photo)
+
   for (const stage of props.post.stages || []) {
     for (const block of stage.blocks) {
       if (block.type === 'gallery') {
@@ -193,14 +165,19 @@ const photos = computed(() => {
       }
     }
   }
+
   return [...media.values()].flatMap((photo) => {
     if (photo.type !== 'image' || photo.hasAccess === false)
       return []
+
     const lat = photo.latitude ?? photo.metadata?.latitude
     const lng = photo.longitude ?? photo.metadata?.longitude
+
     if (lat == null || lng == null)
       return []
+
     const coordinates: [number, number] = [Number(lng), Number(lat)]
+
     return isValidCoordinate(coordinates) ? [{ photo, coordinates }] : []
   })
 })
@@ -208,18 +185,21 @@ const mapCenter = computed((): [number, number] => {
   if (mapPoints.value.length > 0) {
     return mapPoints.value[0].coordinates
   }
+
   if (mapRoutes.value.length > 0 && mapRoutes.value[0].geometry && mapRoutes.value[0].geometry.length > 0) {
     return mapRoutes.value[0].geometry[0]
   }
+
   if (photos.value.length > 0)
     return photos.value[0].coordinates
+
   if (isValidCoordinate([props.post.longitude, props.post.latitude])) {
     return [props.post.longitude, props.post.latitude]
   }
+
   // Фолбэк на дефолтные валидные координаты (Ульяновск / Москва)
   return [48.4031, 54.3142]
 })
-
 const viewerImages = computed<ImageViewerImage[]>(() => photos.value.map(({ photo }) => ({
   url: photo.url,
   alt: photo.originalName || 'Фото',
@@ -227,17 +207,69 @@ const viewerImages = computed<ImageViewerImage[]>(() => photos.value.map(({ phot
   variants: getPostMediaVariants(photo),
 })))
 
+watch([() => props.focusRequest, () => props.focusBlockId, () => props.visible, () => props.pinned, isMapFullscreen, () => controller.value?.isMapLoaded.value], focusSelection, { flush: 'post' })
+watch([photos, showPhotoPoints, () => controller.value?.isMapLoaded.value], syncPhotoMarkers, { flush: 'post' })
+watch(() => props.visible, (val) => {
+  if (val && !props.pinned) {
+    const maxLeft = window.innerWidth - 300
+    const maxTop = window.innerHeight - 300
+    position.value = {
+      x: Math.min(position.value.x, maxLeft),
+      y: Math.min(position.value.y, maxTop),
+    }
+  }
+
+  if (!val) {
+    isMapFullscreen.value = false
+  }
+})
+
+function getColorForIndex(index: number) {
+  const colors = ['#7367F0', '#28C76F', '#EA5455', '#FF9F43', '#00CFE8']
+
+  return colors[index % colors.length]
+}
+function getPointStyleConfig(index: number, blockId: string) {
+  const baseColor = getColorForIndex(index)
+
+  if (hasActiveFocus.value) {
+    const isFocused = props.focusBlockId === blockId
+
+    return {
+      color: baseColor,
+      opacity: isFocused ? 1.0 : 0.35, // Делаем сильно прозрачными (35% видимости)
+      scale: isFocused ? 1.6 : 1.1, // Фокусированная точка крупнее
+    }
+  }
+
+  return {
+    color: baseColor,
+    opacity: 1.0,
+    scale: 1.3,
+  }
+}
+function getRouteColor(index: number, blockId: string) {
+  const baseColor = getColorForIndex(index)
+
+  if (hasActiveFocus.value) {
+    // 59 в HEX — это примерно 35% непрозрачности (более прозрачно)
+    return props.focusBlockId === blockId ? baseColor : `${baseColor}59`
+  }
+
+  return baseColor
+}
 function clearPhotoMarkers() {
   photoPopup?.remove()
   photoPopup = null
   photoMarkers.splice(0).forEach(marker => marker.remove())
 }
-
 function syncPhotoMarkers() {
   clearPhotoMarkers()
   const map = controller.value?.mapInstance.value
+
   if (!map || !controller.value?.isMapLoaded.value || !showPhotoPoints.value)
     return
+
   photos.value.forEach(({ photo, coordinates }, index) => {
     const variants = getPostMediaVariants(photo)
     const imageUrl = resolveApiUrl(variants?.small || variants?.medium || photo.url)
@@ -272,16 +304,18 @@ function syncPhotoMarkers() {
       .setLngLat(coordinates).addTo(map))
   })
 }
-
 async function focusSelection() {
   await nextTick()
   const mapController = controller.value
+
   if (!mapController?.isMapLoaded.value || !(props.visible || props.pinned))
     return
+
   mapController.mapInstance.value?.resize()
   const route = mapRoutes.value.find(route => route.id === props.focusBlockId)
   const point = mapPoints.value.find(point => point.id === props.focusBlockId)
   mapController.setActivePointId(point?.id ?? null)
+
   if (route)
     mapController.fitToContent([], [route], { padding: 60, maxZoom: 15, duration: 500 })
   else if (point)
@@ -289,21 +323,15 @@ async function focusSelection() {
   else
     mapController.fitToContent([...mapPoints.value, ...photos.value.map(({ photo, coordinates }) => ({ id: `photo-${photo.id}`, type: 'poi' as const, coordinates }))], mapRoutes.value, { padding: 60, maxZoom: 15, duration: 0 })
 }
-
-useResizeObserver(mapBodyRef, useDebounceFn(focusSelection, 100))
-
-watch([() => props.focusRequest, () => props.focusBlockId, () => props.visible, () => props.pinned, isMapFullscreen, () => controller.value?.isMapLoaded.value], focusSelection, { flush: 'post' })
-watch([photos, showPhotoPoints, () => controller.value?.isMapLoaded.value], syncPhotoMarkers, { flush: 'post' })
-
 function onMapReady(mapController: ReturnType<typeof useGeolocationMap>) {
   controller.value = mapController
   syncPhotoMarkers()
   focusSelection()
 }
-
 function startDrag(e: MouseEvent) {
   if (props.pinned || isMapFullscreen.value || isMobileScreen.value)
     return
+
   if (e.target instanceof HTMLButtonElement || (e.target as HTMLElement).closest('button'))
     return
 
@@ -313,26 +341,23 @@ function startDrag(e: MouseEvent) {
   document.addEventListener('mousemove', onDrag)
   document.addEventListener('mouseup', stopDrag)
 }
-
 function onDrag(e: MouseEvent) {
   if (!isDragging.value)
     return
+
   position.value = {
     x: initialPos.value.x + (e.clientX - dragStart.value.x),
     y: initialPos.value.y + (e.clientY - dragStart.value.y),
   }
 }
-
 function stopDrag() {
   isDragging.value = false
   document.removeEventListener('mousemove', onDrag)
   document.removeEventListener('mouseup', stopDrag)
 }
-
 function toggleFullscreen() {
   isMapFullscreen.value = !isMapFullscreen.value
 }
-
 function handleKeydown(e: KeyboardEvent) {
   if (e.key !== 'Escape')
     return
@@ -342,16 +367,16 @@ function handleKeydown(e: KeyboardEvent) {
   else if (props.visible && !props.pinned && isMobileScreen.value)
     closeMap()
 }
-
 function closeMap() {
   isMapFullscreen.value = false
   emit('update:visible', false)
 }
-
 function unpinMap() {
   emit('update:visible', true)
   emit('update:pinned', false)
 }
+
+useResizeObserver(mapBodyRef, useDebounceFn(focusSelection, 100))
 
 onMounted(() => {
   position.value = {
@@ -360,21 +385,6 @@ onMounted(() => {
   }
   document.addEventListener('keydown', handleKeydown)
 })
-
-watch(() => props.visible, (val) => {
-  if (val && !props.pinned) {
-    const maxLeft = window.innerWidth - 300
-    const maxTop = window.innerHeight - 300
-    position.value = {
-      x: Math.min(position.value.x, maxLeft),
-      y: Math.min(position.value.y, maxTop),
-    }
-  }
-  if (!val) {
-    isMapFullscreen.value = false
-  }
-})
-
 onBeforeUnmount(() => {
   clearPhotoMarkers()
   document.removeEventListener('mousemove', onDrag)
@@ -404,13 +414,25 @@ onBeforeUnmount(() => {
         }"
         :style="(pinned || isMapFullscreen) ? {} : { left: `${position.x}px`, top: `${position.y}px` }"
       >
-        <div v-if="!pinned && !isMapFullscreen" class="map-drag-handle" :class="{ 'is-mobile-drawer': isMobileScreen }" @mousedown="startDrag">
+        <div
+          v-if="!pinned && !isMapFullscreen"
+          class="map-drag-handle"
+          :class="{ 'is-mobile-drawer': isMobileScreen }"
+          @mousedown="startDrag"
+        >
           <div v-if="isMobileScreen" class="drawer-grabber" aria-hidden="true" />
           <div v-else class="drag-indicator">
             <Icon icon="mdi:drag-horizontal" />
           </div>
           <div class="header-actions">
-            <button class="action-btn photo-toggle" :class="{ 'is-active': showPhotoPoints }" :aria-pressed="showPhotoPoints" aria-label="Показать точки фото" title="Точки фото" @click="showPhotoPoints = !showPhotoPoints">
+            <button
+              class="action-btn photo-toggle"
+              :class="{ 'is-active': showPhotoPoints }"
+              :aria-pressed="showPhotoPoints"
+              aria-label="Показать точки фото"
+              title="Точки фото"
+              @click="showPhotoPoints = !showPhotoPoints"
+            >
               <Icon icon="mdi:camera" />
             </button>
             <KitTooltip v-if="!isMobileScreen" text="Закрепить">
@@ -433,7 +455,13 @@ onBeforeUnmount(() => {
             </button>
           </KitTooltip>
           <KitTooltip text="Точки фото">
-            <button class="unpin-floating-btn photo-toggle" :class="{ 'is-active': showPhotoPoints }" :aria-pressed="showPhotoPoints" aria-label="Показать точки фото" @click="showPhotoPoints = !showPhotoPoints">
+            <button
+              class="unpin-floating-btn photo-toggle"
+              :class="{ 'is-active': showPhotoPoints }"
+              :aria-pressed="showPhotoPoints"
+              aria-label="Показать точки фото"
+              @click="showPhotoPoints = !showPhotoPoints"
+            >
               <Icon icon="mdi:camera" />
             </button>
           </KitTooltip>
@@ -461,7 +489,13 @@ onBeforeUnmount(() => {
       </div>
     </Transition>
   </Teleport>
-  <KitImageViewer v-model:current-index="currentIndex" :visible="isOpen" :images="viewerImages" @update:visible="isOpen = $event" @close="isOpen = false" />
+  <KitImageViewer
+    v-model:current-index="currentIndex"
+    :visible="isOpen"
+    :images="viewerImages"
+    @update:visible="isOpen = $event"
+    @close="isOpen = false"
+  />
 </template>
 
 <style scoped lang="scss">

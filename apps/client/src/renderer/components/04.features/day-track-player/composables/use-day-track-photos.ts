@@ -12,32 +12,302 @@ export interface UseDayTrackPhotosOptions {
   dayEnd: ComputedRef<number>
 }
 
+type TrackPhotoBase = Omit<TrackPhoto, 'lat' | 'lng' | 'source'>
+
+interface PhotoCandidate {
+  photo: TrackPhotoBase
+  latitude?: number | null
+  longitude?: number | null
+  strictGpsBounds: boolean
+}
+
+interface PhotoLocation {
+  lat: number
+  lng: number
+  source: TrackPhoto['source']
+}
+
+function findPointIndexByTime(points: DayPoint[], target: number): number {
+  let low = 0
+  let high = points.length - 1
+  let answer = -1
+
+  while (low <= high) {
+    const middle = (low + high) >> 1
+
+    if (points[middle].tsUtc <= target) {
+      answer = middle
+      low = middle + 1
+    }
+    else {
+      high = middle - 1
+    }
+  }
+
+  return answer
+}
+
+function hasNumericCoordinates(latitude: unknown, longitude: unknown): latitude is number {
+  return typeof latitude === 'number' && typeof longitude === 'number'
+    && !Number.isNaN(latitude) && !Number.isNaN(longitude)
+}
+
+function isInCoordinateBounds(latitude: number, longitude: number): boolean {
+  return latitude >= -90 && latitude <= 90 && longitude >= -180 && longitude <= 180
+}
+
+function hasNonZeroCoordinates(latitude: number, longitude: number): boolean {
+  return Math.abs(latitude) > 0.0001 || Math.abs(longitude) > 0.0001
+}
+
+function isValidGps(latitude: unknown, longitude: unknown, strictBounds: boolean): latitude is number {
+  if (!hasNumericCoordinates(latitude, longitude))
+    return false
+
+  const numericLongitude = longitude as number
+  const isInBounds = !strictBounds || isInCoordinateBounds(latitude, numericLongitude)
+
+  return isInBounds && hasNonZeroCoordinates(latitude, numericLongitude)
+}
+
+function findInterpolatedLocation(point: DayPoint, nextPoint: DayPoint, timestamp: number): PhotoLocation | null {
+  const gap = nextPoint.tsUtc - point.tsUtc
+
+  if (gap <= 0 || gap > 20 * 60 * 1000)
+    return null
+
+  const fraction = Math.max(0, Math.min(1, (timestamp - point.tsUtc) / gap))
+
+  return {
+    lat: point.lat + (nextPoint.lat - point.lat) * fraction,
+    lng: point.lng + (nextPoint.lng - point.lng) * fraction,
+    source: 'interpolated',
+  }
+}
+
+function findTrackLocation(
+  timestamp: number,
+  points: DayPoint[],
+  allowBefore: boolean,
+  allowAfter: boolean,
+): PhotoLocation | null {
+  if (timestamp <= 0 || points.length === 0)
+    return null
+
+  const index = findPointIndexByTime(points, timestamp)
+
+  if (index === -1)
+    return getLocationBeforeTrack(timestamp, points[0], allowBefore)
+
+  const point = points[index]
+
+  if (isDuringStop(point, timestamp))
+    return { lat: point.lat, lng: point.lng, source: 'stop' }
+
+  if (index < points.length - 1)
+    return findInterpolatedLocation(point, points[index + 1], timestamp)
+
+  return getLocationAfterTrack(timestamp, point, allowAfter)
+}
+
+function isDuringStop(point: DayPoint, timestamp: number): boolean {
+  return Boolean(point.stop && timestamp <= (point.stop.endedAt ?? point.tsUtc))
+}
+
+function getLocationBeforeTrack(timestamp: number, first: DayPoint, allowBefore: boolean): PhotoLocation | null {
+  return allowBefore && first.tsUtc - timestamp <= 15 * 60 * 1000
+    ? { lat: first.lat, lng: first.lng, source: 'interpolated' }
+    : null
+}
+
+function getLocationAfterTrack(timestamp: number, last: DayPoint, allowAfter: boolean): PhotoLocation | null {
+  return allowAfter && timestamp - last.tsUtc <= 15 * 60 * 1000
+    ? { lat: last.lat, lng: last.lng, source: 'interpolated' }
+    : null
+}
+
+function resolvePhoto(
+  candidate: PhotoCandidate,
+  points: DayPoint[],
+  allowBefore: boolean,
+  allowAfter: boolean,
+): TrackPhoto | null {
+  if (isValidGps(candidate.latitude, candidate.longitude, candidate.strictGpsBounds)) {
+    return {
+      ...candidate.photo,
+      lat: candidate.latitude,
+      lng: candidate.longitude!,
+      source: 'gps',
+    }
+  }
+
+  const location = findTrackLocation(
+    candidate.photo.tsUtc,
+    points,
+    allowBefore,
+    allowAfter,
+  )
+
+  return location ? { ...candidate.photo, ...location } : null
+}
+
+function collectPhotos(
+  candidates: PhotoCandidate[],
+  points: DayPoint[],
+  allowBefore: boolean,
+  allowAfter: boolean,
+) {
+  const located: TrackPhoto[] = []
+  const unlocated: TrackPhotoBase[] = []
+
+  for (const candidate of candidates) {
+    const resolved = resolvePhoto(
+      candidate,
+      points,
+      allowBefore,
+      allowAfter,
+    )
+
+    if (resolved)
+      located.push(resolved)
+    else
+      unlocated.push(candidate.photo)
+  }
+
+  return { located, unlocated }
+}
+
+function createGalleryCandidate(image: ImageViewerImage, memoryMap: Map<string, Memory>): PhotoCandidate {
+  const meta = image.meta as Record<string, any> | undefined
+  const memoryId = meta?.memoryId || image.url
+  const memory = memoryMap.get(memoryId)
+
+  return {
+    photo: createGalleryPhotoBase(
+      image,
+      memory,
+      memoryId,
+      meta,
+    ),
+    latitude: getGalleryCoordinate(meta?.latitude, memory?.image?.latitude),
+    longitude: getGalleryCoordinate(meta?.longitude, memory?.image?.longitude),
+    strictGpsBounds: true,
+  }
+}
+
+function getGalleryCoordinate(value: unknown, fallback?: number | null): number | null | undefined {
+  return typeof value === 'number' && !Number.isNaN(value) ? value : fallback
+}
+
+function createGalleryPhotoBase(
+  image: ImageViewerImage,
+  memory: Memory | undefined,
+  memoryId: string,
+  meta: Record<string, any> | undefined,
+): TrackPhotoBase {
+  return {
+    id: memoryId,
+    memoryId,
+    title: getMemoryTitle(memory),
+    comment: getGalleryComment(memory, image),
+    imageUrl: getGalleryImageUrl(image),
+    thumbnailUrl: getGalleryThumbnailUrl(image),
+    tsUtc: getGalleryTimestamp(meta, memory),
+    mediaType: image.mediaType === 'video' ? 'video' : 'image',
+    originalMemory: memory,
+  }
+}
+
+function getMemoryTitle(memory?: Memory): string {
+  return memory?.title || ''
+}
+
+function getGalleryComment(memory: Memory | undefined, image: ImageViewerImage): string {
+  return memory?.comment || image.caption || ''
+}
+
+function getGalleryImageUrl(image: ImageViewerImage): string {
+  return image.variants?.large || image.url
+}
+
+function getGalleryThumbnailUrl(image: ImageViewerImage): string {
+  return image.variants?.small || image.variants?.medium || image.url
+}
+
+function getGalleryTimestamp(meta: Record<string, any> | undefined, memory?: Memory): number {
+  const timeValue = meta?.takenAt || memory?.timestamp || memory?.image?.takenAt
+
+  return timeValue ? new Date(timeValue).getTime() : (memory ? new Date(memory.createdAt).getTime() : 0)
+}
+
+function createMemoryCandidate(memory: Memory): PhotoCandidate {
+  const image = memory.image
+
+  return {
+    photo: {
+      id: memory.id,
+      memoryId: memory.id,
+      title: memory.title || '',
+      comment: memory.comment || '',
+      imageUrl: getMemoryImageUrl(image),
+      thumbnailUrl: getMemoryThumbnailUrl(image),
+      tsUtc: getMemoryTimestamp(memory),
+      mediaType: getMemoryMediaType(image),
+      originalMemory: memory,
+    },
+    latitude: getImageLatitude(image),
+    longitude: getImageLongitude(image),
+    strictGpsBounds: false,
+  }
+}
+
+function getMemoryImageUrl(image: Memory['image']): string {
+  return image?.variants?.large || image?.url || ''
+}
+
+function getMemoryThumbnailUrl(image: Memory['image']): string {
+  return image?.variants?.small || image?.variants?.medium || image?.url || ''
+}
+
+function getMemoryTimestamp(memory: Memory): number {
+  const timeValue = memory.timestamp || memory.image?.takenAt
+
+  return timeValue ? new Date(timeValue).getTime() : new Date(memory.createdAt).getTime()
+}
+
+function getMemoryMediaType(image: Memory['image']): 'image' | 'video' {
+  return image?.mediaType === 'video' ? 'video' : 'image'
+}
+
+function getImageLatitude(image: Memory['image']): number | null | undefined {
+  return image?.latitude
+}
+
+function getImageLongitude(image: Memory['image']): number | null | undefined {
+  return image?.longitude
+}
+
+function createPhotoCandidates(images: ImageViewerImage[], memories: Memory[], memoryMap: Map<string, Memory>): PhotoCandidate[] {
+  if (images.length > 0)
+    return images.map(image => createGalleryCandidate(image, memoryMap))
+
+  return memories
+    .filter(memory => Boolean(memory.image || memory.imageId))
+    .map(createMemoryCandidate)
+}
+
 export function useDayTrackPhotos(options: UseDayTrackPhotosOptions) {
-  const { memories, galleryImages, dayData, dayStart, dayEnd } = options
+  const {
+    memories,
+    galleryImages,
+    dayData,
+    dayStart,
+    dayEnd,
+  } = options
 
   const isPhotosVisible = ref(true)
   const selectedPhoto = ref<TrackPhoto | null>(null)
   const selectedClusterPhotos = ref<TrackPhoto[]>([])
-
-  /**
-   * Вспомогательный бинарный поиск ближайшей точки трека по времени
-   */
-  function findPointIndexByTime(pts: DayPoint[], targetT: number): number {
-    let low = 0
-    let high = pts.length - 1
-    let ans = -1
-    while (low <= high) {
-      const mid = (low + high) >> 1
-      if (pts[mid].tsUtc <= targetT) {
-        ans = mid
-        low = mid + 1
-      }
-      else {
-        high = mid - 1
-      }
-    }
-    return ans
-  }
 
   /**
    * Разрешение координат для каждого фото дня
@@ -45,278 +315,21 @@ export function useDayTrackPhotos(options: UseDayTrackPhotosOptions) {
   const parsedPhotos = computed(() => {
     const rawMemories = memories?.value || []
     const rawImages = galleryImages?.value || []
-
     const memoryMap = new Map<string, Memory>()
+
     for (const m of rawMemories) {
-      if (m?.id) {
+      if (m?.id)
         memoryMap.set(m.id, m)
-      }
     }
 
-    const located: TrackPhoto[] = []
-    const unlocated: Array<{
-      id: string
-      memoryId: string
-      title?: string
-      comment?: string | null
-      imageUrl: string
-      thumbnailUrl: string
-      tsUtc: number
-      originalMemory?: Memory
-    }> = []
-
-    const pts = dayData.value?.points || []
-
-    // Если есть galleryImages — используем их как основной источник, так как в них уже разрешены превью и URL
-    if (rawImages.length > 0) {
-      for (const img of rawImages) {
-        const meta = img.meta as Record<string, any> | undefined
-        const memoryId = meta?.memoryId || img.url
-        const memory = memoryId ? memoryMap.get(memoryId) : undefined
-
-        const timeStr = meta?.takenAt || memory?.timestamp || memory?.image?.takenAt
-        const tsUtc = timeStr ? new Date(timeStr).getTime() : (memory ? new Date(memory.createdAt).getTime() : 0)
-
-        const title = memory?.title || ''
-        const comment = memory?.comment || img.caption || ''
-        const imageUrl = img.variants?.large || img.url
-        const thumbnailUrl = img.variants?.small || img.variants?.medium || img.url
-        const mediaType = img.mediaType === 'video' ? 'video' : 'image'
-
-        // 1. Проверяем GPS из EXIF
-        const gpsLat = typeof meta?.latitude === 'number' && !Number.isNaN(meta.latitude) ? meta.latitude : memory?.image?.latitude
-        const gpsLng = typeof meta?.longitude === 'number' && !Number.isNaN(meta.longitude) ? meta.longitude : memory?.image?.longitude
-
-        const hasValidGps = (
-          typeof gpsLat === 'number'
-          && typeof gpsLng === 'number'
-          && !Number.isNaN(gpsLat)
-          && !Number.isNaN(gpsLng)
-          && gpsLat >= -90
-          && gpsLat <= 90
-          && gpsLng >= -180
-          && gpsLng <= 180
-          && (Math.abs(gpsLat) > 0.0001 || Math.abs(gpsLng) > 0.0001)
-        )
-
-        if (hasValidGps) {
-          located.push({
-            id: memoryId || img.url,
-            memoryId,
-            title,
-            comment,
-            imageUrl,
-            thumbnailUrl,
-            lat: gpsLat!,
-            lng: gpsLng!,
-            source: 'gps',
-            tsUtc,
-            mediaType,
-            originalMemory: memory,
-          })
-          continue
-        }
-
-        // 2. Интерполяция по треку по времени
-        if (tsUtc > 0 && pts.length > 0) {
-          const idx = findPointIndexByTime(pts, tsUtc)
-
-          if (idx >= 0 && idx < pts.length) {
-            const p1 = pts[idx]
-
-            // Остановка
-            if (p1.stop && tsUtc <= (p1.stop.endedAt ?? p1.tsUtc)) {
-              located.push({
-                id: memoryId || img.url,
-                memoryId,
-                title,
-                comment,
-                imageUrl,
-                thumbnailUrl,
-                lat: p1.lat,
-                lng: p1.lng,
-                source: 'stop',
-                tsUtc,
-                mediaType,
-                originalMemory: memory,
-              })
-              continue
-            }
-
-            // Между двумя точками трека
-            if (idx < pts.length - 1) {
-              const p2 = pts[idx + 1]
-              const gap = p2.tsUtc - p1.tsUtc
-              // Допускаем интерполяцию с разрывом до 20 минут
-              if (gap <= 20 * 60 * 1000 && gap > 0) {
-                const fraction = Math.max(0, Math.min(1, (tsUtc - p1.tsUtc) / gap))
-                located.push({
-                  id: memoryId || img.url,
-                  memoryId,
-                  title,
-                  comment,
-                  imageUrl,
-                  thumbnailUrl,
-                  lat: p1.lat + (p2.lat - p1.lat) * fraction,
-                  lng: p1.lng + (p2.lng - p1.lng) * fraction,
-                  source: 'interpolated',
-                  tsUtc,
-                  mediaType,
-                  originalMemory: memory,
-                })
-                continue
-              }
-            }
-            // Если точка в пределах 15 минут от конца записи трека
-            else if (tsUtc - p1.tsUtc <= 15 * 60 * 1000) {
-              located.push({
-                id: memoryId || img.url,
-                memoryId,
-                title,
-                comment,
-                imageUrl,
-                thumbnailUrl,
-                lat: p1.lat,
-                lng: p1.lng,
-                source: 'interpolated',
-                tsUtc,
-                mediaType,
-                originalMemory: memory,
-              })
-              continue
-            }
-          }
-          // Если точка в пределах 15 минут до начала записи трека
-          else if (idx === -1 && pts[0].tsUtc - tsUtc <= 15 * 60 * 1000) {
-            located.push({
-              id: memoryId || img.url,
-              memoryId,
-              title,
-              comment,
-              imageUrl,
-              thumbnailUrl,
-              lat: pts[0].lat,
-              lng: pts[0].lng,
-              source: 'interpolated',
-              tsUtc,
-              mediaType,
-              originalMemory: memory,
-            })
-            continue
-          }
-        }
-
-        // 3. Без геопозиции
-        unlocated.push({
-          id: memoryId || img.url,
-          memoryId,
-          title,
-          comment,
-          imageUrl,
-          thumbnailUrl,
-          tsUtc,
-          originalMemory: memory,
-        })
-      }
-    }
-    // Fallback: если galleryImages не передан, но передан memories
-    else if (rawMemories.length > 0) {
-      for (const memory of rawMemories) {
-        if (!memory.image && !memory.imageId)
-          continue
-        const img = memory.image
-        const timeStr = memory.timestamp || img?.takenAt
-        const tsUtc = timeStr ? new Date(timeStr).getTime() : new Date(memory.createdAt).getTime()
-        const imageUrl = img?.variants?.large || img?.url || ''
-        const thumbnailUrl = img?.variants?.small || img?.variants?.medium || img?.url || ''
-        const mediaType = img?.mediaType === 'video' ? 'video' : 'image'
-
-        const gpsLat = img?.latitude
-        const gpsLng = img?.longitude
-        const hasValidGps = (
-          typeof gpsLat === 'number'
-          && typeof gpsLng === 'number'
-          && !Number.isNaN(gpsLat)
-          && !Number.isNaN(gpsLng)
-          && (Math.abs(gpsLat) > 0.0001 || Math.abs(gpsLng) > 0.0001)
-        )
-
-        if (hasValidGps) {
-          located.push({
-            id: memory.id,
-            memoryId: memory.id,
-            title: memory.title || '',
-            comment: memory.comment || '',
-            imageUrl,
-            thumbnailUrl,
-            lat: gpsLat!,
-            lng: gpsLng!,
-            source: 'gps',
-            tsUtc,
-            mediaType,
-            originalMemory: memory,
-          })
-          continue
-        }
-
-        if (tsUtc > 0 && pts.length > 0) {
-          const idx = findPointIndexByTime(pts, tsUtc)
-          if (idx >= 0 && idx < pts.length) {
-            const p1 = pts[idx]
-            if (p1.stop && tsUtc <= (p1.stop.endedAt ?? p1.tsUtc)) {
-              located.push({
-                id: memory.id,
-                memoryId: memory.id,
-                title: memory.title || '',
-                comment: memory.comment || '',
-                imageUrl,
-                thumbnailUrl,
-                lat: p1.lat,
-                lng: p1.lng,
-                source: 'stop',
-                tsUtc,
-                mediaType,
-                originalMemory: memory,
-              })
-              continue
-            }
-            if (idx < pts.length - 1) {
-              const p2 = pts[idx + 1]
-              const gap = p2.tsUtc - p1.tsUtc
-              if (gap <= 20 * 60 * 1000 && gap > 0) {
-                const fraction = Math.max(0, Math.min(1, (tsUtc - p1.tsUtc) / gap))
-                located.push({
-                  id: memory.id,
-                  memoryId: memory.id,
-                  title: memory.title || '',
-                  comment: memory.comment || '',
-                  imageUrl,
-                  thumbnailUrl,
-                  lat: p1.lat + (p2.lat - p1.lat) * fraction,
-                  lng: p1.lng + (p2.lng - p1.lng) * fraction,
-                  source: 'interpolated',
-                  tsUtc,
-                  mediaType,
-                  originalMemory: memory,
-                })
-                continue
-              }
-            }
-          }
-        }
-
-        unlocated.push({
-          id: memory.id,
-          memoryId: memory.id,
-          title: memory.title || '',
-          comment: memory.comment || '',
-          imageUrl,
-          thumbnailUrl,
-          tsUtc,
-          originalMemory: memory,
-        })
-      }
-    }
+    const points = dayData.value?.points || []
+    const candidates = createPhotoCandidates(rawImages, rawMemories, memoryMap)
+    const { located, unlocated } = collectPhotos(
+      candidates,
+      points,
+      rawImages.length > 0,
+      rawImages.length > 0,
+    )
 
     // Сортировка по времени
     located.sort((a, b) => a.tsUtc - b.tsUtc)
@@ -339,6 +352,7 @@ export function useDayTrackPhotos(options: UseDayTrackPhotosOptions) {
     const start = dayStart.value
     const end = dayEnd.value
     const span = end - start
+
     if (span <= 0 || photos.length === 0)
       return []
 
@@ -346,6 +360,7 @@ export function useDayTrackPhotos(options: UseDayTrackPhotosOptions) {
       .filter(p => p.tsUtc >= start && p.tsUtc <= end)
       .map((photo) => {
         const percent = Math.max(0, Math.min(100, ((photo.tsUtc - start) / span) * 100))
+
         return {
           id: photo.id,
           tsUtc: photo.tsUtc,

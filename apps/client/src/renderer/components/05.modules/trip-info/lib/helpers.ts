@@ -40,6 +40,26 @@ export interface CustomImageViewerImageMeta extends IImageViewerImageMeta {
   imageId: string
 }
 
+function getMediaViewerMeta(media: TripMedia): CustomImageViewerImageMeta {
+  return {
+    ...(media.metadata || {}),
+    latitude: media.latitude,
+    longitude: media.longitude,
+    takenAt: media.takenAt,
+    width: media.width,
+    height: media.height,
+    imageId: media.id,
+  }
+}
+
+function getMediaViewerUrl(media: TripMedia): string {
+  return media.variants?.large || media.variants?.web || media.url
+}
+
+function getMediaViewerAlt(media: TripMedia): string {
+  return media.metadata?.iptc?.headline || 'Trip Media'
+}
+
 /**
  * Возвращает полную информацию о теге (иконка, цвет, название).
  * @param tag - Тег активности.
@@ -63,23 +83,13 @@ export function getTagInfo(tag?: EActivityTag) {
  * @returns Объект ImageViewerImage.
  */
 export function tripMediaToViewerImage(media: TripMedia): ImageViewerImage {
-  const meta: CustomImageViewerImageMeta = {
-    ...(media.metadata || {}),
-    latitude: media.latitude,
-    longitude: media.longitude,
-    takenAt: media.takenAt,
-    width: media.width,
-    height: media.height,
-    imageId: media.id,
-  }
-
   return {
-    url: media.variants?.large || media.variants?.web || media.url,
+    url: getMediaViewerUrl(media),
     mediaType: media.mediaType || 'image',
     variants: media.variants as any,
-    alt: media.metadata?.iptc?.headline || 'Trip Media',
+    alt: getMediaViewerAlt(media),
     caption: media.metadata?.iptc?.caption,
-    meta,
+    meta: getMediaViewerMeta(media),
   }
 }
 
@@ -94,6 +104,7 @@ export function memoryToViewerImage(memory: Memory): ImageViewerImage | null {
   if (!memory.image) {
     return null
   }
+
   const viewerImage = tripMediaToViewerImage(memory.image)
 
   viewerImage.alt = memory.comment || viewerImage.alt
@@ -174,13 +185,16 @@ const ClientTagSynonyms: Record<string, EActivityTag> = {
 export function sanitizeActivityTag(tag: any): EActivityTag {
   if (typeof tag === 'string') {
     const lower = tag.trim().toLowerCase()
+
     if (VALID_TAGS.has(lower as EActivityTag)) {
       return lower as EActivityTag
     }
+
     if (ClientTagSynonyms[lower]) {
       return ClientTagSynonyms[lower]
     }
   }
+
   return EActivityTag.ACTIVITY
 }
 
@@ -188,24 +202,31 @@ export function sanitizeTimeString(timeStr: any): string {
   if (!timeStr || typeof timeStr !== 'string') {
     return '00:00'
   }
+
   const trimmed = timeStr.trim()
   const match = /^(\d):([0-5]\d)$/.exec(trimmed)
+
   if (match) {
     return `0${match[1]}:${match[2]}`
   }
+
   return trimmed
 }
 
 export function sanitizeActivity<T extends Partial<IActivity>>(activity: T): T {
   const result = { ...activity }
+
   if (result.tag !== undefined && result.tag !== null) {
     result.tag = sanitizeActivityTag(result.tag)
   }
+
   if (result.startTime) {
     result.startTime = sanitizeTimeString(result.startTime)
   }
+
   if (result.endTime) {
     result.endTime = sanitizeTimeString(result.endTime)
   }
+
   return result
 }

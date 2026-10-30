@@ -48,6 +48,103 @@ export interface IApiErrorHandlerOptions {
   showToast?: boolean
 }
 
+function getPrimaryStatusCode(error: IError): number | undefined {
+  return error?.data?.httpStatus || error?.shape?.data?.httpStatus
+}
+
+function getStatusCode(error: IError): number {
+  const statusCode = getPrimaryStatusCode(error) || error?.statusCode
+
+  return statusCode ? +statusCode : 0
+}
+
+function getTrpcCode(error: IError): string | undefined {
+  return error?.shape?.data?.code || error?.data?.code
+}
+
+function getShapeMessage(error: IError): string | undefined {
+  return error.shape?.message
+}
+
+function getErrorMessage(error: IError): string | undefined {
+  return error.message
+}
+
+function getDataDescription(error: IError): string | undefined {
+  return error.data?.description
+}
+
+function getDataMessage(error: IError): string | undefined {
+  return error.data?.message
+}
+
+function getKnownErrorDescription(error: IError, statusCode: number, trpcCode?: string): string | undefined {
+  if (trpcCode === 'FORBIDDEN' || statusCode === 403)
+    return getShapeMessage(error) || getErrorMessage(error) || 'У вас нет прав для выполнения этого действия.'
+
+  if (statusCode === 401)
+    return 'Вы не авторизованы. Пожалуйста, войдите в систему.'
+
+  if (statusCode === 409) {
+    return getShapeMessage(error)
+      || getDataDescription(error)
+      || getDataMessage(error)
+      || 'Произошел конфликт данных.'
+  }
+
+  return undefined
+}
+
+function getUnknownErrorDescription(error: IError): string {
+  try {
+    return JSON.parse(error.shape!.message!)[0].message
+  }
+  catch {
+    return 'Произошла неизвестная ошибка. Пожалуйста, попробуйте позже.'
+  }
+}
+
+function shouldStopErrorHandling(
+  error: IError,
+  statusCode: number,
+  options: IApiErrorHandlerOptions,
+  addToast: (message: Omit<ToastMessage, 'id'>) => void,
+): boolean {
+  const customHandler = options.handlers?.custom
+
+  if (customHandler?.(error, addToast) === false)
+    return true
+
+  const statusHandler = options.handlers?.[statusCode]
+
+  if (statusHandler?.(error, addToast) === false)
+    return true
+
+  return options.ignoreCodes?.includes(statusCode) ?? false
+}
+
+function handleApiError(error: IError, options: IApiErrorHandlerOptions, addToast: (message: Omit<ToastMessage, 'id'>) => void): void {
+  const statusCode = getStatusCode(error)
+  const trpcCode = getTrpcCode(error)
+
+  console.error('[API Error Handler]', error)
+
+  if (shouldStopErrorHandling(
+    error,
+    statusCode,
+    options,
+    addToast,
+  )) {
+    return
+  }
+
+  const description = getKnownErrorDescription(error, statusCode, trpcCode)
+    || getUnknownErrorDescription(error)
+
+  if (options.showToast ?? true)
+    addToast({ type: 'error', detail: description, expire: 5000, swipeToClose: true })
+}
+
 /**
  * Фабрика для создания гибких обработчиков API ошибок.
  * @param options - Опции для кастомизации обработчика.
@@ -55,65 +152,5 @@ export interface IApiErrorHandlerOptions {
 export function createApiErrorHandler(options: IApiErrorHandlerOptions = {}) {
   const { add: addToast } = useToast()
 
-  return (payload: IErrorCallback) => {
-    const { error } = payload
-
-    const statusCode = error?.data?.httpStatus
-      || error?.shape?.data?.httpStatus
-      || error?.statusCode
-      ? +(error.data?.httpStatus || error.shape?.data?.httpStatus || error.statusCode!)
-      : 0
-
-    const trpcCode = error?.shape?.data?.code || error?.data?.code
-
-    console.error('[API Error Handler]', error)
-
-    if (options.handlers?.custom) {
-      const result = options.handlers.custom(error, addToast)
-      if (result === false)
-        return
-    }
-
-    if (options.handlers && options.handlers[statusCode]) {
-      const result = options.handlers[statusCode](error, addToast)
-      if (result === false)
-        return
-    }
-
-    if (options.ignoreCodes?.includes(statusCode))
-      return
-
-    let description = ''
-
-    if (trpcCode === 'FORBIDDEN' || statusCode === 403) {
-      description = error?.shape?.message || error?.message || 'У вас нет прав для выполнения этого действия.'
-    }
-    else {
-      switch (statusCode) {
-        case 401:
-          description = 'Вы не авторизованы. Пожалуйста, войдите в систему.'
-          break
-        case 409:
-          description = error?.shape?.message
-            || error?.data?.description
-            || error?.data?.message
-            || 'Произошел конфликт данных.'
-          break
-        default:
-          break
-      }
-    }
-
-    if (!description) {
-      try {
-        description = JSON.parse(error.shape!.message!)[0].message
-      }
-      catch {
-        description = 'Произошла неизвестная ошибка. Пожалуйста, попробуйте позже.'
-      }
-    }
-
-    if (options.showToast ?? true)
-      addToast({ type: 'error', detail: description, expire: 5000 })
-  }
+  return (payload: IErrorCallback) => handleApiError(payload.error, options, addToast)
 }

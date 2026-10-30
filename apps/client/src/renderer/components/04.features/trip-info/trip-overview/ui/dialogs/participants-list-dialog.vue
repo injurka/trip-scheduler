@@ -17,6 +17,7 @@ interface Props {
   visible: boolean
   participants: Trip['participants']
 }
+
 const props = defineProps<Props>()
 const emit = defineEmits<{ (e: 'update:visible', value: boolean): void }>()
 
@@ -26,19 +27,15 @@ const { canEdit } = useTripPermissions()
 
 const searchQuery = ref('')
 const searchResults = ref<any[]>([])
-
 const SEARCH_USERS_KEY = 'users:search'
+
 const isSearching = useRequestStatus(SEARCH_USERS_KEY)
-
-function goToProfile(participantId: string) {
-  router.push(AppRoutePaths.User.Profile(participantId))
-  emit('update:visible', false)
-}
-
 const performSearch = useDebounceFn(() => {
   const q = searchQuery.value.trim()
+
   if (q.length < 2) {
     searchResults.value = []
+
     return
   }
 
@@ -55,10 +52,13 @@ const performSearch = useDebounceFn(() => {
   })
 }, 500)
 
+function goToProfile(participantId: string) {
+  router.push(AppRoutePaths.User.Profile(participantId))
+  emit('update:visible', false)
+}
 function isAlreadyAdded(userId: string) {
   return props.participants.some(p => p.id === userId)
 }
-
 async function handleAdd(userId: string) {
   await tripPlanStore.addParticipant(userId)
   searchQuery.value = ''

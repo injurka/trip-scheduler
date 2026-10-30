@@ -22,6 +22,7 @@ type MapsMeColor = typeof MAPSME_COLORS[number]
 function sanitizeCdata(text: string): string {
   if (!text)
     return ''
+
   return text.replace(/\]\]>/g, ']]&gt;')
 }
 
@@ -33,8 +34,10 @@ function hexToKmlColor(hex?: string): string {
     return 'ff0000ff'
 
   let c = hex.replace('#', '')
+
   if (c.length === 3)
     c = c.split('').map(x => x + x).join('')
+
   if (c.length !== 6)
     return 'ff0000ff'
 
@@ -52,6 +55,7 @@ function getPlacemarkColor(point: any): MapsMeColor {
   // 1. Сначала проверяем системные точки маршрута
   if (point.type === 'start')
     return 'green'
+
   if (point.type === 'end')
     return 'red'
 
@@ -69,6 +73,50 @@ function getPlacemarkColor(point: any): MapsMeColor {
 
   // Цвет по умолчанию
   return 'red'
+}
+
+function getPointCoordinates(point: any): { lon: number, lat: number } | null {
+  if (!point.coordinates || point.coordinates.length < 2)
+    return null
+
+  const lon = Number(point.coordinates[0])
+  const lat = Number(point.coordinates[1])
+
+  if (Number.isNaN(lon) || Number.isNaN(lat))
+    return null
+
+  return { lon, lat }
+}
+
+function getPointName(point: any): string {
+  return point.comment || point.address || point.title || 'Точка'
+}
+
+function getPointDescription(point: any): string {
+  return point.comment && point.address ? point.address : ''
+}
+
+function createPointPlacemark(point: any): string {
+  const coordinates = getPointCoordinates(point)
+
+  if (!coordinates)
+    return ''
+
+  const name = getPointName(point)
+  const description = getPointDescription(point)
+  const color = getPlacemarkColor(point)
+
+  return `
+    <Placemark>
+      <name><![CDATA[${sanitizeCdata(name)}]]></name>
+      ${description ? `<description><![CDATA[${sanitizeCdata(description)}]]></description>` : ''}
+      <styleUrl>#placemark-${color}</styleUrl>
+      <Point><coordinates>${coordinates.lon},${coordinates.lat}</coordinates></Point>
+      <ExtendedData xmlns:mwm="https://maps.me">
+        <mwm:customName><![CDATA[${sanitizeCdata(name)}]]></mwm:customName>
+        <mwm:scale>15</mwm:scale>
+      </ExtendedData>
+    </Placemark>`
 }
 
 /**
@@ -101,30 +149,7 @@ function generateKml(trip: Trip, points: any[], routes: any[]): string {
   let placemarks = ''
 
   // 1. Точки интереса
-  points.forEach((p) => {
-    if (!p.coordinates || p.coordinates.length < 2)
-      return
-    const lon = Number(p.coordinates[0])
-    const lat = Number(p.coordinates[1])
-    if (Number.isNaN(lon) || Number.isNaN(lat))
-      return
-
-    const name = p.comment || p.address || p.title || 'Точка'
-    const desc = p.comment && p.address ? p.address : ''
-    const color = getPlacemarkColor(p)
-
-    placemarks += `
-    <Placemark>
-      <name><![CDATA[${sanitizeCdata(name)}]]></name>
-      ${desc ? `<description><![CDATA[${sanitizeCdata(desc)}]]></description>` : ''}
-      <styleUrl>#placemark-${color}</styleUrl>
-      <Point><coordinates>${lon},${lat}</coordinates></Point>
-      <ExtendedData xmlns:mwm="https://maps.me">
-        <mwm:customName><![CDATA[${sanitizeCdata(name)}]]></mwm:customName>
-        <mwm:scale>15</mwm:scale>
-      </ExtendedData>
-    </Placemark>`
-  })
+  placemarks += points.map(createPointPlacemark).join('')
 
   // 2. Построенные маршруты
   routes.forEach((r) => {
@@ -135,6 +160,7 @@ function generateKml(trip: Trip, points: any[], routes: any[]): string {
     const name = r.title || 'Маршрут'
 
     const validCoords = r.geometry.filter((pt: any) => pt && pt.length >= 2 && !Number.isNaN(Number(pt[0])) && !Number.isNaN(Number(pt[1])))
+
     if (validCoords.length < 2)
       return
 

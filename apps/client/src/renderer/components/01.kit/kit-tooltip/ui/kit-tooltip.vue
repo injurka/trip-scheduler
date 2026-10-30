@@ -14,6 +14,7 @@ const props = withDefaults(defineProps<Props>(), {
 })
 
 const slots = useSlots()
+const isHoverable = useMediaQuery('(hover: hover)')
 
 const wrapperRef = ref<HTMLElement | null>(null)
 const referenceRef = ref<HTMLElement | null>(null)
@@ -21,9 +22,13 @@ const floatingRef = ref<HTMLElement | null>(null)
 const arrowRef = ref<HTMLElement | null>(null)
 const isVisible = ref(false)
 
-const isHoverable = useMediaQuery('(hover: hover)')
-
-const { x, y, strategy, middlewareData, placement: finalPlacement } = useFloating(referenceRef, floatingRef, {
+const {
+  x,
+  y,
+  strategy,
+  middlewareData,
+  placement: finalPlacement,
+} = useFloating(referenceRef, floatingRef, {
   placement: props.placement,
   whileElementsMounted: autoUpdate,
   middleware: [
@@ -37,65 +42,6 @@ const { x, y, strategy, middlewareData, placement: finalPlacement } = useFloatin
 
 let timeout: ReturnType<typeof setTimeout>
 
-function show() {
-  if (props.disabled || (!props.text && !slots.content) || !isHoverable.value)
-    return
-  clearTimeout(timeout)
-  timeout = setTimeout(() => {
-    isVisible.value = true
-  }, 200)
-}
-
-function showImmediately() {
-  if (props.disabled || (!props.text && !slots.content))
-    return
-  clearTimeout(timeout)
-  isVisible.value = true
-}
-
-function hide() {
-  clearTimeout(timeout)
-  isVisible.value = false
-}
-
-function handleFocusIn() {
-  if (props.disabled || (!props.text && !slots.content))
-    return
-  clearTimeout(timeout)
-  timeout = setTimeout(() => {
-    isVisible.value = true
-  }, 200)
-}
-
-function handleClick(event: MouseEvent) {
-  if (props.disabled || (!props.text && !slots.content))
-    return
-
-  const target = event.target as HTMLElement | null
-  const isInteractive = Boolean(target?.closest('button, a, input, select, textarea, [role="button"]'))
-
-  if (isInteractive) {
-    hide()
-    return
-  }
-
-  if (isVisible.value) {
-    hide()
-  }
-  else {
-    showImmediately()
-  }
-}
-
-onClickOutside(
-  wrapperRef,
-  () => {
-    if (isVisible.value)
-      hide()
-  },
-  { ignore: [floatingRef] },
-)
-
 const floatingStyle = computed(() => {
   const isPositioned = x.value != null && y.value != null
 
@@ -107,10 +53,10 @@ const floatingStyle = computed(() => {
     visibility: isPositioned ? 'visible' as const : 'hidden' as const,
   }
 })
-
 const arrowStyle = computed(() => {
   if (!middlewareData.value.arrow)
     return {}
+
   const { x: arrowX, y: arrowY } = middlewareData.value.arrow
   const staticSide = {
     top: 'bottom',
@@ -125,6 +71,61 @@ const arrowStyle = computed(() => {
     [staticSide as string]: '-4px',
   }
 })
+
+function show() {
+  if (props.disabled || (!props.text && !slots.content) || !isHoverable.value)
+    return
+
+  clearTimeout(timeout)
+  timeout = setTimeout(() => {
+    isVisible.value = true
+  }, 200)
+}
+function showImmediately() {
+  if (props.disabled || (!props.text && !slots.content))
+    return
+
+  clearTimeout(timeout)
+  isVisible.value = true
+}
+function hide() {
+  clearTimeout(timeout)
+  isVisible.value = false
+}
+function handleFocusIn() {
+  if (props.disabled || (!props.text && !slots.content))
+    return
+
+  clearTimeout(timeout)
+  timeout = setTimeout(() => {
+    isVisible.value = true
+  }, 200)
+}
+function handleClick(event: MouseEvent) {
+  if (props.disabled || (!props.text && !slots.content))
+    return
+
+  const target = event.target as HTMLElement | null
+  const isInteractive = Boolean(target?.closest('button, a, input, select, textarea, [role="button"]'))
+
+  if (isInteractive) {
+    hide()
+
+    return
+  }
+
+  if (isVisible.value) {
+    hide()
+  }
+  else {
+    showImmediately()
+  }
+}
+
+onClickOutside(wrapperRef, () => {
+  if (isVisible.value)
+    hide()
+}, { ignore: [floatingRef] })
 
 onUnmounted(() => {
   hide()

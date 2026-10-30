@@ -22,10 +22,7 @@ interface UseDocumentsSectionProps {
   readonly: boolean
 }
 
-export function useDocumentsSection(
-  props: UseDocumentsSectionProps,
-  emit: (event: 'updateSection', payload: any) => void,
-) {
+export function useDocumentsSection(props: UseDocumentsSectionProps, emit: (event: 'updateSection', payload: any) => void) {
   const confirm = useConfirm()
   const toast = useToast()
   const offlineStore = useOfflineStore()
@@ -54,9 +51,11 @@ export function useDocumentsSection(
 
     if (typeof navigator !== 'undefined' && !navigator.onLine && offlineStore.isTripCached(props.section.tripId)) {
       const cachedDocs = offlineStore.getSavedTripDocuments(props.section.tripId)
+
       if (cachedDocs && cachedDocs.length > 0) {
         documents.value = cachedDocs.map(mapResponseToDoc)
         isFetching.value = false
+
         return
       }
     }
@@ -67,20 +66,26 @@ export function useDocumentsSection(
       onSuccess: (res) => {
         if ((!res || res.length === 0) && offlineStore.isTripCached(props.section.tripId)) {
           const cachedDocs = offlineStore.getSavedTripDocuments(props.section.tripId)
+
           if (cachedDocs && cachedDocs.length > 0) {
             documents.value = cachedDocs.map(mapResponseToDoc)
+
             return
           }
         }
+
         documents.value = res.map(mapResponseToDoc)
       },
       onError: () => {
         const cachedDocs = offlineStore.getSavedTripDocuments(props.section.tripId)
+
         if (cachedDocs && cachedDocs.length > 0) {
           documents.value = cachedDocs.map(mapResponseToDoc)
           toast.info('Нет подключения к сети. Загружены офлайн-документы.')
+
           return
         }
+
         toast.error('Не удалось загрузить документы')
       },
     })
@@ -93,6 +98,7 @@ export function useDocumentsSection(
   async function updateDocument(updatedDoc: DocumentFile) {
     const prev = documents.value.find(d => d.id === updatedDoc.id)
     const index = documents.value.findIndex(d => d.id === updatedDoc.id)
+
     if (index !== -1) {
       documents.value[index] = { ...updatedDoc }
     }
@@ -112,6 +118,7 @@ export function useDocumentsSection(
         if (prev && index !== -1) {
           documents.value[index] = prev
         }
+
         toast.error('Не удалось обновить документ')
       },
     })
@@ -161,6 +168,7 @@ export function useDocumentsSection(
   async function moveDocument(doc: DocumentFile, targetFolderId: string | null) {
     if (doc.folderId === targetFolderId)
       return
+
     await updateDocument({
       ...doc,
       folderId: targetFolderId,
@@ -176,15 +184,13 @@ export function useDocumentsSection(
     favoritesCount: documents.value.filter(d => d.isFavorite).length,
   }))
 
-  const filtersModule = useDocumentFilters(
-    documents,
-    foldersModule.currentFolderId,
-  )
+  const filtersModule = useDocumentFilters(documents, foldersModule.currentFolderId)
 
   // Перенаправляем фильтры в foldersModule для точного расчета видимых папок
   const visibleFolders = computed(() => {
     if (foldersModule.currentFolderId.value)
       return []
+
     if (
       filtersModule.searchQuery.value.trim()
       || filtersModule.selectedCategory.value !== 'all'
@@ -192,6 +198,7 @@ export function useDocumentsSection(
     ) {
       return []
     }
+
     return foldersModule.folders.value
   })
 

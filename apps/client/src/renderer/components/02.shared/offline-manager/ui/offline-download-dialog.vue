@@ -15,7 +15,6 @@ const props = withDefaults(defineProps<Props>(), {
   tripTitle: 'Путешествие',
   hasCoordinates: true,
 })
-
 const emit = defineEmits<{
   (e: 'update:visible', value: boolean): void
   (e: 'confirm', options: OfflineDownloadOptions): void
@@ -26,52 +25,51 @@ const includeNotes = ref(true)
 const includeDocuments = ref(true)
 const includeMapTiles = ref(props.hasCoordinates)
 
-watch(
-  () => props.visible,
-  (isOpen) => {
-    if (isOpen) {
-      includeMedia.value = true
-      includeNotes.value = true
-      includeDocuments.value = true
-      includeMapTiles.value = props.hasCoordinates
-    }
-  },
-)
-
 const totalAvailableOptions = computed(() => (props.hasCoordinates ? 4 : 3))
-
 const selectedCount = computed(() => {
   let count = 0
+
   if (includeMedia.value)
     count++
+
   if (includeNotes.value)
     count++
+
   if (includeDocuments.value)
     count++
+
   if (props.hasCoordinates && includeMapTiles.value)
     count++
+
   return count
 })
-
 const isNoneSelected = computed(() => selectedCount.value === 0)
 const isAllSelected = computed(() => selectedCount.value === totalAvailableOptions.value)
+
+watch(() => props.visible, (isOpen) => {
+  if (isOpen) {
+    includeMedia.value = true
+    includeNotes.value = true
+    includeDocuments.value = true
+    includeMapTiles.value = props.hasCoordinates
+  }
+})
 
 function selectAll() {
   includeMedia.value = true
   includeNotes.value = true
   includeDocuments.value = true
+
   if (props.hasCoordinates) {
     includeMapTiles.value = true
   }
 }
-
 function deselectAll() {
   includeMedia.value = false
   includeNotes.value = false
   includeDocuments.value = false
   includeMapTiles.value = false
 }
-
 function handleConfirm() {
   if (isNoneSelected.value)
     return
@@ -84,7 +82,6 @@ function handleConfirm() {
   })
   emit('update:visible', false)
 }
-
 function handleCancel() {
   emit('update:visible', false)
 }

@@ -20,21 +20,18 @@ const props = withDefaults(defineProps<Props>(), {
 const gapMinutes = computed(() => {
   const fromEnd = timeToMinutes(props.fromActivity.endTime)
   const toStart = timeToMinutes(props.toActivity.startTime)
+
   return toStart - fromEnd
 })
 
 const metroRide = computed((): MetroRide | null => {
-  const metroSection = props.fromActivity.sections?.find(
-    s => s.type === EActivitySectionType.METRO,
-  ) as ActivitySectionMetro | undefined
+  const metroSection = props.fromActivity.sections?.find(s => s.type === EActivitySectionType.METRO) as ActivitySectionMetro | undefined
 
   if (metroSection?.rides && metroSection.rides.length > 0) {
     return metroSection.rides[0]
   }
 
-  const nextMetroSection = props.toActivity.sections?.find(
-    s => s.type === EActivitySectionType.METRO,
-  ) as ActivitySectionMetro | undefined
+  const nextMetroSection = props.toActivity.sections?.find(s => s.type === EActivitySectionType.METRO) as ActivitySectionMetro | undefined
 
   if (nextMetroSection?.rides && nextMetroSection.rides.length > 0) {
     return nextMetroSection.rides[0]
@@ -44,17 +41,13 @@ const metroRide = computed((): MetroRide | null => {
 })
 
 const busRide = computed((): BusRide | null => {
-  const busSection = props.fromActivity.sections?.find(
-    s => s.type === EActivitySectionType.BUS,
-  ) as ActivitySectionBus | undefined
+  const busSection = props.fromActivity.sections?.find(s => s.type === EActivitySectionType.BUS) as ActivitySectionBus | undefined
 
   if (busSection?.rides && busSection.rides.length > 0) {
     return busSection.rides[0]
   }
 
-  const nextBusSection = props.toActivity.sections?.find(
-    s => s.type === EActivitySectionType.BUS,
-  ) as ActivitySectionBus | undefined
+  const nextBusSection = props.toActivity.sections?.find(s => s.type === EActivitySectionType.BUS) as ActivitySectionBus | undefined
 
   if (nextBusSection?.rides && nextBusSection.rides.length > 0) {
     return nextBusSection.rides[0]
@@ -78,28 +71,37 @@ const edgeLineColor = computed(() => {
   if (metroRide.value?.lineColor) {
     return metroRide.value.lineColor
   }
+
   if (busRide.value?.color) {
     return busRide.value.color
   }
+
   if (isWalk.value) {
     return 'var(--border-secondary-color)'
   }
+
   if (isTransport.value) {
     return 'var(--fg-accent-color)'
   }
+
   return 'var(--border-secondary-color)'
 })
 
 const formattedDuration = computed(() => {
   const gap = gapMinutes.value
+
   if (gap === 0)
     return null
+
   if (gap < 0)
     return 'Пересечение'
+
   if (gap < 60)
     return `${gap} мин`
+
   const hours = Math.floor(gap / 60)
   const mins = gap % 60
+
   return mins > 0 ? `${hours}ч ${mins}м` : `${hours}ч`
 })
 </script>

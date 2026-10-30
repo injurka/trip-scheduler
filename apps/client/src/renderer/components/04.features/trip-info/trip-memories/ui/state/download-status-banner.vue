@@ -7,26 +7,30 @@ interface DownloadProgress {
   loadedBytes: number
   isDownloading: boolean
 }
-
-const props = defineProps<{
+interface Props {
   progress: DownloadProgress
-}>()
-
-function formatBytes(bytes: number, decimals = 2) {
-  if (bytes === 0)
-    return '0 Bytes'
-  const k = 1024
-  const dm = decimals < 0 ? 0 : decimals
-  const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB']
-  const i = Math.floor(Math.log(bytes) / Math.log(k))
-  return `${Number.parseFloat((bytes / k ** i).toFixed(dm))} ${sizes[i]}`
 }
+
+const props = defineProps<Props>()
 
 const downloadPercentage = computed(() => {
   if (!props.progress.total)
     return 0
+
   return Math.round((props.progress.current / props.progress.total) * 100)
 })
+
+function formatBytes(bytes: number, decimals = 2) {
+  if (bytes === 0)
+    return '0 Bytes'
+
+  const k = 1024
+  const dm = decimals < 0 ? 0 : decimals
+  const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+
+  return `${Number.parseFloat((bytes / k ** i).toFixed(dm))} ${sizes[i]}`
+}
 </script>
 
 <template>

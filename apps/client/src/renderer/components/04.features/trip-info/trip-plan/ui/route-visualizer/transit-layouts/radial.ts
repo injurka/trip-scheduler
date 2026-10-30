@@ -56,16 +56,20 @@ export function computeRadialLayout(items: IActivity[], options: CalculateLayout
     const start = timeToMinutes(activity.startTime)
     const end = timeToMinutes(activity.endTime)
     const mid = Number.isNaN(start) ? 0 : (Number.isFinite(end) && end > start ? (start + end) / 2 : start)
+
     return ((mid % 1440) / 1440) * 2 * Math.PI - Math.PI / 2
   })
 
   /** Clockwise angular gap from item i to item j (j may wrap past midnight). */
   const angleGapBetween = (i: number, j: number): number => {
     let gap = angles[j] - angles[i]
+
     if (j < i)
       gap += 2 * Math.PI
+
     if (gap < 0)
       gap += 2 * Math.PI
+
     return gap
   }
 
@@ -76,6 +80,7 @@ export function computeRadialLayout(items: IActivity[], options: CalculateLayout
     const centerY = cy + ringRadius * Math.sin(angles[i])
     const halfW = (NODE_WIDTH * scale) / 2
     const halfH = (nodeHeights[i] * scale) / 2
+
     return { x1: centerX - halfW, y1: centerY - halfH, x2: centerX + halfW, y2: centerY + halfH }
   }
 
@@ -83,15 +88,19 @@ export function computeRadialLayout(items: IActivity[], options: CalculateLayout
   const pairStagger = (i: number, j: number, scale: number): number => {
     if (!boxesIntersect(boxOf(i, 0, scale), boxOf(j, 0, scale)))
       return 0
+
     let lo = 0
     let hi = MAX_STAGGER
+
     for (let iter = 0; iter < 24; iter++) {
       const mid = (lo + hi) / 2
+
       if (boxesIntersect(boxOf(i, mid, scale), boxOf(j, mid, scale)))
         lo = mid
       else
         hi = mid
     }
+
     return hi
   }
 
@@ -99,10 +108,14 @@ export function computeRadialLayout(items: IActivity[], options: CalculateLayout
   const computeStagger = (scale: number): number => {
     if (totalCount < 2)
       return 0
+
     let maxStagger = 0
+
     for (let i = 0; i < totalCount - 1; i++)
       maxStagger = Math.max(maxStagger, pairStagger(i, i + 1, scale))
+
     maxStagger = Math.max(maxStagger, pairStagger(totalCount - 1, 0, scale))
+
     return maxStagger
   }
 
@@ -110,10 +123,13 @@ export function computeRadialLayout(items: IActivity[], options: CalculateLayout
   const computeScale = (stagger: number): number => {
     const innerRadius = radius - stagger
     let minScale = Number.POSITIVE_INFINITY
+
     for (const parity of [0, 1]) {
       const indices = items.map((_, i) => i).filter(i => i % 2 === parity)
+
       if (indices.length < 2)
         continue
+
       for (let k = 0; k < indices.length; k++) {
         const i = indices[k]
         const j = indices[(k + 1) % indices.length]
@@ -121,6 +137,7 @@ export function computeRadialLayout(items: IActivity[], options: CalculateLayout
         minScale = Math.min(minScale, available / NODE_WIDTH)
       }
     }
+
     return Math.min(1, Math.max(MIN_SCALE, minScale))
   }
 
@@ -131,12 +148,14 @@ export function computeRadialLayout(items: IActivity[], options: CalculateLayout
           return true
       }
     }
+
     return false
   }
 
   // Fixed-point iteration (values only ever shrink, so it converges safely).
   let scale = 1
   let stagger = 0
+
   for (let iter = 0; iter < 8; iter++) {
     scale = Math.min(scale, computeScale(stagger))
     stagger = computeStagger(scale)
@@ -167,6 +186,7 @@ export function computeRadialLayout(items: IActivity[], options: CalculateLayout
   })
 
   const edges: LayoutEdge[] = []
+
   for (let i = 0; i < nodes.length - 1; i++) {
     const from = nodes[i]
     const to = nodes[i + 1]
@@ -190,6 +210,7 @@ export function computeRadialLayout(items: IActivity[], options: CalculateLayout
   // Labels sit beyond the outer card edge so cards never cover them.
   const labelRadius = radius + stagger + (maxNodeHeight * scale) / 2 + LABEL_GAP
   const hourTicks: RadialTick[] = []
+
   for (let h = 0; h < 24; h++) {
     const a = (h / 24) * 2 * Math.PI - Math.PI / 2
     const cos = Math.cos(a)

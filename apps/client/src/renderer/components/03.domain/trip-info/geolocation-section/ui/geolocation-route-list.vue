@@ -47,40 +47,50 @@ function toggleRoute(routeId: string) {
 function formatDistance(distance?: number): string {
   if (distance === undefined || distance === 0)
     return ''
+
   if (distance >= 1000)
     return `${(distance / 1000).toFixed(1)} км`
+
   return `${Math.round(distance)} м`
 }
 
 function formatDuration(duration?: number): string {
   if (!duration || duration === 0)
     return ''
+
   if (duration >= 3600) {
     const hours = Math.floor(duration / 3600)
     const mins = Math.round((duration % 3600) / 60)
+
     return mins > 0 ? `${hours} ч ${mins} мин` : `${hours} ч`
   }
+
   const mins = Math.max(1, Math.round(duration / 60))
+
   return `${mins} мин`
 }
 
 function getTransportIcon(mode?: TransportMode): string {
   if (mode === 'car' || mode === 'transit')
     return 'mdi:car'
+
   if (mode === 'bike')
     return 'mdi:bicycle'
+
   return 'mdi:walk'
 }
 
 function handleTransportChange(route: MapRoute, mode: TransportMode) {
   if (props.readonly || route.transportMode === mode)
     return
+
   emit('setTransportMode', route.id, mode)
 }
 
 function getDecoratedRoutePoints(route: MapRoute): MapPoint[] {
   return route.points.map((p, index) => {
     let type: MapPoint['type'] = p.type
+
     if (route.points.length > 1) {
       if (index === 0)
         type = 'start'

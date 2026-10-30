@@ -21,6 +21,7 @@ interface Props {
   highlightStatus?: HighlightStatus
   showDragHandle?: boolean
 }
+
 const props = withDefaults(defineProps<Props>(), {
   highlightStatus: null,
   showDragHandle: true,
@@ -30,10 +31,20 @@ const emit = defineEmits<{
   (e: 'update:booking', value: Booking & { type: 'attraction' }): void
 }>()
 
+const { copy, copied: isCopied } = useClipboard()
+const route = useRoute()
+const tripPlanStore = useTripPlanStore()
+
 const isLocationPickerOpen = ref(false)
 const isLocationViewerOpen = ref(false)
 
-const { copy, copied: isCopied } = useClipboard()
+const tripId = computed(() => (route?.params?.id as string) || tripPlanStore?.currentTripId || '')
+const photosList = computed<string[]>(() => props.booking.data.photos || props.booking.data.imageUrls || [])
+const hasQuickInfo = computed(() => {
+  const d = props.booking.data
+
+  return Boolean(d.ticketType || d.guests || d.bookingReference)
+})
 
 function updateDataField<K extends keyof AttractionData>(key: K, value: AttractionData[K]) {
   emit('update:booking', {
@@ -41,17 +52,9 @@ function updateDataField<K extends keyof AttractionData>(key: K, value: Attracti
     data: { ...props.booking.data, [key]: value },
   })
 }
-
 function updateTitle(newTitle: string) {
   emit('update:booking', { ...props.booking, title: newTitle })
 }
-
-const route = useRoute()
-const tripPlanStore = useTripPlanStore()
-const tripId = computed(() => (route?.params?.id as string) || tripPlanStore?.currentTripId || '')
-
-const photosList = computed<string[]>(() => props.booking.data.photos || props.booking.data.imageUrls || [])
-
 function updatePhotos(newPhotos: string[]) {
   emit('update:booking', {
     ...props.booking,
@@ -62,52 +65,53 @@ function updatePhotos(newPhotos: string[]) {
     },
   })
 }
-
 function copyReferenceNumber() {
   if (props.booking.data.bookingReference) {
     copy(props.booking.data.bookingReference)
     useToast().success('Номер бронирования/билета скопирован')
   }
 }
-
 function formatEventDate(iso?: string): string {
   if (!iso)
     return '—'
+
   const d = new Date(iso.split('T')[0])
+
   if (Number.isNaN(d.getTime()))
     return iso
+
   return new Intl.DateTimeFormat('ru-RU', {
     day: 'numeric',
     month: 'long',
     year: 'numeric',
   }).format(d)
 }
-
 function getEventWeekday(iso?: string): string {
   if (!iso)
     return ''
+
   const d = new Date(iso.split('T')[0])
+
   if (Number.isNaN(d.getTime()))
     return ''
+
   const wd = new Intl.DateTimeFormat('ru-RU', {
     weekday: 'short',
   }).format(d)
+
   return wd.charAt(0).toUpperCase() + wd.slice(1)
 }
-
 function getEventTime(iso?: string): string | null {
   if (!iso || !iso.includes('T'))
     return null
+
   const timePart = iso.split('T')[1]
+
   if (!timePart || timePart.startsWith('00:00:00') || timePart.startsWith('00:00'))
     return null
+
   return timePart.substring(0, 5)
 }
-
-const hasQuickInfo = computed(() => {
-  const d = props.booking.data
-  return Boolean(d.ticketType || d.guests || d.bookingReference)
-})
 </script>
 
 <template>
@@ -207,22 +211,64 @@ const hasQuickInfo = computed(() => {
 
     <!-- EDIT MODE -->
     <div v-else class="card-content">
-      <BookingField :model-value="booking.data.attractionName" label="Название места/события" icon="mdi:text-box-outline" :readonly="readonly" class="span-2" @update:model-value="updateDataField('attractionName', $event)" />
+      <BookingField
+        :model-value="booking.data.attractionName"
+        label="Название места/события"
+        icon="mdi:text-box-outline"
+        :readonly="readonly"
+        class="span-2"
+        @update:model-value="updateDataField('attractionName', $event)"
+      />
       <div class="address-field-wrapper span-2">
-        <BookingField :model-value="booking.data.address" label="Адрес (текстом)" icon="mdi:map-marker-radius-outline" :readonly="readonly" @update:model-value="updateDataField('address', $event)" />
+        <BookingField
+          :model-value="booking.data.address"
+          label="Адрес (текстом)"
+          icon="mdi:map-marker-radius-outline"
+          :readonly="readonly"
+          @update:model-value="updateDataField('address', $event)"
+        />
         <KitBtn icon="mdi:map-marker-outline" title="Указать на карте" @click="isLocationPickerOpen = true" />
       </div>
-      <BookingDateTimeField :model-value="booking.data.dateTime" label="Дата и время" icon="mdi:calendar-clock" :readonly="readonly" type="datetime" @update:model-value="updateDataField('dateTime', $event)" />
+      <BookingDateTimeField
+        :model-value="booking.data.dateTime"
+        label="Дата и время"
+        icon="mdi:calendar-clock"
+        :readonly="readonly"
+        type="datetime"
+        @update:model-value="updateDataField('dateTime', $event)"
+      />
     </div>
 
     <template #details>
       <div class="details-grid">
-        <BookingField v-if="!readonly || booking.data.ticketType" :model-value="booking.data.ticketType" label="Тип билета" icon="mdi:ticket-outline" :readonly="readonly" @update:model-value="updateDataField('ticketType', $event)" />
-        <BookingField v-if="!readonly || booking.data.guests" :model-value="booking.data.guests" label="Количество гостей" icon="mdi:account-group-outline" :readonly="readonly" @update:model-value="updateDataField('guests', $event)" />
+        <BookingField
+          v-if="!readonly || booking.data.ticketType"
+          :model-value="booking.data.ticketType"
+          label="Тип билета"
+          icon="mdi:ticket-outline"
+          :readonly="readonly"
+          @update:model-value="updateDataField('ticketType', $event)"
+        />
+        <BookingField
+          v-if="!readonly || booking.data.guests"
+          :model-value="booking.data.guests"
+          label="Количество гостей"
+          icon="mdi:account-group-outline"
+          :readonly="readonly"
+          @update:model-value="updateDataField('guests', $event)"
+        />
 
         <KitDivider v-if="!readonly || (booking.data.bookingReference || booking.data.sourceUrl)" class="span-2" />
 
-        <BookingField v-if="!readonly || booking.data.bookingReference" :model-value="booking.data.bookingReference" label="Номер бронирования/билета" icon="mdi:barcode-scan" :readonly="readonly" class="span-2" @update:model-value="updateDataField('bookingReference', $event)" />
+        <BookingField
+          v-if="!readonly || booking.data.bookingReference"
+          :model-value="booking.data.bookingReference"
+          label="Номер бронирования/билета"
+          icon="mdi:barcode-scan"
+          :readonly="readonly"
+          class="span-2"
+          @update:model-value="updateDataField('bookingReference', $event)"
+        />
         <BookingField
           v-if="!readonly"
           :model-value="booking.data.sourceUrl"

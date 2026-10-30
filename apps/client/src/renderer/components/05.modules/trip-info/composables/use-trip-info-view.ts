@@ -13,6 +13,7 @@ export const SECTION_SLUG_MAP: Record<string, TripSectionType> = {
 
 export const SECTION_TYPE_MAP: Record<string, string> = Object.entries(SECTION_SLUG_MAP).reduce((acc, [slug, type]) => {
   acc[type] = slug
+
   return acc
 }, {} as Record<string, string>)
 
@@ -20,7 +21,13 @@ export function useTripInfoView() {
   const route = useRoute()
   const router = useRouter()
 
-  const { plan, ui, sections, memories, routeGallery } = useModuleStore([
+  const {
+    plan,
+    ui,
+    sections,
+    memories,
+    routeGallery,
+  } = useModuleStore([
     'plan',
     'ui',
     'routeGallery',
@@ -40,6 +47,7 @@ export function useTripInfoView() {
 
   const resolvedSectionId = computed(() => {
     const query = sectionQuery.value
+
     if (!query || query === 'overview')
       return null
 
@@ -47,8 +55,10 @@ export function useTripInfoView() {
       return 'map'
 
     const type = SECTION_SLUG_MAP[query]
+
     if (type) {
       const section = sections.sections.find(s => s.type === type)
+
       return section ? section.id : null
     }
 
@@ -59,13 +69,9 @@ export function useTripInfoView() {
 
   function fetchData() {
     if (routeTripId.value) {
-      plan.fetchTripDetails(
-        routeTripId.value,
-        dayId.value,
-        (loadedSections) => {
-          sections.setSections(loadedSections)
-        },
-      )
+      plan.fetchTripDetails(routeTripId.value, dayId.value, (loadedSections) => {
+        sections.setSections(loadedSections)
+      })
     }
   }
 
@@ -75,55 +81,44 @@ export function useTripInfoView() {
     }
   }, { immediate: true })
 
-  watch(
-    () => plan.currentDayId,
-    (newDayId, oldDayId) => {
-      if (newDayId && newDayId !== oldDayId) {
-        ui.clearCollapsedState()
-        nextTick(() => {
-          window.scrollTo({ top: 0, behavior: 'instant' })
-        })
-      }
+  watch(() => plan.currentDayId, (newDayId, oldDayId) => {
+    if (newDayId && newDayId !== oldDayId) {
+      ui.clearCollapsedState()
+      nextTick(() => {
+        window.scrollTo({ top: 0, behavior: 'instant' })
+      })
+    }
 
-      if (newDayId && newDayId !== route.query.day) {
-        router.replace({
-          query: {
-            ...route.query,
-            day: newDayId,
-            section: undefined,
-          },
-        })
-      }
-      else if (!newDayId && route.query.day) {
-        const newQuery = { ...route.query }
-        delete newQuery.day
-        router.replace({ query: newQuery })
-      }
-    },
-  )
+    if (newDayId && newDayId !== route.query.day) {
+      router.replace({
+        query: {
+          ...route.query,
+          day: newDayId,
+          section: undefined,
+        },
+      })
+    }
+    else if (!newDayId && route.query.day) {
+      const newQuery = { ...route.query }
+      delete newQuery.day
+      router.replace({ query: newQuery })
+    }
+  })
 
-  watch(
-    dayId,
-    (newDayId) => {
-      if (newDayId && newDayId !== plan.currentDayId) {
-        plan.setCurrentDay(newDayId)
-      }
-      else if (!newDayId && plan.currentDayId && !sectionQuery.value) {
-        plan.setCurrentDay('')
-      }
-    },
-    { immediate: true },
-  )
+  watch(dayId, (newDayId) => {
+    if (newDayId && newDayId !== plan.currentDayId) {
+      plan.setCurrentDay(newDayId)
+    }
+    else if (!newDayId && plan.currentDayId && !sectionQuery.value) {
+      plan.setCurrentDay('')
+    }
+  }, { immediate: true })
 
-  watch(
-    [() => ui.activeView, tripId],
-    ([view, tId]) => {
-      if (view === 'memories' && tId) {
-        memories.fetchMemories(tId)
-      }
-    },
-    { immediate: true },
-  )
+  watch([() => ui.activeView, tripId], ([view, tId]) => {
+    if (view === 'memories' && tId) {
+      memories.fetchMemories(tId)
+    }
+  }, { immediate: true })
 
   onBeforeUnmount(() => {
     plan.reset()

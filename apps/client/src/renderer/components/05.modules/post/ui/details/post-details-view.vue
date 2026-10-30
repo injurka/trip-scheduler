@@ -21,8 +21,9 @@ import PostHero from './post-hero.vue'
 import PostMapView from './post-map-view.vue'
 import TimelineStage from './timeline-stage.vue'
 
-const props = defineProps<{ post: PostDetail, isPreviewMode?: boolean }>()
+interface Props { post: PostDetail, isPreviewMode?: boolean }
 
+const props = defineProps<Props>()
 const emit = defineEmits<{
   (e: 'mapPinnedChange', pinned: boolean): void
 }>()
@@ -31,22 +32,30 @@ const router = useRouter()
 const store = usePostStore()
 const toast = useToast()
 const confirm = useConfirm()
-
 const authStore = useAppStore('auth')
-const { user } = storeToRefs(authStore)
-const isOwner = computed(() => !!user.value && user.value.id === props.post.user.id)
+const { mobile } = useDisplay()
 
+const { user } = storeToRefs(authStore)
 const activeStageId = ref(props.post.stages?.[0]?.id)
 const isMapVisible = ref(false)
 const isMapPinned = ref(false)
-const { mobile } = useDisplay()
+const mapFocusBlockId = ref<string | null>(null)
+const mapFocusRequest = ref(0)
+const menuItems: KitDropdownItem[] = [
+  { label: 'Редактировать', value: 'edit', icon: 'mdi:pencil' },
+  { label: 'Удалить', value: 'delete', icon: 'mdi:trash-can-outline', isDestructive: true },
+]
+const navScrollerRef = ref<HTMLElement | null>(null)
+const canScrollLeft = ref(false)
+const canScrollRight = ref(false)
+
+const isOwner = computed(() => !!user.value && user.value.id === props.post.user.id)
 const hasMapContent = computed(() => props.post.elements?.some(element => element.content.some((block: any) => {
   if (block.type === 'location')
     return block.location?.lat != null && block.location?.lng != null
+
   return block.type === 'route' && (block.route?.geometry?.length ?? 0) >= 2
 })) ?? false)
-const mapFocusBlockId = ref<string | null>(null)
-const mapFocusRequest = ref(0)
 
 watch(mobile, (isMobile) => {
   if (isMobile && isMapPinned.value) {
@@ -54,22 +63,13 @@ watch(mobile, (isMobile) => {
     isMapPinned.value = false
   }
 })
-
 watch(isMapPinned, (val) => {
   emit('mapPinnedChange', val)
 })
 
-const menuItems: KitDropdownItem[] = [
-  { label: 'Редактировать', value: 'edit', icon: 'mdi:pencil' },
-  { label: 'Удалить', value: 'delete', icon: 'mdi:trash-can-outline', isDestructive: true },
-]
-
-const navScrollerRef = ref<HTMLElement | null>(null)
-const canScrollLeft = ref(false)
-const canScrollRight = ref(false)
-
 function updateScrollState() {
   const el = navScrollerRef.value
+
   if (!el)
     return
 
@@ -77,17 +77,6 @@ function updateScrollState() {
   canScrollLeft.value = el.scrollLeft > scrollLeeway
   canScrollRight.value = el.scrollLeft < (el.scrollWidth - el.clientWidth - scrollLeeway)
 }
-
-useResizeObserver(navScrollerRef, () => {
-  updateScrollState()
-})
-
-onMounted(() => {
-  setTimeout(() => {
-    updateScrollState()
-  }, 150)
-})
-
 async function handleMenuAction(action: string) {
   if (action === 'edit') {
     localStorage.removeItem(`trip_scheduler_post_draft_${props.post.id}`)
@@ -108,36 +97,47 @@ async function handleMenuAction(action: string) {
     }
   }
 }
-
 function scrollToStage(id: string) {
   activeStageId.value = id
   const el = document.getElementById(`stage-${id}`)
+
   if (el) {
     el.scrollIntoView({ behavior: 'smooth', block: 'center' })
   }
 }
-
 function stageNavigationLabel(stage: TimelineStageModel, index: number): string {
   if (stage.title.trim())
     return stage.title
+
   const day = stage.day || index + 1
+
   return stage.time ? `День ${day} · ${stage.time}` : `День ${day}`
 }
-
 function pinMap() {
   isMapVisible.value = true
+
   if (!mobile.value)
     isMapPinned.value = true
 }
-
 function handleFocusBlock(block: TimelineBlock) {
   mapFocusRequest.value++
   isMapVisible.value = true
+
   if (!mobile.value && hasMapContent.value && !props.isPreviewMode)
     isMapPinned.value = true
 
   mapFocusBlockId.value = block.id
 }
+
+useResizeObserver(navScrollerRef, () => {
+  updateScrollState()
+})
+
+onMounted(() => {
+  setTimeout(() => {
+    updateScrollState()
+  }, 150)
+})
 </script>
 
 <template>

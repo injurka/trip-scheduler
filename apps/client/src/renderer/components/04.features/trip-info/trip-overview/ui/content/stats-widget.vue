@@ -11,7 +11,6 @@ interface Props {
 }
 
 const props = defineProps<Props>()
-
 const emit = defineEmits<{
   (e: 'showDays'): void
   (e: 'showCities'): void
@@ -19,16 +18,17 @@ const emit = defineEmits<{
   (e: 'showAttractions'): void
 }>()
 
-function getRussianPlural(count: number, titles: [string, string, string]): string {
-  const cases = [2, 0, 1, 1, 1, 2]
-  const index = (count % 100 > 4 && count % 100 < 20) ? 2 : cases[(count % 10 < 5) ? count % 10 : 5]
-  return titles[index]
-}
-
 const dayLabel = computed(() => getRussianPlural(props.durationDays, ['День', 'Дня', 'Дней']))
 const cityLabel = computed(() => getRussianPlural(props.cityCount, ['Город', 'Города', 'Городов']))
 const participantLabel = computed(() => getRussianPlural(props.participantCount, ['Участник', 'Участника', 'Участников']))
 const attractionLabel = computed(() => getRussianPlural(props.attractionCount, ['достопримечательность', 'достопримечательности', 'достопримечательностей']))
+
+function getRussianPlural(count: number, titles: [string, string, string]): string {
+  const cases = [2, 0, 1, 1, 1, 2]
+  const index = (count % 100 > 4 && count % 100 < 20) ? 2 : cases[(count % 10 < 5) ? count % 10 : 5]
+
+  return titles[index]
+}
 </script>
 
 <template>

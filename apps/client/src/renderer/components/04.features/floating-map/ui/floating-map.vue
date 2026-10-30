@@ -8,25 +8,24 @@ import { KitInput } from '~/components/01.kit/kit-input'
 import { KitMap } from '~/components/01.kit/kit-map'
 import { KitTooltip } from '~/components/01.kit/kit-tooltip'
 import { nominatimService } from '~/shared/services/geo'
-
 import { useLayoutStore } from '~/shared/store/layout.store'
 
 const layoutStore = useLayoutStore()
-const mapInstance = shallowRef<MapLibreMap | null>(null)
-const windowRef = ref<HTMLElement | null>(null)
-const headerRef = ref<HTMLElement | null>(null)
-
 const { width: windowWidth, height: windowHeight } = useWindowSize()
 const { smAndDown: isMobile } = useDisplay()
 
+const mapInstance = shallowRef<MapLibreMap | null>(null)
+const windowRef = ref<HTMLElement | null>(null)
+const headerRef = ref<HTMLElement | null>(null)
 const mapCenter = ref<[number, number]>([37.6176, 55.7558])
-
 const isSearchOpen = ref(false)
 const searchQuery = ref('')
 const isSearching = ref(false)
+const initialY = 100
+const clampedY = ref(initialY)
+let ro: ResizeObserver | null = null
 
 const initialX = computed(() => windowWidth.value - 450)
-const initialY = 100
 
 const { x, y } = useDraggable(headerRef, {
   initialValue: { x: initialX.value, y: initialY },
@@ -38,7 +37,17 @@ const { x, y } = useDraggable(headerRef, {
 })
 
 const clampedX = ref(initialX.value)
-const clampedY = ref(initialY)
+
+const windowStyle = computed(() => {
+  if (isMobile.value) {
+    return {}
+  }
+
+  return {
+    left: `${clampedX.value}px`,
+    top: `${clampedY.value}px`,
+  }
+})
 
 watch([x, y, windowWidth, windowHeight, isSearchOpen], () => {
   if (isMobile.value) {
@@ -63,34 +72,23 @@ watch([x, y, windowWidth, windowHeight, isSearchOpen], () => {
   clampedX.value = cx
   clampedY.value = cy
 }, { immediate: true, flush: 'post' })
-
-let ro: ResizeObserver | null = null
-
-onMounted(() => {
-  if (windowRef.value) {
-    ro = new ResizeObserver(() => {
-      mapInstance.value?.resize()
-    })
-    ro.observe(windowRef.value)
-  }
-})
-
-onUnmounted(() => {
-  ro?.disconnect()
-  ro = null
+watch(() => layoutStore.isFloatingMapOpen, (isOpen) => {
+  if (isOpen)
+    nextTick(() => mapInstance.value?.resize())
 })
 
 function onMapReady(map: MapLibreMap) {
   mapInstance.value = map
 }
-
 async function handleSearch() {
   if (!searchQuery.value.trim() || !mapInstance.value)
     return
 
   isSearching.value = true
+
   try {
     const result = await nominatimService.searchSingle(searchQuery.value)
+
     if (result) {
       mapInstance.value.flyTo({
         center: [result.lon, result.lat],
@@ -106,24 +104,21 @@ async function handleSearch() {
     isSearching.value = false
   }
 }
-
 function closeWindow() {
   layoutStore.setFloatingMapOpen(false)
 }
 
-watch(() => layoutStore.isFloatingMapOpen, (isOpen) => {
-  if (isOpen)
-    nextTick(() => mapInstance.value?.resize())
+onMounted(() => {
+  if (windowRef.value) {
+    ro = new ResizeObserver(() => {
+      mapInstance.value?.resize()
+    })
+    ro.observe(windowRef.value)
+  }
 })
-
-const windowStyle = computed(() => {
-  if (isMobile.value) {
-    return {}
-  }
-  return {
-    left: `${clampedX.value}px`,
-    top: `${clampedY.value}px`,
-  }
+onUnmounted(() => {
+  ro?.disconnect()
+  ro = null
 })
 </script>
 
@@ -158,7 +153,12 @@ const windowStyle = computed(() => {
               size="sm"
               @keydown.enter="handleSearch"
             />
-            <KitBtn size="sm" icon="mdi:arrow-right" :loading="isSearching" @click="handleSearch" />
+            <KitBtn
+              size="sm"
+              icon="mdi:arrow-right"
+              :loading="isSearching"
+              @click="handleSearch"
+            />
           </div>
 
           <div class="map-container">
@@ -207,7 +207,12 @@ const windowStyle = computed(() => {
             size="sm"
             @keydown.enter="handleSearch"
           />
-          <KitBtn size="sm" icon="mdi:arrow-right" :loading="isSearching" @click="handleSearch" />
+          <KitBtn
+            size="sm"
+            icon="mdi:arrow-right"
+            :loading="isSearching"
+            @click="handleSearch"
+          />
         </div>
 
         <div class="map-container">

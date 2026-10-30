@@ -17,7 +17,6 @@ interface IProps {
 const props = withDefaults(defineProps<IProps>(), {
   displayType: 'grid',
 })
-
 const emit = defineEmits<{
   (e: 'update:images', images: PostMedia[]): void
   (e: 'update:displayType', type: string): void
@@ -28,37 +27,35 @@ const isMarkEditorOpen = ref(false)
 const mediaToEdit = ref<PostMedia | null>(null)
 const editingIndex = ref(-1)
 
+const currentSelectedIds = computed(() => props.images.map(i => i.id))
+
 function openMarkEditor(media: PostMedia, index: number) {
   mediaToEdit.value = media
   editingIndex.value = index
   isMarkEditorOpen.value = true
 }
-
 function handleSaveMarks(updatedMedia: PostMedia) {
   const newImages = [...props.images]
+
   if (editingIndex.value !== -1) {
     newImages[editingIndex.value] = updatedMedia
     emit('update:images', newImages)
   }
 }
-
 function removeImage(index: number) {
   const newImages = [...props.images]
   newImages.splice(index, 1)
   emit('update:images', newImages)
 }
-
 function handleLibraryConfirm(selected: PostMedia[]) {
   const currentIds = new Set(props.images.map(img => img.id))
   const newToAdd = selected.filter(img => !currentIds.has(img.id))
 
   emit('update:images', [...props.images, ...newToAdd])
 }
-
-const currentSelectedIds = computed(() => props.images.map(i => i.id))
-
 function getEditorThumbUrl(img: PostMedia) {
   const variants = getPostMediaVariants(img)
+
   if (img.type === 'video') {
     return variants.poster || variants.small || img.url
   }

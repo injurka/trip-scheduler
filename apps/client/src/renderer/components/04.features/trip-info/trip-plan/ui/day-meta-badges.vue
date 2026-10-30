@@ -30,23 +30,19 @@ import { lazyComponent } from '~/shared/lib/lazy-component'
 import { TripSectionType } from '~/shared/types/models/trip'
 import { badgePresets } from '../lib/badge-presets'
 
-const props = defineProps<Props>()
-
-const emit = defineEmits(['update:meta'])
-
-const KitInlineMdEditorWrapper = lazyComponent(
-  () => import('~/components/01.kit/kit-inline-md-editor').then(module => module.KitInlineMdEditorWrapper),
-)
-
 interface Props {
   meta: DayMetaInfo[]
   readonly?: boolean
 }
 
+const props = defineProps<Props>()
+const emit = defineEmits(['update:meta'])
+
 const confirm = useConfirm()
 const store = useModuleStore(['plan', 'sections'])
-const { getSelectedDay } = storeToRefs(store.plan)
 
+const KitInlineMdEditorWrapper = lazyComponent(() => import('~/components/01.kit/kit-inline-md-editor').then(module => module.KitInlineMdEditorWrapper))
+const { getSelectedDay } = storeToRefs(store.plan)
 const isEditorOpen = ref(false)
 const isViewerOpen = ref(false)
 const currentItem = ref<DayMetaInfo | null>(null)
@@ -54,7 +50,6 @@ const hoveredTooltipBadgeId = ref<string | null>(null)
 const iconSearchQuery = ref('')
 const isAddMenuOpen = ref(false)
 const isBookingsModalOpen = ref(false)
-
 const defaultColors = [
   'var(--bg-secondary-color)',
   'var(--bg-tertiary-color)',
@@ -75,74 +70,83 @@ const currentItemContent = computed({
       currentItem.value.content = value
   },
 })
-
 const filteredIcons = computed(() => {
   if (!iconSearchQuery.value)
     return sharedIconList
 
   return sharedIconList.filter(icon => icon.toLowerCase().includes(iconSearchQuery.value.toLowerCase()))
 })
-
 const groupedPresets = computed(() => {
   return badgePresets.reduce((acc, preset) => {
     const category = preset.templateCategory || 'Прочее'
+
     if (!acc[category])
       acc[category] = []
+
     acc[category].push(preset)
+
     return acc
   }, {} as Record<string, DayMetaBadgePreset[]>)
 })
-
 const bookingsForSelectedDay = computed(() => {
   if (!getSelectedDay.value || !getSelectedDay.value.date)
     return []
 
   const bookingSection = store.sections.sections.find(s => s.type === TripSectionType.BOOKINGS)
+
   if (!bookingSection)
     return []
 
   const content = bookingSection.content as BookingSectionContent
+
   if (!content || !Array.isArray(content.bookings))
     return []
 
   const selectedDateStr = getSelectedDay.value.date.split('T')[0]
   const selectedDate = new Date(selectedDateStr)
 
-  return content.bookings.filter((booking: Booking) => {
-    switch (booking.type) {
-      case 'hotel': {
-        if (!booking.data.checkInDate || !booking.data.checkOutDate)
-          return false
-        const checkIn = new Date(booking.data.checkInDate.split('T')[0])
-        const checkOut = new Date(booking.data.checkOutDate.split('T')[0])
-        return selectedDate >= checkIn && selectedDate < checkOut
-      }
-      case 'flight': {
-        return booking.data.segments?.some(segment =>
-          segment.departureDateTime && segment.departureDateTime.startsWith(selectedDateStr),
-        )
-      }
-      case 'train': {
-        return booking.data.departureDateTime?.startsWith(selectedDateStr)
-      }
-      case 'car': {
-        // Авто: аренда и трансфер могут длиться несколько дней — показываем
-        // в день начала и в день окончания
-        return booking.data.pickupDateTime?.startsWith(selectedDateStr)
-          || booking.data.dropoffDateTime?.startsWith(selectedDateStr)
-      }
-      case 'other': {
-        return booking.data.startDateTime?.startsWith(selectedDateStr)
-          || booking.data.endDateTime?.startsWith(selectedDateStr)
-      }
-      case 'attraction': {
-        return booking.data.dateTime?.startsWith(selectedDateStr)
-      }
-      default:
-        return false
-    }
-  })
+  return content.bookings.filter(booking => isBookingOnDate(booking, selectedDateStr, selectedDate))
 })
+
+function isBookingOnDate(booking: Booking, dateString: string, selectedDate: Date): boolean {
+  switch (booking.type) {
+    case 'hotel': return isHotelBookingOnDate(booking, selectedDate)
+    case 'flight': return isFlightBookingOnDate(booking, dateString)
+    case 'train': return isDateTimeOnDate(booking.data.departureDateTime, dateString)
+    case 'car': return isCarBookingOnDate(booking, dateString)
+    case 'other': return isOtherBookingOnDate(booking, dateString)
+    case 'attraction': return isDateTimeOnDate(booking.data.dateTime, dateString)
+  }
+}
+
+function isHotelBookingOnDate(booking: Extract<Booking, { type: 'hotel' }>, selectedDate: Date): boolean {
+  const { checkInDate, checkOutDate } = booking.data
+
+  if (!checkInDate || !checkOutDate)
+    return false
+
+  return selectedDate >= new Date(checkInDate.split('T')[0])
+    && selectedDate < new Date(checkOutDate.split('T')[0])
+}
+
+function isFlightBookingOnDate(booking: Extract<Booking, { type: 'flight' }>, dateString: string): boolean {
+  return Boolean(booking.data.segments?.some(segment => isDateTimeOnDate(segment.departureDateTime, dateString)))
+}
+
+function isCarBookingOnDate(booking: Extract<Booking, { type: 'car' }>, dateString: string): boolean {
+  // Авто: аренда и трансфер могут длиться несколько дней — показываем в день начала и в день окончания.
+  return isDateTimeOnDate(booking.data.pickupDateTime, dateString)
+    || isDateTimeOnDate(booking.data.dropoffDateTime, dateString)
+}
+
+function isOtherBookingOnDate(booking: Extract<Booking, { type: 'other' }>, dateString: string): boolean {
+  return isDateTimeOnDate(booking.data.startDateTime, dateString)
+    || isDateTimeOnDate(booking.data.endDateTime, dateString)
+}
+
+function isDateTimeOnDate(value: string | null | undefined, dateString: string): boolean {
+  return Boolean(value?.startsWith(dateString))
+}
 
 function getContrastColor(hexcolor: string | undefined): string {
   if (!hexcolor)
@@ -160,19 +164,26 @@ function getContrastColor(hexcolor: string | undefined): string {
 
   return (yiq >= 128) ? '#000000' : '#FFFFFF'
 }
-
 function openEditor(item?: DayMetaInfo) {
-  currentItem.value = { ...(item || { id: uuidv4(), title: '', subtitle: '', color: defaultColors[0], icon: 'mdi:information-outline', content: '' }) }
+  currentItem.value = {
+    ...(item || {
+      id: uuidv4(),
+      title: '',
+      subtitle: '',
+      color: defaultColors[0],
+      icon: 'mdi:information-outline',
+      content: '',
+    }),
+  }
   isEditorOpen.value = true
 }
-
 function openViewer(item: DayMetaInfo) {
   if (!item.content)
     return
+
   currentItem.value = item
   isViewerOpen.value = true
 }
-
 function handleSave() {
   if (!currentItem.value || !currentItem.value.title)
     return
@@ -190,28 +201,25 @@ function handleSave() {
   emit('update:meta', newMeta)
   closeEditor()
 }
-
 async function handleDelete(item: DayMetaInfo) {
   const isConfirmed = await confirm({
     title: `Удалить "${item.title}"?`,
     description: 'Это действие нельзя будет отменить.',
   })
+
   if (isConfirmed) {
     const newMeta = props.meta.filter(m => m.id !== item.id)
     emit('update:meta', newMeta)
   }
 }
-
 function closeEditor() {
   isEditorOpen.value = false
   currentItem.value = null
 }
-
 function closeViewer() {
   isViewerOpen.value = false
   currentItem.value = null
 }
-
 function applyPreset(preset: DayMetaBadgePreset) {
   const newItem: DayMetaInfo = {
     id: uuidv4(),
@@ -223,7 +231,6 @@ function applyPreset(preset: DayMetaBadgePreset) {
   }
   openEditor(newItem)
 }
-
 function createBlankBadge() {
   openEditor()
 }

@@ -21,7 +21,7 @@ import DayTrackPlaybackPanel from './day-track-playback-panel.vue'
 import DayTrackPointPopup from './day-track-point-popup.vue'
 import DayTrackTopNav from './day-track-top-nav.vue'
 
-const props = withDefaults(defineProps<{
+interface Props {
   dayUtc?: string
   /**
    * 'memories' — просмотр прожитого дня: маячок воспроизведения («я здесь сейчас»)
@@ -38,14 +38,15 @@ const props = withDefaults(defineProps<{
   showTodayButton?: boolean
   memories?: Memory[]
   galleryImages?: ImageViewerImage[]
-}>(), {
+}
+
+const props = withDefaults(defineProps<Props>(), {
   mode: 'track',
   showBackButton: true,
   showTodayButton: true,
   memories: () => [],
   galleryImages: () => [],
 })
-
 const emit = defineEmits<{
   (e: 'back'): void
   (e: 'close'): void
@@ -53,18 +54,6 @@ const emit = defineEmits<{
 }>()
 
 const router = useRouter()
-const instance = getCurrentInstance()
-
-const mapHost = ref<HTMLElement | null>(null)
-const popupHost = ref<HTMLElement | null>(null)
-const photoPopupHost = ref<HTMLElement | null>(null)
-const playbackMarkerHost = ref<HTMLElement | null>(null)
-const viewMode = ref<ViewMode>('route')
-
-// Маячок воспроизведения — маркер «я здесь сейчас». В режиме воспоминаний
-// (просмотр прожитого дня) он читается как текущая геопозиция, поэтому скрыт.
-const isBeaconVisible = computed(() => props.mode !== 'memories')
-
 // ─── 1. Данные дня ─────────────────────────────────────────────────────────────
 const {
   todayUtc,
@@ -89,7 +78,6 @@ const {
   dayUtcProp: toRef(props, 'dayUtc'),
   availableDays: toRef(props, 'dayDates'),
 })
-
 // ─── 2. Фотографии дня и соотнесение координат ─────────────────────────────────
 const {
   isPhotosVisible,
@@ -109,7 +97,6 @@ const {
   dayStart,
   dayEnd,
 })
-
 // ─── 3. Воспроизведение трека ──────────────────────────────────────────────────
 const playback = useDayTrackPlayback({
   selectedDay,
@@ -118,13 +105,21 @@ const playback = useDayTrackPlayback({
   dayData,
   renderSegments,
 })
-
 // ─── 4. Часовые пояса и форматирование времени ─────────────────────────────────
 const timezone = useDayTrackTimezone({
   currentPoint: playback.currentPoint,
   dayData,
   t: playback.t,
 })
+// ─── 6. Полноэкранный просмотр фотографий ─────────────────────────────────────
+const imageViewer = useImageViewer()
+
+const instance = getCurrentInstance()
+const mapHost = ref<HTMLElement | null>(null)
+const popupHost = ref<HTMLElement | null>(null)
+const photoPopupHost = ref<HTMLElement | null>(null)
+const playbackMarkerHost = ref<HTMLElement | null>(null)
+const viewMode = ref<ViewMode>('route')
 
 // ─── 5. Карта и интерактивные слои ─────────────────────────────────────────────
 const map = useDayTrackMap({
@@ -151,9 +146,9 @@ const map = useDayTrackMap({
   },
 })
 
-// ─── 6. Полноэкранный просмотр фотографий ─────────────────────────────────────
-const imageViewer = useImageViewer()
-
+// Маячок воспроизведения — маркер «я здесь сейчас». В режиме воспоминаний
+// (просмотр прожитого дня) он читается как текущая геопозиция, поэтому скрыт.
+const isBeaconVisible = computed(() => props.mode !== 'memories')
 const viewerImages = computed<ImageViewerImage[]>(() => {
   if (props.galleryImages && props.galleryImages.length > 0)
     return props.galleryImages
@@ -174,12 +169,13 @@ const viewerImages = computed<ImageViewerImage[]>(() => {
 
 function handleOpenViewer(photo: TrackPhoto) {
   const list = viewerImages.value
+
   if (list.length === 0)
     return
+
   const idx = list.findIndex(img => (img.meta as any)?.memoryId === photo.memoryId || img.url === photo.imageUrl)
   imageViewer.open(list, idx !== -1 ? idx : 0)
 }
-
 /**
  * Смена дня внутри плеера должна уехать наверх: в секции поездки день выбирается
  * стором плана, и без события воспоминания (а с ними и фото) остаются на прежнем дне.
@@ -187,27 +183,28 @@ function handleOpenViewer(photo: TrackPhoto) {
 function handleChangeDay(offset: number) {
   const before = selectedDay.value
   changeDay(offset)
+
   if (selectedDay.value !== before)
     emit('dayChange', selectedDay.value)
 }
-
 function handleSelectDay(day: string) {
   const before = selectedDay.value
   selectDay(day)
+
   if (selectedDay.value !== before)
     emit('dayChange', selectedDay.value)
 }
-
 function handleGoToToday() {
   const before = selectedDay.value
   goToToday()
+
   if (selectedDay.value !== before)
     emit('dayChange', selectedDay.value)
 }
-
 function handleBack() {
   emit('back')
   emit('close')
+
   if (!instance?.vnode.props?.onBack && !instance?.vnode.props?.onClose) {
     if (window.history.length > 1) {
       router.back()
@@ -217,7 +214,6 @@ function handleBack() {
     }
   }
 }
-
 async function onDeletePoint(pt: DayPoint) {
   await handleDeletePoint(pt, () => {
     map.closePointPopup()

@@ -22,6 +22,7 @@ interface Props {
   }
   readonly: boolean
 }
+
 const props = defineProps<Props>()
 const emit = defineEmits(['updateSection'])
 
@@ -61,19 +62,6 @@ const isDateFilterOpen = ref(false)
 const dateFilterWrapperRef = ref(null)
 const transactionFormVisibleBeforeCategoryManager = ref(false)
 
-function handleOpenCategoryManager() {
-  if (isTransactionFormOpen.value) {
-    isTransactionFormOpen.value = false
-    transactionFormVisibleBeforeCategoryManager.value = true
-  }
-  isCategoryManagerOpen.value = true
-}
-
-function clearDateFilter() {
-  dateFilter.value = { start: null, end: null }
-  isDateFilterOpen.value = false
-}
-
 const hasActiveFilters = computed(() => {
   return statusFilter.value !== 'all'
     || typeFilter.value !== 'all'
@@ -81,26 +69,22 @@ const hasActiveFilters = computed(() => {
     || !!dateFilter.value.start
     || !!dateFilter.value.end
 })
-
 const activeFiltersCount = computed(() => {
   let count = 0
+
   if (statusFilter.value !== 'all')
     count++
+
   if (typeFilter.value !== 'all')
     count++
+
   count += selectedCategoryFilters.value.length
+
   if (dateFilter.value.start || dateFilter.value.end)
     count++
+
   return count
 })
-
-function resetAllFilters() {
-  statusFilter.value = 'all'
-  typeFilter.value = 'all'
-  selectedCategoryFilters.value = []
-  dateFilter.value = { start: null, end: null }
-}
-
 const categoryFilterList = computed(() => {
   const items = categories.value.map((c) => {
     return { value: c.id, label: c.name || (c.id === 'cat-other' ? 'Прочее' : 'Без названия'), icon: c.icon }
@@ -112,9 +96,9 @@ const categoryFilterList = computed(() => {
 
   return items
 })
-
 const formattedDateFilter = computed(() => {
   const { start, end } = dateFilter.value
+
   if (!start && !end)
     return 'За все время'
 
@@ -123,15 +107,18 @@ const formattedDateFilter = computed(() => {
   if (start && end) {
     if (start === end)
       return format(start)
+
     return `${format(start)} - ${format(end)}`
   }
+
   if (start)
     return `С ${format(start)}`
+
   if (end)
     return `До ${format(end)}`
+
   return 'За все время'
 })
-
 const calendarDateFilter = computed({
   get() {
     return {
@@ -146,9 +133,9 @@ const calendarDateFilter = computed({
     }
   },
 })
-
 const availableDateRange = computed(() => {
   const transactions = props.section.content.transactions
+
   if (!transactions || transactions.length === 0) {
     return { minValue: undefined, maxValue: undefined }
   }
@@ -179,6 +166,25 @@ watch(isCategoryManagerOpen, (isOpen) => {
     transactionFormVisibleBeforeCategoryManager.value = false
   }
 })
+
+function handleOpenCategoryManager() {
+  if (isTransactionFormOpen.value) {
+    isTransactionFormOpen.value = false
+    transactionFormVisibleBeforeCategoryManager.value = true
+  }
+
+  isCategoryManagerOpen.value = true
+}
+function clearDateFilter() {
+  dateFilter.value = { start: null, end: null }
+  isDateFilterOpen.value = false
+}
+function resetAllFilters() {
+  statusFilter.value = 'all'
+  typeFilter.value = 'all'
+  selectedCategoryFilters.value = []
+  dateFilter.value = { start: null, end: null }
+}
 
 onClickOutside(dateFilterWrapperRef, () => {
   isDateFilterOpen.value = false
@@ -361,14 +367,16 @@ onClickOutside(dateFilterWrapperRef, () => {
       <div class="secondary-actions">
         <KitBtn
           v-if="!readonly"
-          size="sm" icon="mdi:tag-outline"
+          size="sm"
+          icon="mdi:tag-outline"
           variant="tonal"
           title="Управление категориями"
           @click="handleOpenCategoryManager"
         />
         <KitBtn
           v-if="!readonly"
-          size="sm" icon="mdi:cog-outline"
+          size="sm"
+          icon="mdi:cog-outline"
           variant="tonal"
           title="Настройки"
           @click="isSettingsOpen = true"

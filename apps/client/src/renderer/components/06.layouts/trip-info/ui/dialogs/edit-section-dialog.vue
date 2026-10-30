@@ -10,21 +10,21 @@ interface SectionData {
   title: string
   icon: string
 }
-
-const props = defineProps<{
+interface Props {
   visible: boolean
   section: SectionData | null
-}>()
+}
 
+const props = defineProps<Props>()
 const emit = defineEmits<{
   (e: 'update:visible', value: boolean): void
   (e: 'save', data: SectionData): void
 }>()
 
+const { iconSearchQuery } = useIconPicker()
+
 const localTitle = ref('')
 const localIcon = ref('mdi:file-document-outline')
-
-const { iconSearchQuery } = useIconPicker()
 
 const canSave = computed(() => localTitle.value.trim().length > 0)
 
@@ -39,6 +39,7 @@ watch(() => props.section, (section) => {
 function handleSave() {
   if (!props.section || !canSave.value)
     return
+
   emit('save', {
     id: props.section.id,
     title: localTitle.value.trim(),

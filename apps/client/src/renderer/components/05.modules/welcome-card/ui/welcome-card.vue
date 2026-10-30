@@ -5,28 +5,36 @@ import { KitBtn } from '~/components/01.kit/kit-btn'
 import { BackgroundParallaxEffects } from '~/components/02.shared/background-parallax-effects'
 
 const router = useRouter()
+const { x, y } = useMouse({ touch: false })
 
 const cardRef = ref<HTMLElement | null>(null)
 const transformStyle = ref('')
 const isHovering = ref(false)
 const isMobile = ref(false)
 
-const { x, y } = useMouse({ touch: false })
+const cardEventListeners = computed(() => {
+  if (isMobile.value) {
+    return {}
+  }
+
+  return {
+    mouseenter: onMouseEnter,
+    mousemove: onMouseMove,
+    mouseleave: onMouseLeave,
+  }
+})
 
 function detectMobile() {
   if (typeof window !== 'undefined') {
     isMobile.value = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0)
   }
 }
-
 function goToTrips() {
   router.push(AppRoutePaths.Trip.List)
 }
-
 function goToUsefulLinks() {
   router.push(AppRoutePaths.UsefulLinks)
 }
-
 function onMouseMove() {
   if (!cardRef.value || isMobile.value)
     return
@@ -46,30 +54,19 @@ function onMouseMove() {
 
   transformStyle.value = `perspective(${perspective}px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale3d(1.05, 1.05, 1.05)`
 }
-
 function onMouseEnter() {
   if (isMobile.value)
     return
+
   isHovering.value = true
 }
-
 function onMouseLeave() {
   if (isMobile.value)
     return
+
   isHovering.value = false
   transformStyle.value = ''
 }
-
-const cardEventListeners = computed(() => {
-  if (isMobile.value) {
-    return {}
-  }
-  return {
-    mouseenter: onMouseEnter,
-    mousemove: onMouseMove,
-    mouseleave: onMouseLeave,
-  }
-})
 
 onMounted(() => {
   detectMobile()

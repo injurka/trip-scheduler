@@ -1,17 +1,19 @@
 <script setup lang="ts">
 import { Icon } from '@iconify/vue'
 
+interface Props {
+  visible: boolean
+  top: number
+  left: number
+}
+
 interface MenuItem {
   id: string
   label: string
   icon: string
 }
 
-defineProps<{
-  visible: boolean
-  top: number
-  left: number
-}>()
+defineProps<Props>()
 
 const emit = defineEmits<{
   (e: 'action', value: string): void

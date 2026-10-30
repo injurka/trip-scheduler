@@ -3,69 +3,80 @@ import type { ViewSwitcherItem } from '../models/types'
 import { Icon } from '@iconify/vue'
 import { useResizeObserver } from '@vueuse/core'
 
-const props = withDefaults(defineProps<{
+export interface Props<T extends string | number> {
   items: ViewSwitcherItem<T>[]
   disabled?: boolean
   fullWidth?: boolean
-}>(), {
+}
+
+const props = withDefaults(defineProps<Props<T>>(), {
   disabled: false,
   fullWidth: false,
 })
-
 const emit = defineEmits<{
   (e: 'change', value: T): void
 }>()
-
 const model = defineModel<T>({ required: true })
 
 const switcherRef = ref<HTMLElement | null>(null)
 const buttonRefs = ref<Record<string | number, HTMLElement>>({})
-
 const gliderStyle = ref({
   opacity: 0,
   width: '0px',
   transform: 'translateX(0px)',
   transition: 'none',
 })
-
 let isPointerDown = false
 let startPointerX = 0
 let startScrollLeft = 0
 let isDragging = false
 
+watch(model, () => {
+  gliderStyle.value.transition = 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+  updateGliderPosition()
+  const activeButton = buttonRefs.value[model.value]
+
+  if (activeButton) {
+    scrollActiveButtonIntoView(activeButton)
+  }
+}, { flush: 'post' })
+
 function handlePointerDown(e: PointerEvent) {
   const switcherEl = switcherRef.value
+
   if (!switcherEl || props.disabled)
     return
+
   isPointerDown = true
   isDragging = false
   startPointerX = e.pageX
   startScrollLeft = switcherEl.scrollLeft
 }
-
 function handlePointerMove(e: PointerEvent) {
   if (!isPointerDown)
     return
+
   const switcherEl = switcherRef.value
+
   if (!switcherEl)
     return
 
   const deltaX = e.pageX - startPointerX
+
   if (Math.abs(deltaX) > 5) {
     isDragging = true
     switcherEl.scrollLeft = startScrollLeft - deltaX
   }
 }
-
 function handlePointerUp() {
   isPointerDown = false
   setTimeout(() => {
     isDragging = false
   }, 50)
 }
-
 function handleWheel(e: WheelEvent) {
   const switcherEl = switcherRef.value
+
   if (!switcherEl)
     return
 
@@ -76,7 +87,6 @@ function handleWheel(e: WheelEvent) {
     }
   }
 }
-
 function handleItemClick(itemId: T) {
   if (props.disabled || isDragging)
     return
@@ -84,15 +94,17 @@ function handleItemClick(itemId: T) {
   model.value = itemId
   emit('change', itemId)
 }
-
 function updateGliderPosition() {
   const switcherEl = switcherRef.value
+
   if (!switcherEl)
     return
 
   const activeButton = buttonRefs.value[model.value]
+
   if (!activeButton) {
     gliderStyle.value.opacity = 0
+
     return
   }
 
@@ -106,9 +118,9 @@ function updateGliderPosition() {
     transform: `translateX(${offsetLeft}px)`,
   }
 }
-
 function scrollActiveButtonIntoView(button: HTMLElement) {
   const switcherEl = switcherRef.value
+
   if (!switcherEl)
     return
 
@@ -125,15 +137,6 @@ function scrollActiveButtonIntoView(button: HTMLElement) {
   }
 }
 
-watch(model, () => {
-  gliderStyle.value.transition = 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
-  updateGliderPosition()
-  const activeButton = buttonRefs.value[model.value]
-  if (activeButton) {
-    scrollActiveButtonIntoView(activeButton)
-  }
-}, { flush: 'post' })
-
 useResizeObserver(switcherRef, () => {
   gliderStyle.value.transition = 'none'
   updateGliderPosition()
@@ -147,7 +150,9 @@ onMounted(() => {
       if (gliderStyle.value) {
         gliderStyle.value.transition = 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
       }
+
       const activeButton = buttonRefs.value[model.value]
+
       if (activeButton) {
         scrollActiveButtonIntoView(activeButton)
       }

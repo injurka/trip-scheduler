@@ -22,6 +22,7 @@ async function handleSearch() {
     return
 
   const result = await searchLocation(query.value)
+
   if (result) {
     emit('found', result)
   }

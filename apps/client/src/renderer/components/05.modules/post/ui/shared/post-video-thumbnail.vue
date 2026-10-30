@@ -3,11 +3,13 @@ import { Icon } from '@iconify/vue'
 import { computed, ref, watch } from 'vue'
 import { resolveApiUrl } from '~/shared/lib/url'
 
-const props = withDefaults(defineProps<{
+interface Props {
   src: string
   poster?: string
   alt?: string
-}>(), {
+}
+
+const props = withDefaults(defineProps<Props>(), {
   poster: '',
   alt: 'Видео',
 })
@@ -46,6 +48,7 @@ function seekToRandomFrame(event: Event) {
 
 function handleLoadedData(event: Event) {
   const video = event.currentTarget as HTMLVideoElement
+
   if (!video.seeking)
     frameReady.value = true
 }

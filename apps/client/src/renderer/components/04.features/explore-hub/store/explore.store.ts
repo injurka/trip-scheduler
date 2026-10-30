@@ -29,9 +29,9 @@ export const useExploreStore = defineStore('exploreHub', {
       if (state.selectedTagIds.length === 0) {
         return state.places
       }
+
       return state.places.filter(place =>
-        state.selectedTagIds.every(tagId => place.tags.some(pt => pt.id === tagId)),
-      )
+        state.selectedTagIds.every(tagId => place.tags.some(pt => pt.id === tagId)))
     },
   },
 
@@ -63,6 +63,7 @@ export const useExploreStore = defineStore('exploreHub', {
 
     toggleTagFilter(tagId: string) {
       const index = this.selectedTagIds.indexOf(tagId)
+
       if (index > -1) {
         this.selectedTagIds.splice(index, 1)
       }

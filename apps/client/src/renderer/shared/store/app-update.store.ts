@@ -46,6 +46,141 @@ export interface AppUpdateState {
 
 let unlistenProgress: UnlistenFn | null = null
 
+interface GitHubReleaseAsset {
+  name?: string
+  browser_download_url?: string
+}
+
+interface GitHubRelease {
+  tag_name?: string
+  assets?: GitHubReleaseAsset[]
+  html_url?: string
+}
+
+const preferredAssetSuffixes: Record<string, string[]> = {
+  linux: ['.AppImage', '.deb'],
+  windows: ['.exe', '.msi'],
+}
+
+function findAssetWithSuffix(assets: GitHubReleaseAsset[], suffix: string): GitHubReleaseAsset | undefined {
+  return assets.find(asset => typeof asset.name === 'string' && asset.name.endsWith(suffix))
+}
+
+function selectReleaseAssets(assets: GitHubReleaseAsset[], platform: string): {
+  selectedAsset: GitHubReleaseAsset | null
+  apkAsset: GitHubReleaseAsset | undefined
+} {
+  const suffixes = preferredAssetSuffixes[platform] ?? ['.apk']
+  const selectedAsset = suffixes
+    .map(suffix => findAssetWithSuffix(assets, suffix))
+    .find((asset): asset is GitHubReleaseAsset => Boolean(asset))
+    ?? findAssetWithSuffix(assets, '.apk')
+    ?? assets[0]
+    ?? null
+
+  return {
+    selectedAsset,
+    apkAsset: findAssetWithSuffix(assets, '.apk'),
+  }
+}
+
+function applyReleaseMetadata(
+  store: Pick<AppUpdateState, 'latestVersion' | 'assetUrl' | 'assetName' | 'apkUrl' | 'releaseUrl'>,
+  release: GitHubRelease,
+  cleanLatestVersion: string,
+  selectedAsset: GitHubReleaseAsset | null,
+  apkAsset: GitHubReleaseAsset | undefined,
+): void {
+  if (cleanLatestVersion)
+    store.latestVersion = cleanLatestVersion
+
+  if (selectedAsset) {
+    store.assetUrl = selectedAsset.browser_download_url ?? null
+    store.assetName = selectedAsset.name ?? null
+    store.apkUrl = store.assetUrl
+  }
+
+  if (apkAsset)
+    store.apkUrl = apkAsset.browser_download_url ?? null
+
+  if (release.html_url)
+    store.releaseUrl = release.html_url
+}
+
+async function resolveBrowserDownloadUrl(store: Pick<AppUpdateState, 'assetUrl' | 'apkUrl'>, fetchLatestReleaseInfo: () => Promise<{ assetUrl: string | null, apkUrl: string | null }>): Promise<string | null> {
+  let url = store.assetUrl || store.apkUrl
+
+  if (!url) {
+    const info = await fetchLatestReleaseInfo()
+    url = info.assetUrl || info.apkUrl
+  }
+
+  return url
+}
+
+function isDirectDownloadFile(url: string): boolean {
+  return ['.apk', '.AppImage', '.deb', '.exe'].some(extension => url.endsWith(extension))
+}
+
+function downloadDirectFile(url: string): boolean {
+  if (typeof document === 'undefined' || !isDirectDownloadFile(url))
+    return false
+
+  const link = document.createElement('a')
+  link.href = url
+  link.setAttribute('download', '')
+  link.setAttribute('target', '_blank')
+  link.setAttribute('rel', 'noopener noreferrer')
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+
+  return true
+}
+
+function resetDownloadProgress(store: Pick<AppUpdateState, 'isDownloading' | 'downloadProgress' | 'downloadedBytes' | 'totalBytes' | 'downloadError' | 'downloadedFilePath'>): void {
+  store.isDownloading = true
+  store.downloadProgress = 0
+  store.downloadedBytes = 0
+  store.totalBytes = null
+  store.downloadError = null
+  store.downloadedFilePath = null
+}
+
+async function listenForDownloadProgress(store: Pick<AppUpdateState, 'downloadedBytes' | 'totalBytes' | 'downloadProgress' | 'downloadedFilePath'>): Promise<void> {
+  if (unlistenProgress) {
+    unlistenProgress()
+    unlistenProgress = null
+  }
+
+  unlistenProgress = await listen<DownloadProgressPayload>('app-update://progress', (event) => {
+    const payload = event.payload
+    store.downloadedBytes = payload.downloaded
+    store.totalBytes = payload.total
+    store.downloadProgress = Math.round(payload.percentage)
+
+    if (payload.done && payload.path) {
+      store.downloadedFilePath = payload.path
+      store.downloadProgress = 100
+    }
+  })
+}
+
+function clearDownloadProgressListener(): void {
+  if (!unlistenProgress)
+    return
+
+  unlistenProgress()
+  unlistenProgress = null
+}
+
+function getUpdateFilename(store: Pick<AppUpdateState, 'isAppImage' | 'latestVersion' | 'assetName'>): string {
+  const extension = store.isAppImage ? 'AppImage' : 'apk'
+  const defaultFilename = `trip-scheduler-v${store.latestVersion || 'latest'}.${extension}`
+
+  return store.assetName || defaultFilename
+}
+
 export const useAppUpdateStore = defineStore('appUpdate', {
   state: (): AppUpdateState => ({
     hasUpdate: false,
@@ -71,6 +206,7 @@ export const useAppUpdateStore = defineStore('appUpdate', {
       if (isTauri) {
         try {
           const info = await invoke<PlatformInfo>('get_platform_info')
+
           if (info) {
             return {
               os: info.os.toLowerCase(),
@@ -85,15 +221,19 @@ export const useAppUpdateStore = defineStore('appUpdate', {
       }
 
       const ua = navigator.userAgent.toLowerCase()
+
       if (isMobile || /android/i.test(ua)) {
         return { os: 'android', isAppImage: false, appImagePath: null }
       }
+
       if (/linux/i.test(ua)) {
         return { os: 'linux', isAppImage: isTauri, appImagePath: null }
       }
+
       if (/win/i.test(ua)) {
         return { os: 'windows', isAppImage: false, appImagePath: null }
       }
+
       return { os: 'other', isAppImage: false, appImagePath: null }
     },
 
@@ -123,48 +263,21 @@ export const useAppUpdateStore = defineStore('appUpdate', {
 
       try {
         const response = await fetch(API_GITHUB_RELEASES_LATEST)
+
         if (response.ok) {
-          const latestRelease = await response.json()
+          const latestRelease = await response.json() as GitHubRelease
           const tag = latestRelease.tag_name || ''
           const cleanLatestVersion = tag.replace(/^\D*/, '')
           const assets = latestRelease.assets || []
+          const { selectedAsset, apkAsset } = selectReleaseAssets(assets, platform.os)
 
-          let selectedAsset: any = null
-
-          if (platform.os === 'linux') {
-            // На Linux предпочитаем AppImage, либо deb
-            selectedAsset = assets.find((a: any) => typeof a.name === 'string' && a.name.endsWith('.AppImage'))
-              || assets.find((a: any) => typeof a.name === 'string' && a.name.endsWith('.deb'))
-          }
-          else if (platform.os === 'windows') {
-            selectedAsset = assets.find((a: any) => typeof a.name === 'string' && (a.name.endsWith('.exe') || a.name.endsWith('.msi')))
-          }
-          else {
-            // Android или mobile
-            selectedAsset = assets.find((a: any) => typeof a.name === 'string' && a.name.endsWith('.apk'))
-          }
-
-          // Fallback если специфичный ассет не найден
-          if (!selectedAsset && assets.length > 0) {
-            selectedAsset = assets.find((a: any) => typeof a.name === 'string' && a.name.endsWith('.apk')) || assets[0]
-          }
-
-          const apkAsset = assets.find((a: any) => typeof a.name === 'string' && a.name.endsWith('.apk'))
-
-          if (cleanLatestVersion) {
-            this.latestVersion = cleanLatestVersion
-          }
-          if (selectedAsset) {
-            this.assetUrl = selectedAsset.browser_download_url
-            this.assetName = selectedAsset.name
-            this.apkUrl = this.assetUrl
-          }
-          if (apkAsset) {
-            this.apkUrl = apkAsset.browser_download_url
-          }
-          if (latestRelease.html_url) {
-            this.releaseUrl = latestRelease.html_url
-          }
+          applyReleaseMetadata(
+            this,
+            latestRelease,
+            cleanLatestVersion,
+            selectedAsset,
+            apkAsset,
+          )
         }
       }
       catch (e) {
@@ -189,11 +302,13 @@ export const useAppUpdateStore = defineStore('appUpdate', {
 
       try {
         const { assetUrl, latestVersion, releaseUrl } = await this.fetchLatestReleaseInfo()
+
         if (!latestVersion) {
           return
         }
 
         const currentVersion = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.0.0'
+
         if (compareVersions(latestVersion, currentVersion) <= 0) {
           return
         }
@@ -208,6 +323,7 @@ export const useAppUpdateStore = defineStore('appUpdate', {
         if (!silent) {
           throw e
         }
+
         console.error('[AppUpdate] Ошибка при проверке обновлений:', e)
       }
     },
@@ -216,13 +332,10 @@ export const useAppUpdateStore = defineStore('appUpdate', {
       const toastStore = useToastStore()
       toastStore.info('Подготовка к скачиванию...')
 
-      let url = this.assetUrl || this.apkUrl
-      if (!url) {
-        const info = await this.fetchLatestReleaseInfo()
-        url = info.assetUrl || info.apkUrl
-      }
+      const url = await resolveBrowserDownloadUrl(this, () => this.fetchLatestReleaseInfo())
 
       const finalUrl = url || this.releaseUrl || GITHUB_RELEASES_PAGE
+
       if (url) {
         toastStore.success('Скачивание файла началось!')
       }
@@ -230,27 +343,19 @@ export const useAppUpdateStore = defineStore('appUpdate', {
         toastStore.info('Переход на страницу релиза...')
       }
 
-      const isDirectDownloadFile = finalUrl.endsWith('.apk') || finalUrl.endsWith('.AppImage') || finalUrl.endsWith('.deb') || finalUrl.endsWith('.exe')
-      if (typeof document !== 'undefined' && isDirectDownloadFile) {
-        const link = document.createElement('a')
-        link.href = finalUrl
-        link.setAttribute('download', '')
-        link.setAttribute('target', '_blank')
-        link.setAttribute('rel', 'noopener noreferrer')
-        document.body.appendChild(link)
-        link.click()
-        document.body.removeChild(link)
+      if (downloadDirectFile(finalUrl))
         return
-      }
 
       await openExternalUrl(finalUrl)
     },
 
     async startUpdate() {
       const downloadUrl = this.assetUrl || this.apkUrl
+
       // Если это среда Tauri и есть прямая ссылка на файл — скачиваем с прогрессом
       if (isTauri && downloadUrl) {
         await this.downloadUpdateInApp()
+
         return
       }
 
@@ -259,41 +364,18 @@ export const useAppUpdateStore = defineStore('appUpdate', {
 
     async downloadUpdateInApp() {
       const downloadUrl = this.assetUrl || this.apkUrl
+
       if (!downloadUrl) {
         return
       }
 
       const toastStore = useToastStore()
-      this.isDownloading = true
-      this.downloadProgress = 0
-      this.downloadedBytes = 0
-      this.totalBytes = null
-      this.downloadError = null
-      this.downloadedFilePath = null
+      resetDownloadProgress(this)
 
       try {
-        if (unlistenProgress) {
-          unlistenProgress()
-          unlistenProgress = null
-        }
+        await listenForDownloadProgress(this)
 
-        unlistenProgress = await listen<DownloadProgressPayload>('app-update://progress', (event) => {
-          const payload = event.payload
-          this.downloadedBytes = payload.downloaded
-          this.totalBytes = payload.total
-          this.downloadProgress = Math.round(payload.percentage)
-
-          if (payload.done && payload.path) {
-            this.downloadedFilePath = payload.path
-            this.downloadProgress = 100
-          }
-        })
-
-        const defaultFilename = this.isAppImage
-          ? `trip-scheduler-v${this.latestVersion || 'latest'}.AppImage`
-          : `trip-scheduler-v${this.latestVersion || 'latest'}.apk`
-
-        const filename = this.assetName || defaultFilename
+        const filename = getUpdateFilename(this)
         const filePath = await invoke<string>('download_app_update', {
           url: downloadUrl,
           filename,
@@ -317,10 +399,7 @@ export const useAppUpdateStore = defineStore('appUpdate', {
         toastStore.error(`Ошибка загрузки: ${this.downloadError}`)
       }
       finally {
-        if (unlistenProgress) {
-          unlistenProgress()
-          unlistenProgress = null
-        }
+        clearDownloadProgressListener()
       }
     },
 
@@ -331,10 +410,12 @@ export const useAppUpdateStore = defineStore('appUpdate', {
 
       const toastStore = useToastStore()
       this.isInstalling = true
+
       try {
         if (this.isAppImage) {
           toastStore.info('Замена AppImage и перезапуск приложения...')
         }
+
         await invoke('install_app_update', { path: this.downloadedFilePath })
       }
       catch (e: any) {
@@ -353,6 +434,7 @@ export const useAppUpdateStore = defineStore('appUpdate', {
 
     async openExternalRelease() {
       const url = this.assetUrl || this.apkUrl || this.releaseUrl
+
       if (url) {
         await openExternalUrl(url)
       }

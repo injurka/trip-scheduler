@@ -33,7 +33,6 @@ const { open: openFileDialog, onChange, reset } = useFileDialog({ accept: '*', m
 const fetchError = useRequestError(ETripMemoriesKeys.FETCH)
 const notificationStore = useNotificationStore()
 const confirm = useConfirm()
-
 const {
   vaultStore,
   handleDownloadVault,
@@ -41,7 +40,6 @@ const {
   isNative,
   syncState,
 } = useTripMemoriesVault()
-
 const imageCacher = useImageCacher()
 
 const {
@@ -51,36 +49,35 @@ const {
 } = storeToRefs(memories)
 const { areAllMemoryGroupsCollapsed, isViewMode, activeView, isMemoriesTrackPlayerOpen } = storeToRefs(ui)
 const { getActivitiesForSelectedDay, getSelectedDay } = storeToRefs(tripData)
-
 const dropZoneRef = ref<HTMLDivElement | null>(null)
 
 const { isOverDropZone } = useDropZone(dropZoneRef, { onDrop })
 
-function onDrop(files: File[] | null) {
-  if (!files || activeView.value !== 'memories' || isViewMode.value)
-    return
-  const mediaFiles = files.filter(file => file.type.startsWith('image/') || file.type.startsWith('video/'))
-  if (mediaFiles.length > 0)
-    memories.enqueueFilesForUpload(mediaFiles)
-}
+const { timelineGroupsForSelectedDay: timelineGroups } = storeToRefs(memories)
+const cacheQualityOptions = [
+  { label: 'Кеш: Низкое', value: 'small', icon: 'mdi:image-size-select-small' },
+  { label: 'Кеш: Среднее', value: 'medium', icon: 'mdi:image-size-select-actual' },
+  { label: 'Кеш: Высокое', value: 'large', icon: 'mdi:image-size-select-large' },
+  { label: 'Кеш: Оригинал', value: 'original', icon: 'mdi:image-outline' },
+]
+const isFullScreen = ref(false)
+const isAddNoteDialogVisible = ref(false)
+const isAddActivityDialogVisible = ref(false)
+const isNotifyLoading = ref(false)
+// ─── Маршрут подвижности дня ──────────────────────────────────────────────────
+// Открытие плеера держим в ui-сторе, а не локально: смена дня перемонтирует
+// TripMemoriesView (в trip-info.vue блок `<div :key="currentDayId">`), и локальный
+// ref сбрасывался — карта закрывалась прямо при переключении дня.
 
-onChange((files) => {
-  if (!files || files.length === 0)
-    return
-  memories.enqueueFilesForUpload(Array.from(files))
-  reset()
-})
+const DAY_REGEX = /^\d{4}-\d{2}-\d{2}$/
 
 const isProcessing = computed(() => getProcessingMemories.value.length > 0)
-
 const memoriesData = computed(() => {
   if (memoriesForSelectedDay.value.length > 0 || isProcessing.value)
     return memoriesForSelectedDay.value
+
   return null
 })
-
-const { timelineGroupsForSelectedDay: timelineGroups } = storeToRefs(memories)
-
 const galleryImages = computed<ImageViewerImage[]>(() => {
   const currentDayId = getSelectedDay.value?.id
 
@@ -107,6 +104,7 @@ const galleryImages = computed<ImageViewerImage[]>(() => {
         imageId: image.id,
         memoryId: memory.id,
       }
+
       return {
         url,
         variants,
@@ -117,57 +115,78 @@ const galleryImages = computed<ImageViewerImage[]>(() => {
       }
     })
 })
-
 const allMemoryGroupKeys = computed(() =>
-  timelineGroups.value.map(getTimelineGroupKey),
-)
+  timelineGroups.value.map(getTimelineGroupKey))
 const allMemoryBlocksCollapsed = computed(() =>
-  areAllMemoryGroupsCollapsed.value(allMemoryGroupKeys.value),
-)
+  areAllMemoryGroupsCollapsed.value(allMemoryGroupKeys.value))
 const collapseMemoriesIcon = computed(() =>
-  allMemoryBlocksCollapsed.value ? 'mdi:chevron-double-down' : 'mdi:chevron-double-up',
-)
+  allMemoryBlocksCollapsed.value ? 'mdi:chevron-double-down' : 'mdi:chevron-double-up')
+const cachingPercent = computed(() => {
+  const total = Math.max(1, imageCacher.totalToCache.value)
 
+  return Math.round((imageCacher.cachedCount.value / total) * 100)
+})
+const importOptions = computed(() => {
+  const existingSourceIds = new Set(memories.memories.map((m: any) => m.sourceActivityId).filter(Boolean))
+
+  return getActivitiesForSelectedDay.value
+    .filter((act: any) => !existingSourceIds.has(act.id))
+    .map((activity: any) => ({
+      value: activity,
+      label: `${activity.startTime} - ${activity.title}`,
+      icon: getTagInfo(activity.tag)?.icon,
+    }))
+})
+/**
+ * Дни поездки: плеер «Маршрут дня» ограничен ими, а смена дня внутри плеера
+ * переключает выбранный день секции. Без этого плеер менял только свою дату —
+ * воспоминания оставались на прежнем дне, и фото на карте не обновлялись.
+ * Берём только валидные YYYY-MM-DD — битая дата ломает запрос dayUtc на сервере.
+ */
+const tripDayDates = computed(() =>
+  Array.from(new Set((tripData.getAllDays ?? [])
+    .map(day => day.date?.split('T')[0])
+    .filter((date): date is string => !!date && DAY_REGEX.test(date)))).sort())
+/** Дата выбранного дня для плеера; невалидную не пропускаем */
+const playerDayUtc = computed<string | undefined>(() => {
+  const date = getSelectedDay.value?.date
+
+  if (!date)
+    return undefined
+
+  const datePart = date.split('T')[0]
+
+  return DAY_REGEX.test(datePart) ? datePart : undefined
+})
+
+function onDrop(files: File[] | null) {
+  if (!files || activeView.value !== 'memories' || isViewMode.value)
+    return
+
+  const mediaFiles = files.filter(file => file.type.startsWith('image/') || file.type.startsWith('video/'))
+
+  if (mediaFiles.length > 0)
+    memories.enqueueFilesForUpload(mediaFiles)
+}
 function handleToggleAllMemories() {
   ui.toggleAllMemoryGroups(allMemoryGroupKeys.value)
 }
-
-const cacheQualityOptions = [
-  { label: 'Кеш: Низкое', value: 'small', icon: 'mdi:image-size-select-small' },
-  { label: 'Кеш: Среднее', value: 'medium', icon: 'mdi:image-size-select-actual' },
-  { label: 'Кеш: Высокое', value: 'large', icon: 'mdi:image-size-select-large' },
-  { label: 'Кеш: Оригинал', value: 'original', icon: 'mdi:image-outline' },
-]
-
-const cachingPercent = computed(() => {
-  const total = Math.max(1, imageCacher.totalToCache.value)
-  return Math.round((imageCacher.cachedCount.value / total) * 100)
-})
-
 function handleCacheAll(quality: string | number | object | symbol) {
   imageCacher.startCaching(galleryImages.value, quality as ImageQuality)
 }
-
-const isFullScreen = ref(false)
-
 function toggleFullScreen() {
   isFullScreen.value = !isFullScreen.value
 }
-
-const isAddNoteDialogVisible = ref(false)
-const isAddActivityDialogVisible = ref(false)
-
 function handleAddTextNote() {
   isAddNoteDialogVisible.value = true
 }
-
 function handleAddActivity() {
   isAddActivityDialogVisible.value = true
 }
-
 function handleSaveNote(text: string, time: Time) {
   if (!tripData.currentTripId || !getSelectedDay.value?.date)
     return
+
   const datePart = getSelectedDay.value.date.split('T')[0]
   const h = time.hour.toString().padStart(2, '0')
   const m = time.minute.toString().padStart(2, '0')
@@ -177,10 +196,10 @@ function handleSaveNote(text: string, time: Time) {
     timestamp: `${datePart}T${h}:${m}:00.000Z`,
   })
 }
-
 function handleSaveActivity(title: string, time: Time) {
   if (!tripData.currentTripId || !getSelectedDay.value?.date)
     return
+
   const datePart = getSelectedDay.value.date.split('T')[0]
   const h = time.hour.toString().padStart(2, '0')
   const m = time.minute.toString().padStart(2, '0')
@@ -190,63 +209,16 @@ function handleSaveActivity(title: string, time: Time) {
     timestamp: `${datePart}T${h}:${m}:00.000Z`,
   })
 }
-
-const importOptions = computed(() => {
-  const existingSourceIds = new Set(
-    memories.memories.map((m: any) => m.sourceActivityId).filter(Boolean),
-  )
-  return getActivitiesForSelectedDay.value
-    .filter((act: any) => !existingSourceIds.has(act.id))
-    .map((activity: any) => ({
-      value: activity,
-      label: `${activity.startTime} - ${activity.title}`,
-      icon: getTagInfo(activity.tag)?.icon,
-    }))
-})
-
 function handleImport(activity: Activity) {
   if (activity)
     memories.importActivityFromPlan(activity)
 }
-
-const isNotifyLoading = ref(false)
-
-// ─── Маршрут подвижности дня ──────────────────────────────────────────────────
-// Открытие плеера держим в ui-сторе, а не локально: смена дня перемонтирует
-// TripMemoriesView (в trip-info.vue блок `<div :key="currentDayId">`), и локальный
-// ref сбрасывался — карта закрывалась прямо при переключении дня.
-
-const DAY_REGEX = /^\d{4}-\d{2}-\d{2}$/
-
-/**
- * Дни поездки: плеер «Маршрут дня» ограничен ими, а смена дня внутри плеера
- * переключает выбранный день секции. Без этого плеер менял только свою дату —
- * воспоминания оставались на прежнем дне, и фото на карте не обновлялись.
- * Берём только валидные YYYY-MM-DD — битая дата ломает запрос dayUtc на сервере.
- */
-const tripDayDates = computed(() =>
-  Array.from(new Set(
-    (tripData.getAllDays ?? [])
-      .map(day => day.date?.split('T')[0])
-      .filter((date): date is string => !!date && DAY_REGEX.test(date)),
-  )).sort(),
-)
-
-/** Дата выбранного дня для плеера; невалидную не пропускаем */
-const playerDayUtc = computed<string | undefined>(() => {
-  const date = getSelectedDay.value?.date
-  if (!date)
-    return undefined
-  const datePart = date.split('T')[0]
-  return DAY_REGEX.test(datePart) ? datePart : undefined
-})
-
 function handlePlayerDayChange(day: string) {
   const target = (tripData.getAllDays ?? []).find(d => d.date?.split('T')[0] === day)
+
   if (target && target.id !== tripData.currentDayId)
     tripData.setCurrentDay(target.id)
 }
-
 async function handleNotifyParticipants() {
   if (!tripData.currentTripId || !getSelectedDay.value)
     return
@@ -262,16 +234,22 @@ async function handleNotifyParticipants() {
     return
 
   isNotifyLoading.value = true
+
   try {
-    await notificationStore.notifyAboutMemoryUpdate(
-      tripData.currentTripId,
-      getSelectedDay.value.id,
-    )
+    await notificationStore.notifyAboutMemoryUpdate(tripData.currentTripId, getSelectedDay.value.id)
   }
   finally {
     isNotifyLoading.value = false
   }
 }
+
+onChange((files) => {
+  if (!files || files.length === 0)
+    return
+
+  memories.enqueueFilesForUpload(Array.from(files))
+  reset()
+})
 </script>
 
 <template>

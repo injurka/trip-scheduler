@@ -17,6 +17,7 @@ export function useMapSize(
   function apply(): void {
     const canvas = canvasRef.value
     const wrapper = wrapperRef.value
+
     if (!canvas || !wrapper)
       return
 
@@ -41,9 +42,12 @@ export function useMapSize(
   function centerScroll(): void {
     nextTick(() => {
       const wrapper = wrapperRef.value
+
       if (!wrapper)
         return
+
       const overflow = wrapper.scrollWidth - wrapper.clientWidth
+
       if (overflow > 0)
         wrapper.scrollLeft = overflow / 2
     })
@@ -51,6 +55,7 @@ export function useMapSize(
 
   function observe(): void {
     ro = new ResizeObserver(apply)
+
     if (wrapperRef.value)
       ro.observe(wrapperRef.value)
   }

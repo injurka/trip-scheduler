@@ -7,11 +7,13 @@ const OFFLINE_MEDIA_CACHE_NAME = 'trip-scheduler-offline-media'
 async function tryLoadFromCache(el: HTMLImageElement, url: string) {
   if (typeof caches === 'undefined' || !url)
     return
+
   try {
     const cache = await caches.open(OFFLINE_MEDIA_CACHE_NAME)
     const urlWithoutToken = stripAuthTokenFromUrl(url)
     const match = await cache.match(url)
       || (urlWithoutToken ? await cache.match(urlWithoutToken) : null)
+
     if (match) {
       const blob = await match.blob()
       el.src = URL.createObjectURL(blob)
@@ -25,6 +27,7 @@ async function tryLoadFromCache(el: HTMLImageElement, url: string) {
 function applyImageSrc(el: HTMLImageElement, url: string | null | undefined) {
   if (!url) {
     el.removeAttribute('src')
+
     return
   }
 
@@ -45,9 +48,11 @@ export const vResolveSrc: Directive<HTMLImageElement, string | null | undefined>
     if (!el.hasAttribute('loading')) {
       el.loading = 'lazy'
     }
+
     if (!el.hasAttribute('decoding')) {
       el.decoding = 'async'
     }
+
     const resolvedUrl = resolveApiUrl(binding.value)
     applyImageSrc(el, resolvedUrl)
   },
@@ -65,9 +70,11 @@ export const vImage: Directive<HTMLImageElement, { src?: string | null } & Image
     if (!el.hasAttribute('loading')) {
       el.loading = 'lazy'
     }
+
     if (!el.hasAttribute('decoding')) {
       el.decoding = 'async'
     }
+
     const { src, ...options } = binding.value ?? {}
     const url = getImageUrl(src, Object.keys(options).length ? options : undefined)
     applyImageSrc(el, url)

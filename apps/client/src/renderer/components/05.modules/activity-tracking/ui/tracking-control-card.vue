@@ -17,26 +17,20 @@ const toast = useToast()
 async function handleIgnoreBattery() {
   await tracking.requestIgnoreBatteryOptimizations()
 }
-
-onMounted(() => {
-  void tracking.startPolling()
-})
-
-onBeforeUnmount(() => {
-  tracking.stopPolling()
-})
-
 async function onToggle(e: Event) {
   const target = e.target as HTMLInputElement
   const enable = target.checked
+
   try {
     await tracking.toggle(enable)
+
     if (enable) {
       toast.success('Фоновый трекинг запущен: координаты и активность записываются.')
     }
     else {
       toast.info('Трекинг приостановлен: точки сохранены и синхронизируются.')
     }
+
     emit('changed', enable)
   }
   catch {
@@ -44,21 +38,24 @@ async function onToggle(e: Event) {
     toast.error(tracking.lastError || 'Не удалось переключить статус GPS-трекинга.')
   }
 }
-
 function formatPointsCount(count: number): string {
   const c = Math.abs(count) % 100
   const n = c % 10
+
   if (c > 10 && c < 20)
     return 'точек'
+
   if (n > 1 && n < 5)
     return 'точки'
+
   if (n === 1)
     return 'точка'
+
   return 'точек'
 }
-
 async function handleManualSync() {
   const count = await tracking.syncNow()
+
   if (count > 0) {
     toast.success(`Синхронизировано ${count} ${formatPointsCount(count)} с сервером!`)
     emit('changed', tracking.isRunning)
@@ -73,9 +70,9 @@ async function handleManualSync() {
     toast.info('Буфер пуст — все точки уже на сервере.')
   }
 }
-
 async function handleRequestPermission() {
   const granted = await tracking.requestPermission()
+
   if (granted) {
     toast.success('Доступ к геолокации предоставлен, трекинг запущен!')
     emit('changed', true)
@@ -84,12 +81,19 @@ async function handleRequestPermission() {
     toast.error(tracking.lastError || 'Не удалось получить доступ к геолокации.')
   }
 }
-
 function formatSyncTime(ts: number | null): string {
   if (!ts)
     return ''
+
   return new Date(ts).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
 }
+
+onMounted(() => {
+  void tracking.startPolling()
+})
+onBeforeUnmount(() => {
+  tracking.stopPolling()
+})
 </script>
 
 <template>

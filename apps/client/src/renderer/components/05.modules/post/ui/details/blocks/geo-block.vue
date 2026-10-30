@@ -6,14 +6,15 @@ import { computed, ref } from 'vue'
 import { KitTooltip } from '~/components/01.kit/kit-tooltip'
 import GeolocationMap from '~/components/03.domain/trip-info/geolocation-section/ui/geolocation-map.vue'
 import { vRipple } from '~/shared/directives/ripple'
-
 import { isValidCoordinate } from '~/shared/services/geo'
 
-const props = withDefaults(defineProps<{
+interface Props {
   block: LocationBlock | RouteBlock
   color?: string
   isActive?: boolean
-}>(), {
+}
+
+const props = withDefaults(defineProps<Props>(), {
   color: '#FF9F43',
   isActive: false,
 })
@@ -25,18 +26,21 @@ const isInlineMapOpen = ref(false)
 const title = computed(() => {
   if (props.block.type === 'location')
     return props.block.name || 'Локация'
+
   return `${props.block.from || 'Начало'} ➝ ${props.block.to || 'Конец'}`
 })
 
 const subtitle = computed(() => {
   if (props.block.type === 'location')
     return props.block.address
+
   return `${props.block.distance || ''} ${props.block.duration ? `• ${props.block.duration}` : ''} ${props.block.transport ? `(${props.block.transport})` : ''}`.trim()
 })
 
 const icon = computed(() => {
   if (props.block.type === 'location')
     return 'mdi:map-marker'
+
   return props.block.transport === 'walk' ? 'mdi:walk' : props.block.transport === 'car' ? 'mdi:car' : 'mdi:bus'
 })
 
@@ -44,12 +48,15 @@ const mapPoints = computed<MapPoint[]>(() => {
   if (props.block.type === 'location' && props.block.coords) {
     let lat = Number(props.block.coords.lat)
     let lng = Number(props.block.coords.lng)
+
     if (Math.abs(lat) > 90 && Math.abs(lng) <= 90) {
       const temp = lat
       lat = lng
       lng = temp
     }
+
     const coords: [number, number] = [lng, lat]
+
     if (!isValidCoordinate(coords))
       return []
 
@@ -62,6 +69,7 @@ const mapPoints = computed<MapPoint[]>(() => {
       style: { color: props.color },
     } as any]
   }
+
   return []
 })
 
@@ -73,12 +81,15 @@ const mapRoutes = computed<MapRoute[]>(() => {
     rawPoints.forEach((p: any, idx: number, arr: any[]) => {
       let lat = Number(p.lat)
       let lng = Number(p.lng)
+
       if (Math.abs(lat) > 90 && Math.abs(lng) <= 90) {
         const temp = lat
         lat = lng
         lng = temp
       }
+
       const coords: [number, number] = [lng, lat]
+
       if (!isValidCoordinate(coords))
         return
 
@@ -92,9 +103,7 @@ const mapRoutes = computed<MapRoute[]>(() => {
       })
     })
 
-    const validGeometry: [number, number][] = ((props.block as any).geometry as [number, number][]).filter(
-      coord => isValidCoordinate(coord),
-    )
+    const validGeometry: [number, number][] = ((props.block as any).geometry as [number, number][]).filter(coord => isValidCoordinate(coord))
 
     if (validGeometry.length >= 2) {
       return [{
@@ -108,6 +117,7 @@ const mapRoutes = computed<MapRoute[]>(() => {
       } as any]
     }
   }
+
   return []
 })
 
@@ -115,16 +125,23 @@ const mapCenter = computed<[number, number]>(() => {
   if (mapPoints.value.length > 0) {
     return mapPoints.value[0].coordinates
   }
+
   if (mapRoutes.value.length > 0 && mapRoutes.value[0].geometry && mapRoutes.value[0].geometry.length > 0) {
     return mapRoutes.value[0].geometry[0]
   }
+
   return [48.4031, 54.3142]
 })
 </script>
 
 <template>
   <div class="geo-block-wrapper">
-    <button v-ripple class="geo-block" :class="{ 'is-active': isActive }" @click="emit('click')">
+    <button
+      v-ripple
+      class="geo-block"
+      :class="{ 'is-active': isActive }"
+      @click="emit('click')"
+    >
       <div class="icon-box" :style="{ color: props.color }">
         <Icon :icon="icon" />
       </div>

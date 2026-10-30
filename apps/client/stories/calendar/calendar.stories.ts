@@ -1,8 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/vue3'
 import { CalendarDate, today } from '@internationalized/date'
-import { ref } from 'vue'
-
-import { KitCalendar } from '../../src/renderer/components/01.kit/kit-calendar'
+import { ref } from 'vue'import { KitCalendar } from '../../src/renderer/components/01.kit/kit-calendar'
 
 /**
  * The `Calendar` component provides an accessible and themeable date picker.

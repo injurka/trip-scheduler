@@ -26,7 +26,6 @@ const isSearching = ref(false)
 const center = computed((): [number, number] => {
   return [tempCoords.value.lon, tempCoords.value.lat]
 })
-
 const markers = computed<MapMarker[]>(() => {
   return [
     {
@@ -36,18 +35,26 @@ const markers = computed<MapMarker[]>(() => {
   ]
 })
 
+watch(() => props.visible, (isOpen) => {
+  if (isOpen) {
+    tempCoords.value = { ...(props.modelValue || { lat: 55.75, lon: 37.61 }) }
+    searchQuery.value = ''
+  }
+}, { immediate: true })
+
 function onMapClick(coords: [number, number]) {
   tempCoords.value.lon = Number(coords[0].toFixed(6))
   tempCoords.value.lat = Number(coords[1].toFixed(6))
 }
-
 async function handleSearch() {
   if (!searchQuery.value.trim())
     return
 
   isSearching.value = true
+
   try {
     const result = await nominatimService.searchSingle(searchQuery.value)
+
     if (result) {
       tempCoords.value = {
         lon: Number(result.lon.toFixed(6)),
@@ -66,21 +73,10 @@ async function handleSearch() {
     isSearching.value = false
   }
 }
-
-watch(
-  () => props.visible,
-  (isOpen) => {
-    if (isOpen) {
-      tempCoords.value = { ...(props.modelValue || { lat: 55.75, lon: 37.61 }) }
-      searchQuery.value = ''
-    }
-  },
-  { immediate: true },
-)
-
 function saveLocation() {
   const lat = Number(tempCoords.value.lat)
   const lon = Number(tempCoords.value.lon)
+
   if (!Number.isNaN(lat) && !Number.isNaN(lon)) {
     emit('update:modelValue', { lat, lon })
     closeModal()
@@ -89,7 +85,6 @@ function saveLocation() {
     useToast().error('Неверный формат координат.')
   }
 }
-
 function closeModal() {
   emit('update:visible', false)
 }
@@ -119,8 +114,18 @@ function closeModal() {
           </KitBtn>
         </div>
         <div class="coords-inputs">
-          <KitInput v-model.number="tempCoords.lat" label="Широта (Lat)" type="number" step="0.00001" />
-          <KitInput v-model.number="tempCoords.lon" label="Долгота (Lon)" type="number" step="0.00001" />
+          <KitInput
+            v-model.number="tempCoords.lat"
+            label="Широта (Lat)"
+            type="number"
+            step="0.00001"
+          />
+          <KitInput
+            v-model.number="tempCoords.lon"
+            label="Долгота (Lon)"
+            type="number"
+            step="0.00001"
+          />
         </div>
       </div>
 

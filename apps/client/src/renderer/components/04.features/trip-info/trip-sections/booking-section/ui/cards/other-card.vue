@@ -29,23 +29,35 @@ const props = withDefaults(defineProps<Props>(), {
   highlightStatus: null,
   showDragHandle: true,
 })
-
 const emit = defineEmits<{
   (e: 'delete'): void
   (e: 'update:booking', value: Booking & { type: 'other' }): void
 }>()
 
+const route = useRoute()
+const tripPlanStore = useTripPlanStore()
+
 const isStartPickerOpen = ref(false)
 const isEndPickerOpen = ref(false)
-
 const isStartViewerOpen = ref(false)
 const isEndViewerOpen = ref(false)
-
 const kindOptions = getBookingKindOptions('other')
 
 const kindMeta = computed(() => resolveBookingKind('other', props.booking.data.kind, props.booking.icon))
-
 const kindIcon = computed(() => kindMeta.value?.icon || props.booking.icon || 'mdi:dots-horizontal-circle-outline')
+const tripId = computed(() => (route?.params?.id as string) || tripPlanStore?.currentTripId || '')
+const photosList = computed<string[]>(() => props.booking.data.photos || props.booking.data.imageUrls || [])
+const startPoint = computed(() => formatPoint(props.booking.data.startDateTime))
+const endPoint = computed(() => formatPoint(props.booking.data.endDateTime))
+const routeLine = computed(() => {
+  const { startLocation, endLocation } = props.booking.data
+
+  if (startLocation && endLocation)
+    return `${startLocation} → ${endLocation}`
+
+  return startLocation || endLocation || ''
+})
+const hasCoords = computed(() => Boolean(props.booking.data.startCoords || props.booking.data.endCoords))
 
 function updateDataField<K extends keyof OtherData>(key: K, value: OtherData[K]) {
   emit('update:booking', {
@@ -53,17 +65,9 @@ function updateDataField<K extends keyof OtherData>(key: K, value: OtherData[K])
     data: { ...props.booking.data, [key]: value },
   })
 }
-
 function updateTitle(newTitle: string) {
   emit('update:booking', { ...props.booking, title: newTitle })
 }
-
-const route = useRoute()
-const tripPlanStore = useTripPlanStore()
-const tripId = computed(() => (route?.params?.id as string) || tripPlanStore?.currentTripId || '')
-
-const photosList = computed<string[]>(() => props.booking.data.photos || props.booking.data.imageUrls || [])
-
 function updatePhotos(newPhotos: string[]) {
   emit('update:booking', {
     ...props.booking,
@@ -74,16 +78,16 @@ function updatePhotos(newPhotos: string[]) {
     },
   })
 }
-
 function updateKind(value?: string) {
   updateDataField('kind', value as OtherKind)
 }
-
 function formatPoint(iso?: string) {
   if (!iso)
     return { date: '', weekday: '', time: '' }
+
   const datePart = iso.split('T')[0]
   const dateObj = new Date(`${datePart}T12:00:00Z`)
+
   if (Number.isNaN(dateObj.getTime()))
     return { date: datePart, weekday: '', time: getTime(iso) }
 
@@ -96,27 +100,17 @@ function formatPoint(iso?: string) {
     time: getTime(iso),
   }
 }
-
 function getTime(iso?: string): string {
   if (!iso || !iso.includes('T'))
     return ''
+
   const timePart = iso.split('T')[1] || ''
+
   if (!timePart || timePart.startsWith('00:00'))
     return ''
+
   return timePart.substring(0, 5)
 }
-
-const startPoint = computed(() => formatPoint(props.booking.data.startDateTime))
-const endPoint = computed(() => formatPoint(props.booking.data.endDateTime))
-
-const routeLine = computed(() => {
-  const { startLocation, endLocation } = props.booking.data
-  if (startLocation && endLocation)
-    return `${startLocation} → ${endLocation}`
-  return startLocation || endLocation || ''
-})
-
-const hasCoords = computed(() => Boolean(props.booking.data.startCoords || props.booking.data.endCoords))
 </script>
 
 <template>

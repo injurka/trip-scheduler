@@ -30,17 +30,16 @@ const {
   description,
   contentClass,
 } = defineProps<Props>()
-
 const visible = defineModel<boolean>('visible', { required: true })
-const dialogId = useId()
 
-useDialogHistory(dialogId, visible)
+const dialogId = useId()
 
 const maxWidthPx = computed(() => `${maxWidth}px`)
 
 function handlePointerDownOutside(event: PointerDownOutsideEvent) {
   if (persistent) {
     event.preventDefault()
+
     return
   }
 
@@ -51,6 +50,8 @@ function handlePointerDownOutside(event: PointerDownOutsideEvent) {
     event.preventDefault()
   }
 }
+
+useDialogHistory(dialogId, visible)
 </script>
 
 <template>

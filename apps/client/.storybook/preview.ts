@@ -1,11 +1,7 @@
 import type { Preview } from '@storybook/vue3-vite'
 import { setup } from '@storybook/vue3-vite'
 import { createPinia } from 'pinia'
-import router from '../src/renderer/shared/lib/router'
-
-import { withTheme } from './with-theme.decorator'
-
-import '../src/renderer/assets/scss/normalize.scss'
+import router from '../src/renderer/shared/lib/router'import { withTheme } from './with-theme.decorator'import '../src/renderer/assets/scss/normalize.scss'
 import '../src/renderer/assets/scss/fonts.scss'
 import '../src/renderer/assets/scss/global.scss'
 import '../src/renderer/assets/scss/atomic.scss'

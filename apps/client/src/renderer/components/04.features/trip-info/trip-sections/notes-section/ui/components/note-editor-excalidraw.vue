@@ -2,32 +2,24 @@
 import type { Component } from 'vue'
 import { useThemeStore } from '~/shared/store/theme.store'
 
+interface Props {
+  noteId: string
+  content: string | null
+  readonly: boolean
+}
 interface ExcalidrawAPI {
   scrollToContent: (elements?: unknown[], opts?: { fitToContent?: boolean }) => void
   getSceneElements: () => unknown[]
 }
-
-const props = defineProps<{
-  noteId: string
-  content: string | null
-  readonly: boolean
-}>()
-
-const emit = defineEmits<{
-  'update:content': [noteId: string, value: string]
-}>()
-
 interface ExcalidrawElement {
   id: string
   type: string
   [key: string]: unknown
 }
-
 interface ExcalidrawAppState {
   collaborators: Map<string, unknown>
   [key: string]: unknown
 }
-
 interface ExcalidrawFile {
   mimeType: string
   id: string
@@ -35,35 +27,30 @@ interface ExcalidrawFile {
   created: number
   lastRetrieved?: number
 }
+interface ParsedExcalidrawData {
+  elements?: ExcalidrawElement[]
+  appState?: Record<string, unknown>
+  files?: Record<string, ExcalidrawFile>
+}
+interface InitialData {
+  elements: ExcalidrawElement[]
+  appState: Partial<ExcalidrawAppState>
+  files: Record<string, ExcalidrawFile>
+  scrollToContent: boolean
+}
+
+const props = defineProps<Props>()
+const emit = defineEmits<{
+  'update:content': [noteId: string, value: string]
+}>()
+defineExpose({ exportImage })
 
 const themeStore = useThemeStore()
-
-const excalidrawTheme = computed(() => {
-  if (themeStore.activeThemeName === 'dark')
-    return 'dark'
-  if (themeStore.activeThemeName === 'light')
-    return 'light'
-
-  const bgColor = themeStore.customThemePalette['bg-primary-color'] || '#ffffff'
-  const hex = bgColor.replace('#', '')
-
-  if (hex.length >= 6) {
-    const r = Number.parseInt(hex.substring(0, 2), 16)
-    const g = Number.parseInt(hex.substring(2, 4), 16)
-    const b = Number.parseInt(hex.substring(4, 6), 16)
-
-    const luma = 0.2126 * r + 0.7152 * g + 0.0722 * b
-    return luma < 128 ? 'dark' : 'light'
-  }
-
-  return 'light'
-})
 
 const VueExcalidraw = shallowRef<Component | null>(null)
 const isLoading = ref(true)
 const loadError = ref<string | null>(null)
 const apiReady = ref(false)
-
 const SAFE_APPSTATE_KEYS = [
   'theme',
   'viewBackgroundColor',
@@ -78,64 +65,74 @@ const SAFE_APPSTATE_KEYS = [
   'currentItemFontSize',
   'currentItemTextAlign',
 ] as const
+const initialData = shallowRef<InitialData | undefined>(props.content ? parseInitialData(props.content) : undefined)
+let saveTimer: ReturnType<typeof setTimeout> | null = null
+let lastEmittedContent: string | null = null
+let lastComputedContent: string | null = null
 
-interface InitialData {
-  elements: ExcalidrawElement[]
-  appState: Partial<ExcalidrawAppState>
-  files: Record<string, ExcalidrawFile>
-  scrollToContent: boolean
+const excalidrawTheme = computed(() => {
+  if (themeStore.activeThemeName === 'dark')
+    return 'dark'
+
+  if (themeStore.activeThemeName === 'light')
+    return 'light'
+
+  const bgColor = themeStore.customThemePalette['bg-primary-color'] || '#ffffff'
+  const hex = bgColor.replace('#', '')
+
+  if (hex.length >= 6) {
+    const r = Number.parseInt(hex.substring(0, 2), 16)
+    const g = Number.parseInt(hex.substring(2, 4), 16)
+    const b = Number.parseInt(hex.substring(4, 6), 16)
+
+    const luma = 0.2126 * r + 0.7152 * g + 0.0722 * b
+
+    return luma < 128 ? 'dark' : 'light'
+  }
+
+  return 'light'
+})
+
+function sanitizeAppState(appState?: Record<string, unknown>): Partial<ExcalidrawAppState> {
+  const safeAppState: Partial<ExcalidrawAppState> = { collaborators: new Map() }
+
+  for (const key of SAFE_APPSTATE_KEYS) {
+    if (appState?.[key] !== undefined)
+      (safeAppState as Record<string, unknown>)[key] = appState[key]
+  }
+
+  const bg = safeAppState.viewBackgroundColor as string | undefined
+
+  if (!bg || bg === '#ffffff' || bg === '#121212' || bg === 'transparent')
+    safeAppState.viewBackgroundColor = 'transparent'
+
+  return safeAppState
 }
-
+function toInitialData(parsed: ParsedExcalidrawData): InitialData {
+  return {
+    elements: parsed.elements ?? [],
+    appState: sanitizeAppState(parsed.appState),
+    files: parsed.files ?? {},
+    scrollToContent: true,
+  }
+}
 function parseInitialData(raw: string | null): InitialData | undefined {
   if (!raw)
     return undefined
+
   try {
-    const parsed = JSON.parse(raw) as {
-      elements?: ExcalidrawElement[]
-      appState?: Record<string, unknown>
-      files?: Record<string, ExcalidrawFile>
-    }
-
-    const safeAppState: Partial<ExcalidrawAppState> = {
-      collaborators: new Map(),
-    }
-    for (const key of SAFE_APPSTATE_KEYS) {
-      if (parsed.appState?.[key] !== undefined)
-        (safeAppState as Record<string, unknown>)[key] = parsed.appState[key]
-    }
-
-    const bg = safeAppState.viewBackgroundColor as string | undefined
-    if (!bg || bg === '#ffffff' || bg === '#121212' || bg === 'transparent') {
-      safeAppState.viewBackgroundColor = 'transparent'
-    }
-
-    return {
-      elements: parsed.elements ?? [],
-      appState: safeAppState,
-      files: parsed.files ?? {},
-      scrollToContent: true,
-    }
+    return toInitialData(JSON.parse(raw) as ParsedExcalidrawData)
   }
   catch {
     return undefined
   }
 }
-
 function onExcalidrawAPI(api: ExcalidrawAPI) {
   setTimeout(() => {
     api.scrollToContent(api.getSceneElements(), { fitToContent: true })
     apiReady.value = true
   }, 150)
 }
-
-const initialData = shallowRef<InitialData | undefined>(
-  props.content ? parseInitialData(props.content) : undefined,
-)
-
-let saveTimer: ReturnType<typeof setTimeout> | null = null
-let lastEmittedContent: string | null = null
-let lastComputedContent: string | null = null
-
 function debouncedSave(newContent: string): void {
   if (saveTimer)
     clearTimeout(saveTimer)
@@ -146,7 +143,6 @@ function debouncedSave(newContent: string): void {
     emit('update:content', props.noteId, newContent)
   }, 1000)
 }
-
 function flushSave(): void {
   if (saveTimer && lastComputedContent && lastComputedContent !== lastEmittedContent) {
     clearTimeout(saveTimer)
@@ -154,16 +150,12 @@ function flushSave(): void {
     emit('update:content', props.noteId, lastComputedContent)
   }
 }
-
-function handleChange(
-  elements: ExcalidrawElement[],
-  appState: Partial<ExcalidrawAppState>,
-  files: Record<string, ExcalidrawFile>,
-): void {
+function handleChange(elements: ExcalidrawElement[], appState: Partial<ExcalidrawAppState>, files: Record<string, ExcalidrawFile>): void {
   if (props.readonly || !apiReady.value)
     return
 
   const safeAppState: Record<string, unknown> = {}
+
   for (const key of SAFE_APPSTATE_KEYS) {
     if (key in appState) {
       safeAppState[key] = appState[key]
@@ -179,7 +171,6 @@ function handleChange(
   lastComputedContent = newContent
   debouncedSave(newContent)
 }
-
 async function exportImage(format: 'png' | 'svg', title: string) {
   if (!props.content && !lastComputedContent)
     return
@@ -204,6 +195,7 @@ async function exportImage(format: 'png' | 'svg', title: string) {
         files: data.files,
         mimeType: 'image/png',
       })
+
       if (blob)
         download(blob, 'png')
     }
@@ -222,8 +214,6 @@ async function exportImage(format: 'png' | 'svg', title: string) {
     console.error('Ошибка экспорта Excalidraw:', err)
   }
 }
-
-defineExpose({ exportImage })
 
 onMounted(async () => {
   try {
@@ -248,7 +238,6 @@ onMounted(async () => {
     isLoading.value = false
   }
 })
-
 onBeforeUnmount(() => {
   flushSave()
 })

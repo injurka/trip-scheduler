@@ -8,7 +8,6 @@ import { checkMapTilerAvailability, getMapStyle, TILE_SOURCES } from '~/shared/l
 import { useAppSettingsStore } from '~/shared/store/app-settings.store'
 import { useKitMap } from '../composables/use-kit-map'
 import KitMapControls from './kit-map-controls.vue'
-
 import KitMapSearchControl from './kit-map-search-control.vue'
 import 'maplibre-gl/dist/maplibre-gl.css'
 
@@ -38,14 +37,10 @@ const props = withDefaults(defineProps<Props>(), {
   customLayers: undefined,
   enableSearch: false,
 })
-
 const emit = defineEmits<{
   (e: 'mapReady', map: MapLibreMap): void
   (e: 'click', coords: [number, number]): void
 }>()
-
-const mapWrapperRef = ref<HTMLElement | null>(null)
-const popupRef = ref<HTMLElement | null>(null)
 
 const {
   mapInstance,
@@ -69,7 +64,34 @@ defineExpose({
   updateSize: () => mapInstance.value?.resize(),
 })
 
+const appSettingsStore = useAppSettingsStore()
+
+const mapWrapperRef = ref<HTMLElement | null>(null)
+const popupRef = ref<HTMLElement | null>(null)
 const isFullscreen = ref(false)
+const activeLayerId = ref<string>('maptilerStreets')
+const availableLayers = shallowRef<MapLayerOption[]>([])
+
+watch(activeLayerId, (newId) => {
+  applyTileLayer(newId)
+})
+watch(() => props.center, (newCenter) => {
+  mapInstance.value?.flyTo({ center: newCenter, duration: 500 })
+})
+watch(() => props.markers, (newMarkers) => {
+  if (isMapReady.value) {
+    updateMarkers(newMarkers)
+  }
+})
+watch(() => props.routes, (newRoutes) => {
+  if (isMapReady.value) {
+    updateRoutes(newRoutes || [])
+
+    if (props.autoPan && ((newRoutes && newRoutes.length > 0) || props.markers.length > 0)) {
+      fitViewToMarkers()
+    }
+  }
+})
 
 async function toggleFullscreen() {
   if (!mapWrapperRef.value)
@@ -99,18 +121,17 @@ async function toggleFullscreen() {
       isFullscreen.value = true
     }
   }
+
   nextTick(() => {
     mapInstance.value?.resize()
   })
 }
-
 function handleFsChange() {
   isFullscreen.value = document.fullscreenElement === mapWrapperRef.value
   nextTick(() => {
     mapInstance.value?.resize()
   })
 }
-
 function handleFsKeyDown(e: KeyboardEvent) {
   if (e.key === 'Escape' && isFullscreen.value && !document.fullscreenElement) {
     isFullscreen.value = false
@@ -119,16 +140,12 @@ function handleFsKeyDown(e: KeyboardEvent) {
     })
   }
 }
-
-const appSettingsStore = useAppSettingsStore()
-const activeLayerId = ref<string>('maptilerStreets')
-const availableLayers = shallowRef<MapLayerOption[]>([])
-
 function applyTileLayer(newId: string) {
   if (!isMapReady.value)
     return
 
   const customIndex = availableLayers.value.findIndex(l => l.id === 'custom')
+
   if (customIndex !== -1) {
     const updatedCustomStyle = getMapStyle('custom')
     const updatedLayers = [...availableLayers.value]
@@ -149,112 +166,97 @@ function applyTileLayer(newId: string) {
   }
 }
 
-watch(
-  activeLayerId,
-  (newId) => {
-    applyTileLayer(newId)
-  },
-)
+async function initializeAvailableLayers() {
+  if (props.customLayers) {
+    availableLayers.value = props.customLayers
+    activeLayerId.value = props.customLayers[0]?.id || 'osm'
 
-watch(
-  () => props.center,
-  (newCenter) => {
-    mapInstance.value?.flyTo({ center: newCenter, duration: 500 })
-  },
-)
+    return
+  }
 
-watch(
-  () => props.markers,
-  (newMarkers) => {
-    if (isMapReady.value) {
-      updateMarkers(newMarkers)
-    }
-  },
-)
+  const layers = await createDefaultMapLayers()
+  availableLayers.value = layers
+  activeLayerId.value = getPreferredMapLayerId(layers)
+}
 
-watch(
-  () => props.routes,
-  (newRoutes) => {
-    if (isMapReady.value) {
-      updateRoutes(newRoutes || [])
-      if (props.autoPan && ((newRoutes && newRoutes.length > 0) || props.markers.length > 0)) {
-        fitViewToMarkers()
-      }
-    }
-  },
-)
+async function createDefaultMapLayers(): Promise<MapLayerOption[]> {
+  const layers: MapLayerOption[] = []
+
+  if (await checkMapTilerAvailability()) {
+    layers.push({ id: 'maptilerStreets', label: TILE_SOURCES.maptilerStreets.label, icon: TILE_SOURCES.maptilerStreets.icon, style: getMapStyle('maptilerStreets') })
+    layers.push({ id: 'maptilerOutdoor', label: TILE_SOURCES.maptilerOutdoor.label, icon: TILE_SOURCES.maptilerOutdoor.icon, style: getMapStyle('maptilerOutdoor') })
+    layers.push({ id: 'satellite', label: TILE_SOURCES.satellite.label, icon: TILE_SOURCES.satellite.icon, style: getMapStyle('satellite') })
+  }
+
+  layers.push({
+    id: 'custom',
+    label: appSettingsStore.customTileName || TILE_SOURCES.custom.label,
+    icon: TILE_SOURCES.custom.icon,
+    style: getMapStyle('custom'),
+  })
+
+  return layers
+}
+
+function getPreferredMapLayerId(layers: MapLayerOption[]): string {
+  const preferredSource = appSettingsStore.activeTileSource
+
+  return preferredSource && layers.some(layer => layer.id === preferredSource)
+    ? preferredSource
+    : layers[0].id
+}
+
+async function initializeKitMap() {
+  const initialStyle = availableLayers.value.find(l => l.id === activeLayerId.value)?.style || getMapStyle('maptilerStreets')
+
+  const container = mapWrapperRef.value
+
+  if (!container)
+    return
+
+  await initMap(container, popupRef.value, {
+    center: props.center,
+    zoom: props.zoom,
+    pitch: props.pitch,
+    bearing: props.bearing,
+    autoPan: props.autoPan,
+    initialStyle,
+  })
+
+  if (mapInstance.value)
+    registerMapEvents(mapInstance.value)
+}
+
+function registerMapEvents(map: MapLibreMap) {
+  map.on('click', (event) => {
+    emit('click', [event.lngLat.lng, event.lngLat.lat])
+  })
+  emit('mapReady', map)
+
+  if (props.markers.length > 0)
+    updateMarkers(props.markers)
+
+  if (props.routes.length > 0)
+    updateRoutes(props.routes)
+
+  if (shouldAutoPanToContent())
+    fitViewToMarkers()
+}
+
+function shouldAutoPanToContent(): boolean {
+  return props.autoPan && (props.markers.length > 0 || props.routes.length > 0)
+}
 
 onMounted(async () => {
   if (!mapWrapperRef.value)
     return
 
-  if (props.customLayers) {
-    availableLayers.value = props.customLayers
-    activeLayerId.value = props.customLayers[0]?.id || 'osm'
-  }
-  else {
-    const isMapTilerAvailable = await checkMapTilerAvailability()
-    const layers: MapLayerOption[] = []
-
-    if (isMapTilerAvailable) {
-      layers.push({ id: 'maptilerStreets', label: TILE_SOURCES.maptilerStreets.label, icon: TILE_SOURCES.maptilerStreets.icon, style: getMapStyle('maptilerStreets') })
-      layers.push({ id: 'maptilerOutdoor', label: TILE_SOURCES.maptilerOutdoor.label, icon: TILE_SOURCES.maptilerOutdoor.icon, style: getMapStyle('maptilerOutdoor') })
-      layers.push({ id: 'satellite', label: TILE_SOURCES.satellite.label, icon: TILE_SOURCES.satellite.icon, style: getMapStyle('satellite') })
-    }
-
-    layers.push({
-      id: 'custom',
-      label: appSettingsStore.customTileName || TILE_SOURCES.custom.label,
-      icon: TILE_SOURCES.custom.icon,
-      style: getMapStyle('custom'),
-    })
-
-    availableLayers.value = layers
-    const preferredSource = appSettingsStore.activeTileSource
-    if (preferredSource && layers.some(l => l.id === preferredSource)) {
-      activeLayerId.value = preferredSource
-    }
-    else {
-      activeLayerId.value = layers[0].id
-    }
-  }
-
-  const initialStyle = availableLayers.value.find(l => l.id === activeLayerId.value)?.style || getMapStyle('maptilerStreets')
-
-  await initMap(
-    mapWrapperRef.value,
-    popupRef.value,
-    {
-      center: props.center,
-      zoom: props.zoom,
-      pitch: props.pitch,
-      bearing: props.bearing,
-      autoPan: props.autoPan,
-      initialStyle,
-    },
-  )
-
-  if (mapInstance.value) {
-    mapInstance.value.on('click', (event) => {
-      emit('click', [event.lngLat.lng, event.lngLat.lat])
-    })
-    emit('mapReady', mapInstance.value)
-
-    if (props.markers.length > 0) {
-      updateMarkers(props.markers)
-    }
-    if (props.routes && props.routes.length > 0) {
-      updateRoutes(props.routes)
-    }
-    if (props.autoPan && (props.markers.length > 0 || (props.routes && props.routes.length > 0))) {
-      fitViewToMarkers()
-    }
-  }
+  await initializeAvailableLayers()
+  await initializeKitMap()
 
   document.addEventListener('fullscreenchange', handleFsChange)
   window.addEventListener('keydown', handleFsKeyDown)
 })
-
 onUnmounted(() => {
   document.removeEventListener('fullscreenchange', handleFsChange)
   window.removeEventListener('keydown', handleFsKeyDown)

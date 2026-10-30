@@ -38,6 +38,7 @@ export function useActivityMapInteractions(options: UseActivityMapInteractionsOp
 
   function syncMarkers() {
     const map = mapInstance.value
+
     if (!map)
       return
 
@@ -55,6 +56,7 @@ export function useActivityMapInteractions(options: UseActivityMapInteractionsOp
 
       if (existing) {
         existing.setLngLat([marker.coords.lon, marker.coords.lat])
+
         return
       }
 
@@ -91,6 +93,7 @@ export function useActivityMapInteractions(options: UseActivityMapInteractionsOp
           clearTimeout(hoverTimeout)
           hoverTimeout = null
         }
+
         hoveredActivity.value = payload ?? null
 
         if (hoverPopupRef.value) {
@@ -102,6 +105,7 @@ export function useActivityMapInteractions(options: UseActivityMapInteractionsOp
               className: 'activity-hover-popup',
             }).setDOMContent(hoverPopupRef.value)
           }
+
           hoverPopup.setLngLat([marker.coords.lon, marker.coords.lat]).addTo(map)
         }
       })
@@ -125,12 +129,14 @@ export function useActivityMapInteractions(options: UseActivityMapInteractionsOp
     if (hoverPopup) {
       hoverPopup.remove()
     }
+
     hoveredActivity.value = null
   }
 
   function startCloseTimeout() {
     if (hoverTimeout)
       clearTimeout(hoverTimeout)
+
     hoverTimeout = setTimeout(() => {
       if (!isTooltipHovered.value)
         clearHoverState()
@@ -139,6 +145,7 @@ export function useActivityMapInteractions(options: UseActivityMapInteractionsOp
 
   function onTooltipMouseEnter() {
     isTooltipHovered.value = true
+
     if (hoverTimeout) {
       clearTimeout(hoverTimeout)
       hoverTimeout = null
@@ -158,6 +165,7 @@ export function useActivityMapInteractions(options: UseActivityMapInteractionsOp
   function focusOnLocation(coords: [number, number], zoom = 14) {
     if (!mapInstance.value)
       return
+
     mapInstance.value.flyTo({ center: coords, zoom, duration: 500 })
   }
 
@@ -167,8 +175,10 @@ export function useActivityMapInteractions(options: UseActivityMapInteractionsOp
     if (hoverTimeout) {
       clearTimeout(hoverTimeout)
     }
+
     markersMap.forEach(m => m.remove())
     markersMap.clear()
+
     if (hoverPopup) {
       hoverPopup.remove()
       hoverPopup = null

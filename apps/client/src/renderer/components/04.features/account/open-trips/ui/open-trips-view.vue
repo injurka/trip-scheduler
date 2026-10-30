@@ -10,10 +10,12 @@ import { useOpenTrips } from '../composables/use-open-trips'
 import OpenTripCard from './components/open-trip-card.vue'
 import OpenTripSkeleton from './components/open-trip-skeleton.vue'
 
-const props = defineProps<{
+interface Props {
   userId: string
   isOwnProfile: boolean
-}>()
+}
+
+const props = defineProps<Props>()
 
 const {
   trips,
@@ -28,19 +30,12 @@ const {
 } = useOpenTrips(props.userId)
 
 const isFiltersOpen = ref(false)
-
 const statusOptions = [
   { value: 'planned', label: 'Запланировано' },
   { value: 'completed', label: 'Завершено' },
   { value: 'draft', label: 'Черновик' },
 ]
-
 const selectedCity = ref<GeoPlaceRef | null>(null)
-
-function onCitySelected(value: GeoPlaceRef | GeoPlaceRef[] | null) {
-  selectedCity.value = Array.isArray(value) ? value[0] ?? null : value
-  filters.value.cityIds = selectedCity.value ? [selectedCity.value.id] : []
-}
 
 const selectedTag = computed({
   get: () => filters.value.tags[0] || null,
@@ -53,6 +48,10 @@ watch(isFiltersOpen, (isOpen) => {
   }
 })
 
+function onCitySelected(value: GeoPlaceRef | GeoPlaceRef[] | null) {
+  selectedCity.value = Array.isArray(value) ? value[0] ?? null : value
+  filters.value.cityIds = selectedCity.value ? [selectedCity.value.id] : []
+}
 function clearFilters() {
   filters.value.search = ''
   filters.value.cityIds = []

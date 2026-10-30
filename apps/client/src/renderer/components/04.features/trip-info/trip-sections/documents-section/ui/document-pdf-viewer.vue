@@ -14,25 +14,22 @@ interface Props {
 
 const props = defineProps<Props>()
 
-// Настройка веб-воркера для PDF.js
-if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
-  pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl
-}
-
 const isLoading = ref(true)
 const errorMessage = ref<string | null>(null)
 const currentPage = ref(1)
 const totalPages = ref(0)
 const zoomLevel = ref(1.0)
 const naturalWidth = ref(600)
-
 const containerRef = ref<HTMLElement | null>(null)
 const canvasRef = ref<HTMLCanvasElement | null>(null)
-
 const pdfDoc = shallowRef<PDFDocumentProxy | null>(null)
 let currentRenderTask: RenderTask | null = null
 
 const zoomPercent = computed(() => `${Math.round(zoomLevel.value * 100)}%`)
+
+watch(() => props.url, () => {
+  loadPdf()
+})
 
 async function fetchPdfData(url: string): Promise<ArrayBuffer> {
   const absoluteUrl = resolveApiUrl(url)
@@ -44,6 +41,7 @@ async function fetchPdfData(url: string): Promise<ArrayBuffer> {
       const cache = await caches.open('trip-scheduler-offline-media')
       const match = await cache.match(absoluteUrl)
         || (urlWithoutToken ? await cache.match(urlWithoutToken) : null)
+
       if (match) {
         return await match.arrayBuffer()
       }
@@ -55,12 +53,13 @@ async function fetchPdfData(url: string): Promise<ArrayBuffer> {
 
   // 2. Сетевой запрос
   const response = await fetch(absoluteUrl)
+
   if (!response.ok) {
     throw new Error(`Ошибка загрузки (${response.status}: ${response.statusText})`)
   }
+
   return await response.arrayBuffer()
 }
-
 async function renderCurrentPage() {
   if (!pdfDoc.value || !canvasRef.value)
     return
@@ -103,10 +102,10 @@ async function renderCurrentPage() {
     if (err?.name === 'RenderingCancelledException') {
       return
     }
+
     console.error('[PdfViewer] Ошибка рендеринга страницы:', err)
   }
 }
-
 async function fitToWidth() {
   if (!pdfDoc.value)
     return
@@ -117,19 +116,21 @@ async function fitToWidth() {
     naturalWidth.value = unscaledViewport.width
 
     await nextTick()
+
     if (containerRef.value) {
       const containerWidth = containerRef.value.clientWidth - 32
+
       if (containerWidth > 0 && unscaledViewport.width > 0) {
         zoomLevel.value = Math.min(2.0, Math.max(0.4, Number((containerWidth / unscaledViewport.width).toFixed(2))))
       }
     }
+
     await renderCurrentPage()
   }
   catch (e) {
     console.warn('[PdfViewer] Ошибка fitToWidth:', e)
   }
 }
-
 async function loadPdf() {
   if (!props.url)
     return
@@ -158,48 +159,44 @@ async function loadPdf() {
     isLoading.value = false
   }
 }
-
 function prevPage() {
   if (currentPage.value > 1) {
     currentPage.value--
     renderCurrentPage()
   }
 }
-
 function nextPage() {
   if (currentPage.value < totalPages.value) {
     currentPage.value++
     renderCurrentPage()
   }
 }
-
 function zoomIn() {
   zoomLevel.value = Math.min(3.0, Number((zoomLevel.value + 0.15).toFixed(2)))
   renderCurrentPage()
 }
-
 function zoomOut() {
   zoomLevel.value = Math.max(0.3, Number((zoomLevel.value - 0.15).toFixed(2)))
   renderCurrentPage()
 }
-
 function resetZoom() {
   fitToWidth()
 }
 
-watch(() => props.url, () => {
-  loadPdf()
-})
+// Настройка веб-воркера для PDF.js
+if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
+  pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl
+}
 
 onMounted(() => {
   loadPdf()
 })
-
 onBeforeUnmount(() => {
   if (currentRenderTask) {
     currentRenderTask.cancel()
     currentRenderTask = null
   }
+
   if (pdfDoc.value) {
     pdfDoc.value.cleanup()
     pdfDoc.value.loadingTask?.destroy()
@@ -283,7 +280,12 @@ onBeforeUnmount(() => {
 
     <!-- Загрузка -->
     <div v-if="isLoading" class="pdf-state-box">
-      <Icon icon="mdi:loading" class="spin" width="32" height="32" />
+      <Icon
+        icon="mdi:loading"
+        class="spin"
+        width="32"
+        height="32"
+      />
       <span>Загрузка PDF-документа...</span>
     </div>
 
@@ -291,7 +293,12 @@ onBeforeUnmount(() => {
     <div v-else-if="errorMessage" class="pdf-state-box is-error">
       <Icon icon="mdi:alert-circle-outline" width="36" height="36" />
       <span class="error-text">{{ errorMessage }}</span>
-      <KitBtn size="sm" variant="outlined" icon="mdi:reload" @click="loadPdf">
+      <KitBtn
+        size="sm"
+        variant="outlined"
+        icon="mdi:reload"
+        @click="loadPdf"
+      >
         Повторить попытку
       </KitBtn>
     </div>

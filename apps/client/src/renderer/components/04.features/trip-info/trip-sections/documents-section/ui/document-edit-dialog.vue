@@ -14,7 +14,6 @@ interface Props {
 }
 
 const props = defineProps<Props>()
-
 const emit = defineEmits<{
   (e: 'update:visible', value: boolean): void
   (e: 'save', updatedDoc: DocumentFile): void
@@ -27,6 +26,16 @@ const localAccess = ref<'public' | 'private'>('private')
 const localNote = ref('')
 const localIsFavorite = ref(false)
 
+const fileExtension = computed(() => {
+  if (!props.document)
+    return ''
+
+  return props.document.url.split('.').pop()?.toLowerCase().split('?')[0] || ''
+})
+const fileTypeInfo = computed(() => {
+  return getFileTypeInfo(fileExtension.value)
+})
+
 watch(() => props.document, (doc) => {
   if (doc) {
     localTitle.value = doc.title || ''
@@ -38,25 +47,16 @@ watch(() => props.document, (doc) => {
   }
 }, { immediate: true })
 
-const fileExtension = computed(() => {
-  if (!props.document)
-    return ''
-  return props.document.url.split('.').pop()?.toLowerCase().split('?')[0] || ''
-})
-
-const fileTypeInfo = computed(() => {
-  return getFileTypeInfo(fileExtension.value)
-})
-
 function formatBytes(bytes: number) {
   if (!bytes || bytes === 0)
     return '0 Байт'
+
   const k = 1024
   const sizes = ['Байт', 'КБ', 'МБ', 'ГБ']
   const i = Math.floor(Math.log(bytes) / Math.log(k))
+
   return `${Number.parseFloat((bytes / k ** i).toFixed(1))} ${sizes[i]}`
 }
-
 function handleSave() {
   if (!props.document)
     return

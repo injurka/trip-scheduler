@@ -26,91 +26,10 @@ const props = withDefaults(defineProps<Props>(), {
   isFullScreen: false,
 })
 
-const sharedViewer = inject(SHARED_VIEWER_KEY)
-
 const vaultStore = useVaultMemoriesStore()
 const { plan: tripData } = useModuleStore(['plan'])
-const { getSelectedDay } = storeToRefs(tripData)
-
-const photoWrapperRef = ref<HTMLElement | null>(null)
-const timeEditorRef = ref<HTMLElement | null>(null)
-const ratingMenuRef = ref<HTMLElement | null>(null)
-
 const { width: windowWidth } = useWindowSize()
-const { isMorphed, morphStyle, placeholderStyle, enterMorph, leaveMorph } = useMorph(photoWrapperRef)
 const preferredQuality = useStorage<ImageQuality>('viewer-quality-preference', 'large')
-
-const isDesktop = computed(() => windowWidth.value >= 1024)
-
-const isVideo = computed(() =>
-  props.memory.image?.mediaType === 'video'
-  || /\.(?:mp4|webm|mov|mkv|avi|ogg|quicktime)$/i.test(props.memory.image?.url || ''),
-)
-
-const videoRef = ref<HTMLVideoElement | null>(null)
-const isVideoPlaying = ref(false)
-
-function handleVideoMouseEnter() {
-  if (videoRef.value && !isMorphed.value && !props.isFullScreen) {
-    videoRef.value.play().catch(() => {})
-    isVideoPlaying.value = true
-  }
-}
-
-function handleVideoMouseLeave() {
-  if (videoRef.value && !isMorphed.value && !props.isFullScreen) {
-    videoRef.value.pause()
-    videoRef.value.currentTime = 0
-    isVideoPlaying.value = false
-  }
-}
-
-const imageSource = computed(() => {
-  const image = props.memory.image
-
-  if (!image)
-    return { url: '', variants: { small: '', medium: '', large: '' } }
-
-  return resolveMemoryImageSource(
-    image,
-    vaultStore,
-    tripData.currentTripId,
-    getSelectedDay.value?.id,
-  )
-})
-
-const imagePosterForRender = computed(() => {
-  if (!isVideo.value)
-    return undefined
-  return imageSource.value.variants.poster || imageSource.value.variants.small || undefined
-})
-
-const imageSrcForRender = computed(() => {
-  if (isVideo.value) {
-    return imageSource.value.variants.web || imageSource.value.variants.large || imageSource.value.url
-  }
-  if (isMorphed.value || props.isFullScreen) {
-    switch (preferredQuality.value) {
-      case 'medium': return imageSource.value.variants.medium
-      case 'large': return imageSource.value.variants.large
-      case 'original': return imageSource.value.url
-      default: return imageSource.value.variants.large
-    }
-  }
-  return isDesktop.value
-    ? imageSource.value.variants.medium
-    : imageSource.value.variants.small
-})
-
-function setQuality(quality: ImageQuality) {
-  preferredQuality.value = quality
-}
-
-function handleMorphTrigger() {
-  if (isDesktop.value && photoWrapperRef.value)
-    enterMorph()
-}
-
 const {
   memoryComment,
   saveComment,
@@ -127,6 +46,92 @@ const {
   isViewMode: () => props.isViewMode,
 })
 
+const sharedViewer = inject(SHARED_VIEWER_KEY)
+const { getSelectedDay } = storeToRefs(tripData)
+const photoWrapperRef = ref<HTMLElement | null>(null)
+
+const {
+  isMorphed,
+  morphStyle,
+  placeholderStyle,
+  enterMorph,
+  leaveMorph,
+} = useMorph(photoWrapperRef)
+
+const timeEditorRef = ref<HTMLElement | null>(null)
+const ratingMenuRef = ref<HTMLElement | null>(null)
+const videoRef = ref<HTMLVideoElement | null>(null)
+const isVideoPlaying = ref(false)
+const isRatingMenuOpen = ref(false)
+const hoveredRating = ref(0)
+
+const isDesktop = computed(() => windowWidth.value >= 1024)
+const isVideo = computed(() =>
+  props.memory.image?.mediaType === 'video'
+  || /\.(?:mp4|webm|mov|mkv|avi|ogg|quicktime)$/i.test(props.memory.image?.url || ''))
+const imageSource = computed(() => {
+  const image = props.memory.image
+
+  if (!image)
+    return { url: '', variants: { small: '', medium: '', large: '' } }
+
+  return resolveMemoryImageSource(
+    image,
+    vaultStore,
+    tripData.currentTripId,
+    getSelectedDay.value?.id,
+  )
+})
+const imagePosterForRender = computed(() => {
+  if (!isVideo.value)
+    return undefined
+
+  return imageSource.value.variants.poster || imageSource.value.variants.small || undefined
+})
+const imageSrcForRender = computed(() => {
+  if (isVideo.value) {
+    return imageSource.value.variants.web || imageSource.value.variants.large || imageSource.value.url
+  }
+
+  if (isMorphed.value || props.isFullScreen) {
+    switch (preferredQuality.value) {
+      case 'medium': return imageSource.value.variants.medium
+      case 'large': return imageSource.value.variants.large
+      case 'original': return imageSource.value.url
+      default: return imageSource.value.variants.large
+    }
+  }
+
+  return isDesktop.value
+    ? imageSource.value.variants.medium
+    : imageSource.value.variants.small
+})
+
+watch(() => props.isFullScreen, () => {
+  if (isMorphed.value)
+    leaveMorph()
+})
+
+function handleVideoMouseEnter() {
+  if (videoRef.value && !isMorphed.value && !props.isFullScreen) {
+    videoRef.value.play().catch(() => {})
+    isVideoPlaying.value = true
+  }
+}
+function handleVideoMouseLeave() {
+  if (videoRef.value && !isMorphed.value && !props.isFullScreen) {
+    videoRef.value.pause()
+    videoRef.value.currentTime = 0
+    isVideoPlaying.value = false
+  }
+}
+function setQuality(quality: ImageQuality) {
+  preferredQuality.value = quality
+}
+function handleMorphTrigger() {
+  if (isDesktop.value && photoWrapperRef.value)
+    enterMorph()
+}
 function handleWrapperClick() {
   if (isMorphed.value) {
     leaveMorph()
@@ -135,30 +140,21 @@ function handleWrapperClick() {
     sharedViewer?.openImageViewer(props.memory)
   }
 }
-
-const isRatingMenuOpen = ref(false)
-const hoveredRating = ref(0)
-
 function toggleRatingMenu() {
   if (props.isViewMode)
     return
+
   isRatingMenuOpen.value = !isRatingMenuOpen.value
 }
-
 function handleRate(star: number) {
   saveRating(star)
   isRatingMenuOpen.value = false
 }
-
 function getStarIcon(star: number) {
   const currentVal = hoveredRating.value || props.memory.rating || 0
+
   return star <= currentVal ? 'mdi:star' : 'mdi:star-outline'
 }
-
-watch(() => props.isFullScreen, () => {
-  if (isMorphed.value)
-    leaveMorph()
-})
 
 onClickOutside(timeEditorRef, saveTime)
 onClickOutside(ratingMenuRef, () => isRatingMenuOpen.value = false)
@@ -199,7 +195,12 @@ onClickOutside(ratingMenuRef, () => isRatingMenuOpen.value = false)
           @mouseenter="handleVideoMouseEnter"
           @mouseleave="handleVideoMouseLeave"
         />
-        <KitImage v-else :src="imageSrcForRender" :variants="imageSource.variants" object-fit="cover" />
+        <KitImage
+          v-else
+          :src="imageSrcForRender"
+          :variants="imageSource.variants"
+          object-fit="cover"
+        />
 
         <div v-if="isVideo && !isMorphed && !isFullScreen && !isVideoPlaying" class="video-play-badge">
           <Icon icon="mdi:play-circle" />

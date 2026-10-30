@@ -1,6 +1,4 @@
-import type { Meta, StoryObj } from '@storybook/vue3'
-
-import type { ImageViewerImage, ImageViewerOptions } from '../../src/renderer/components/01.kit/kit-image-viewer'
+import type { Meta, StoryObj } from '@storybook/vue3'import type { ImageViewerImage, ImageViewerOptions } from '../../src/renderer/components/01.kit/kit-image-viewer'
 import { KitImageViewer, useImageViewer } from '../../src/renderer/components/01.kit/kit-image-viewer'
 
 /**

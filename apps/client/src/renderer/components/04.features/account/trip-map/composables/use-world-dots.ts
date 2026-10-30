@@ -13,6 +13,7 @@ export function useWorldDots() {
 
   async function load(): Promise<void> {
     const r = await fetch('/ne_110m_land.geojson')
+
     if (!r.ok)
       throw new Error(`[WorldDots] GeoJSON ${r.status}`)
 
@@ -38,20 +39,34 @@ export function useWorldDots() {
     ctx.beginPath()
     d3geo.geoPath(proj, ctx)(geoData!)
     ctx.fill()
-    const px = ctx.getImageData(0, 0, w, h).data
+    const px = ctx.getImageData(
+      0,
+      0,
+      w,
+      h,
+    ).data
 
     function createPath(spacing: number, radius: number) {
       const path = new Path2D()
+
       for (let y = spacing / 2; y < h; y += spacing) {
         for (let x = spacing / 2; x < w; x += spacing) {
           const xi = x | 0
           const yi = y | 0
+
           if (px[(yi * w + xi) * 4 + 3] > 128) {
             path.moveTo(x + radius, y)
-            path.arc(x, y, radius, 0, Math.PI * 2)
+            path.arc(
+              x,
+              y,
+              radius,
+              0,
+              Math.PI * 2,
+            )
           }
         }
       }
+
       return path
     }
 
@@ -62,5 +77,12 @@ export function useWorldDots() {
     isBuilding.value = false
   }
 
-  return { dotPathLow, dotPathHigh, baseProj, isBuilding, load, build }
+  return {
+    dotPathLow,
+    dotPathHigh,
+    baseProj,
+    isBuilding,
+    load,
+    build,
+  }
 }

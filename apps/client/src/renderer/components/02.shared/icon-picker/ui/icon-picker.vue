@@ -25,19 +25,17 @@ const props = withDefaults(defineProps<Props>(), {
   inline: false,
   chevron: true,
 })
-
 const emit = defineEmits<{
   (e: 'update:modelValue', icon: string): void
 }>()
 
-const searchInputRef = ref<HTMLInputElement | null>(null)
-const isOpen = ref(false)
-
 const { searchQuery, activeCategoryId, filteredIcons, reset } = useIconPicker()
 
+const searchInputRef = ref<HTMLInputElement | null>(null)
+const isOpen = ref(false)
 const ALL_ID = 'all'
-
 const allCategoryTab = { id: ALL_ID, label: 'Все', icon: 'mdi:dots-grid' }
+
 const categoryTabs = computed(() => [allCategoryTab, ...iconCategories])
 
 // Синхронизация: фокусируем поиск при открытии, сбрасываем при закрытии
@@ -58,19 +56,18 @@ watch(isOpen, (val) => {
 function open() {
   if (props.disabled)
     return
+
   isOpen.value = true
 }
-
 function close() {
   isOpen.value = false
 }
-
 function selectIcon(icon: string) {
   emit('update:modelValue', icon)
+
   if (!props.inline)
     close()
 }
-
 function setCategory(id: string) {
   activeCategoryId.value = id
   searchQuery.value = ''
@@ -78,7 +75,6 @@ function setCategory(id: string) {
     searchInputRef.value?.focus()
   })
 }
-
 function clearSearch() {
   searchQuery.value = ''
   nextTick(() => {

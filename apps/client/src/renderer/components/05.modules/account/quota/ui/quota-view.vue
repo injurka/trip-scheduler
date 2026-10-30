@@ -131,7 +131,12 @@ onMounted(() => {
                 >
                   Ваш текущий тариф
                 </KitBtn>
-                <KitBtn v-else color="primary" style="width: 100%;" :disabled="plan.isDeveloping">
+                <KitBtn
+                  v-else
+                  color="primary"
+                  style="width: 100%;"
+                  :disabled="plan.isDeveloping"
+                >
                   Лень делать
                 </KitBtn>
               </div>

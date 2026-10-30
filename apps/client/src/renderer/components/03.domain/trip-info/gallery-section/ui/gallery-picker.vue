@@ -16,6 +16,7 @@ interface Props {
   visible: boolean
   initialSelectedUrls: string[]
 }
+type FilterMode = 'all' | 'selected' | 'unselected' | 'unused'
 
 const props = defineProps<Props>()
 const emit = defineEmits<{
@@ -24,9 +25,9 @@ const emit = defineEmits<{
 }>()
 
 const store = useModuleStore(['routeGallery', 'plan'])
+
 const { tripImages, isFetchingImages } = storeToRefs(store.routeGallery)
 const { trip, days } = storeToRefs(store.plan)
-
 const selectedUrls = ref<Set<string>>(new Set())
 const containerRef = ref<HTMLElement | null>(null)
 
@@ -35,22 +36,20 @@ const { width: containerWidth } = useElementSize(containerRef)
 const searchQuery = ref('')
 const debouncedSearch = refDebounced(searchQuery, 300)
 const sortOrder = ref<'newest' | 'oldest' | 'size_desc'>('newest')
-
-type FilterMode = 'all' | 'selected' | 'unselected' | 'unused'
 const filterMode = ref<FilterMode>('all')
-
 const sortOptions: KitDropdownItem[] = [
   { value: 'newest', label: 'Сначала новые', icon: 'mdi:sort-calendar-descending' },
   { value: 'oldest', label: 'Сначала старые', icon: 'mdi:sort-calendar-ascending' },
   { value: 'size_desc', label: 'По размеру', icon: 'mdi:sort-numeric-descending' },
 ]
-
 const filterOptions: KitDropdownItem[] = [
   { value: 'all', label: 'Все медиа', icon: 'mdi:image-multiple-outline' },
   { value: 'selected', label: 'Выбранные здесь', icon: 'mdi:checkbox-marked-circle-outline' },
   { value: 'unselected', label: 'Не выбранные здесь', icon: 'mdi:checkbox-blank-circle-outline' },
   { value: 'unused', label: 'Нигде не используются', icon: 'mdi:image-broken-variant' },
 ]
+const ITEM_MIN_WIDTH = 160
+const GAP = 8
 
 const globallyUsedUrls = computed(() => {
   const used = new Set<string>()
@@ -70,6 +69,7 @@ const globallyUsedUrls = computed(() => {
   if (trip.value && trip.value.sections) {
     trip.value.sections.forEach((section) => {
       const content = section.content as any
+
       if (content && Array.isArray(content.imageUrls)) {
         content.imageUrls.forEach((url: string) => used.add(url))
       }
@@ -78,15 +78,6 @@ const globallyUsedUrls = computed(() => {
 
   return used
 })
-
-watch(() => props.visible, (isOpen) => {
-  if (isOpen) {
-    selectedUrls.value = new Set(props.initialSelectedUrls)
-    searchQuery.value = ''
-    filterMode.value = 'all'
-  }
-})
-
 const processedImages = computed(() => {
   let images = [...tripImages.value]
 
@@ -105,8 +96,7 @@ const processedImages = computed(() => {
   if (debouncedSearch.value) {
     const query = debouncedSearch.value.toLowerCase()
     images = images.filter(img =>
-      img.originalName.toLowerCase().includes(query),
-    )
+      img.originalName.toLowerCase().includes(query))
   }
 
   images.sort((a, b) => {
@@ -124,21 +114,20 @@ const processedImages = computed(() => {
 
   return images
 })
-
-const ITEM_MIN_WIDTH = 160
-const GAP = 8
 const columnsCount = computed(() => {
   if (containerWidth.value <= 0)
     return 3
+
   return Math.floor((containerWidth.value + GAP) / (ITEM_MIN_WIDTH + GAP)) || 1
 })
-
 const virtualRows = computed(() => {
   const cols = columnsCount.value
   const rows: TripMedia[][] = []
+
   for (let i = 0; i < processedImages.value.length; i += cols) {
     rows.push(processedImages.value.slice(i, i + cols))
   }
+
   return rows
 })
 
@@ -147,15 +136,27 @@ const { list: visibleRows, containerProps, wrapperProps } = useVirtualList(virtu
   overscan: 5,
 })
 
+const bindableContainerProps = computed(() => {
+  const { ref: _, ...rest } = containerProps
+
+  return rest
+})
+const currentSortIcon = computed(() =>
+  sortOptions.find(o => o.value === sortOrder.value)?.icon || 'mdi:sort')
+const currentFilterObj = computed(() =>
+  filterOptions.find(o => o.value === filterMode.value) || filterOptions[0])
+
+watch(() => props.visible, (isOpen) => {
+  if (isOpen) {
+    selectedUrls.value = new Set(props.initialSelectedUrls)
+    searchQuery.value = ''
+    filterMode.value = 'all'
+  }
+})
 watch(containerRef, (el) => {
   if (containerProps.ref) {
     containerProps.ref.value = el
   }
-})
-
-const bindableContainerProps = computed(() => {
-  const { ref: _, ...rest } = containerProps
-  return rest
 })
 
 function toggleSelection(url: string) {
@@ -164,23 +165,13 @@ function toggleSelection(url: string) {
   else
     selectedUrls.value.add(url)
 }
-
 function handleConfirm() {
   emit('confirm', Array.from(selectedUrls.value))
   emit('update:visible', false)
 }
-
 function handleClose() {
   emit('update:visible', false)
 }
-
-const currentSortIcon = computed(() =>
-  sortOptions.find(o => o.value === sortOrder.value)?.icon || 'mdi:sort',
-)
-
-const currentFilterObj = computed(() =>
-  filterOptions.find(o => o.value === filterMode.value) || filterOptions[0],
-)
 </script>
 
 <template>
@@ -222,7 +213,12 @@ const currentFilterObj = computed(() =>
           <!-- Sort Dropdown -->
           <KitDropdown v-model="sortOrder" :items="sortOptions" align="end">
             <template #trigger>
-              <KitBtn variant="outlined" color="secondary" size="sm" :icon="currentSortIcon">
+              <KitBtn
+                variant="outlined"
+                color="secondary"
+                size="sm"
+                :icon="currentSortIcon"
+              >
                 Сортировка
               </KitBtn>
             </template>

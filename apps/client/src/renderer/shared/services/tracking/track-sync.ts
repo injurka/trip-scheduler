@@ -16,64 +16,96 @@ const INTERVAL_IDLE_MS = 60_000 // 1 мин периодический опро�
 let timer: ReturnType<typeof setInterval> | null = null
 let running = false
 
+function normalizeFiniteValue(value: number | null, allowNegative: boolean): number | null {
+  if (value == null || !Number.isFinite(value))
+    return null
+
+  if (!allowNegative && value < 0)
+    return null
+
+  return value
+}
+
+function normalizeConfidence(value: number): number {
+  if (value > 0 && value <= 1)
+    return Math.round(value * 100)
+
+  return Math.round(Math.min(100, Math.max(0, value || 0)))
+}
+
+function toTrackingInput(point: TrackPoint) {
+  const bearing = normalizeFiniteValue(point.bearing, true)
+  const deviceConfidence = point.deviceActivityConfidence
+
+  return {
+    clientPointId: point.clientPointId,
+    sessionId: point.sessionId,
+    tsUtc: Math.round(point.tsUtc),
+    lat: point.lat,
+    lng: point.lng,
+    altitude: normalizeFiniteValue(point.altitude, true),
+    accuracy: normalizeFiniteValue(point.accuracy, false),
+    speed: normalizeFiniteValue(point.speed, false),
+    bearing: bearing == null ? null : (((bearing % 360) + 360) % 360),
+    activity: point.activity,
+    activityConfidence: normalizeConfidence(point.activityConfidence),
+    // Preserve device activity evidence separately from GPS classification.
+    deviceActivity: point.deviceActivity ?? null,
+    deviceActivityConfidence: deviceConfidence == null
+      ? null
+      : Math.round(Math.min(100, Math.max(0, deviceConfidence))),
+  }
+}
+
 async function syncOnce(): Promise<number> {
   const auth = useAuthStore()
+
   if (!auth.isAuthenticated)
     return 0
 
   let total = 0
+
   for (let i = 0; i < MAX_BATCHES_PER_RUN; i++) {
     const raw = await geotrack.getUnsent(BATCH_SIZE)
+
     if (raw.length === 0)
       break
 
     const points: TrackPoint[] = []
+
     for (const r of raw) {
       const p = parseTrackPoint(r)
+
       if (p)
         points.push(p)
     }
+
     if (points.length === 0) {
       const invalidIds = raw.map(r => r.clientPointId).filter(Boolean)
+
       if (invalidIds.length > 0) {
         await useTrackingStore().markSynced(invalidIds)
       }
+
       break
     }
 
     const result = await (trpc as any).tracking.ingestBatch.mutate({
-      points: points.map(p => ({
-        clientPointId: p.clientPointId,
-        sessionId: p.sessionId,
-        tsUtc: Math.round(p.tsUtc),
-        lat: p.lat,
-        lng: p.lng,
-        altitude: p.altitude != null && Number.isFinite(p.altitude) ? p.altitude : null,
-        accuracy: p.accuracy != null && Number.isFinite(p.accuracy) && p.accuracy >= 0 ? p.accuracy : null,
-        speed: p.speed != null && Number.isFinite(p.speed) && p.speed >= 0 ? p.speed : null,
-        bearing: p.bearing != null && Number.isFinite(p.bearing) ? (((p.bearing % 360) + 360) % 360) : null,
-        activity: p.activity,
-        activityConfidence: p.activityConfidence <= 1 && p.activityConfidence > 0
-          ? Math.round(p.activityConfidence * 100)
-          : Math.round(Math.min(100, Math.max(0, p.activityConfidence || 0))),
-        // Сигнал Activity Recognition храним отдельно от нашей классификации: на сервере
-        // он нужен, чтобы переобработка дня не теряла независимое от GPS свидетельство.
-        deviceActivity: p.deviceActivity ?? null,
-        deviceActivityConfidence: p.deviceActivityConfidence == null
-          ? null
-          : Math.round(Math.min(100, Math.max(0, p.deviceActivityConfidence))),
-      })),
+      points: points.map(toTrackingInput),
     }) as { accepted: string[], rejectedCount: number }
 
     const acceptedSet = new Set(result.accepted)
     const syncedIds = points.filter(p => acceptedSet.has(p.clientPointId)).map(p => p.clientPointId)
+
     if (syncedIds.length > 0)
       await useTrackingStore().markSynced(syncedIds)
+
     total += syncedIds.length
 
     if (points.length < BATCH_SIZE)
       break
   }
+
   return total
 }
 
@@ -81,7 +113,9 @@ async function syncOnce(): Promise<number> {
 export async function runSync(): Promise<number> {
   if (running)
     return 0
+
   running = true
+
   try {
     return await syncOnce()
   }
@@ -93,6 +127,7 @@ export async function runSync(): Promise<number> {
 export function startSyncWorker(): void {
   if (timer)
     return
+
   // Немедленный запуск синка при старте
   void runSync().catch((err) => {
     console.warn('[Tracking sync worker]', err?.message || err)

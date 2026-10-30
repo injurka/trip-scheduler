@@ -16,13 +16,16 @@ if (typeof window !== 'undefined') {
     workerUrlReady = (async () => {
       try {
         const res = await fetch(staticWorkerUrl)
+
         if (!res.ok)
           throw new Error(`HTTP ${res.status}`)
+
         const blob = new Blob([await res.text()], { type: 'text/javascript' })
         maplibregl.setWorkerUrl(URL.createObjectURL(blob))
       }
       catch (e) {
         console.warn('[map-styles-sources] Не удалось создать blob-воркер, откат на статический URL:', e)
+
         try {
           maplibregl.setWorkerUrl(staticWorkerUrl)
         }
@@ -63,9 +66,11 @@ export const MAPTILER_KEY = String(import.meta.env.VITE_MAPTILER_KEY || '').trim
 export function getEffectiveMapTilerKey(): string {
   if (typeof window !== 'undefined') {
     const raw = localStorage.getItem('app-settings-custom-maptiler-key')
+
     if (raw) {
       try {
         const parsed = JSON.parse(raw)
+
         if (typeof parsed === 'string' && parsed.trim())
           return parsed.trim()
       }
@@ -75,15 +80,18 @@ export function getEffectiveMapTilerKey(): string {
       }
     }
   }
+
   return MAPTILER_KEY
 }
 
 export function getCustomTileUrl(): string {
   if (typeof window !== 'undefined') {
     const raw = localStorage.getItem('app-settings-custom-tile-url')
+
     if (raw) {
       try {
         const parsed = JSON.parse(raw)
+
         if (typeof parsed === 'string' && parsed.trim())
           return parsed.trim()
       }
@@ -93,15 +101,18 @@ export function getCustomTileUrl(): string {
       }
     }
   }
+
   return ''
 }
 
 export function getCustomTileName(): string {
   if (typeof window !== 'undefined') {
     const raw = localStorage.getItem('app-settings-custom-tile-name')
+
     if (raw) {
       try {
         const parsed = JSON.parse(raw)
+
         if (typeof parsed === 'string' && parsed.trim())
           return parsed.trim()
       }
@@ -111,12 +122,14 @@ export function getCustomTileName(): string {
       }
     }
   }
+
   return 'Пользовательские тайлы'
 }
 
 export function createCustomRasterStyle(tileUrl: string, name = 'Custom Tiles'): StyleSpecification {
   const cleanUrl = tileUrl.trim()
   let tiles = [cleanUrl]
+
   if (cleanUrl.includes('{s}')) {
     const subdomains = cleanUrl.includes('cartocdn.com') ? ['a', 'b', 'c', 'd'] : ['a', 'b', 'c']
     tiles = subdomains.map(sub => cleanUrl.replace('{s}', sub))
@@ -205,37 +218,76 @@ export const OSM_STYLE: StyleSpecification = {
   ],
 }
 
+function getCustomMapStyle(): string | StyleSpecification {
+  const customUrl = getCustomTileUrl()
+
+  if (!customUrl)
+    return OSM_STYLE
+
+  // Проверяем: если это не растровый шаблон тайлов (с {z}/{x}/{y}), а прямая ссылка на JSON со стилями MapLibre/Mapbox
+  const isTileTemplate = customUrl.includes('{z}') || customUrl.includes('{x}') || customUrl.includes('{y}')
+
+  if (!isTileTemplate && (customUrl.includes('.json') || (customUrl.startsWith('http') && customUrl.includes('style'))))
+    return customUrl
+
+  // Растровый XYZ шаблон
+  return createCustomRasterStyle(customUrl, getCustomTileName())
+}
+
+function getMapTilerStyle(id: TileSourceId, key: string): string {
+  const styleNameBySource: Partial<Record<TileSourceId, string>> = {
+    maptilerOutdoor: 'outdoor-v4',
+    maptilerStreets: 'streets-v4',
+    satellite: 'satellite',
+  }
+  const styleName = styleNameBySource[id] ?? 'streets-v4'
+
+  return `https://api.maptiler.com/maps/${styleName}/style.json?key=${key}`
+}
+
 export function getMapStyle(id: TileSourceId): string | StyleSpecification {
+  if (id === 'custom')
+    return getCustomMapStyle()
+
   const effectiveKey = getEffectiveMapTilerKey()
 
-  if (id === 'custom') {
-    const customUrl = getCustomTileUrl()
-    if (!customUrl) {
-      return OSM_STYLE
-    }
-    // Проверяем: если это не растровый шаблон тайлов (с {z}/{x}/{y}), а прямая ссылка на JSON со стилями MapLibre/Mapbox
-    const isTileTemplate = customUrl.includes('{z}') || customUrl.includes('{x}') || customUrl.includes('{y}')
-    if (!isTileTemplate && (customUrl.includes('.json') || (customUrl.startsWith('http') && customUrl.includes('style')))) {
-      return customUrl
-    }
-    // Растровый XYZ шаблон
-    return createCustomRasterStyle(customUrl, getCustomTileName())
-  }
-
-  if (id === 'osm' || !effectiveKey) {
+  if (id === 'osm' || !effectiveKey)
     return OSM_STYLE
-  }
 
-  switch (id) {
-    case 'maptilerOutdoor':
-      return `https://api.maptiler.com/maps/outdoor-v4/style.json?key=${effectiveKey}`
-    case 'maptilerStreets':
-      return `https://api.maptiler.com/maps/streets-v4/style.json?key=${effectiveKey}`
-    case 'satellite':
-      return `https://api.maptiler.com/maps/satellite/style.json?key=${effectiveKey}`
-    default:
-      return `https://api.maptiler.com/maps/streets-v4/style.json?key=${effectiveKey}`
-  }
+  return getMapTilerStyle(id, effectiveKey)
+}
+
+function hasExistingTerrain(map: MapLibreMap): boolean {
+  return Boolean(map.getSource('maptiler-terrain')
+    || map.getSource('terrain-rgb')
+    || map.getSource('terrain'))
+}
+
+function ensureTerrainSource(
+  map: MapLibreMap,
+  key: string,
+  terrainSourceId: string,
+  existingTerrain: boolean,
+): void {
+  if (existingTerrain || map.getSource(terrainSourceId))
+    return
+
+  map.addSource(terrainSourceId, {
+    type: 'raster-dem',
+    url: `https://api.maptiler.com/tiles/terrain-rgb-v2/tiles.json?key=${key}`,
+    tileSize: 512,
+    maxzoom: 14,
+  })
+}
+
+function setTerrain(map: MapLibreMap, terrainSourceId: string, exaggeration: number): void {
+  if (!map.getSource(terrainSourceId))
+    return
+
+  map.setTerrain({
+    source: terrainSourceId,
+    exaggeration,
+  })
 }
 
 /**
@@ -246,30 +298,14 @@ export function applyTerrain(map: MapLibreMap, key = getEffectiveMapTilerKey(), 
     return
 
   try {
-    // Если стиль не растровый OSM, и в нём есть или поддерживается DEM
-    const hasExistingTerrain = Boolean(
-      map.getSource('maptiler-terrain')
-      || map.getSource('terrain-rgb')
-      || map.getSource('terrain'),
-    )
-
     const terrainSourceId = map.getSource('terrain-rgb') ? 'terrain-rgb' : MAPTILER_TERRAIN_SOURCE_ID
-
-    if (!hasExistingTerrain && !map.getSource(terrainSourceId)) {
-      map.addSource(terrainSourceId, {
-        type: 'raster-dem',
-        url: `https://api.maptiler.com/tiles/terrain-rgb-v2/tiles.json?key=${key}`,
-        tileSize: 512,
-        maxzoom: 14,
-      })
-    }
-
-    if (map.getSource(terrainSourceId)) {
-      map.setTerrain({
-        source: terrainSourceId,
-        exaggeration,
-      })
-    }
+    ensureTerrainSource(
+      map,
+      key,
+      terrainSourceId,
+      hasExistingTerrain(map),
+    )
+    setTerrain(map, terrainSourceId, exaggeration)
   }
   catch (err) {
     console.warn('[map-styles-sources] Не удалось активировать 3D-рельеф:', err)
@@ -315,10 +351,12 @@ export async function checkMapTilerAvailability(): Promise<boolean> {
     })
     clearTimeout(timeoutId)
     isAvailabilityChecked = res.ok
+
     return res.ok
   }
   catch {
     isAvailabilityChecked = false
+
     return false
   }
 }

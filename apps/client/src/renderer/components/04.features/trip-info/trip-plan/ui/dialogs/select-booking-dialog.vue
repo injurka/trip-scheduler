@@ -12,6 +12,8 @@ interface Props {
   visible: boolean
   currentBookingId?: string
 }
+type FlightBooking = Extract<Booking, { type: 'flight' }>
+type FlightSegment = NonNullable<FlightBooking['data']['segments']>[number]
 
 defineProps<Props>()
 const emit = defineEmits<{
@@ -20,136 +22,28 @@ const emit = defineEmits<{
 }>()
 
 const store = useModuleStore(['sections', 'plan'])
+
 const searchQuery = ref('')
 const selectedTypeTab = ref<string>('all')
 
 const allBookings = computed<Booking[]>(() => {
   const bookingSection = store.sections.sections.find(s => s.type === TripSectionType.BOOKINGS)
+
   if (!bookingSection)
     return []
+
   const content = bookingSection.content as BookingSectionContent | undefined
+
   return content?.bookings || []
 })
-
 const currentDayDateStr = computed(() => {
   const day = store.plan.getSelectedDay
+
   if (!day?.date)
     return null
+
   return day.date.split('T')[0]
 })
-
-function isBookingMatchingDay(booking: Booking, dateStr: string | null): boolean {
-  if (!dateStr)
-    return false
-  const selectedDate = new Date(dateStr)
-
-  switch (booking.type) {
-    case 'flight':
-      return !!booking.data.segments?.some(s => s.departureDateTime?.startsWith(dateStr))
-    case 'hotel': {
-      if (!booking.data.checkInDate || !booking.data.checkOutDate)
-        return false
-      const checkIn = new Date(booking.data.checkInDate.split('T')[0])
-      const checkOut = new Date(booking.data.checkOutDate.split('T')[0])
-      return selectedDate >= checkIn && selectedDate < checkOut
-    }
-    case 'train':
-      return !!booking.data.departureDateTime?.startsWith(dateStr)
-    case 'car': {
-      if (!booking.data.pickupDateTime)
-        return false
-      if (booking.data.dropoffDateTime) {
-        const pickup = new Date(booking.data.pickupDateTime.split('T')[0])
-        const dropoff = new Date(booking.data.dropoffDateTime.split('T')[0])
-        return selectedDate >= pickup && selectedDate <= dropoff
-      }
-      return booking.data.pickupDateTime.startsWith(dateStr)
-    }
-    case 'attraction':
-      return !!booking.data.dateTime?.startsWith(dateStr)
-    case 'other':
-      return !!booking.data.startDateTime?.startsWith(dateStr)
-    default:
-      return false
-  }
-}
-
-function getBookingSummary(booking: Booking): { title: string, subtitle: string, dateInfo: string } {
-  switch (booking.type) {
-    case 'flight': {
-      const segs = booking.data.segments || []
-      const first = segs[0]
-      const last = segs[segs.length - 1]
-      const route = first && last
-        ? `${first.departureCity || first.departureAirport || '—'} → ${last.arrivalCity || last.arrivalAirport || '—'}`
-        : 'Маршрут не указан'
-      const flightNum = first?.flightNumber ? `Рейс ${first.flightNumber}` : (first?.airline || 'Авиаперелет')
-      const date = first?.departureDateTime ? new Date(first.departureDateTime).toLocaleString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : ''
-      return { title: booking.title || flightNum, subtitle: route, dateInfo: date }
-    }
-    case 'hotel': {
-      const dates = booking.data.checkInDate && booking.data.checkOutDate
-        ? `${new Date(booking.data.checkInDate).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })} — ${new Date(booking.data.checkOutDate).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })}`
-        : (booking.data.checkInDate || '')
-      return {
-        title: booking.title || booking.data.hotelName || 'Отель',
-        subtitle: booking.data.address || booking.data.hotelName || 'Адрес не указан',
-        dateInfo: dates,
-      }
-    }
-    case 'train': {
-      const route = booking.data.departureStation && booking.data.arrivalStation
-        ? `${booking.data.departureStation} → ${booking.data.arrivalStation}`
-        : 'Маршрут не указан'
-      const date = booking.data.departureDateTime
-        ? new Date(booking.data.departureDateTime).toLocaleString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
-        : ''
-      return {
-        title: booking.title || (booking.data.trainNumber ? `Поезд ${booking.data.trainNumber}` : 'Поезд'),
-        subtitle: route,
-        dateInfo: date,
-      }
-    }
-    case 'car': {
-      const route = booking.data.pickupLocation && booking.data.dropoffLocation
-        ? `${booking.data.pickupLocation} → ${booking.data.dropoffLocation}`
-        : (booking.data.pickupLocation || 'Адрес не указан')
-      const title = booking.title || booking.data.carModel || booking.data.company || 'Автомобиль'
-      const date = booking.data.pickupDateTime
-        ? new Date(booking.data.pickupDateTime).toLocaleString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
-        : ''
-      return {
-        title,
-        subtitle: route,
-        dateInfo: date,
-      }
-    }
-    case 'attraction': {
-      const date = booking.data.dateTime
-        ? new Date(booking.data.dateTime).toLocaleString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
-        : ''
-      return {
-        title: booking.title || booking.data.attractionName || 'Место',
-        subtitle: booking.data.address || 'Адрес не указан',
-        dateInfo: date,
-      }
-    }
-    case 'other': {
-      const date = booking.data.startDateTime
-        ? new Date(booking.data.startDateTime).toLocaleString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
-        : ''
-      const route = booking.data.startLocation && booking.data.endLocation
-        ? `${booking.data.startLocation} → ${booking.data.endLocation}`
-        : (booking.data.startLocation || booking.data.endLocation || 'Маршрут не указан')
-      return {
-        title: booking.title || booking.data.name || 'Перемещение',
-        subtitle: route,
-        dateInfo: date,
-      }
-    }
-  }
-}
-
 const typeTabs = computed(() => {
   const tabs = [{ id: 'all', label: 'Все', icon: 'mdi:view-grid-outline' }]
   const counts: Record<string, number> = {}
@@ -159,9 +53,11 @@ const typeTabs = computed(() => {
   }
 
   const configs = BOOKING_TYPES_CONFIG as Record<BookingType, { label: string, icon: string, defaultTitle: string }>
+
   for (const type of Object.keys(configs) as BookingType[]) {
     const config = configs[type]
     const count = counts[type] || 0
+
     if (count > 0) {
       tabs.push({
         id: type,
@@ -173,7 +69,6 @@ const typeTabs = computed(() => {
 
   return tabs
 })
-
 const filteredBookings = computed(() => {
   let list = allBookings.value
 
@@ -185,6 +80,7 @@ const filteredBookings = computed(() => {
     const q = searchQuery.value.toLowerCase().trim()
     list = list.filter((b) => {
       const summary = getBookingSummary(b)
+
       return b.title.toLowerCase().includes(q)
         || summary.subtitle.toLowerCase().includes(q)
         || summary.title.toLowerCase().includes(q)
@@ -196,19 +92,162 @@ const filteredBookings = computed(() => {
   return [...list].sort((a, b) => {
     const aMatch = isBookingMatchingDay(a, currentDayDateStr.value)
     const bMatch = isBookingMatchingDay(b, currentDayDateStr.value)
+
     if (aMatch && !bMatch)
       return -1
+
     if (!aMatch && bMatch)
       return 1
+
     return 0
   })
 })
 
+function getFlightRoute(first?: FlightSegment, last?: FlightSegment): string {
+  if (!first || !last)
+    return 'Маршрут не указан'
+
+  const departure = first.departureCity || first.departureAirport || '—'
+  const arrival = last.arrivalCity || last.arrivalAirport || '—'
+
+  return `${departure} → ${arrival}`
+}
+function getFlightNumber(first?: FlightSegment): string {
+  if (first?.flightNumber)
+    return `Рейс ${first.flightNumber}`
+
+  return first?.airline || 'Авиаперелет'
+}
+function formatBookingDateTime(value?: string): string {
+  if (!value)
+    return ''
+
+  return new Date(value).toLocaleString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+}
+function formatHotelDates(checkInDate?: string, checkOutDate?: string): string {
+  if (!checkInDate || !checkOutDate)
+    return checkInDate || ''
+
+  const checkIn = new Date(checkInDate).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })
+  const checkOut = new Date(checkOutDate).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })
+
+  return `${checkIn} — ${checkOut}`
+}
+function getFlightSummary(booking: FlightBooking) {
+  const segments = booking.data.segments || []
+  const first = segments[0]
+  const last = segments[segments.length - 1]
+
+  return {
+    title: booking.title || getFlightNumber(first),
+    subtitle: getFlightRoute(first, last),
+    dateInfo: formatBookingDateTime(first?.departureDateTime),
+  }
+}
+function getHotelSummary(booking: Extract<Booking, { type: 'hotel' }>) {
+  return {
+    title: booking.title || booking.data.hotelName || 'Отель',
+    subtitle: booking.data.address || booking.data.hotelName || 'Адрес не указан',
+    dateInfo: formatHotelDates(booking.data.checkInDate, booking.data.checkOutDate),
+  }
+}
+function getTrainSummary(booking: Extract<Booking, { type: 'train' }>) {
+  const departure = booking.data.departureStation
+  const arrival = booking.data.arrivalStation
+
+  return {
+    title: booking.title || (booking.data.trainNumber ? `Поезд ${booking.data.trainNumber}` : 'Поезд'),
+    subtitle: departure && arrival ? `${departure} → ${arrival}` : 'Маршрут не указан',
+    dateInfo: formatBookingDateTime(booking.data.departureDateTime),
+  }
+}
+function getCarSummary(booking: Extract<Booking, { type: 'car' }>) {
+  const pickup = booking.data.pickupLocation
+  const dropoff = booking.data.dropoffLocation
+
+  return {
+    title: booking.title || booking.data.carModel || booking.data.company || 'Автомобиль',
+    subtitle: pickup && dropoff ? `${pickup} → ${dropoff}` : (pickup || 'Адрес не указан'),
+    dateInfo: formatBookingDateTime(booking.data.pickupDateTime),
+  }
+}
+function getAttractionSummary(booking: Extract<Booking, { type: 'attraction' }>) {
+  return {
+    title: booking.title || booking.data.attractionName || 'Место',
+    subtitle: booking.data.address || 'Адрес не указан',
+    dateInfo: formatBookingDateTime(booking.data.dateTime),
+  }
+}
+function getOtherBookingSummary(booking: Extract<Booking, { type: 'other' }>) {
+  const start = booking.data.startLocation
+  const end = booking.data.endLocation
+
+  return {
+    title: booking.title || booking.data.name || 'Перемещение',
+    subtitle: start && end ? `${start} → ${end}` : (start || end || 'Маршрут не указан'),
+    dateInfo: formatBookingDateTime(booking.data.startDateTime),
+  }
+}
+function isHotelOnDate(booking: Extract<Booking, { type: 'hotel' }>, selectedDate: Date): boolean {
+  if (!booking.data.checkInDate || !booking.data.checkOutDate)
+    return false
+
+  const checkIn = new Date(booking.data.checkInDate.split('T')[0])
+  const checkOut = new Date(booking.data.checkOutDate.split('T')[0])
+
+  return selectedDate >= checkIn && selectedDate < checkOut
+}
+function isCarOnDate(booking: Extract<Booking, { type: 'car' }>, dateStr: string, selectedDate: Date): boolean {
+  const pickupValue = booking.data.pickupDateTime
+
+  if (!pickupValue)
+    return false
+
+  const dropoffValue = booking.data.dropoffDateTime
+
+  if (!dropoffValue)
+    return pickupValue.startsWith(dateStr)
+
+  const pickup = new Date(pickupValue.split('T')[0])
+  const dropoff = new Date(dropoffValue.split('T')[0])
+
+  return selectedDate >= pickup && selectedDate <= dropoff
+}
+function hasDepartureOnDate(booking: Extract<Booking, { type: 'flight' }>, dateStr: string): boolean {
+  return !!booking.data.segments?.some(segment => segment.departureDateTime?.startsWith(dateStr))
+}
+function isDateStringOnDay(value: string | null | undefined, dateStr: string): boolean {
+  return !!value?.startsWith(dateStr)
+}
+function isBookingMatchingDay(booking: Booking, dateStr: string | null): boolean {
+  if (!dateStr)
+    return false
+
+  const selectedDate = new Date(dateStr)
+
+  switch (booking.type) {
+    case 'flight': return hasDepartureOnDate(booking, dateStr)
+    case 'hotel': return isHotelOnDate(booking, selectedDate)
+    case 'train': return isDateStringOnDay(booking.data.departureDateTime, dateStr)
+    case 'car': return isCarOnDate(booking, dateStr, selectedDate)
+    case 'attraction': return isDateStringOnDay(booking.data.dateTime, dateStr)
+    case 'other': return isDateStringOnDay(booking.data.startDateTime, dateStr)
+  }
+}
+function getBookingSummary(booking: Booking): { title: string, subtitle: string, dateInfo: string } {
+  switch (booking.type) {
+    case 'flight': return getFlightSummary(booking)
+    case 'hotel': return getHotelSummary(booking)
+    case 'train': return getTrainSummary(booking)
+    case 'car': return getCarSummary(booking)
+    case 'attraction': return getAttractionSummary(booking)
+    case 'other': return getOtherBookingSummary(booking)
+  }
+}
 function selectBooking(booking: Booking) {
   emit('select', booking)
   emit('update:visible', false)
 }
-
 function handleClose() {
   emit('update:visible', false)
 }

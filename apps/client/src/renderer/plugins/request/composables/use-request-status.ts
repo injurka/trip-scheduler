@@ -11,18 +11,15 @@ import { useRequestStore } from '../store/request.store'
  * @default
  * @returns ComputedRef<boolean>
  */
-export function useRequestStatus(
-  keys: MaybeRef<string | string[]>,
-  status: RequestStatus = 'pending',
-) {
+export function useRequestStatus(keys: MaybeRef<string | string[]>, status: RequestStatus = 'pending') {
   const store = useRequestStore()
 
   const keysAsArray = computed<string[]>(() => {
     const unwrappedKeys = unref(keys)
+
     return Array.isArray(unwrappedKeys) ? unwrappedKeys : [unwrappedKeys]
   })
 
   return computed(() =>
-    keysAsArray.value.some(key => store.statuses.get(key) === status),
-  )
+    keysAsArray.value.some(key => store.statuses.get(key) === status))
 }

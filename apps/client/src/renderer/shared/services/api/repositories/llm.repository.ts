@@ -18,6 +18,7 @@ export class LLMRepository implements ILLMRepository {
 
     if (response.status === 401) {
       const refreshed = await refreshTokensIfNeeded()
+
       if (refreshed) {
         accessToken = authStore.tokenPair?.accessToken || localStorage.getItem(TOKEN_KEY)
         response = await fetch(`${SERVER_URL}/api/llm/booking/generate`, {
@@ -52,6 +53,7 @@ export class LLMRepository implements ILLMRepository {
 
     if (response.status === 401) {
       const refreshed = await refreshTokensIfNeeded()
+
       if (refreshed) {
         accessToken = authStore.tokenPair?.accessToken || localStorage.getItem(TOKEN_KEY)
         response = await fetch(`${SERVER_URL}/api/llm/finances/generate`, {

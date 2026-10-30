@@ -7,36 +7,33 @@ import { lazyComponent } from '~/shared/lib/lazy-component'
 import { openExternalUrl } from '~/shared/lib/opener'
 import { resolveApiUrl } from '~/shared/lib/url'
 
-const props = defineProps<Props>()
-
-const emit = defineEmits(['updateSection'])
-
-const KitInlineMdEditorWrapper = lazyComponent(
-  () => import('~/components/01.kit/kit-inline-md-editor').then(module => module.KitInlineMdEditorWrapper),
-)
-
 interface Props {
   section: ActivitySectionText
 }
 
+const props = defineProps<Props>()
+const emit = defineEmits(['updateSection'])
+
 const store = useModuleStore(['ui'])
 
+const KitInlineMdEditorWrapper = lazyComponent(() => import('~/components/01.kit/kit-inline-md-editor').then(module => module.KitInlineMdEditorWrapper))
 const { isViewMode } = storeToRefs(store.ui)
-
 const sectionModel = ref<string>(props.section.text)
 
 function handleDocumentClick(event: MouseEvent) {
   const link = (event.target as Element).closest<HTMLAnchorElement>('a')
   const href = link?.getAttribute('href')
+
   if (!href?.startsWith('#trip-document='))
     return
+
   event.preventDefault()
   event.stopPropagation()
   const path = getDocumentLinkPath(href)
+
   if (path)
     void openExternalUrl(resolveApiUrl(path))
 }
-
 function handleInlineEditorBlur() {
   emit('updateSection', { ...props.section, text: sectionModel.value })
 }

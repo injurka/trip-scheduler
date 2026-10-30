@@ -15,10 +15,15 @@ import { createAnalysisFrame, groupTimelineMedia, prepareGroupAnalysisFrame, rea
 import { usePostDraftStore } from '../../../store/post-draft.store'
 import MediaLibraryPicker from './media-library-picker.vue'
 
-const props = defineProps<{ disabled?: boolean }>()
+interface Props { disabled?: boolean }
+
+const props = defineProps<Props>()
 const emit = defineEmits<{ busy: [value: boolean], applied: [] }>()
+defineExpose({ selectMedia })
+
 const store = usePostDraftStore()
 const toast = useToast()
+
 const items = ref<TimelineMedia[]>([])
 const groups = ref<MediaGroup[]>([])
 const gap = ref<string | number | null>(60)
@@ -31,6 +36,7 @@ const libraryOpen = ref(false)
 const groupPreviewOpen = ref(false)
 const groupPreviewImages = ref<ImageViewerImage[]>([])
 const groupPreviewIndex = ref(0)
+
 const selectedMediaIds = computed(() => items.value.flatMap(item => item.media ? [item.media.id] : []))
 const unknownCount = computed(() => items.value.filter(item => !item.capturedAt).length)
 const hasGapChanges = computed(() => appliedGap.value !== normalizeGap(gap.value))
@@ -46,43 +52,55 @@ const canRegroup = computed(() => hasGapChanges.value || hasGroupChanges.value)
 function normalizeGap(value: string | number | null): number {
   return Math.max(5, Math.min(240, Number(value) || 60))
 }
-
+function firstMediaUrl(...urls: Array<string | null | undefined>): string {
+  return urls.find(Boolean) || ''
+}
+function getStoredVariant(media: PostMedia, name: string): string | undefined {
+  return media.variants?.[name] || media.metadata?.variants?.[name]
+}
 function getGroupThumbnail(item: TimelineMedia): string {
   const media = item.media
+
   if (!media)
     return ''
-  return media.variants?.poster || media.metadata?.variants?.poster
-    || media.variants?.small || media.metadata?.variants?.small || media.url
-}
 
-function toGroupPreviewImage(media: PostMedia): ImageViewerImage {
-  const variants = {
+  return firstMediaUrl(getStoredVariant(media, 'poster'), getStoredVariant(media, 'small'), media.url)
+}
+function getPreviewMeta(media: PostMedia) {
+  return {
+    ...(media.metadata || {}),
+    mediaId: media.id,
+    mediaType: media.type,
+    width: media.width ?? media.metadata?.width,
+    height: media.height ?? media.metadata?.height,
+  }
+}
+function getPreviewVariants(media: PostMedia) {
+  return {
     ...(media.metadata?.variants || {}),
     ...(media.variants || {}),
   }
+}
+function toGroupPreviewImage(media: PostMedia): ImageViewerImage {
+  const variants = getPreviewVariants(media)
+  const mediaUrl = media.type === 'video' ? firstMediaUrl(variants.web, media.url) : media.url
 
   return {
-    url: media.type === 'video' ? variants.web || media.url : media.url,
+    url: mediaUrl,
     alt: media.originalName || 'Медиафайл',
     caption: media.originalName || undefined,
     mediaType: media.type,
     variants,
-    meta: {
-      ...(media.metadata || {}),
-      mediaId: media.id,
-      mediaType: media.type,
-      width: media.width ?? media.metadata?.width,
-      height: media.height ?? media.metadata?.height,
-    },
+    meta: getPreviewMeta(media),
   }
 }
-
 function openGroupPreview(group: MediaGroup, selectedItem?: TimelineMedia) {
   if (!selectedItem?.media)
     return
 
   const media = group.items.flatMap(item => item.media ? [item.media] : [])
   const currentIndex = media.findIndex(item => item.id === selectedItem.media?.id)
+
   if (currentIndex < 0)
     return
 
@@ -90,7 +108,6 @@ function openGroupPreview(group: MediaGroup, selectedItem?: TimelineMedia) {
   groupPreviewIndex.value = currentIndex
   groupPreviewOpen.value = true
 }
-
 function setBusy(value: boolean) {
   busy.value = value
   emit('busy', value)
@@ -105,61 +122,47 @@ function regroup() {
 async function selectMedia(media: PostMedia[]) {
   if (busy.value || props.disabled)
     return
+
   if (media.length > 500) {
     toast.error('Выберите не больше 500 файлов за один раз.')
+
     return
   }
+
   items.value = media.map(readStoredTimelineMedia)
   error.value = ''
   regroup()
 }
-defineExpose({ selectMedia })
-
 async function analyze() {
   setBusy(true)
   error.value = ''
+
   try {
-    const samples: { id: number, count: number, frame: string }[] = []
-    const failedGroups: number[] = []
-    for (const [id, group] of groups.value.entries()) {
-      progress.value = `Готовим кадры для ИИ: ${id + 1} / ${groups.value.length}`
-      if (!group.items.some(item => item.media?.type === 'image'))
-        continue
-      const frame = await prepareGroupAnalysisFrame(group, async (path) => {
-        const blob = await useRequest({ key: 'post:media-frame', fn: db => db.files.downloadMediaPreview(path), onError: () => {} })
-        return blob ? createAnalysisFrame(blob) : undefined
-      })
-      if (frame)
-        samples.push({ id, count: group.items.filter(item => item.media?.type === 'image').length, frame })
-      else
-        failedGroups.push(id + 1)
-    }
+    const { samples, failedGroups } = await collectAnalysisSamples()
+
     if (failedGroups.length) {
       error.value = `Не удалось подготовить кадры для групп: ${failedGroups.join(', ')}. Проверьте доступность медиа и повторите анализ. Группы сохранены.`
+
       return
     }
+
     if (!samples.length) {
       toast.info('В выбранных группах нет фото для анализа ИИ.')
+
       return
     }
-    const titles: { id: number, title: string }[] = []
-    for (let offset = 0; offset < samples.length; offset += 12) {
-      progress.value = `ИИ подбирает названия активностей: ${offset + 1}–${Math.min(offset + 12, samples.length)} / ${samples.length}…`
-      const data = await useRequest({
-        key: 'post:media-timeline:describe',
-        fn: db => db.posts.describeMediaTimeline({ groups: samples.slice(offset, offset + 12) }),
-        onError: () => { error.value = 'Не удалось получить полный набор названий от ИИ. Группы сохранены, повторите анализ или измените названия вручную.' },
-      })
-      if (!data)
-        return
-      titles.push(...data.groups)
-    }
-    const expectedIds = new Set(samples.map(sample => sample.id))
-    if (titles.length !== samples.length || new Set(titles.map(result => result.id)).size !== expectedIds.size
-      || titles.some(result => !expectedIds.has(result.id))) {
+
+    const titles = await requestSampleTitles(samples)
+
+    if (!titles)
+      return
+
+    if (!hasCompleteTitleSet(titles, samples)) {
       error.value = 'ИИ вернул неполный набор названий. Группы сохранены, повторите анализ.'
+
       return
     }
+
     titles.forEach((result) => {
       groups.value[result.id].title = result.title
     })
@@ -169,10 +172,10 @@ async function analyze() {
   }
   finally { setBusy(false) }
 }
-
 function splitGroup(index: number) {
   const group = groups.value[index]
   const tail = group.items.splice(Math.ceil(group.items.length / 2))
+
   if (tail.length) {
     groups.value.splice(index + 1, 0, {
       items: tail,
@@ -189,42 +192,137 @@ function mergeGroup(index: number) {
 function calendarDay(date: string): number {
   return Date.parse(`${date}T00:00:00Z`) / 86400000
 }
+
+function getTimelineStart(oldStart: string | undefined, mediaGroups: MediaGroup[]): string | undefined {
+  const dates = mediaGroups.map(group => group.date).filter(Boolean).sort()
+
+  return [oldStart, dates[0]].filter((date): date is string => Boolean(date)).sort()[0]
+}
+
+function createTimelineStages(mediaGroups: MediaGroup[], start: string | undefined): TimelineStage[] {
+  const orderedGroups = [...mediaGroups].sort((a, b) => `${a.date || '9999'}T${a.time}`.localeCompare(`${b.date || '9999'}T${b.time}`))
+  const stages: TimelineStage[] = []
+
+  for (const group of orderedGroups) {
+    const media = group.items.flatMap(item => item.media ? store.post.media.filter(current => current.id === item.media?.id) : [])
+
+    if (media.length !== group.items.length)
+      throw new Error('Часть выбранных медиа удалена. Выберите файлы из медиатеки заново.')
+
+    stages.push({
+      id: uuid(),
+      title: group.title.trim(),
+      day: group.date && start ? Math.max(1, Math.round(calendarDay(group.date) - calendarDay(start)) + 1) : 1,
+      time: group.time || '',
+      order: stages.length,
+      blocks: [{ id: uuid(), type: 'gallery', images: media, displayType: 'grid' }],
+    })
+  }
+
+  return stages
+}
+
+function getExistingStages(stages: TimelineStage[]): TimelineStage[] {
+  const isInitialPlaceholder = stages.length === 1
+    && !stages[0]!.blocks.length
+    && stages[0]!.title === 'Начало'
+
+  return isInitialPlaceholder ? [] : stages
+}
+
+function shiftExistingStages(stages: TimelineStage[], oldStart: string | undefined, start: string | undefined) {
+  if (!oldStart || !start || oldStart <= start)
+    return
+
+  const shift = Math.round(calendarDay(oldStart) - calendarDay(start))
+
+  stages.forEach((stage) => {
+    stage.day = (stage.day || 1) + shift
+  })
+}
+
+async function prepareGroupSample(group: MediaGroup, id: number): Promise<{ id: number, count: number, frame: string } | null | undefined> {
+  const imageItems = group.items.filter(item => item.media?.type === 'image')
+
+  if (!imageItems.length)
+    return undefined
+
+  const frame = await prepareGroupAnalysisFrame(group, async (path) => {
+    const blob = await useRequest({ key: 'post:media-frame', fn: db => db.files.downloadMediaPreview(path), onError: () => {} })
+
+    return blob ? createAnalysisFrame(blob) : undefined
+  })
+
+  return frame ? { id, count: imageItems.length, frame } : null
+}
+
+async function collectAnalysisSamples() {
+  const samples: { id: number, count: number, frame: string }[] = []
+  const failedGroups: number[] = []
+
+  for (const [id, group] of groups.value.entries()) {
+    progress.value = `Готовим кадры для ИИ: ${id + 1} / ${groups.value.length}`
+    const sample = await prepareGroupSample(group, id)
+
+    if (sample)
+      samples.push(sample)
+    else if (sample === null)
+      failedGroups.push(id + 1)
+  }
+
+  return { samples, failedGroups }
+}
+
+function hasCompleteTitleSet(titles: { id: number, title: string }[], samples: { id: number }[]): boolean {
+  const expectedIds = new Set(samples.map(sample => sample.id))
+
+  return titles.length === samples.length
+    && new Set(titles.map(result => result.id)).size === expectedIds.size
+    && titles.every(result => expectedIds.has(result.id))
+}
+
+async function requestSampleTitles(samples: { id: number, count: number, frame: string }[]) {
+  const titles: { id: number, title: string }[] = []
+
+  for (let offset = 0; offset < samples.length; offset += 12) {
+    progress.value = `ИИ подбирает названия активностей: ${offset + 1}–${Math.min(offset + 12, samples.length)} / ${samples.length}…`
+    const data = await useRequest({
+      key: 'post:media-timeline:describe',
+      fn: db => db.posts.describeMediaTimeline({ groups: samples.slice(offset, offset + 12) }),
+      onError: () => { error.value = 'Не удалось получить полный набор названий от ИИ. Группы сохранены, повторите анализ или измените названия вручную.' },
+    })
+
+    if (!data)
+      return null
+
+    titles.push(...data.groups)
+  }
+
+  return titles
+}
+
 async function apply() {
   if (!groups.value.length || busy.value)
     return
+
   setBusy(true)
   error.value = ''
+
   try {
-    const stages: TimelineStage[] = []
-    const dates = groups.value.map(group => group.date).filter(Boolean).sort()
     const oldStart = store.post.startDate?.slice(0, 10)
-    const start = [oldStart, dates[0]].filter((date): date is string => Boolean(date)).sort()[0]
-    const orderedGroups = [...groups.value].sort((a, b) => `${a.date || '9999'}T${a.time}`.localeCompare(`${b.date || '9999'}T${b.time}`))
-    for (const group of orderedGroups) {
-      const media = group.items.flatMap(item => item.media ? store.post.media.filter(current => current.id === item.media?.id) : [])
-      if (media.length !== group.items.length)
-        throw new Error('Часть выбранных медиа удалена. Выберите файлы из медиатеки заново.')
-      stages.push({
-        id: uuid(),
-        title: group.title.trim(),
-        day: group.date && start ? Math.max(1, Math.round(calendarDay(group.date) - calendarDay(start)) + 1) : 1,
-        time: group.time || '',
-        order: stages.length,
-        blocks: [{ id: uuid(), type: 'gallery', images: media, displayType: 'grid' }],
-      })
-    }
+    const start = getTimelineStart(oldStart, groups.value)
+    const stages = createTimelineStages(groups.value, start)
+
     const existing = store.post.stages || []
     // Drop only the untouched initial placeholder, retaining any authored content.
-    const keep = existing.length === 1 && !existing[0].blocks.length && existing[0].title === 'Начало' ? [] : existing
-    if (oldStart && start && oldStart > start) {
-      const shift = Math.round(calendarDay(oldStart) - calendarDay(start))
-      keep.forEach((stage) => {
-        stage.day = (stage.day || 1) + shift
-      })
-    }
+    const keep = getExistingStages(existing)
+    shiftExistingStages(keep, oldStart, start)
+
     store.post.stages = [...keep, ...stages].map((stage, order) => ({ ...stage, order }))
+
     if (start)
       store.post.startDate = start
+
     store.isDirty = true
     items.value = []
     groups.value = []
@@ -260,7 +358,14 @@ async function apply() {
           <span>Создано групп: {{ groups.length }}</span>
         </div>
       </div>
-      <KitBtn variant="outlined" color="secondary" size="sm" icon="mdi:image-multiple-outline" :disabled="busy || disabled" @click="libraryOpen = true">
+      <KitBtn
+        variant="outlined"
+        color="secondary"
+        size="sm"
+        icon="mdi:image-multiple-outline"
+        :disabled="busy || disabled"
+        @click="libraryOpen = true"
+      >
         Изменить выбор
       </KitBtn>
     </div>
@@ -281,8 +386,22 @@ async function apply() {
           <span class="group-count">Групп: {{ groups.length }}</span>
         </div>
         <div class="grouping-controls">
-          <KitInput v-model="gap" label="Пауза между активностями, минут" type="number" min="5" max="240" :disabled="busy" />
-          <KitBtn variant="outlined" color="secondary" size="md" icon="mdi:refresh" :disabled="busy || !canRegroup" @click="regroup">
+          <KitInput
+            v-model="gap"
+            label="Пауза между активностями, минут"
+            type="number"
+            min="5"
+            max="240"
+            :disabled="busy"
+          />
+          <KitBtn
+            variant="outlined"
+            color="secondary"
+            size="md"
+            icon="mdi:refresh"
+            :disabled="busy || !canRegroup"
+            @click="regroup"
+          >
             Пересчитать группы
           </KitBtn>
         </div>
@@ -316,7 +435,14 @@ async function apply() {
         </summary>
         <div class="ai-options-content">
           <p>ИИ анализирует по одному кадру до 384 px из каждой группы: максимум 12 групп и 900 выходных токенов за запуск. Остальные названия можно задать вручную.</p>
-          <KitBtn icon="mdi:creation" variant="outlined" color="secondary" size="sm" :disabled="busy" @click="analyze">
+          <KitBtn
+            icon="mdi:creation"
+            variant="outlined"
+            color="secondary"
+            size="sm"
+            :disabled="busy"
+            @click="analyze"
+          >
             Подобрать названия
           </KitBtn>
         </div>
@@ -339,7 +465,12 @@ async function apply() {
                 :aria-label="`Просмотреть ${item.media?.originalName || 'медиафайл'}`"
                 @click="openGroupPreview(group, item)"
               >
-                <KitImage v-if="getGroupThumbnail(item)" :src="getGroupThumbnail(item)" alt="" object-fit="cover" />
+                <KitImage
+                  v-if="getGroupThumbnail(item)"
+                  :src="getGroupThumbnail(item)"
+                  alt=""
+                  object-fit="cover"
+                />
                 <Icon v-if="item.media?.type === 'video'" icon="mdi:play-circle" class="thumbnail-video-icon" />
               </button>
               <button
@@ -354,25 +485,64 @@ async function apply() {
             </div>
           </div>
           <div class="group-datetime">
-            <KitInput v-model="group.date" label="Дата" type="date" :disabled="busy" />
-            <KitInput v-model="group.time" label="Время" type="time" :disabled="busy" />
+            <KitInput
+              v-model="group.date"
+              label="Дата"
+              type="date"
+              :disabled="busy"
+            />
+            <KitInput
+              v-model="group.time"
+              label="Время"
+              type="time"
+              :disabled="busy"
+            />
           </div>
           <div class="group-card-actions">
-            <KitBtn v-if="group.items.length > 1" variant="text" color="secondary" size="sm" icon="mdi:content-cut" :disabled="busy" @click="splitGroup(index)">
+            <KitBtn
+              v-if="group.items.length > 1"
+              variant="text"
+              color="secondary"
+              size="sm"
+              icon="mdi:content-cut"
+              :disabled="busy"
+              @click="splitGroup(index)"
+            >
               Разделить группу пополам
             </KitBtn>
-            <KitBtn v-if="groups[index + 1] && groups[index + 1].date === group.date" variant="text" color="secondary" size="sm" icon="mdi:merge" :disabled="busy" @click="mergeGroup(index)">
+            <KitBtn
+              v-if="groups[index + 1] && groups[index + 1].date === group.date"
+              variant="text"
+              color="secondary"
+              size="sm"
+              icon="mdi:merge"
+              :disabled="busy"
+              @click="mergeGroup(index)"
+            >
               Объединить со следующей
             </KitBtn>
           </div>
         </li>
       </ol>
 
-      <KitBtn class="timeline-submit" icon="mdi:timeline-outline" :loading="busy" :disabled="busy || disabled" @click="apply">
+      <KitBtn
+        class="timeline-submit"
+        icon="mdi:timeline-outline"
+        :loading="busy"
+        :disabled="busy || disabled"
+        @click="apply"
+      >
         Добавить в таймлайн ({{ groups.length }})
       </KitBtn>
     </template>
-    <MediaLibraryPicker v-model:visible="libraryOpen" :selected-ids="selectedMediaIds" mode="select" title="Медиа для таймлайна" @confirm="selectMedia" @busy="setBusy" />
+    <MediaLibraryPicker
+      v-model:visible="libraryOpen"
+      :selected-ids="selectedMediaIds"
+      mode="select"
+      title="Медиа для таймлайна"
+      @confirm="selectMedia"
+      @busy="setBusy"
+    />
     <KitImageViewer
       :visible="groupPreviewOpen"
       :images="groupPreviewImages"

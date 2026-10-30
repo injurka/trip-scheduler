@@ -29,17 +29,35 @@ const props = withDefaults(defineProps<Props>(), {
   highlightStatus: null,
   showDragHandle: true,
 })
-
 const emit = defineEmits<{
   (e: 'delete'): void
   (e: 'update:booking', value: Booking & { type: 'car' }): void
 }>()
 
+const route = useRoute()
+const tripPlanStore = useTripPlanStore()
+
 const isPickupLocationPickerOpen = ref(false)
 const isDropoffLocationPickerOpen = ref(false)
-
 const isPickupLocationViewerOpen = ref(false)
 const isDropoffLocationViewerOpen = ref(false)
+const kindOptions = getBookingKindOptions('car')
+
+const tripId = computed(() => (route?.params?.id as string) || tripPlanStore?.currentTripId || '')
+const photosList = computed<string[]>(() => props.booking.data.photos || props.booking.data.imageUrls || [])
+const totalDurationMs = computed(() => {
+  const startDate = createDateWithTimezone(props.booking.data.pickupDateTime, props.booking.data.pickupTimeZone)
+  const endDate = createDateWithTimezone(props.booking.data.dropoffDateTime, props.booking.data.dropoffTimeZone)
+
+  if (!startDate || !endDate)
+    return null
+
+  return endDate.getTime() - startDate.getTime()
+})
+const totalDurationFormatted = computed(() => {
+  return totalDurationMs.value === null ? 'Время уточняется' : formatDuration(totalDurationMs.value)
+})
+const kindMeta = computed(() => resolveBookingKind('car', props.booking.data.kind, props.booking.icon))
 
 function updateDataField<K extends keyof CarData>(key: K, value: CarData[K]) {
   emit('update:booking', {
@@ -47,17 +65,9 @@ function updateDataField<K extends keyof CarData>(key: K, value: CarData[K]) {
     data: { ...props.booking.data, [key]: value },
   })
 }
-
 function updateTitle(newTitle: string) {
   emit('update:booking', { ...props.booking, title: newTitle })
 }
-
-const route = useRoute()
-const tripPlanStore = useTripPlanStore()
-const tripId = computed(() => (route?.params?.id as string) || tripPlanStore?.currentTripId || '')
-
-const photosList = computed<string[]>(() => props.booking.data.photos || props.booking.data.imageUrls || [])
-
 function updatePhotos(newPhotos: string[]) {
   emit('update:booking', {
     ...props.booking,
@@ -68,67 +78,59 @@ function updatePhotos(newPhotos: string[]) {
     },
   })
 }
-
 function createDateWithTimezone(dateTime?: string, timeZone?: string): Date | null {
   if (!dateTime || !dateTime.includes('T'))
     return null
+
   const hasOffset = /Z|[+-]\d{2}(?::\d{2})?$/.test(dateTime)
+
   if (hasOffset) {
     const date = new Date(dateTime)
+
     return Number.isNaN(date.getTime()) ? null : date
   }
+
   if (timeZone) {
     const fullIso = `${dateTime}${timeZone}`
     const date = new Date(fullIso)
+
     return Number.isNaN(date.getTime()) ? null : date
   }
+
   return null
 }
-
 function formatDisplayDateTime(localDateTime?: string) {
   if (!localDateTime)
     return { time: '', date: '' }
+
   try {
     const time = localDateTime.substring(11, 16) || 'Уточняется'
     const dateOnly = localDateTime.substring(0, 10)
     const dateObj = new Date(`${dateOnly}T12:00:00Z`)
     const dateStr = dateObj.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', weekday: 'short' })
+
     return { time, date: dateStr }
   }
   catch {
     return { time: '??:??', date: 'Неверная дата' }
   }
 }
-
 function formatDuration(ms: number) {
   if (ms < 0)
     return '---'
+
   const hours = Math.floor(ms / (1000 * 60 * 60))
   const minutes = Math.round((ms % (1000 * 60 * 60)) / (1000 * 60))
+
   if (hours >= 24) {
     const days = Math.floor(hours / 24)
     const remHours = hours % 24
+
     return `${days}д ${remHours}ч`
   }
+
   return `${hours}ч ${minutes}м`
 }
-
-const totalDurationMs = computed(() => {
-  const startDate = createDateWithTimezone(props.booking.data.pickupDateTime, props.booking.data.pickupTimeZone)
-  const endDate = createDateWithTimezone(props.booking.data.dropoffDateTime, props.booking.data.dropoffTimeZone)
-  if (!startDate || !endDate)
-    return null
-  return endDate.getTime() - startDate.getTime()
-})
-
-const totalDurationFormatted = computed(() => {
-  return totalDurationMs.value === null ? 'Время уточняется' : formatDuration(totalDurationMs.value)
-})
-
-const kindOptions = getBookingKindOptions('car')
-
-const kindMeta = computed(() => resolveBookingKind('car', props.booking.data.kind, props.booking.icon))
-
 function updateKind(value?: string) {
   updateDataField('kind', value as CarKind)
 }

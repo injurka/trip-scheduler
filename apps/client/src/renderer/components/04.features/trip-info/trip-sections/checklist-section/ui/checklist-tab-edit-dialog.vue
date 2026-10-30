@@ -16,7 +16,6 @@ const props = withDefaults(defineProps<Props>(), {
   tab: null,
   isNew: false,
 })
-
 const emit = defineEmits<{
   (e: 'update:visible', value: boolean): void
   (e: 'save', tab: { id: string, name: string, icon: string }): void
@@ -25,6 +24,8 @@ const emit = defineEmits<{
 
 const tabName = ref('')
 const tabIcon = ref('mdi:tag-outline')
+
+const isValid = computed(() => !!tabName.value.trim())
 
 watch(() => props.visible, (isOpen) => {
   if (isOpen) {
@@ -39,8 +40,6 @@ watch(() => props.visible, (isOpen) => {
   }
 })
 
-const isValid = computed(() => !!tabName.value.trim())
-
 function handleSave() {
   if (!isValid.value)
     return
@@ -53,7 +52,6 @@ function handleSave() {
   })
   emit('update:visible', false)
 }
-
 function handleDelete() {
   if (props.tab) {
     emit('delete', props.tab.id)

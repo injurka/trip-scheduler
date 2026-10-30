@@ -26,12 +26,16 @@ const emit = defineEmits<{
 const unsentText = computed(() => {
   const c = Math.abs(props.unsentCount) % 100
   const n = c % 10
+
   if (c > 10 && c < 20)
     return 'точек'
+
   if (n > 1 && n < 5)
     return 'точки'
+
   if (n === 1)
     return 'точка'
+
   return 'точек'
 })
 </script>

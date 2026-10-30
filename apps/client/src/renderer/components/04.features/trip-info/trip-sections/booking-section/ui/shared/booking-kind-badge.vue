@@ -2,10 +2,12 @@
 import type { BookingKindMeta } from '../../models/booking-kinds'
 import { Icon } from '@iconify/vue'
 
-const props = withDefaults(defineProps<{
+interface Props {
   meta: BookingKindMeta
   size?: 'sm' | 'md'
-}>(), {
+}
+
+const props = withDefaults(defineProps<Props>(), {
   size: 'sm',
 })
 </script>

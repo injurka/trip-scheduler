@@ -6,6 +6,64 @@ import { useKitMap } from '~/components/01.kit/kit-map/composables/use-kit-map'
 import { haversineM, splitTrackIntoLegs } from '~/shared/services/tracking/track-processing'
 import { ACTIVITY_COLORS } from '../models/types'
 
+interface TrackMapBounds {
+  minLon: number
+  minLat: number
+  maxLon: number
+  maxLat: number
+}
+
+function includeTrackCoordinate(bounds: TrackMapBounds, longitude: number, latitude: number) {
+  bounds.minLon = Math.min(bounds.minLon, longitude)
+  bounds.minLat = Math.min(bounds.minLat, latitude)
+  bounds.maxLon = Math.max(bounds.maxLon, longitude)
+  bounds.maxLat = Math.max(bounds.maxLat, latitude)
+}
+
+function createEmptyFeatureCollection(): GeoJSON.FeatureCollection {
+  return { type: 'FeatureCollection', features: [] }
+}
+
+function findCoveredPointIndex(points: DayPoint[], timestamp: number): number {
+  let low = 0
+  let high = points.length - 1
+  let coveredIndex = -1
+
+  while (low <= high) {
+    const middle = (low + high) >> 1
+
+    if (points[middle].tsUtc <= timestamp) {
+      coveredIndex = middle
+      low = middle + 1
+    }
+    else {
+      high = middle - 1
+    }
+  }
+
+  return coveredIndex
+}
+
+function createProgressFeatures(points: DayPoint[]): GeoJSON.Feature[] {
+  const features: GeoJSON.Feature[] = []
+
+  for (const leg of splitTrackIntoLegs(points)) {
+    if (leg.points.length < 2)
+      continue
+
+    const lastPoint = leg.points.at(-1)
+    const color = ACTIVITY_COLORS[lastPoint?.activity || 'unknown'] || '#2196f3'
+
+    features.push({
+      type: 'Feature',
+      properties: { color, glowColor: `${color}40` },
+      geometry: { type: 'LineString', coordinates: leg.points.map(point => [point.lng, point.lat]) },
+    })
+  }
+
+  return features
+}
+
 export interface UseDayTrackMapOptions {
   mapHost: Ref<HTMLElement | null>
   popupHost: Ref<HTMLElement | null>
@@ -83,14 +141,18 @@ export function useDayTrackMap(options: UseDayTrackMapOptions) {
   function selectPointByIndex(index: number) {
     if (index < 1 || index > renderedPoints.length)
       return
+
     const p = renderedPoints[index - 1]
+
     if (!p)
       return
+
     selectedPoint.value = {
       point: p,
       index,
       total: renderedPoints.length,
     }
+
     if (pointPopup && mapInstance.value) {
       pointPopup.setLngLat([p.lng, p.lat]).addTo(mapInstance.value)
     }
@@ -110,17 +172,21 @@ export function useDayTrackMap(options: UseDayTrackMapOptions) {
 
   function copyCoords(p: DayPoint) {
     const txt = `${p.lat.toFixed(6)}, ${p.lng.toFixed(6)}`
+
     if (navigator.clipboard) {
       navigator.clipboard.writeText(txt)
       isCopied.value = true
+
       if (typeof navigator.vibrate === 'function') {
         try {
           navigator.vibrate(15)
         }
         catch {}
       }
+
       if (copyTimer)
         clearTimeout(copyTimer)
+
       copyTimer = setTimeout(() => {
         isCopied.value = false
       }, 2000)
@@ -129,19 +195,24 @@ export function useDayTrackMap(options: UseDayTrackMapOptions) {
 
   function getPointStatusBadge(p: DayPoint): PointStatusBadge {
     const speed = (p.speed ?? 0) * 3.6
+
     if (speed > 350) {
       return { type: 'flight', icon: 'mdi:airplane', label: 'Авиаперелет / Скоростное перемещение' }
     }
+
     if (p.stop)
       return { type: 'valid', icon: 'mdi:pause-circle-outline', label: `Остановка · ${Math.round((p.stop.endedAt - p.stop.startedAt) / 60_000)} мин · ${p.stop.samplesCount} измерений` }
+
     if (p.accuracy == null || p.accuracy > 60) {
       return { type: 'warning', icon: 'mdi:alert-outline', label: 'Низкая точность спутника' }
     }
+
     return { type: 'valid', icon: 'mdi:check-circle-outline', label: 'Валидная GPS-точка' }
   }
 
   function closePointPopup() {
     selectedPoint.value = null
+
     if (pointPopup?.isOpen()) {
       pointPopup.remove()
     }
@@ -152,48 +223,29 @@ export function useDayTrackMap(options: UseDayTrackMapOptions) {
     // Скрытый слой фото в расчёт не берём: прятать фото и одновременно вписывать по ним — странно
     const photos = isPhotosVisible?.value === false ? [] : (locatedPhotos?.value || [])
 
-    let minLon = Number.POSITIVE_INFINITY
-    let minLat = Number.POSITIVE_INFINITY
-    let maxLon = Number.NEGATIVE_INFINITY
-    let maxLat = Number.NEGATIVE_INFINITY
-
-    for (const p of pts) {
-      if (p.lng < minLon)
-        minLon = p.lng
-      if (p.lng > maxLon)
-        maxLon = p.lng
-      if (p.lat < minLat)
-        minLat = p.lat
-      if (p.lat > maxLat)
-        maxLat = p.lat
+    const bounds: TrackMapBounds = {
+      minLon: Number.POSITIVE_INFINITY,
+      minLat: Number.POSITIVE_INFINITY,
+      maxLon: Number.NEGATIVE_INFINITY,
+      maxLat: Number.NEGATIVE_INFINITY,
     }
+
+    pts.forEach(point => includeTrackCoordinate(bounds, point.lng, point.lat))
 
     // День без GPS-трека (или снимки в стороне от него) — единственные ориентиры фото
-    for (const photo of photos) {
-      if (photo.lng < minLon)
-        minLon = photo.lng
-      if (photo.lng > maxLon)
-        maxLon = photo.lng
-      if (photo.lat < minLat)
-        minLat = photo.lat
-      if (photo.lat > maxLat)
-        maxLat = photo.lat
-    }
+    photos.forEach(photo => includeTrackCoordinate(bounds, photo.lng, photo.lat))
 
-    if (minLon === Number.POSITIVE_INFINITY)
+    if (bounds.minLon === Number.POSITIVE_INFINITY)
       return
 
-    mapInstance.value?.fitBounds(
-      [
-        [minLon, minLat],
-        [maxLon, maxLat],
-      ],
-      {
-        padding: { top: 60, right: 60, bottom: 140, left: 60 },
-        maxZoom: 16,
-        duration: 600,
-      },
-    )
+    mapInstance.value?.fitBounds([
+      [bounds.minLon, bounds.minLat],
+      [bounds.maxLon, bounds.maxLat],
+    ], {
+      padding: { top: 60, right: 60, bottom: 140, left: 60 },
+      maxZoom: 16,
+      duration: 600,
+    })
   }
 
   const PROGRESS_THROTTLE_MS = 50 // Строгий лимит 20 FPS (интервал 50 мс) для предотвращения спама в Web Worker
@@ -206,18 +258,22 @@ export function useDayTrackMap(options: UseDayTrackMapOptions) {
         clearTimeout(progressTimer)
         progressTimer = null
       }
+
       lastProgressUpdateTs = performance.now()
       updateProgressLine()
+
       return
     }
 
     const now = performance.now()
     const elapsed = now - lastProgressUpdateTs
+
     if (elapsed >= PROGRESS_THROTTLE_MS) {
       if (progressTimer) {
         clearTimeout(progressTimer)
         progressTimer = null
       }
+
       lastProgressUpdateTs = now
       updateProgressLine()
     }
@@ -232,78 +288,46 @@ export function useDayTrackMap(options: UseDayTrackMapOptions) {
 
   function updateProgressLine() {
     const map = mapInstance.value
+
     if (!map || !map.getSource(PROGRESS_SOURCE_ID))
       return
 
-    const pts = dayData.value?.points
-    if (t.value === 0 || !pts || pts.length === 0) {
-      const emptyGeojson: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: [] }
-      ;(map.getSource(PROGRESS_SOURCE_ID) as maplibregl.GeoJSONSource).setData(emptyGeojson)
+    const points = dayData.value?.points
+
+    if (t.value === 0 || !points?.length) {
+      setProgressGeojson(map, createEmptyFeatureCollection())
+
       return
     }
 
     // Быстрый бинарный поиск границы пройденных точек без лишней фильтрации и сортировки
-    let low = 0
-    let high = pts.length - 1
-    let coveredIdx = -1
-    while (low <= high) {
-      const mid = (low + high) >> 1
-      if (pts[mid].tsUtc <= t.value) {
-        coveredIdx = mid
-        low = mid + 1
-      }
-      else {
-        high = mid - 1
-      }
-    }
+    const coveredIndex = findCoveredPointIndex(points, t.value)
 
-    if (coveredIdx < 1) {
-      const emptyGeojson: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: [] }
-      ;(map.getSource(PROGRESS_SOURCE_ID) as maplibregl.GeoJSONSource).setData(emptyGeojson)
+    if (coveredIndex < 1) {
+      setProgressGeojson(map, createEmptyFeatureCollection())
+
       return
     }
 
-    const covered = pts.slice(0, coveredIdx + 1)
-    const features: GeoJSON.Feature[] = []
-    const legs = splitTrackIntoLegs(covered)
+    const coveredPoints = points.slice(0, coveredIndex + 1)
+    setProgressGeojson(map, { type: 'FeatureCollection', features: createProgressFeatures(coveredPoints) })
+  }
 
-    for (const leg of legs) {
-      if (leg.points.length < 2)
-        continue
-      const smooth = leg.points
-      if (smooth.length < 2)
-        continue
-
-      const coords = smooth.map(p => [p.lng, p.lat])
-      const act = leg.points[leg.points.length - 1]?.activity || 'unknown'
-      const color = ACTIVITY_COLORS[act] || '#2196f3'
-
-      features.push({
-        type: 'Feature',
-        properties: {
-          color,
-          glowColor: `${color}40`,
-        },
-        geometry: {
-          type: 'LineString',
-          coordinates: coords,
-        },
-      })
-    }
-
-    const geojson: GeoJSON.FeatureCollection = {
-      type: 'FeatureCollection',
-      features,
-    }
-
-    ;(map.getSource(PROGRESS_SOURCE_ID) as maplibregl.GeoJSONSource).setData(geojson)
+  function setProgressGeojson(map: maplibregl.Map, data: GeoJSON.FeatureCollection) {
+    ;(map.getSource(PROGRESS_SOURCE_ID) as maplibregl.GeoJSONSource).setData(data)
   }
 
   function ensureLayers() {
     const map = mapInstance.value
+
     if (!map)
       return
 
+    ensureRouteAndProgressLayers(map)
+    ensurePointAndPhotoLayers(map)
+  }
+
+  function ensureRouteAndProgressLayers(map: maplibregl.Map) {
     if (!map.getSource(ROUTE_SOURCE_ID)) {
       map.addSource(ROUTE_SOURCE_ID, {
         type: 'geojson',
@@ -388,7 +412,9 @@ export function useDayTrackMap(options: UseDayTrackMapOptions) {
         },
       })
     }
+  }
 
+  function ensurePointAndPhotoLayers(map: maplibregl.Map) {
     if (!map.getSource(POINTS_SOURCE_ID)) {
       map.addSource(POINTS_SOURCE_ID, {
         type: 'geojson',
@@ -436,11 +462,211 @@ export function useDayTrackMap(options: UseDayTrackMapOptions) {
     }
   }
 
-  function createPhotoMarkerElement(
-    cluster: TrackPhotoCluster,
-    onPhotoClick: (p: TrackPhoto) => void,
-    onClusterClick: (photos: TrackPhoto[]) => void,
-  ): HTMLElement {
+  function getUniqueTrackPoints(points: DayPoint[]): DayPoint[] {
+    return points.filter((point, index) => {
+      const previous = points[index - 1]
+
+      return !previous || Math.abs(previous.lat - point.lat) > 1e-6 || Math.abs(previous.lng - point.lng) > 1e-6
+    })
+  }
+
+  function getRouteFeatures(uniquePoints: DayPoint[]): GeoJSON.Feature[] {
+    if (viewMode.value === 'route')
+      return createSegmentRouteFeatures()
+
+    if (viewMode.value === 'points')
+      return createPointModeRouteFeatures(uniquePoints)
+
+    return []
+  }
+
+  function createSegmentRouteFeatures(): GeoJSON.Feature[] {
+    const features: GeoJSON.Feature[] = []
+
+    for (const segment of renderSegments.value) {
+      if (segment.activity === 'still')
+        continue
+
+      const coordinates = segment.geometry || segment.points.map(point => [point.lng, point.lat])
+
+      if (coordinates.length < 2)
+        continue
+
+      features.push({
+        type: 'Feature',
+        properties: {
+          color: ACTIVITY_COLORS[segment.activity] || ACTIVITY_COLORS.unknown,
+          width: segment.activity === 'rail' ? 6 : 4.5,
+        },
+        geometry: { type: 'LineString', coordinates },
+      })
+    }
+
+    return features
+  }
+
+  function createPointModeRouteFeatures(points: DayPoint[]): GeoJSON.Feature[] {
+    return splitTrackIntoLegs(points)
+      .filter(leg => leg.points.length >= 2)
+      .map(leg => ({
+        type: 'Feature' as const,
+        properties: { color: 'rgba(59, 130, 246, 0.45)', width: 3 },
+        geometry: { type: 'LineString' as const, coordinates: leg.points.map(point => [point.lng, point.lat]) },
+      }))
+  }
+
+  function getWaypointRefs(points: DayPoint[]): Set<DayPoint> {
+    const waypoints = new Set<DayPoint>()
+
+    for (const leg of splitTrackIntoLegs(points)) {
+      waypoints.add(leg.points[0])
+      waypoints.add(leg.points[leg.points.length - 1])
+    }
+
+    let lastKept: DayPoint | null = null
+
+    for (const point of points) {
+      if (!waypoints.has(point) && !point.stop)
+        continue
+
+      if (isNearPreviousWaypoint(point, lastKept))
+        continue
+
+      waypoints.add(point)
+      lastKept = point
+    }
+
+    return waypoints
+  }
+
+  function isNearPreviousWaypoint(point: DayPoint, previous: DayPoint | null): boolean {
+    if (!previous)
+      return false
+
+    const distance = haversineM(
+      previous.lat,
+      previous.lng,
+      point.lat,
+      point.lng,
+    )
+
+    return distance < 15 && point.tsUtc - previous.tsUtc < 30_000
+  }
+
+  function createTrackPointFeatures(points: DayPoint[], isPointsMode: boolean): GeoJSON.Feature[] {
+    const waypoints = isPointsMode ? new Set<DayPoint>() : getWaypointRefs(points)
+
+    return points.flatMap((point, index) => {
+      const isWaypoint = isPointsMode || waypoints.has(point)
+
+      return isWaypoint
+        ? [createTrackPointFeature(
+            point,
+            index,
+            points.length,
+            isPointsMode,
+          )]
+        : []
+    })
+  }
+
+  function createTrackPointFeature(
+    point: DayPoint,
+    index: number,
+    total: number,
+    isPointsMode: boolean,
+  ): GeoJSON.Feature {
+    return {
+      type: 'Feature',
+      properties: {
+        pointIndex: index + 1,
+        totalPoints: total,
+        stopLabel: getStopLabel(point),
+        kind: 'waypoint',
+        color: ACTIVITY_COLORS[point.activity] || '#2196f3',
+        radius: point.stop ? 9 : isPointsMode ? 4 : 5,
+        strokeWidth: isPointsMode ? 1.5 : (point.stop ? 2 : 1.5),
+      },
+      geometry: { type: 'Point', coordinates: [point.lng, point.lat] },
+    }
+  }
+
+  function getStopLabel(point: DayPoint): string {
+    return point.stop ? `Пауза ${Math.round((point.stop.endedAt - point.stop.startedAt) / 60_000)} мин` : ''
+  }
+
+  function updateStopAreaLayer(map: maplibregl.Map, points: DayPoint[], isPointsMode: boolean) {
+    ensureStopLabelLayer(map)
+    const data: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: createStopAreaFeatures(points, isPointsMode) }
+    const source = map.getSource('day-track-stop-areas') as maplibregl.GeoJSONSource | undefined
+
+    if (source)
+      source.setData(data)
+    else
+      map.addSource('day-track-stop-areas', { type: 'geojson', data })
+
+    ensureStopAreaFillLayer(map)
+  }
+
+  function ensureStopLabelLayer(map: maplibregl.Map) {
+    if (map.getLayer('day-track-stop-labels'))
+      return
+
+    map.addLayer({
+      id: 'day-track-stop-labels',
+      type: 'symbol',
+      source: POINTS_SOURCE_ID,
+      filter: ['!=', ['get', 'stopLabel'], ''],
+      layout: { 'text-field': ['get', 'stopLabel'], 'text-size': 12, 'text-offset': [0, 1.6], 'text-anchor': 'top' },
+      paint: { 'text-color': '#334155', 'text-halo-color': '#ffffff', 'text-halo-width': 2 },
+    })
+  }
+
+  function createStopAreaFeatures(points: DayPoint[], isPointsMode: boolean): GeoJSON.Feature[] {
+    if (isPointsMode)
+      return []
+
+    const seenStopTimes = new Set<number>()
+    const features: GeoJSON.Feature[] = []
+
+    for (const point of points) {
+      if (!point.stop || seenStopTimes.has(point.stop.startedAt))
+        continue
+
+      seenStopTimes.add(point.stop.startedAt)
+      features.push(createStopAreaFeature(point))
+    }
+
+    return features
+  }
+
+  function createStopAreaFeature(point: DayPoint): GeoJSON.Feature {
+    const radius = point.stop!.radiusM
+    const ring = Array.from({ length: 49 }, (_, index) => {
+      const angle = index * Math.PI * 2 / 48
+
+      return [
+        point.lng + Math.cos(angle) * radius / (111_320 * Math.max(0.01, Math.cos(point.lat * Math.PI / 180))),
+        point.lat + Math.sin(angle) * radius / 111_320,
+      ]
+    })
+
+    return { type: 'Feature', properties: {}, geometry: { type: 'Polygon', coordinates: [ring] } }
+  }
+
+  function ensureStopAreaFillLayer(map: maplibregl.Map) {
+    if (map.getLayer('day-track-stop-areas'))
+      return
+
+    map.addLayer({
+      id: 'day-track-stop-areas',
+      type: 'fill',
+      source: 'day-track-stop-areas',
+      paint: { 'fill-color': '#64748b', 'fill-opacity': 0.13, 'fill-outline-color': '#64748b' },
+    }, POINTS_LAYER_ID)
+  }
+
+  function createPhotoMarkerElement(cluster: TrackPhotoCluster, onPhotoClick: (p: TrackPhoto) => void, onClusterClick: (photos: TrackPhoto[]) => void): HTMLElement {
     // Корень маркера — служебная оболочка: позицию и transform ему задаёт MapLibre
     // (transform: translate(-50%,-50%) translate(x,y)). Всё визуальное живёт в
     // .photo-marker-body, иначе собственные transform/position на корне ломают
@@ -469,6 +695,7 @@ export function useDayTrackMap(options: UseDayTrackMapOptions) {
     else {
       const photo = cluster.representativePhoto
       el.title = photo.title || photo.comment || 'Фото'
+
       if (photo.source === 'gps') {
         const icon = document.createElement('span')
         icon.className = 'photo-marker-source-icon source-gps'
@@ -487,6 +714,7 @@ export function useDayTrackMap(options: UseDayTrackMapOptions) {
 
     el.addEventListener('click', (e) => {
       e.stopPropagation()
+
       if (cluster.count > 1) {
         onClusterClick(cluster.photos)
       }
@@ -502,6 +730,7 @@ export function useDayTrackMap(options: UseDayTrackMapOptions) {
     for (const item of activePhotoMarkers) {
       item.marker.remove()
     }
+
     activePhotoMarkers = []
   }
 
@@ -521,6 +750,7 @@ export function useDayTrackMap(options: UseDayTrackMapOptions) {
     for (let i = 0; i < photos.length; i++) {
       if (visited[i])
         continue
+
       visited[i] = 1
       const seed = photos[i]
       const clusterPhotos: TrackPhoto[] = [seed]
@@ -528,7 +758,13 @@ export function useDayTrackMap(options: UseDayTrackMapOptions) {
       for (let j = i + 1; j < photos.length; j++) {
         if (visited[j])
           continue
-        if (haversineM(seed.lat, seed.lng, photos[j].lat, photos[j].lng) <= CLUSTER_RADIUS_M) {
+
+        if (haversineM(
+          seed.lat,
+          seed.lng,
+          photos[j].lat,
+          photos[j].lng,
+        ) <= CLUSTER_RADIUS_M) {
           visited[j] = 1
           clusterPhotos.push(photos[j])
         }
@@ -550,7 +786,9 @@ export function useDayTrackMap(options: UseDayTrackMapOptions) {
   function updatePhotoMarkersPlaybackState() {
     if (activePhotoMarkers.length === 0)
       return
+
     const curT = t.value
+
     for (const item of activePhotoMarkers) {
       const isNear = curT > 0 && item.photos.some(p => Math.abs(curT - p.tsUtc) < 45_000)
       item.element.classList.toggle('is-playback-active', isNear)
@@ -564,59 +802,65 @@ export function useDayTrackMap(options: UseDayTrackMapOptions) {
    */
   function updatePhotoLayer() {
     const map = mapInstance.value
+
     if (!map || !isMapReady.value)
       return
 
     const photos = locatedPhotos?.value || []
+
     if (!isPhotosVisible?.value || photos.length === 0) {
       photoMarkersSignature = ''
       clearPhotoMarkers()
+
       return
     }
 
     const clusters = buildPhotoClusters(photos)
     const signature = clusters.map(c => `${c.id}(${c.photos.map(p => p.id).join(',')})`).join('|')
+
     if (signature === photoMarkersSignature) {
       updatePhotoMarkersPlaybackState()
+
       return
     }
+
     photoMarkersSignature = signature
 
     // 3. Пересоздаём маркеры на карте
     clearPhotoMarkers()
 
     for (const cluster of clusters) {
-      const el = createPhotoMarkerElement(
-        cluster,
-        (photo) => {
+      const el = createPhotoMarkerElement(cluster, (photo) => {
+        closePointPopup()
+        onSelectPhoto?.(photo)
+
+        if (photoPopup && mapInstance.value) {
+          photoPopup.setLngLat([photo.lng, photo.lat]).addTo(mapInstance.value)
+        }
+      }, (clusterPhotos) => {
+        if (map.getZoom() < 17 && clusterPhotos.length > 1) {
+          const bounds = new maplibregl.LngLatBounds()
+
+          for (const p of clusterPhotos) {
+            bounds.extend([p.lng, p.lat])
+          }
+
+          map.fitBounds(bounds, {
+            padding: { top: 70, right: 70, bottom: 120, left: 70 },
+            maxZoom: 17.5,
+            duration: 400,
+          })
+        }
+        else {
           closePointPopup()
-          onSelectPhoto?.(photo)
-          if (photoPopup && mapInstance.value) {
-            photoPopup.setLngLat([photo.lng, photo.lat]).addTo(mapInstance.value)
+          onSelectCluster?.(clusterPhotos)
+          const first = clusterPhotos[0]
+
+          if (photoPopup && first && mapInstance.value) {
+            photoPopup.setLngLat([first.lng, first.lat]).addTo(mapInstance.value)
           }
-        },
-        (clusterPhotos) => {
-          if (map.getZoom() < 17 && clusterPhotos.length > 1) {
-            const bounds = new maplibregl.LngLatBounds()
-            for (const p of clusterPhotos) {
-              bounds.extend([p.lng, p.lat])
-            }
-            map.fitBounds(bounds, {
-              padding: { top: 70, right: 70, bottom: 120, left: 70 },
-              maxZoom: 17.5,
-              duration: 400,
-            })
-          }
-          else {
-            closePointPopup()
-            onSelectCluster?.(clusterPhotos)
-            const first = clusterPhotos[0]
-            if (photoPopup && first && mapInstance.value) {
-              photoPopup.setLngLat([first.lng, first.lat]).addTo(mapInstance.value)
-            }
-          }
-        },
-      )
+        }
+      })
 
       const marker = new maplibregl.Marker({
         element: el,
@@ -637,198 +881,184 @@ export function useDayTrackMap(options: UseDayTrackMapOptions) {
 
   function rebuildFeatures() {
     const map = mapInstance.value
+
     if (!map || !isMapReady.value)
       return
 
+    prepareMapForRebuild()
+    const points = getPointsForRebuild()
+
+    updateRouteLayer(map, getUniqueTrackPoints(points.rawPoints))
+    renderedPoints = points.pointsList
+    updatePointLayer(map, points.pointsList, points.isPointsMode)
+    updateStopAreaLayer(map, points.pointsList, points.isPointsMode)
+    updatePhotoLayers(map, points.allPoints)
+  }
+
+  function prepareMapForRebuild() {
     ensureLayers()
     closePointPopup()
     // Попап фото привязан к координате прошлого дня/режима — при пересборке слоёв
     // он остался бы висеть над пустым местом.
     closePhotoPopup()
     onSelectPhoto?.(null)
+  }
 
-    const rawPoints = dayData.value?.points || []
-    const routeFeatures: GeoJSON.Feature[] = []
-
-    const uniquePoints: DayPoint[] = []
-    for (const p of dayData.value?.rawPoints ?? displayPoints.value) {
-      const prev = uniquePoints[uniquePoints.length - 1]
-      if (!prev || Math.abs(prev.lat - p.lat) > 1e-6 || Math.abs(prev.lng - p.lng) > 1e-6) {
-        uniquePoints.push(p)
-      }
-    }
-
-    if (viewMode.value === 'route') {
-      for (const seg of renderSegments.value) {
-        if (seg.activity === 'still')
-          continue
-        const coords = seg.geometry || seg.points.map(p => [p.lng, p.lat])
-        if (coords.length < 2)
-          continue
-
-        routeFeatures.push({
-          type: 'Feature',
-          properties: {
-            color: ACTIVITY_COLORS[seg.activity] || ACTIVITY_COLORS.unknown,
-            width: seg.activity === 'rail' ? 6 : 4.5,
-          },
-          geometry: {
-            type: 'LineString',
-            coordinates: coords,
-          },
-        })
-      }
-    }
-    else if (viewMode.value === 'points') {
-      const legs = splitTrackIntoLegs(uniquePoints)
-      for (const leg of legs) {
-        if (leg.points.length < 2)
-          continue
-        const smooth = leg.points
-        if (smooth.length < 2)
-          continue
-
-        routeFeatures.push({
-          type: 'Feature',
-          properties: {
-            color: 'rgba(59, 130, 246, 0.45)',
-            width: 3,
-          },
-          geometry: {
-            type: 'LineString',
-            coordinates: smooth.map(p => [p.lng, p.lat]),
-          },
-        })
-      }
-    }
-
-    const routeGeojson: GeoJSON.FeatureCollection = {
-      type: 'FeatureCollection',
-      features: routeFeatures,
-    }
-    ;(map.getSource(ROUTE_SOURCE_ID) as maplibregl.GeoJSONSource)?.setData(routeGeojson)
-
+  function getPointsForRebuild() {
+    const allPoints = dayData.value?.points || []
+    const rawPoints = dayData.value?.rawPoints ?? displayPoints.value
     const isPointsMode = viewMode.value === 'points'
-    const pointsList = isPointsMode ? dayData.value?.rawPoints ?? displayPoints.value : displayPoints.value
-    const pointFeatures: GeoJSON.Feature[] = []
+    const pointsList = isPointsMode ? rawPoints : displayPoints.value
 
-    renderedPoints = pointsList
+    return { allPoints, rawPoints, isPointsMode, pointsList }
+  }
 
-    // Точки-ориентиры для режима «Маршрут». Кружок у каждого фикса превращал маршрут
-    // в цепочку жирных точек поверх линии, поэтому в route-режиме оставляем только
-    // смысловые точки: границы плеч (в т.ч. разрывы) и стоянки, прореженные по
-    // расстоянию/времени — остальное рисует линия.
-    const waypointRefs = new Set<DayPoint>()
-    if (!isPointsMode) {
-      const legs = splitTrackIntoLegs(pointsList)
-      for (const leg of legs) {
-        waypointRefs.add(leg.points[0])
-        waypointRefs.add(leg.points[leg.points.length - 1])
-      }
-      let lastKept: DayPoint | null = null
-      for (const p of pointsList) {
-        const isAnchor = waypointRefs.has(p) || !!p.stop
-        if (!isAnchor)
-          continue
-        if (lastKept) {
-          const dM = haversineM(lastKept.lat, lastKept.lng, p.lat, p.lng)
-          if (dM < 15 && p.tsUtc - lastKept.tsUtc < 30_000)
-            continue
-        }
-        waypointRefs.add(p)
-        lastKept = p
-      }
-    }
+  function updateRouteLayer(map: maplibregl.Map, points: DayPoint[]) {
+    const data: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: getRouteFeatures(points) }
+    ;(map.getSource(ROUTE_SOURCE_ID) as maplibregl.GeoJSONSource)?.setData(data)
+  }
 
-    for (let i = 0; i < pointsList.length; i++) {
-      const p = pointsList[i]
-      const isWaypoint = isPointsMode || waypointRefs.has(p)
-      // В режиме «Маршрут» отправляем в GeoJSON только ориентиры (waypoint/stop),
-      // чтобы не перегружать воркер MapLibre и память невидимыми точками.
-      if (!isWaypoint)
-        continue
+  function updatePointLayer(map: maplibregl.Map, points: DayPoint[], isPointsMode: boolean) {
+    const data: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: createTrackPointFeatures(points, isPointsMode) }
+    ;(map.getSource(POINTS_SOURCE_ID) as maplibregl.GeoJSONSource)?.setData(data)
 
-      pointFeatures.push({
-        type: 'Feature',
-        properties: {
-          pointIndex: i + 1,
-          totalPoints: pointsList.length,
-          stopLabel: p.stop ? `Пауза ${Math.round((p.stop.endedAt - p.stop.startedAt) / 60_000)} мин` : '',
-          kind: isWaypoint ? 'waypoint' : 'track',
-          color: ACTIVITY_COLORS[p.activity] || '#2196f3',
-          radius: p.stop ? 9 : isPointsMode ? 4 : 5,
-          strokeWidth: isPointsMode ? 1.5 : (p.stop ? 2 : 1.5),
-        },
-        geometry: {
-          type: 'Point',
-          coordinates: [p.lng, p.lat],
-        },
-      })
-    }
-
-    const pointsGeojson: GeoJSON.FeatureCollection = {
-      type: 'FeatureCollection',
-      features: pointFeatures,
-    }
-    ;(map.getSource(POINTS_SOURCE_ID) as maplibregl.GeoJSONSource)?.setData(pointsGeojson)
-    if (!map.getLayer('day-track-stop-labels')) {
-      map.addLayer({
-        id: 'day-track-stop-labels',
-        type: 'symbol',
-        source: POINTS_SOURCE_ID,
-        filter: ['!=', ['get', 'stopLabel'], ''],
-        layout: { 'text-field': ['get', 'stopLabel'], 'text-size': 12, 'text-offset': [0, 1.6], 'text-anchor': 'top' },
-        paint: { 'text-color': '#334155', 'text-halo-color': '#ffffff', 'text-halo-width': 2 },
-      })
-    }
-
-    const areas: GeoJSON.Feature[] = []
-    if (!isPointsMode) {
-      const seenStopTimes = new Set<number>()
-      for (const p of pointsList) {
-        if (!p.stop)
-          continue
-        if (seenStopTimes.has(p.stop.startedAt))
-          continue
-        seenStopTimes.add(p.stop.startedAt)
-
-        const ring = Array.from({ length: 49 }, (_, i) => {
-          const angle = i * Math.PI * 2 / 48
-          return [p.lng + Math.cos(angle) * p.stop!.radiusM / (111_320 * Math.max(0.01, Math.cos(p.lat * Math.PI / 180))), p.lat + Math.sin(angle) * p.stop!.radiusM / 111_320]
-        })
-        areas.push({ type: 'Feature', properties: {}, geometry: { type: 'Polygon', coordinates: [ring] } })
-      }
-    }
-    const areaData: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: areas }
-    if (!map.getSource('day-track-stop-areas'))
-      map.addSource('day-track-stop-areas', { type: 'geojson', data: areaData })
-    else
-      (map.getSource('day-track-stop-areas') as maplibregl.GeoJSONSource).setData(areaData)
-    if (!map.getLayer('day-track-stop-areas')) {
-      map.addLayer({ id: 'day-track-stop-areas', type: 'fill', source: 'day-track-stop-areas', paint: {
-        'fill-color': '#64748b',
-        'fill-opacity': 0.13,
-        'fill-outline-color': '#64748b',
-      } }, POINTS_LAYER_ID)
-    }
-
-    // В режиме «Маршрут» показываем только ориентиры (линия несёт сам трек),
-    // в режиме «Точки» — все точки, включая Bezier-опорные.
-    if (map.getLayer(POINTS_LAYER_ID)) {
+    if (map.getLayer(POINTS_LAYER_ID))
       map.setFilter(POINTS_LAYER_ID, isPointsMode ? null : ['==', ['get', 'kind'], 'waypoint'])
-    }
+  }
 
-    // Линию между фото не рисуем — маркеры достаточно информативны сами по себе
-    const photos = (isPhotosVisible?.value && locatedPhotos?.value) ? locatedPhotos.value : []
-    const emptyGeojson: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: [] }
-    ;(map.getSource(PHOTO_ROUTE_SOURCE_ID) as maplibregl.GeoJSONSource)?.setData(emptyGeojson)
+  function getVisiblePhotos(): TrackPhoto[] {
+    return isPhotosVisible?.value && locatedPhotos?.value ? locatedPhotos.value : []
+  }
 
+  function updatePhotoLayers(map: maplibregl.Map, rawPoints: DayPoint[]) {
+    const photos = getVisiblePhotos()
+    ;(map.getSource(PHOTO_ROUTE_SOURCE_ID) as maplibregl.GeoJSONSource)?.setData(createEmptyFeatureCollection())
     scheduleProgressUpdate(true)
     updatePhotoLayer()
 
-    if (renderSegments.value.length > 0 || rawPoints.length > 0 || photos.length > 0) {
+    if (hasTrackMapData(rawPoints, photos))
       fitTrackBounds()
+  }
+
+  function hasTrackMapData(rawPoints: DayPoint[], photos: TrackPhoto[]): boolean {
+    return renderSegments.value.length > 0 || rawPoints.length > 0 || photos.length > 0
+  }
+
+  function isTouchDevice(): boolean {
+    return 'ontouchstart' in window || navigator.maxTouchPoints > 0
+  }
+
+  function getPointSelectionFromMap(map: maplibregl.Map, event: maplibregl.MapMouseEvent, isTouch: boolean): SelectedPointInfo | null {
+    return findPointFeatureSelection(map, event, isTouch) || findNearestTrackPoint(map, event, isTouch)
+  }
+
+  function findPointFeatureSelection(map: maplibregl.Map, event: maplibregl.MapMouseEvent, isTouch: boolean): SelectedPointInfo | null {
+    const padding = isTouch ? 24 : 10
+    const bounds: [maplibregl.PointLike, maplibregl.PointLike] = [
+      [event.point.x - padding, event.point.y - padding],
+      [event.point.x + padding, event.point.y + padding],
+    ]
+    const features = map.queryRenderedFeatures(bounds, { layers: [POINTS_LAYER_ID] })
+
+    if (!features.length)
+      return null
+
+    const closest = findClosestPointFeature(map, features, event.point)
+    const index = Number(closest.properties?.pointIndex)
+    const point = renderedPoints[index - 1]
+
+    return point ? { point, index, total: renderedPoints.length || 1 } : null
+  }
+
+  function findClosestPointFeature(map: maplibregl.Map, features: maplibregl.MapGeoJSONFeature[], target: maplibregl.Point): maplibregl.MapGeoJSONFeature {
+    let closest = features[0]
+    let closestDistance = Number.POSITIVE_INFINITY
+
+    for (const feature of features) {
+      if (feature.geometry.type !== 'Point')
+        continue
+
+      const coordinates = feature.geometry.coordinates as [number, number]
+      const screenPoint = map.project(coordinates)
+      const distance = (screenPoint.x - target.x) ** 2 + (screenPoint.y - target.y) ** 2
+
+      if (distance < closestDistance) {
+        closestDistance = distance
+        closest = feature
+      }
     }
+
+    return closest
+  }
+
+  function findNearestTrackPoint(map: maplibregl.Map, event: maplibregl.MapMouseEvent, isTouch: boolean): SelectedPointInfo | null {
+    if (!renderedPoints.length)
+      return null
+
+    const clicked = map.unproject(event.point)
+    const metersPerPixel = 156_543.03392 * Math.cos((clicked.lat * Math.PI) / 180) / 2 ** map.getZoom()
+    const maxDistance = Math.max(isTouch ? 80 : 50, metersPerPixel * (isTouch ? 28 : 16))
+    const selected = findNearestPointByCoordinates(clicked.lat, clicked.lng, maxDistance)
+
+    return selected && selected.distance <= maxDistance
+      ? { point: selected.point, index: selected.index, total: renderedPoints.length || 1 }
+      : null
+  }
+
+  function findNearestPointByCoordinates(latitude: number, longitude: number, maxDistance: number): { point: DayPoint, index: number, distance: number } | null {
+    const maxDeltaLat = maxDistance / 111_000
+    const maxDeltaLng = maxDistance / (111_000 * Math.max(0.1, Math.cos((latitude * Math.PI) / 180)))
+    let nearest: { point: DayPoint, index: number, distance: number } | null = null
+
+    renderedPoints.forEach((candidate, index) => {
+      if (isOutsidePointHitbox(
+        candidate,
+        latitude,
+        longitude,
+        maxDeltaLat,
+        maxDeltaLng,
+      )) {
+        return
+      }
+
+      const distance = haversineM(
+        latitude,
+        longitude,
+        candidate.lat,
+        candidate.lng,
+      )
+
+      if (!nearest || distance < nearest.distance)
+        nearest = { point: candidate, index: index + 1, distance }
+    })
+
+    return nearest
+  }
+
+  function isOutsidePointHitbox(
+    point: DayPoint,
+    latitude: number,
+    longitude: number,
+    maxDeltaLat: number,
+    maxDeltaLng: number,
+  ): boolean {
+    return Math.abs(point.lat - latitude) > maxDeltaLat || Math.abs(point.lng - longitude) > maxDeltaLng
+  }
+
+  function handleMapClick(map: maplibregl.Map, event: maplibregl.MapMouseEvent) {
+    closePhotoPopup()
+    onSelectPhoto?.(null)
+
+    const selection = getPointSelectionFromMap(map, event, isTouchDevice())
+
+    if (!selection) {
+      closePointPopup()
+
+      return
+    }
+
+    selectedPoint.value = selection
+    pointPopup?.setLngLat([selection.point.lng, selection.point.lat]).addTo(map)
   }
 
   onMounted(async () => {
@@ -837,6 +1067,7 @@ export function useDayTrackMap(options: UseDayTrackMapOptions) {
 
     await initMap(mapHost.value, null, { center: mapCenter, zoom: 11 })
     const map = mapInstance.value
+
     if (!map)
       return
 
@@ -845,6 +1076,7 @@ export function useDayTrackMap(options: UseDayTrackMapOptions) {
     map.on('style.load', () => {
       ensureLayers()
       rebuildFeatures()
+
       if (playbackMarker)
         playbackMarker.addTo(map)
     })
@@ -882,90 +1114,8 @@ export function useDayTrackMap(options: UseDayTrackMapOptions) {
     // поэтому подпись кластеров от зума не зависит, и метки просто едут с картой.
     // (Раньше пересборка на move/zoom была и причиной прыжков, и причиной лагов.)
 
-    // Клик по карте — обработчик для попапа точки.
-    // На мобильных/тач устройствах используем bounding box (расширенный хитбокс в пикселях),
-    // чтобы по маленьким точкам было легко попадать пальцем без их визуального раздувания.
-    map.on('click', (e) => {
-      closePhotoPopup()
-      onSelectPhoto?.(null)
-
-      let pData: DayPoint | null = null
-      let idx = 1
-
-      const isTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0)
-      const hitPadding = isTouch ? 24 : 10
-      const bbox: [maplibregl.PointLike, maplibregl.PointLike] = [
-        [e.point.x - hitPadding, e.point.y - hitPadding],
-        [e.point.x + hitPadding, e.point.y + hitPadding],
-      ]
-
-      const features = map.queryRenderedFeatures(bbox, { layers: [POINTS_LAYER_ID] })
-      if (features.length > 0) {
-        // Находим ближайшую к центру тача/клика точку по экранным пикселям
-        let closestFeature = features[0]
-        let minScreenDistSq = Number.POSITIVE_INFINITY
-
-        for (const f of features) {
-          if (f.geometry.type === 'Point') {
-            const coords = f.geometry.coordinates as [number, number]
-            const screenPt = map.project(coords)
-            const dx = screenPt.x - e.point.x
-            const dy = screenPt.y - e.point.y
-            const distSq = dx * dx + dy * dy
-            if (distSq < minScreenDistSq) {
-              minScreenDistSq = distSq
-              closestFeature = f
-            }
-          }
-        }
-
-        const pIndex = Number(closestFeature.properties?.pointIndex)
-        pData = renderedPoints[pIndex - 1] ?? null
-        idx = pIndex
-      }
-
-      // Fallback: в режиме «Маршрут» (где отображаются только ключевые ориентиры)
-      // или если пользователь нажал чуть в стороне от линии/точки, ищем ближайшую точку трека.
-      if (!pData && renderedPoints.length > 0) {
-        const clicked = map.unproject(e.point)
-        const metersPerPixel = 156_543.03392 * Math.cos((clicked.lat * Math.PI) / 180) / 2 ** map.getZoom()
-        const maxDistM = Math.max(isTouch ? 80 : 50, metersPerPixel * (isTouch ? 28 : 16))
-
-        // Bounding box pre-check: быстро отсекаем точки далеко от клика
-        const maxDeltaLat = maxDistM / 111_000
-        const maxDeltaLng = maxDistM / (111_000 * Math.max(0.1, Math.cos((clicked.lat * Math.PI) / 180)))
-
-        let best = Number.POSITIVE_INFINITY
-        for (let i = 0; i < renderedPoints.length; i++) {
-          const cand = renderedPoints[i]
-          if (Math.abs(cand.lat - clicked.lat) > maxDeltaLat || Math.abs(cand.lng - clicked.lng) > maxDeltaLng)
-            continue
-          const dM = haversineM(clicked.lat, clicked.lng, cand.lat, cand.lng)
-          if (dM < best) {
-            best = dM
-            pData = cand
-            idx = i + 1
-          }
-        }
-        if (best > maxDistM) {
-          pData = null
-        }
-      }
-
-      if (!pData) {
-        closePointPopup()
-        return
-      }
-
-      selectedPoint.value = {
-        point: pData,
-        index: idx,
-        total: renderedPoints.length || 1,
-      }
-      if (pointPopup) {
-        pointPopup.setLngLat([pData.lng, pData.lat]).addTo(map)
-      }
-    })
+    // Клик по карте использует расширенный хитбокс на мобильных устройствах.
+    map.on('click', event => handleMapClick(map, event))
 
     map.on('mouseenter', POINTS_LAYER_ID, () => {
       map.getCanvas().style.cursor = 'pointer'
@@ -986,6 +1136,7 @@ export function useDayTrackMap(options: UseDayTrackMapOptions) {
       if (playbackMarker) {
         playbackMarker.setLngLat([p.lng, p.lat])
       }
+
       if (isFollowCamera.value) {
         if (isPlaying.value) {
           mapInstance.value.jumpTo({
@@ -1004,6 +1155,7 @@ export function useDayTrackMap(options: UseDayTrackMapOptions) {
 
   watch(t, (curT) => {
     scheduleProgressUpdate(!isPlaying.value)
+
     if (curT > 0)
       updatePhotoMarkersPlaybackState()
   })
@@ -1015,6 +1167,7 @@ export function useDayTrackMap(options: UseDayTrackMapOptions) {
     // а deep-обход 60 снимков дёргал полную пересборку слоёв на каждое изменение.
     watch(locatedPhotos, () => {
       updatePhotoLayer()
+
       // День без GPS-трека: камера держится только на фото, вписываем по ним.
       // Когда трек есть, повторный fit не делаем — иначе камера дёргается
       // на каждое добавленное воспоминание.
@@ -1027,19 +1180,24 @@ export function useDayTrackMap(options: UseDayTrackMapOptions) {
   onBeforeUnmount(() => {
     if (copyTimer)
       clearTimeout(copyTimer)
+
     if (progressTimer) {
       clearTimeout(progressTimer)
       progressTimer = null
     }
+
     clearPhotoMarkers()
+
     if (playbackMarker) {
       playbackMarker.remove()
       playbackMarker = null
     }
+
     if (pointPopup) {
       pointPopup.remove()
       pointPopup = null
     }
+
     if (photoPopup) {
       photoPopup.remove()
       photoPopup = null

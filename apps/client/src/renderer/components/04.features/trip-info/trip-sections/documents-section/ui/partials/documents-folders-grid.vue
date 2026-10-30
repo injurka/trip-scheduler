@@ -14,7 +14,6 @@ interface Props {
 }
 
 defineProps<Props>()
-
 const emit = defineEmits<{
   (e: 'selectFolder', folderId: string): void
   (e: 'renameFolder', folder: DocumentFolder, newName: string): void
@@ -26,32 +25,28 @@ const emit = defineEmits<{
 const vFocus = {
   mounted: (el: HTMLElement) => el.focus(),
 }
-
 // Inline-редактирование существующей папки
 const editingFolderId = ref<string | null>(null)
 const editingFolderName = ref('')
+// Inline-создание новой папки
+const newFolderName = ref('')
 
 function startEditing(folder: DocumentFolder) {
   editingFolderId.value = folder.id
   editingFolderName.value = folder.name
 }
-
 function saveEditing(folder: DocumentFolder) {
   if (editingFolderName.value.trim() && editingFolderName.value !== folder.name) {
     emit('renameFolder', folder, editingFolderName.value.trim())
   }
+
   editingFolderId.value = null
   editingFolderName.value = ''
 }
-
 function cancelEditing() {
   editingFolderId.value = null
   editingFolderName.value = ''
 }
-
-// Inline-создание новой папки
-const newFolderName = ref('')
-
 function handleAddFolder() {
   if (newFolderName.value.trim()) {
     emit('createFolder', newFolderName.value.trim())

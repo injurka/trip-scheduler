@@ -12,6 +12,7 @@ export async function openExternalUrl(url: string, target = '_blank'): Promise<v
   if (isTauri) {
     try {
       await tauriOpenUrl(url)
+
       return
     }
     catch (e) {

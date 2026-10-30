@@ -97,7 +97,14 @@ function serializeForScript(value: unknown): string {
     .replace(/\u2029/g, '\\u2029')
 }
 
-function createSandboxDocument(code: string, pages: DataviewPage[], currentNoteId: string, token: string, readonly: boolean, linkColor: string): string {
+function createSandboxDocument(
+  code: string,
+  pages: DataviewPage[],
+  currentNoteId: string,
+  token: string,
+  readonly: boolean,
+  linkColor: string,
+): string {
   const script = `(() => {
     const token = ${serializeForScript(token)};
     const payload = ${serializeForScript({ pages, currentNoteId, readonly })};
@@ -430,7 +437,14 @@ export function createDataviewJsNodeView(node: ProseMirrorNode, options: Datavie
     const pages = buildPages(options.getNotes())
     const linkColor = getComputedStyle(document.documentElement).getPropertyValue('--fg-accent-color').trim() || '#e16032'
     token = crypto.randomUUID()
-    frame.srcdoc = createSandboxDocument(currentCode, pages, options.currentNoteId, token, options.readonly(), linkColor)
+    frame.srcdoc = createSandboxDocument(
+      currentCode,
+      pages,
+      options.currentNoteId,
+      token,
+      options.readonly(),
+      linkColor,
+    )
   }
 
   const handleMessage = (event: MessageEvent) => {
@@ -439,6 +453,7 @@ export function createDataviewJsNodeView(node: ProseMirrorNode, options: Datavie
 
     if (event.data.type === 'height') {
       const height = Number(event.data.height)
+
       if (Number.isFinite(height))
         frame.height = String(Math.min(520, Math.max(100, height)))
     }
@@ -458,10 +473,12 @@ export function createDataviewJsNodeView(node: ProseMirrorNode, options: Datavie
     update: (updatedNode) => {
       if (updatedNode.type.name !== 'code_block' || String(updatedNode.attrs.language || '').toLowerCase() !== 'dataviewjs')
         return false
+
       if (updatedNode.textContent !== currentCode) {
         currentCode = updatedNode.textContent
         render()
       }
+
       return true
     },
     ignoreMutation: mutation => mutation.target !== contentDOM && !contentDOM.contains(mutation.target),

@@ -38,11 +38,13 @@ export function useGeolocationRoutes(mapApiRef: Ref<GeolocationMapApi | undefine
 
     routes.value = [...routes.value, newRoute]
     mapApiRef.value?.addOrUpdatePoint(startPoint)
+
     return newRoute
   }
 
   async function addPointToRoute(routeId: string, coords: Coordinate, pointType: 'via' | 'connect' = 'via') {
     const routeIndex = routes.value.findIndex(r => r.id === routeId)
+
     if (routeIndex === -1)
       return
 
@@ -51,10 +53,10 @@ export function useGeolocationRoutes(mapApiRef: Ref<GeolocationMapApi | undefine
 
     if (updatedPoints.length > 0) {
       const lastPoint = updatedPoints[updatedPoints.length - 1]
+
       if (lastPoint.type === 'end') {
         updatedPoints = updatedPoints.map((p, index) =>
-          index === updatedPoints.length - 1 ? { ...p, type: 'via' } : p,
-        )
+          index === updatedPoints.length - 1 ? { ...p, type: 'via' } : p)
       }
     }
 
@@ -79,6 +81,7 @@ export function useGeolocationRoutes(mapApiRef: Ref<GeolocationMapApi | undefine
 
   async function deleteRoute(routeId: string) {
     const routeIndex = routes.value.findIndex(r => r.id === routeId)
+
     if (routeIndex !== -1) {
       const routeToDelete = routes.value[routeIndex]
       routeToDelete.points.forEach(p => mapApiRef.value?.removePoint(p.id))
@@ -89,6 +92,7 @@ export function useGeolocationRoutes(mapApiRef: Ref<GeolocationMapApi | undefine
 
   async function deletePointFromRoute(routeId: string, pointId: string) {
     const routeIndex = routes.value.findIndex(r => r.id === routeId)
+
     if (routeIndex === -1)
       return
 
@@ -101,8 +105,10 @@ export function useGeolocationRoutes(mapApiRef: Ref<GeolocationMapApi | undefine
       updatedPoints = updatedPoints.map((p, index) => {
         if (index === 0)
           return { ...p, type: 'start' }
+
         if (index === updatedPoints.length - 1 && p.type !== 'connect')
           return { ...p, type: 'end' }
+
         return p
       })
     }
@@ -115,8 +121,10 @@ export function useGeolocationRoutes(mapApiRef: Ref<GeolocationMapApi | undefine
 
   async function updatePointInRoute(pointId: string, newCoords: Coordinate, shouldUpdateAddress: boolean = false) {
     let routeOfPoint: MapRoute | undefined
+
     for (const route of routes.value) {
       const point = route.points.find(p => p.id === pointId)
+
       if (point) {
         routeOfPoint = route
         point.coordinates = newCoords
@@ -132,15 +140,19 @@ export function useGeolocationRoutes(mapApiRef: Ref<GeolocationMapApi | undefine
         break
       }
     }
+
     if (routeOfPoint)
       await updateRouteGeometry(routeOfPoint.id)
   }
 
   async function refreshRoutePointAddress(routeId: string, pointId: string) {
     const route = routes.value.find(r => r.id === routeId)
+
     if (!route)
       return
+
     const point = route.points.find(p => p.id === pointId)
+
     if (!point)
       return
 
@@ -150,6 +162,7 @@ export function useGeolocationRoutes(mapApiRef: Ref<GeolocationMapApi | undefine
 
   function handlePointDataUpdate(routeId: string, point: MapPoint) {
     const routeIndex = routes.value.findIndex(r => r.id === routeId)
+
     if (routeIndex === -1)
       return
 
@@ -163,6 +176,7 @@ export function useGeolocationRoutes(mapApiRef: Ref<GeolocationMapApi | undefine
 
   async function updateRouteGeometry(routeId: string) {
     const route = routes.value.find(r => r.id === routeId)
+
     if (!route)
       return
 
@@ -171,21 +185,23 @@ export function useGeolocationRoutes(mapApiRef: Ref<GeolocationMapApi | undefine
       route.distance = 0
       route.duration = 0
       mapApiRef.value?.removeRoute(routeId)
+
       return
     }
 
     const request = Symbol(routeId)
     routeRequests.set(routeId, request)
     route.isFetching = true
+
+    await fetchAndApplyRouteGeometry(route, routeId, request)
+  }
+
+  async function fetchAndApplyRouteGeometry(route: MapRoute, routeId: string, request: symbol) {
     try {
       const routeData = await routingService.calculateRoute(route.points, route.transportMode || 'foot', route.id)
-      if (routeData && routeRequests.get(routeId) === request && routes.value.includes(route)) {
-        route.geometry = routeData.geometry
-        route.distance = routeData.distance
-        route.duration = routeData.duration
-        route.isDirect = routeData.isDirect
-        mapApiRef.value?.addOrUpdateRoute(route)
-      }
+
+      if (routeData && isCurrentRouteRequest(route, routeId, request))
+        applyRouteGeometry(route, routeData)
     }
     catch (error: any) {
       if (error?.name !== 'AbortError') {
@@ -200,10 +216,27 @@ export function useGeolocationRoutes(mapApiRef: Ref<GeolocationMapApi | undefine
     }
   }
 
+  function isCurrentRouteRequest(route: MapRoute, routeId: string, request: symbol): boolean {
+    return routeRequests.get(routeId) === request && routes.value.includes(route)
+  }
+
+  function applyRouteGeometry(route: MapRoute, routeData: Awaited<ReturnType<typeof routingService.calculateRoute>>) {
+    if (!routeData)
+      return
+
+    route.geometry = routeData.geometry
+    route.distance = routeData.distance
+    route.duration = routeData.duration
+    route.isDirect = routeData.isDirect
+    mapApiRef.value?.addOrUpdateRoute(route)
+  }
+
   async function setRouteTransportMode(routeId: string, mode: TransportMode) {
     const route = routes.value.find(r => r.id === routeId)
+
     if (!route)
       return
+
     route.transportMode = mode
     route.geometry = []
     route.distance = 0
@@ -222,13 +255,16 @@ export function useGeolocationRoutes(mapApiRef: Ref<GeolocationMapApi | undefine
         route.distance = 0
         route.duration = 0
       }
+
       // Импортированные треки (GPX) уже несут полную геометрию. Не пересчитывать её
       // через routing-сервис: OSRM заменил бы фирменный трек дорожным маршрутом
       // между стартом и финишем. Пересчёт остаётся для явных правок пользователя.
       if (route.geometry && route.geometry.length >= 2) {
         mapApiRef.value?.addOrUpdateRoute(route)
+
         return
       }
+
       return updateRouteGeometry(route.id)
     })
     await Promise.all(routeUpdatePromises)

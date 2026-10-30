@@ -8,19 +8,13 @@ import { KitAvatar } from '~/components/01.kit/kit-avatar'
 import { KitImage } from '~/components/01.kit/kit-image'
 import { AppRoutePaths } from '~/shared/constants/routes'
 
-const props = defineProps<{
+interface Props {
   trip: Trip
-}>()
+}
+
+const props = defineProps<Props>()
 
 const router = useRouter()
-
-function goTo() {
-  router.push(AppRoutePaths.Trip.Info(props.trip.id))
-}
-
-function navigateToProfile(userId: string) {
-  router.push(AppRoutePaths.User.Profile(userId))
-}
 
 const formattedDates = computed(() => {
   const start = new Date(props.trip.startDate)
@@ -30,9 +24,9 @@ const formattedDates = computed(() => {
   if (start.getFullYear() === end.getFullYear()) {
     return `${formatter.format(start)} - ${formatter.format(end)} ${start.getFullYear()}`
   }
+
   return `${formatter.format(start)} ${start.getFullYear()} - ${formatter.format(end)} ${end.getFullYear()}`
 })
-
 const statusInfo = computed(() => {
   switch (props.trip.status) {
     case 'completed':
@@ -43,23 +37,35 @@ const statusInfo = computed(() => {
       return { text: 'Черновик', class: 'draft', icon: 'mdi:pencil-circle-outline' }
   }
 })
-
 const formattedBudget = computed(() => {
   if (!props.trip.budget || !props.trip.currency)
     return null
+
   return new Intl.NumberFormat('ru-RU', {
     style: 'currency',
     currency: props.trip.currency,
     minimumFractionDigits: 0,
   }).format(props.trip.budget)
 })
+
+function goTo() {
+  router.push(AppRoutePaths.Trip.Info(props.trip.id))
+}
+function navigateToProfile(userId: string) {
+  router.push(AppRoutePaths.User.Profile(userId))
+}
 </script>
 
 <template>
   <div class="travel-card-wrapper">
     <div class="travel-card" @click="goTo">
       <div class="card-image-container">
-        <KitImage v-if="trip.imageUrl" :src="trip.imageUrl" :alt="trip.title" class="card-image" />
+        <KitImage
+          v-if="trip.imageUrl"
+          :src="trip.imageUrl"
+          :alt="trip.title"
+          class="card-image"
+        />
         <div v-else class="card-no-image">
           <Icon icon="mdi:map-legend" />
         </div>

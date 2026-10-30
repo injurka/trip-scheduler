@@ -60,21 +60,24 @@ const isTabEditDialogOpen = ref(false)
 const isNewTab = ref(false)
 const editingTab = ref<ChecklistTabConfig | null>(null)
 
+watch(activeTab, () => {
+  newUngroupedItemText.value = ''
+})
+
 function onGroupItemsUpdate(groupId: string, updatedGroupItems: ChecklistItem[]) {
   const updatedMap = new Map(updatedGroupItems.map(item => [item.id, item]))
   items.value = items.value.map((item) => {
     if (item.groupId === groupId && updatedMap.has(item.id)) {
       return updatedMap.get(item.id)!
     }
+
     return item
   })
 }
-
 function onUngroupedItemsUpdate(newUngroupedItems: ChecklistItem[]) {
   const otherItems = items.value.filter(i => i.groupId || i.type !== activeTab.value)
   items.value = [...newUngroupedItems, ...otherItems]
 }
-
 function onAddUngroupedItem() {
   if (newUngroupedItemText.value.trim()) {
     addItem(newUngroupedItemText.value, activeTab.value)
@@ -82,19 +85,16 @@ function onAddUngroupedItem() {
     newUngroupedItemInputRef.value?.focus()
   }
 }
-
 function openNewTabDialog() {
   editingTab.value = null
   isNewTab.value = true
   isTabEditDialogOpen.value = true
 }
-
 function openEditTabDialog() {
   editingTab.value = currentTabConfig.value
   isNewTab.value = false
   isTabEditDialogOpen.value = true
 }
-
 function handleTabSave(tab: { id: string, name: string, icon: string }) {
   if (isNewTab.value) {
     addTab(tab)
@@ -103,10 +103,6 @@ function handleTabSave(tab: { id: string, name: string, icon: string }) {
     updateTab(tab)
   }
 }
-
-watch(activeTab, () => {
-  newUngroupedItemText.value = ''
-})
 </script>
 
 <template>

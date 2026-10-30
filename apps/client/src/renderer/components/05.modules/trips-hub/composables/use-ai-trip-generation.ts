@@ -59,6 +59,7 @@ export function useAiTripGeneration() {
       if (!status) {
         phase.value = 'error'
         errorMessage.value = 'Не удалось получить статус генерации.'
+
         return
       }
 

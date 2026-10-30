@@ -23,6 +23,7 @@ const totalDistance = computed(() => {
 function getDistanceShare(distanceM: number): number | null {
   if (totalDistance.value <= 0 || distanceM <= 0)
     return null
+
   return Math.round((distanceM / totalDistance.value) * 100)
 }
 </script>

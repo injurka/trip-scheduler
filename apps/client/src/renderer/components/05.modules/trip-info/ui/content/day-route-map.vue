@@ -7,93 +7,107 @@ import { KitTooltip } from '~/components/01.kit/kit-tooltip'
 import { lazyComponent } from '~/shared/lib/lazy-component'
 import { EActivitySectionType } from '~/shared/types/models/activity'
 
-const props = defineProps<Props>()
-
-const GeolocationMap = lazyComponent(() => import('~/components/03.domain/trip-info/geolocation-section/ui/geolocation-map.vue'))
-
 interface Props {
   day: IDay
 }
 
-const wrapperRef = ref<HTMLElement | null>(null)
-const { isFullscreen, toggle: toggleFullscreen } = useFullscreen(wrapperRef)
+const props = defineProps<Props>()
 
 // Запоминаем состояние развернутости в localStorage
 const isExpanded = useStorage<boolean>('trip-day-route-map-expanded', false)
 
-function toggleExpand() {
-  isExpanded.value = !isExpanded.value
-}
+const GeolocationMap = lazyComponent(() => import('~/components/03.domain/trip-info/geolocation-section/ui/geolocation-map.vue'))
+const wrapperRef = ref<HTMLElement | null>(null)
 
-function handleToggleFullscreen() {
-  if (!isFullscreen.value && !isExpanded.value) {
-    isExpanded.value = true
-  }
-  toggleFullscreen()
-}
+const { isFullscreen, toggle: toggleFullscreen } = useFullscreen(wrapperRef)
 
 const geoSections = computed(() => props.day.activities.flatMap(activity =>
-  activity.sections?.filter(section => section.type === EActivitySectionType.GEOLOCATION) ?? [],
-))
-
+  activity.sections?.filter(section => section.type === EActivitySectionType.GEOLOCATION) ?? []))
 const routes = computed<MapRoute[]>(() => geoSections.value.flatMap(section => section.routes))
 const standalonePoints = computed<MapPoint[]>(() => geoSections.value.flatMap(section => section.points))
 const routePoints = computed<MapPoint[]>(() => routes.value.flatMap(route =>
   route.points.map(point => ({
     ...point,
     style: { ...point.style, color: route.color },
-  })),
-))
+  }))))
 const points = computed(() => [...standalonePoints.value, ...routePoints.value])
-
 const center = computed<Coordinate>(() => {
   const firstPoint = points.value[0]
+
   if (firstPoint)
     return firstPoint.coordinates
 
   const firstRoute = routes.value[0]
+
   return firstRoute?.geometry?.[0] ?? firstRoute?.points[0]?.coordinates ?? [37.6176, 55.7558]
 })
-
 const hasMapData = computed(() => points.value.length > 0 || routes.value.length > 0)
-
-function pluralize(n: number, one: string, few: string, many: string) {
-  const abs = Math.abs(n) % 100
-  const rem = abs % 10
-  if (abs > 10 && abs < 20)
-    return many
-  if (rem > 1 && rem < 5)
-    return few
-  if (rem === 1)
-    return one
-  return many
-}
-
 const locationsCount = computed(() => points.value.length)
 const routesCount = computed(() => routes.value.length)
-
 const locationsLabel = computed(() => {
   const count = locationsCount.value
-  return `${count} ${pluralize(count, 'локация', 'локации', 'локаций')}`
-})
 
+  return `${count} ${pluralize(
+    count,
+    'локация',
+    'локации',
+    'локаций',
+  )}`
+})
 const routesLabel = computed(() => {
   const count = routesCount.value
-  return `${count} ${pluralize(count, 'маршрут', 'маршрута', 'маршрутов')}`
-})
 
+  return `${count} ${pluralize(
+    count,
+    'маршрут',
+    'маршрута',
+    'маршрутов',
+  )}`
+})
 const totalDistanceMeters = computed(() => {
   return routes.value.reduce((acc, r) => acc + (r.distance || 0), 0)
 })
-
 const distanceLabel = computed(() => {
   if (!totalDistanceMeters.value)
     return null
+
   if (totalDistanceMeters.value >= 1000) {
     return `${(totalDistanceMeters.value / 1000).toFixed(1)} км`
   }
+
   return `${Math.round(totalDistanceMeters.value)} м`
 })
+
+function toggleExpand() {
+  isExpanded.value = !isExpanded.value
+}
+function handleToggleFullscreen() {
+  if (!isFullscreen.value && !isExpanded.value) {
+    isExpanded.value = true
+  }
+
+  toggleFullscreen()
+}
+function pluralize(
+  n: number,
+  one: string,
+  few: string,
+  many: string,
+) {
+  const abs = Math.abs(n) % 100
+  const rem = abs % 10
+
+  if (abs > 10 && abs < 20)
+    return many
+
+  if (rem > 1 && rem < 5)
+    return few
+
+  if (rem === 1)
+    return one
+
+  return many
+}
 </script>
 
 <template>

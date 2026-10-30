@@ -45,7 +45,6 @@ const props = withDefaults(defineProps<Props>(), {
   useStaticRenderer: false,
   autoFit: true,
 })
-
 const emit = defineEmits<{
   (e: 'mapClick', coords: Coordinate): void
   (e: 'mapReady', controller: ReturnType<typeof useGeolocationMap>): void
@@ -76,41 +75,24 @@ const {
 } = useGeolocationMap()
 
 let hasAutoFitted = false
+const mapContainerRef = ref<HTMLElement>()
+const isMapActive = ref(!props.interactiveOnClick)
+const showActivateMessage = ref(false)
+let previousPointIds = new Set<string>()
+let previousRouteIds = new Set<string>()
+const localSearchQuery = ref('')
+const isSearchExpanded = ref(false)
+const isSearchingLocal = ref(false)
+const inlineSearchRef = ref<HTMLElement | null>(null)
 
 const hasMapContent = computed(() => {
   return props.points.length > 0 || props.routes.some(r => (r.points?.length ?? 0) > 0 || (r.geometry?.length ?? 0) > 0)
 })
-
-function performAutoFit(duration = 400) {
-  if (!hasMapContent.value)
-    return
-  const map = mapInstance.value
-  if (!map)
-    return
-  map.resize()
-  fitToContent(props.points, props.routes, {
-    duration,
-    padding: 60,
-    maxZoom: 14.8,
-  })
-}
-
-const mapContainerRef = ref<HTMLElement>()
-const isMapActive = ref(!props.interactiveOnClick)
-const showActivateMessage = ref(false)
 const dropdownPortalTarget = computed(() => props.isFullscreen ? mapContainerRef.value : undefined)
-
-function activateMap() {
-  if (isMapActive.value || !mapInstance.value)
-    return
-
-  isMapActive.value = true
-  setInteractive(true)
-  modifyInteraction.setActive(!props.readonly)
-}
 
 watch(isMapActive, (active) => {
   setInteractive(active)
+
   if (active) {
     modifyInteraction.setActive(!props.readonly)
   }
@@ -118,19 +100,13 @@ watch(isMapActive, (active) => {
     modifyInteraction.setActive(false)
   }
 })
-
-function handleSetTileSource(sourceId: TileSourceId) {
-  setTileSource(sourceId)
-}
-
-let previousPointIds = new Set<string>()
-let previousRouteIds = new Set<string>()
-
 watch(() => props.points, (newPoints) => {
   if (props.useStaticRenderer) {
     setStaticMapData(newPoints, props.routes)
+
     return
   }
+
   if (!isMapLoaded.value)
     return
 
@@ -149,12 +125,13 @@ watch(() => props.points, (newPoints) => {
     })
   }
 }, { deep: true })
-
 watch(() => props.routes, (newRoutes) => {
   if (props.useStaticRenderer) {
     setStaticMapData(props.points, newRoutes)
+
     return
   }
+
   if (!isMapLoaded.value)
     return
 
@@ -179,37 +156,104 @@ watch(() => props.routes, (newRoutes) => {
     })
   }
 }, { deep: true })
-
 watch(() => props.readonly, (isReadonly) => {
   if (isMapActive.value)
     modifyInteraction.setActive(!isReadonly)
 })
-
 watch(() => props.activeItemId, (newId) => {
   setActivePointId(newId ?? null)
 }, { immediate: true })
-
 watch(() => props.selectedCoords, (coords) => {
   setSelectionMarker(coords || null)
 }, { immediate: true })
+watch(isMapLoaded, (isReady) => {
+  if (isReady) {
+    if (props.useStaticRenderer) {
+      setStaticMapData(props.points, props.routes)
 
-const localSearchQuery = ref('')
-const isSearchExpanded = ref(false)
-const isSearchingLocal = ref(false)
-const inlineSearchRef = ref<HTMLElement | null>(null)
+      return
+    }
 
+    props.points.forEach(addOrUpdatePoint)
+    previousPointIds = new Set(props.points.map(p => p.id))
+
+    props.routes.forEach((route) => {
+      if (route.isVisible)
+        addOrUpdateRoute(route)
+    })
+    previousRouteIds = new Set(props.routes.map(r => r.id))
+
+    if (props.autoFit && !hasAutoFitted && hasMapContent.value) {
+      hasAutoFitted = true
+      nextTick(() => {
+        performAutoFit(400)
+      })
+    }
+  }
+})
+
+function performAutoFit(duration = 400) {
+  if (!hasMapContent.value)
+    return
+
+  const map = mapInstance.value
+
+  if (!map)
+    return
+
+  map.resize()
+  fitToContent(props.points, props.routes, {
+    duration,
+    padding: 60,
+    maxZoom: 14.8,
+  })
+}
+function activateMap() {
+  if (isMapActive.value || !mapInstance.value)
+    return
+
+  isMapActive.value = true
+  setInteractive(true)
+  modifyInteraction.setActive(!props.readonly)
+}
+function handleSetTileSource(sourceId: TileSourceId) {
+  setTileSource(sourceId)
+}
 async function handleLocalSearch() {
   if (!localSearchQuery.value.trim())
     return
+
   isSearchingLocal.value = true
   await searchLocation(localSearchQuery.value)
   isSearchingLocal.value = false
 }
-
 function closeLocalSearch() {
   isSearchExpanded.value = false
   localSearchQuery.value = ''
   clearSearchResult()
+}
+function getSinglePointAutoFitCenter(): Coordinate | null {
+  const point = props.points.length === 1 ? props.points[0] : undefined
+
+  if (point && isValidCoordinate(point.coordinates))
+    return point.coordinates
+
+  const route = props.routes.length === 1 ? props.routes[0] : undefined
+
+  if (route?.points?.length === 1 && isValidCoordinate(route.points[0].coordinates))
+    return route.points[0].coordinates
+
+  return null
+}
+function getInitialMapView(initialBounds: ReturnType<typeof computeBoundingBox>) {
+  if (props.autoFit && !initialBounds) {
+    const center = getSinglePointAutoFitCenter()
+
+    if (center)
+      return { center, zoom: 13.5 }
+  }
+
+  return { center: props.center, zoom: props.zoom }
 }
 
 onClickOutside(inlineSearchRef, () => {
@@ -223,19 +267,7 @@ onMounted(async () => {
     return
 
   const initialBounds = props.autoFit ? computeBoundingBox(props.points, props.routes) : null
-
-  let initialCenter = props.center
-  let initialZoom = props.zoom
-  if (props.autoFit && !initialBounds) {
-    if (props.points.length === 1 && isValidCoordinate(props.points[0]?.coordinates)) {
-      initialCenter = props.points[0].coordinates
-      initialZoom = 13.5
-    }
-    else if (props.routes.length === 1 && props.routes[0]?.points?.length === 1 && isValidCoordinate(props.routes[0].points[0].coordinates)) {
-      initialCenter = props.routes[0].points[0].coordinates
-      initialZoom = 13.5
-    }
-  }
+  const initialView = getInitialMapView(initialBounds)
 
   if (initialBounds) {
     hasAutoFitted = true
@@ -243,8 +275,8 @@ onMounted(async () => {
 
   await initMap({
     container: mapContainerRef.value,
-    center: initialCenter,
-    zoom: initialZoom,
+    center: initialView.center,
+    zoom: initialView.zoom,
     pitch: props.pitch,
     bearing: props.bearing,
     interactive: !props.interactiveOnClick,
@@ -258,6 +290,7 @@ onMounted(async () => {
   mapInstance.value?.on('click', (event) => {
     if (!isMapActive.value)
       return
+
     const coords: Coordinate = [event.lngLat.lng, event.lngLat.lat]
     emit('mapClick', coords)
   })
@@ -283,30 +316,6 @@ onMounted(async () => {
     fitBounds,
     ...restMapController,
   })
-})
-
-watch(isMapLoaded, (isReady) => {
-  if (isReady) {
-    if (props.useStaticRenderer) {
-      setStaticMapData(props.points, props.routes)
-      return
-    }
-    props.points.forEach(addOrUpdatePoint)
-    previousPointIds = new Set(props.points.map(p => p.id))
-
-    props.routes.forEach((route) => {
-      if (route.isVisible)
-        addOrUpdateRoute(route)
-    })
-    previousRouteIds = new Set(props.routes.map(r => r.id))
-
-    if (props.autoFit && !hasAutoFitted && hasMapContent.value) {
-      hasAutoFitted = true
-      nextTick(() => {
-        performAutoFit(400)
-      })
-    }
-  }
 })
 </script>
 
@@ -340,7 +349,12 @@ watch(isMapLoaded, (isReady) => {
       <span>{{ isLoading ? 'Загрузка...' : 'Инициализация карты...' }}</span>
     </div>
 
-    <div v-if="withSearchControl" ref="inlineSearchRef" class="map-inline-search" :class="{ expanded: isSearchExpanded }">
+    <div
+      v-if="withSearchControl"
+      ref="inlineSearchRef"
+      class="map-inline-search"
+      :class="{ expanded: isSearchExpanded }"
+    >
       <KitBtn
         v-if="!isSearchExpanded"
         variant="outlined"

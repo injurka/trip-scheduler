@@ -29,48 +29,42 @@ const props = withDefaults(defineProps<Props>(), {
   emptyDropzoneText: 'Нажмите или перетащите фото сюда',
   emptyReadonlyText: 'Нет добавленных фотографий',
 })
-
 const emit = defineEmits<{
   (e: 'update:photos', value: string[]): void
 }>()
+
+const imageViewer = useImageViewer({
+  enableKeyboard: true,
+})
 
 const fileInput = ref<HTMLInputElement | null>(null)
 const isUploading = ref(false)
 const isLinkDialogOpen = ref(false)
 const linkInput = ref('')
 const isDragOver = ref(false)
+const maxVisibleThumbnails = 6
 
 const photosList = computed(() => props.photos || [])
-
-const maxVisibleThumbnails = 6
 const visiblePhotos = computed(() => photosList.value.slice(0, maxVisibleThumbnails))
 const remainingPhotosCount = computed(() =>
-  Math.max(0, photosList.value.length - maxVisibleThumbnails),
-)
-
-const imageViewer = useImageViewer({
-  enableKeyboard: true,
-})
-
+  Math.max(0, photosList.value.length - maxVisibleThumbnails))
 const viewerImages = computed<ImageViewerImage[]>(() =>
   photosList.value.map((url, i) => ({
     url,
     alt: `${props.title} ${i + 1}`,
     caption: `${props.title}: ${i + 1} из ${photosList.value.length}`,
-  })),
-)
+  })))
 
 function openViewer(index: number) {
   imageViewer.open(viewerImages.value, index)
 }
-
 function triggerFileInput() {
   fileInput.value?.click()
 }
-
 async function uploadFileItem(file: File): Promise<string | null> {
   if (!props.tripId) {
     useToast().error('Не удалось определить путешествие для сохранения фото.')
+
     return null
   }
 
@@ -90,15 +84,17 @@ async function uploadFileItem(file: File): Promise<string | null> {
 
   return res?.url || null
 }
-
 async function handleFiles(files: FileList | File[]) {
   const fileArray = Array.from(files).filter(f => f.type.startsWith('image/'))
+
   if (fileArray.length === 0) {
     useToast().warn('Пожалуйста, выберите файлы изображений')
+
     return
   }
 
   isUploading.value = true
+
   try {
     const uploadPromises = fileArray.map(file => uploadFileItem(file))
     const uploadedUrls = await Promise.all(uploadPromises)
@@ -111,56 +107,57 @@ async function handleFiles(files: FileList | File[]) {
   }
   finally {
     isUploading.value = false
+
     if (fileInput.value) {
       fileInput.value.value = ''
     }
   }
 }
-
 function onFileInputChange(event: Event) {
   const target = event.target as HTMLInputElement
+
   if (target.files && target.files.length > 0) {
     handleFiles(target.files)
   }
 }
-
 function onDragOver(e: DragEvent) {
   if (props.readonly || isUploading.value)
     return
+
   e.preventDefault()
   isDragOver.value = true
 }
-
 function onDragLeave(e: DragEvent) {
   if (props.readonly)
     return
+
   e.preventDefault()
   isDragOver.value = false
 }
-
 function onDrop(e: DragEvent) {
   if (props.readonly || isUploading.value)
     return
+
   e.preventDefault()
   isDragOver.value = false
+
   if (e.dataTransfer?.files && e.dataTransfer.files.length > 0) {
     handleFiles(e.dataTransfer.files)
   }
 }
-
 function deletePhoto(index: number) {
   const updated = photosList.value.filter((_, i) => i !== index)
   emit('update:photos', updated)
 }
-
 function isValidUrl(str: string) {
   return URL.canParse(str)
 }
-
 function handleAddLink() {
   const trimmed = linkInput.value.trim()
+
   if (!isValidUrl(trimmed)) {
     useToast().error('Введите корректную ссылку на изображение (URL)')
+
     return
   }
 

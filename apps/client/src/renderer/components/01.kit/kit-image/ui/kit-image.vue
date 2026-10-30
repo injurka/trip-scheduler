@@ -43,141 +43,7 @@ const isLoading = ref(true)
 const hasError = ref(false)
 const isAborted = ref(false)
 const retryCount = ref(0)
-
 const imageRef = ref<HTMLImageElement | null>(null)
-const loadTimeoutId = ref<ReturnType<typeof setTimeout> | undefined>()
-const imageObserver = ref<IntersectionObserver | undefined>()
-
-const resolvedVariants = computed(() => {
-  if (!props.variants)
-    return {}
-
-  return {
-    small: resolveApiUrl(props.variants.small),
-    medium: resolveApiUrl(props.variants.medium),
-    large: resolveApiUrl(props.variants.large),
-  }
-})
-const resolvedSrc = computed(() => resolveApiUrl(props.src))
-
-const imageStyle = computed(() => {
-  const isLoaded = !isLoading.value && !hasError.value
-  return {
-    objectFit: props.objectFit,
-    opacity: isLoaded ? 1 : 0,
-    filter: isLoaded ? 'blur(0)' : 'blur(10px)',
-    transform: isLoaded ? 'scale(1)' : 'scale(1.1)',
-  }
-})
-
-function handleLoad() {
-  if (isAborted.value)
-    return
-  clearLoadTimeout()
-  isLoading.value = false
-  hasError.value = false
-}
-
-function handleError() {
-  if (isAborted.value)
-    return
-  clearLoadTimeout()
-  isLoading.value = false
-  hasError.value = true
-}
-
-function handleTimeout() {
-  clearLoadTimeout()
-  isAborted.value = true
-  isLoading.value = false
-  hasError.value = true
-}
-
-function clearLoadTimeout() {
-  if (loadTimeoutId.value) {
-    clearTimeout(loadTimeoutId.value)
-    loadTimeoutId.value = undefined
-  }
-}
-
-function setLoadTimeout() {
-  clearLoadTimeout()
-
-  if (props.loadTimeout > 0) {
-    loadTimeoutId.value = setTimeout(() => {
-      if (isLoading.value) {
-        handleTimeout()
-      }
-    }, props.loadTimeout)
-  }
-}
-
-function setupIntersectionObserver() {
-  if (typeof window === 'undefined' || !imageRef.value)
-    return
-
-  cleanupObserver()
-
-  imageObserver.value = new IntersectionObserver(
-    (entries) => {
-      entries.forEach((entry) => {
-        if (entry.isIntersecting) {
-          setLoadTimeout()
-          cleanupObserver()
-        }
-      })
-    },
-    { threshold: 0.1 },
-  )
-
-  imageObserver.value.observe(imageRef.value)
-}
-
-function cleanupObserver() {
-  if (imageObserver.value) {
-    imageObserver.value.disconnect()
-    imageObserver.value = undefined
-  }
-}
-
-watch(
-  () => props.src,
-  (newSrc) => {
-    isLoading.value = true
-    hasError.value = false
-    isAborted.value = false
-    retryCount.value = 0
-    cleanupObserver()
-    clearLoadTimeout()
-
-    if (!newSrc) {
-      isLoading.value = false
-      return
-    }
-
-    nextTick(() => {
-      if (imageRef.value) {
-        if (imageRef.value.complete && imageRef.value.naturalWidth > 0) {
-          handleLoad()
-          return
-        }
-
-        if (props.loading === 'eager') {
-          setLoadTimeout()
-        }
-        else {
-          setupIntersectionObserver()
-        }
-      }
-    })
-  },
-  { immediate: true },
-)
-
-onBeforeUnmount(() => {
-  clearLoadTimeout()
-  cleanupObserver()
-})
 
 defineExpose({
   isLoading: readonly(isLoading),
@@ -193,8 +59,10 @@ defineExpose({
         if (imageRef.value) {
           if (imageRef.value.complete && imageRef.value.naturalWidth > 0) {
             handleLoad()
+
             return
           }
+
           if (props.loading === 'eager') {
             setLoadTimeout()
           }
@@ -205,6 +73,131 @@ defineExpose({
       })
     }
   },
+})
+
+const loadTimeoutId = ref<ReturnType<typeof setTimeout> | undefined>()
+const imageObserver = ref<IntersectionObserver | undefined>()
+
+const resolvedVariants = computed(() => {
+  if (!props.variants)
+    return {}
+
+  return {
+    small: resolveApiUrl(props.variants.small),
+    medium: resolveApiUrl(props.variants.medium),
+    large: resolveApiUrl(props.variants.large),
+  }
+})
+const resolvedSrc = computed(() => resolveApiUrl(props.src))
+const imageStyle = computed(() => {
+  const isLoaded = !isLoading.value && !hasError.value
+
+  return {
+    objectFit: props.objectFit,
+    opacity: isLoaded ? 1 : 0,
+    filter: isLoaded ? 'blur(0)' : 'blur(10px)',
+    transform: isLoaded ? 'scale(1)' : 'scale(1.1)',
+  }
+})
+
+watch(() => props.src, (newSrc) => {
+  isLoading.value = true
+  hasError.value = false
+  isAborted.value = false
+  retryCount.value = 0
+  cleanupObserver()
+  clearLoadTimeout()
+
+  if (!newSrc) {
+    isLoading.value = false
+
+    return
+  }
+
+  nextTick(() => {
+    if (imageRef.value) {
+      if (imageRef.value.complete && imageRef.value.naturalWidth > 0) {
+        handleLoad()
+
+        return
+      }
+
+      if (props.loading === 'eager') {
+        setLoadTimeout()
+      }
+      else {
+        setupIntersectionObserver()
+      }
+    }
+  })
+}, { immediate: true })
+
+function handleLoad() {
+  if (isAborted.value)
+    return
+
+  clearLoadTimeout()
+  isLoading.value = false
+  hasError.value = false
+}
+function handleError() {
+  if (isAborted.value)
+    return
+
+  clearLoadTimeout()
+  isLoading.value = false
+  hasError.value = true
+}
+function handleTimeout() {
+  clearLoadTimeout()
+  isAborted.value = true
+  isLoading.value = false
+  hasError.value = true
+}
+function clearLoadTimeout() {
+  if (loadTimeoutId.value) {
+    clearTimeout(loadTimeoutId.value)
+    loadTimeoutId.value = undefined
+  }
+}
+function setLoadTimeout() {
+  clearLoadTimeout()
+
+  if (props.loadTimeout > 0) {
+    loadTimeoutId.value = setTimeout(() => {
+      if (isLoading.value) {
+        handleTimeout()
+      }
+    }, props.loadTimeout)
+  }
+}
+function setupIntersectionObserver() {
+  if (typeof window === 'undefined' || !imageRef.value)
+    return
+
+  cleanupObserver()
+
+  imageObserver.value = new IntersectionObserver((entries) => {
+    entries.forEach((entry) => {
+      if (entry.isIntersecting) {
+        setLoadTimeout()
+        cleanupObserver()
+      }
+    })
+  }, { threshold: 0.1 })
+
+  imageObserver.value.observe(imageRef.value)
+}
+function cleanupObserver() {
+  if (imageObserver.value) {
+    imageObserver.value.disconnect()
+    imageObserver.value = undefined
+  }
+}
+
+onBeforeUnmount(() => {
+  clearLoadTimeout()
+  cleanupObserver()
 })
 </script>
 

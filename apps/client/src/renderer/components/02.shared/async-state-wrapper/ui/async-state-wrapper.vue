@@ -3,7 +3,6 @@ import type { Ref } from 'vue'
 import { ErrorPlaceholder } from '~/components/02.shared/error-placeholder'
 
 export type AsyncState = 'loading' | 'error' | 'success' | 'empty'
-
 export interface AsyncStateWrapperProps<T = unknown> {
   loading?: boolean
   error?: unknown | null | Ref<unknown | null>
@@ -13,10 +12,11 @@ export interface AsyncStateWrapperProps<T = unknown> {
 }
 
 const props = defineProps<AsyncStateWrapperProps<T>>()
-
 const emit = defineEmits<{
   (e: 'retry'): void
 }>()
+
+const previousState = ref<AsyncState | null>(null)
 
 const currentState = computed<AsyncState>(() => {
   if (props.loading)
@@ -30,13 +30,6 @@ const currentState = computed<AsyncState>(() => {
 
   return 'empty'
 })
-
-const previousState = ref<AsyncState | null>(null)
-
-watch(currentState, (_newState, oldState) => {
-  previousState.value = oldState
-})
-
 const transitionName = computed(() => {
   if (previousState.value === 'loading' && currentState.value === 'success')
     return 'no-transition'
@@ -44,10 +37,15 @@ const transitionName = computed(() => {
   return props.transition ?? 'faded'
 })
 
+watch(currentState, (_newState, oldState) => {
+  previousState.value = oldState
+})
+
 function handleRetry() {
   if (props.retryHandler) {
     props.retryHandler()
   }
+
   emit('retry')
 }
 </script>

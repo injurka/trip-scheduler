@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import { Icon } from '@iconify/vue'
 
-defineProps<{
+interface Props {
   isActive: boolean
   activityColor: string
   activityIcon: string
   speedKmh: number | null
-}>()
+}
+
+defineProps<Props>()
 </script>
 
 <template>

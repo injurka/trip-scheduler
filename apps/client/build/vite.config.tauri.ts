@@ -1,6 +1,5 @@
 import { createRequire } from 'node:module'
 import path, { resolve } from 'node:path'
-
 import process from 'node:process'
 import { fileURLToPath, URL } from 'node:url'
 import React from '@vitejs/plugin-react'
@@ -14,6 +13,7 @@ import packageJson from '../package.json' with { type: 'json' }
 import { autoImportOptionsCfg } from './cfg/auto-import'
 import { iconsCfg } from './cfg/icons'
 import { resolveAppVersion, visualizerPlugin } from './lib/helpers'
+import { getVendorChunkName } from './vendor-chunks'
 
 const require = createRequire(import.meta.url)
 
@@ -102,44 +102,7 @@ export default defineConfig({
         main: resolve(__dirname, '../src/renderer/index.html'),
       },
       output: {
-        manualChunks(id) {
-          if (!id.includes('node_modules'))
-            return undefined
-
-          if (/[\\/]node_modules[\\/](?:vue|vue-router|pinia|@vueuse)[\\/]/.test(id))
-            return 'vendor-core'
-          if (id.includes('react') || id.includes('react-dom'))
-            return 'vendor-react'
-          if (id.includes('@excalidraw') || id.includes('veaury'))
-            return 'vendor-excalidraw'
-          if (id.includes('@milkdown'))
-            return 'vendor-milkdown'
-          if (id.includes('mermaid') || id.includes('katex') || id.includes('elkjs'))
-            return 'vendor-editor-addons'
-          if (id.includes('maplibre-gl') || id.includes('d3-geo') || id.includes('@mapbox/polyline'))
-            return 'vendor-map'
-          if (id.includes('reka-ui') || id.includes('@iconify'))
-            return 'vendor-ui'
-          if (id.includes('chart.js') || id.includes('vue-chartjs'))
-            return 'vendor-charts'
-          if (id.includes('pdfjs-dist'))
-            return 'vendor-pdf'
-          if (id.includes('workbox') || id.includes('localforage'))
-            return 'vendor-storage'
-          if (
-            id.includes('vue-advanced-cropper')
-            || id.includes('fflate')
-            || id.includes('uuid')
-            || id.includes('maska')
-            || id.includes('ofetch')
-            || id.includes('@internationalized/date')
-            || id.includes('@trpc')
-          ) {
-            return 'vendor-utils'
-          }
-
-          return 'vendor-others'
-        },
+        manualChunks: getVendorChunkName,
       },
     },
   },

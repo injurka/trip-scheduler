@@ -27,11 +27,13 @@ interface Props {
   section: ActivitySection
   isFirstAttached: boolean
 }
+
 const props = defineProps<Props>()
 const emit = defineEmits(['updateSection', 'deleteSection', 'moveSectionUp', 'moveSectionDown'])
-const store = useModuleStore(['ui'])
-const { isViewMode } = storeToRefs(store.ui)
 
+const store = useModuleStore(['ui'])
+
+const { isViewMode } = storeToRefs(store.ui)
 const defaultColors = [
   'var(--bg-secondary-color)',
   'var(--bg-tertiary-color)',
@@ -44,7 +46,6 @@ const defaultColors = [
   '#BDB2FF',
   '#FFC6FF',
 ]
-
 const sectionMetaMap: Record<EActivitySectionType, { label: string, icon: string }> = {
   [EActivitySectionType.DESCRIPTION]: {
     label: 'Заметка',
@@ -71,6 +72,9 @@ const sectionMetaMap: Record<EActivitySectionType, { label: string, icon: string
     icon: 'mdi:bus',
   },
 }
+const editableTitle = ref((props.section as CustomActivitySection).title || '')
+const editableIcon = ref((props.section as CustomActivitySection).icon || 'mdi:map-marker')
+const editableColor = ref((props.section as CustomActivitySection).color || defaultColors[0])
 
 const sectionMeta = computed(() => {
   return sectionMetaMap[props.section.type] || {
@@ -79,27 +83,36 @@ const sectionMeta = computed(() => {
   }
 })
 
-const editableTitle = ref((props.section as CustomActivitySection).title || '')
-const editableIcon = ref((props.section as CustomActivitySection).icon || 'mdi:map-marker')
-const editableColor = ref((props.section as CustomActivitySection).color || defaultColors[0])
+watch(editableIcon, () => {
+  updatePinSettings()
+})
+watch(editableColor, () => {
+  updatePinSettings()
+})
+watch(() => props.section, (newSection) => {
+  const customSection = newSection as CustomActivitySection
+  editableTitle.value = customSection.title || ''
+  editableIcon.value = customSection.icon || 'mdi:map-marker'
+  editableColor.value = customSection.color || defaultColors[0]
+}, { deep: true, immediate: true })
 
 function onUpdate(data: ActivitySection) {
   emit('updateSection', data)
 }
-
 function toggleAttached() {
   const newSectionData = {
     ...props.section,
     isAttached: !(props.section as CustomActivitySection).isAttached,
   } as CustomActivitySection
+
   if (!newSectionData.isAttached) {
     delete newSectionData.title
     delete newSectionData.icon
     delete newSectionData.color
   }
+
   emit('updateSection', newSectionData)
 }
-
 function updatePinSettings() {
   if (editableTitle.value !== ((props.section as CustomActivitySection).title || '')
     || editableIcon.value !== ((props.section as CustomActivitySection).icon || 'mdi:map-marker')
@@ -112,21 +125,6 @@ function updatePinSettings() {
     })
   }
 }
-
-watch(editableIcon, () => {
-  updatePinSettings()
-})
-
-watch(editableColor, () => {
-  updatePinSettings()
-})
-
-watch(() => props.section, (newSection) => {
-  const customSection = newSection as CustomActivitySection
-  editableTitle.value = customSection.title || ''
-  editableIcon.value = customSection.icon || 'mdi:map-marker'
-  editableColor.value = customSection.color || defaultColors[0]
-}, { deep: true, immediate: true })
 </script>
 
 <template>

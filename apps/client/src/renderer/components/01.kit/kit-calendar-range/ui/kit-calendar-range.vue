@@ -20,16 +20,16 @@ interface DateRange {
   start: CalendarDate | null
   end: CalendarDate | null
 }
-
 interface Props {
   minValue?: CalendarDate
   maxValue?: CalendarDate
   initialFocusDate?: CalendarDate
 }
+
 const props = defineProps<Props>()
+const model = defineModel<DateRange | null>({ required: true })
 
 const locale = 'ru-RU'
-const model = defineModel<DateRange | null>({ required: true })
 </script>
 
 <template>

@@ -16,6 +16,99 @@ export interface TripMediaWithTrip extends TripMedia {
 
 export type TripImageWithTrip = TripMediaWithTrip
 
+type StorageSortKey = keyof TripImageWithTrip | 'trip.title' | 'placement'
+
+interface StorageFilterState {
+  search: string
+  tripId: string | null
+  sizeMin: number | null
+  sizeMax: number | null
+  extension: string | null
+  placement: TripMediaPlacement | ''
+}
+
+interface StorageSortState {
+  key: StorageSortKey
+  order: 'asc' | 'desc'
+}
+
+function filterStorageFiles(files: TripImageWithTrip[], filters: StorageFilterState): TripImageWithTrip[] {
+  let result = [...files]
+
+  if (filters.search) {
+    const query = filters.search.toLowerCase()
+    result = result.filter(file => file.originalName?.toLowerCase().includes(query))
+  }
+
+  if (filters.tripId === 'no-trip')
+    result = result.filter(file => !file.trip)
+  else if (filters.tripId)
+    result = result.filter(file => file.trip?.id === filters.tripId)
+
+  if (filters.extension)
+    result = result.filter(file => file.originalName?.toLowerCase().endsWith(`.${filters.extension}`))
+
+  if (filters.placement)
+    result = result.filter(file => file.placement === filters.placement)
+
+  if (filters.sizeMin !== null && filters.sizeMin >= 0) {
+    const minBytes = filters.sizeMin * 1024 * 1024
+    result = result.filter(file => file.sizeBytes >= minBytes)
+  }
+
+  if (filters.sizeMax !== null && filters.sizeMax >= 0) {
+    const maxBytes = filters.sizeMax * 1024 * 1024
+    result = result.filter(file => file.sizeBytes <= maxBytes)
+  }
+
+  return result
+}
+
+function getStorageSortValue(file: TripImageWithTrip, key: StorageSortKey): unknown {
+  return key === 'trip.title' ? file.trip?.title || '' : file[key as keyof TripImageWithTrip]
+}
+
+function compareStorageValues(
+  aValue: unknown,
+  bValue: unknown,
+  order: number,
+  key: StorageSortKey,
+  a: TripImageWithTrip,
+  b: TripImageWithTrip,
+): number {
+  if (aValue === null || aValue === undefined)
+    return 1 * order
+
+  if (bValue === null || bValue === undefined)
+    return -1 * order
+
+  if (typeof aValue === 'number' && typeof bValue === 'number')
+    return (aValue - bValue) * order
+
+  if (typeof aValue === 'string' && typeof bValue === 'string')
+    return aValue.localeCompare(bValue, undefined, { numeric: true }) * order
+
+  if (key === 'createdAt')
+    return (new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()) * order
+
+  return 0
+}
+
+function compareStorageFiles(a: TripImageWithTrip, b: TripImageWithTrip, sortBy: StorageSortState): number {
+  const order = sortBy.order === 'asc' ? 1 : -1
+  const aValue = getStorageSortValue(a, sortBy.key)
+  const bValue = getStorageSortValue(b, sortBy.key)
+
+  return compareStorageValues(
+    aValue,
+    bValue,
+    order,
+    sortBy.key,
+    a,
+    b,
+  )
+}
+
 export enum EStorageKeys {
   FETCH_FILES = 'storage:fetch-files',
   DELETE_FILE = 'storage:delete-file',
@@ -82,6 +175,7 @@ export function useStorageModule() {
       fn: db => db.files.deleteFile(fileId),
       onSuccess: () => {
         toast.success('Файл успешно удален.')
+
         if (fileToDelete?.sizeBytes) {
           authStore.decrementStorageUsage(fileToDelete.sizeBytes)
         }
@@ -105,74 +199,15 @@ export function useStorageModule() {
   }
 
   const filteredAndSortedFiles = computed(() => {
-    let result = [...files.value]
+    const result = filterStorageFiles(files.value, filters)
 
-    if (filters.search) {
-      const s = filters.search.toLowerCase()
-      result = result.filter(f => f.originalName?.toLowerCase().includes(s))
-    }
-    if (filters.tripId) {
-      if (filters.tripId === 'no-trip') {
-        result = result.filter(f => !f.trip)
-      }
-      else {
-        result = result.filter(f => f.trip?.id === filters.tripId)
-      }
-    }
-    if (filters.extension) {
-      result = result.filter(f => f.originalName?.toLowerCase().endsWith(`.${filters.extension}`))
-    }
-    if (filters.placement) {
-      result = result.filter(f => f.placement === filters.placement)
-    }
-    if (filters.sizeMin !== null && filters.sizeMin >= 0) {
-      const minBytes = filters.sizeMin * 1024 * 1024
-      result = result.filter(f => f.sizeBytes >= minBytes)
-    }
-    if (filters.sizeMax !== null && filters.sizeMax >= 0) {
-      const maxBytes = filters.sizeMax * 1024 * 1024
-      result = result.filter(f => f.sizeBytes <= maxBytes)
-    }
-
-    result.sort((a, b) => {
-      let aVal: any
-      let bVal: any
-
-      if (sortBy.key === 'trip.title') {
-        aVal = a.trip?.title || ''
-        bVal = b.trip?.title || ''
-      }
-      else {
-        aVal = a[sortBy.key as keyof TripImageWithTrip]
-        bVal = b[sortBy.key as keyof TripImageWithTrip]
-      }
-
-      const order = sortBy.order === 'asc' ? 1 : -1
-
-      if (aVal === null || aVal === undefined)
-        return 1 * order
-      if (bVal === null || bVal === undefined)
-        return -1 * order
-
-      if (typeof aVal === 'number' && typeof bVal === 'number') {
-        return (aVal - bVal) * order
-      }
-      if (typeof aVal === 'string' && typeof bVal === 'string') {
-        return aVal.localeCompare(bVal, undefined, { numeric: true }) * order
-      }
-      if (sortBy.key === 'createdAt') {
-        return (new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()) * order
-      }
-
-      return 0
-    })
-
-    return result
+    return result.sort((a, b) => compareStorageFiles(a, b, sortBy))
   })
 
   const paginatedFiles = computed(() => {
     const start = (currentPage.value - 1) * itemsPerPage.value
     const end = start + itemsPerPage.value
+
     return filteredAndSortedFiles.value.slice(start, end)
   })
 
@@ -196,6 +231,7 @@ export function useStorageModule() {
       }
     })
     const tripOptions = Array.from(tripsMap.entries()).map(([id, title]) => ({ value: id, label: title }))
+
     if (hasFilesWithoutTrip) {
       tripOptions.push({ value: 'no-trip', label: 'Без путешествия' })
     }
@@ -208,11 +244,13 @@ export function useStorageModule() {
     files.value.forEach((file) => {
       const name = file.originalName || ''
       const parts = name.split('.')
+
       if (parts.length > 1) {
         extensions.add(parts.pop()!.toLowerCase())
       }
     })
     const extOptions = Array.from(extensions).sort().map(ext => ({ value: ext, label: `.${ext}` }))
+
     return [{ value: '', label: 'Все расширения' }, ...extOptions]
   })
 
@@ -227,9 +265,11 @@ export function useStorageModule() {
     files.value.forEach((file) => {
       const tripId = file.trip?.id || 'no-trip'
       const tripName = file.trip?.title || 'Без путешествия'
+
       if (!tripStorage[tripId]) {
         tripStorage[tripId] = { name: tripName, size: 0 }
       }
+
       tripStorage[tripId].size += file.sizeBytes || 0
     })
 

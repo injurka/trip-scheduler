@@ -16,52 +16,72 @@ import { GeoPlacePicker } from '~/components/03.domain/geo-place-picker'
 import { useRequest } from '~/plugins/request'
 import { METRIC_KEYS, METRIC_LABELS } from '../../composables/use-destination-reviews'
 
-const props = defineProps<{
+interface Props {
   visible: boolean
   countries: Country[]
   form: any
   file: File | null
   isUploading: boolean
   isSubmitting: boolean
-}>()
+}
 
+const props = defineProps<Props>()
 const emit = defineEmits<{
   (e: 'update:visible', value: boolean): void
   (e: 'update:file', value: File | null): void
   (e: 'submit'): void
 }>()
 
+const step = ref(1)
+const selectedCityRef = ref<GeoPlaceRef | null>(props.form.geoPlaceRef || null)
+let cityHydrationSequence = 0
+const mapCenter = ref<[number, number]>([20, 45])
+
 const visibleModel = computed({
   get: () => props.visible,
   set: value => emit('update:visible', value),
 })
-
 const fileModel = computed({
   get: () => props.file,
   set: value => emit('update:file', value),
 })
-
-const step = ref(1)
-const selectedCityRef = ref<GeoPlaceRef | null>(props.form.geoPlaceRef || null)
-let cityHydrationSequence = 0
-
-watch(() => props.form.geoPlaceRef, (newRef) => {
-  if (newRef)
-    selectedCityRef.value = newRef
-}, { immediate: true })
-
-watch(visibleModel, (val) => {
-  if (val) {
-    step.value = 1
-  }
-})
-
 const countryOptions = computed(() => props.countries.map(c => ({
   value: c.id,
   label: c.name,
   flagUrl: c.flagUrl,
 })))
+const mapMarkers = computed(() => {
+  const lat = Number(props.form.latitude)
+  const lon = Number(props.form.longitude)
 
+  if (!Number.isNaN(lat) && !Number.isNaN(lon) && props.form.latitude !== '' && props.form.longitude !== '') {
+    return [{ id: 'pin', coords: { lat, lon } }]
+  }
+
+  return []
+})
+const isStep1Invalid = computed(() => {
+  if (!props.form.countryId)
+    return true
+
+  if (!props.form.geoPlaceId)
+    return true
+
+  if (props.form.latitude === '' || props.form.longitude === '')
+    return true
+
+  return false
+})
+
+watch(() => props.form.geoPlaceRef, (newRef) => {
+  if (newRef)
+    selectedCityRef.value = newRef
+}, { immediate: true })
+watch(visibleModel, (val) => {
+  if (val) {
+    step.value = 1
+  }
+})
 watch(() => props.form.countryId, (countryId) => {
   if (selectedCityRef.value && selectedCityRef.value.countryId && selectedCityRef.value.countryId !== countryId) {
     selectedCityRef.value = null
@@ -70,47 +90,60 @@ watch(() => props.form.countryId, (countryId) => {
     props.form.geoPlaceRef = null
   }
 })
-
 watch(() => [props.visible, props.form.geoPlaceId] as const, async ([isVisible, geoPlaceId]) => {
+  await hydrateSelectedCity(isVisible, geoPlaceId)
+}, { immediate: true })
+
+async function hydrateSelectedCity(isVisible: boolean, geoPlaceId: string | null) {
   const sequence = ++cityHydrationSequence
+
   if (!isVisible || !geoPlaceId) {
     selectedCityRef.value = null
+
     return
   }
 
   // Если уже выбран тот же город и у него есть имя, ничего не сбрасываем
-  if (selectedCityRef.value?.id === geoPlaceId && selectedCityRef.value?.name) {
+  if (isSelectedCityHydrated(geoPlaceId))
     return
-  }
 
   // Если в форме уже есть сохраненное название города, мгновенно инициализируем без мигания
-  if (props.form.city) {
-    selectedCityRef.value = {
-      id: geoPlaceId,
-      name: props.form.city,
-      countryId: props.form.countryId || null,
-      countryCode: '',
-      countryName: '',
-      regionName: null,
-      kind: 'settlement',
-      latitude: Number(props.form.latitude) || 0,
-      longitude: Number(props.form.longitude) || 0,
-      timezone: null,
-      retired: false,
-    }
-  }
+  if (props.form.city)
+    selectedCityRef.value = createLocalCityRef(geoPlaceId)
 
   const places = await useRequest({
     key: `destination-review-edit:city:${geoPlaceId}`,
     fn: db => db.geo.getPlacesByIds([geoPlaceId]),
   })
+
   if (sequence !== cityHydrationSequence)
     return
+
   if (places?.[0]) {
     selectedCityRef.value = places[0]
     props.form.geoPlaceRef = places[0]
   }
-}, { immediate: true })
+}
+
+function isSelectedCityHydrated(geoPlaceId: string): boolean {
+  return selectedCityRef.value?.id === geoPlaceId && Boolean(selectedCityRef.value?.name)
+}
+
+function createLocalCityRef(geoPlaceId: string): GeoPlaceRef {
+  return {
+    id: geoPlaceId,
+    name: props.form.city,
+    countryId: props.form.countryId || null,
+    countryCode: '',
+    countryName: '',
+    regionName: null,
+    kind: 'settlement',
+    latitude: Number(props.form.latitude) || 0,
+    longitude: Number(props.form.longitude) || 0,
+    timezone: null,
+    retired: false,
+  }
+}
 
 function selectCity(value: GeoPlaceRef | GeoPlaceRef[] | null) {
   const place = Array.isArray(value) ? value[0] ?? null : value
@@ -118,49 +151,31 @@ function selectCity(value: GeoPlaceRef | GeoPlaceRef[] | null) {
   props.form.geoPlaceId = place?.id ?? null
   props.form.city = place?.name ?? ''
   props.form.geoPlaceRef = place
+
   if (place?.countryId)
     props.form.countryId = place.countryId
 }
-
-const mapCenter = ref<[number, number]>([20, 45])
-const mapMarkers = computed(() => {
-  const lat = Number(props.form.latitude)
-  const lon = Number(props.form.longitude)
-  if (!Number.isNaN(lat) && !Number.isNaN(lon) && props.form.latitude !== '' && props.form.longitude !== '') {
-    return [{ id: 'pin', coords: { lat, lon } }]
-  }
-  return []
-})
-
 function handleMapClick(coords: [number, number]) {
   const [lon, lat] = coords
   props.form.longitude = Number(lon.toFixed(6))
   props.form.latitude = Number(lat.toFixed(6))
 }
-
-const isStep1Invalid = computed(() => {
-  if (!props.form.countryId)
-    return true
-  if (!props.form.geoPlaceId)
-    return true
-  if (props.form.latitude === '' || props.form.longitude === '')
-    return true
-  return false
-})
-
 function goToStep(targetStep: number) {
   if (props.isSubmitting || props.isUploading)
     return
+
   if (targetStep > 1 && isStep1Invalid.value)
     return
+
   step.value = targetStep
 }
-
 function getSliderColor(value: number) {
   if (value <= 2)
     return 'error'
+
   if (value === 3)
     return 'warning'
+
   return 'success'
 }
 </script>
@@ -212,9 +227,19 @@ function getSliderColor(value: number) {
       </div>
 
       <div v-if="step === 1" class="step-content">
-        <KitSelectWithSearch v-model="form.countryId" :items="countryOptions" label="Страна" placeholder="Выберите страну">
+        <KitSelectWithSearch
+          v-model="form.countryId"
+          :items="countryOptions"
+          label="Страна"
+          placeholder="Выберите страну"
+        >
           <template #item="{ item }">
-            <img v-if="(item as any).flagUrl" :src="(item as any).flagUrl" class="dropdown-flag" alt="">
+            <img
+              v-if="(item as any).flagUrl"
+              :src="(item as any).flagUrl"
+              class="dropdown-flag"
+              alt=""
+            >
             <span>{{ item.label }}</span>
           </template>
         </KitSelectWithSearch>
@@ -231,11 +256,28 @@ function getSliderColor(value: number) {
         <div class="map-section">
           <label class="section-label">Точка на карте</label>
           <div class="coords-inputs">
-            <KitInput v-model="form.latitude" type="number" step="any" placeholder="Широта" />
-            <KitInput v-model="form.longitude" type="number" step="any" placeholder="Долгота" />
+            <KitInput
+              v-model="form.latitude"
+              type="number"
+              step="any"
+              placeholder="Широта"
+            />
+            <KitInput
+              v-model="form.longitude"
+              type="number"
+              step="any"
+              placeholder="Долгота"
+            />
           </div>
           <div class="map-container">
-            <KitMap :center="mapCenter" :zoom="2" height="400px" :markers="mapMarkers" :auto-pan="false" @click="handleMapClick" />
+            <KitMap
+              :center="mapCenter"
+              :zoom="2"
+              height="400px"
+              :markers="mapMarkers"
+              :auto-pan="false"
+              @click="handleMapClick"
+            />
           </div>
         </div>
       </div>
@@ -247,7 +289,12 @@ function getSliderColor(value: number) {
         <p class="section-hint">
           Замените фото, если необходимо обновить обложку.
         </p>
-        <KitFileInput v-model="fileModel" accept="image/*" :preview-url="form.coverUrl" :loading="isUploading">
+        <KitFileInput
+          v-model="fileModel"
+          accept="image/*"
+          :preview-url="form.coverUrl"
+          :loading="isUploading"
+        >
           Нажмите чтобы загрузить новое фото
         </KitFileInput>
       </div>
@@ -261,7 +308,9 @@ function getSliderColor(value: number) {
             <KitSlider
               v-model="form.metrics[key]"
               :label="METRIC_LABELS[key]"
-              :min="1" :max="5" :step="1"
+              :min="1"
+              :max="5"
+              :step="1"
               :color="getSliderColor(form.metrics[key])"
               :value-formatter="v => `${v} / 5`"
             />
@@ -298,7 +347,12 @@ function getSliderColor(value: number) {
         <KitBtn v-if="step < 4" :disabled="step === 1 && isStep1Invalid" @click="step++">
           Далее
         </KitBtn>
-        <KitBtn v-if="step === 4" color="primary" :loading="isSubmitting" @click="emit('submit')">
+        <KitBtn
+          v-if="step === 4"
+          color="primary"
+          :loading="isSubmitting"
+          @click="emit('submit')"
+        >
           Сохранить изменения
         </KitBtn>
       </div>

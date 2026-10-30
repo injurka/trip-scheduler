@@ -11,6 +11,9 @@
     "packages/*",
     "tools/*"
   ],
+  "patchedDependencies": {
+    "eslint-plugin-vue-setup-order@1.1.1": "apps/client/patches/eslint-plugin-vue-setup-order@1.1.1.patch"
+  },
   "scripts": {
     "--------------------------------<      DEV       >--------------------------------": "",
     "dev:client": "bun --filter='@injurka/trip-scheduler-client' dev",

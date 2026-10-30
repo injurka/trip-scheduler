@@ -21,11 +21,13 @@ const form = ref<Partial<CreateBlogPostInput>>({
 async function handleSave() {
   if (!form.value.title?.trim() || !form.value.content?.trim()) {
     toast.error('Заполните обязательные поля: заголовок и содержание')
+
     return
   }
 
   try {
     const newPost = await store.createPost(form.value as CreateBlogPostInput)
+
     if (newPost) {
       toast.success('Статья опубликована')
       router.push({ name: AppRouteNames.BlogArticle, params: { slug: newPost.slug } })

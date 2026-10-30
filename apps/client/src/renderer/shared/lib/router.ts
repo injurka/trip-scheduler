@@ -46,6 +46,7 @@ const ActivityPage = () => import('~/pages/activity.vue')
 
 async function requireOwner(to: RouteLocationNormalized) {
   const authStore = useAuthStore()
+
   if (!authStore.isInitialized) {
     await new Promise<void>((resolve) => {
       const unsubscribe = authStore.$subscribe((_, state) => {
@@ -303,21 +304,28 @@ router.beforeEach(async (to) => {
   return true
 })
 
+function isChunkLoadError(errorMessage: string): boolean {
+  return errorMessage.includes('fetch dynamically imported module')
+    || errorMessage.includes('importing a module script failed')
+    || errorMessage.includes('failed to fetch')
+    || errorMessage.includes('loading chunk')
+}
+
+function reloadRouteAfterChunkFailure(fullPath: string): void {
+  const reloadCount = Number(sessionStorage.getItem('chunk_reload_count') || '0')
+
+  if (reloadCount >= 2)
+    return
+
+  sessionStorage.setItem('chunk_reload_count', String(reloadCount + 1))
+  window.location.assign(fullPath)
+}
+
 router.onError((error, to) => {
   const errorMessage = error?.message?.toLowerCase() || ''
-  const isChunkLoadError
-    = errorMessage.includes('fetch dynamically imported module')
-      || errorMessage.includes('importing a module script failed')
-      || errorMessage.includes('failed to fetch')
-      || errorMessage.includes('loading chunk')
 
-  if (isChunkLoadError && typeof window !== 'undefined') {
-    const reloadCount = Number(sessionStorage.getItem('chunk_reload_count') || '0')
-    if (reloadCount < 2) {
-      sessionStorage.setItem('chunk_reload_count', String(reloadCount + 1))
-      window.location.assign(to.fullPath)
-    }
-  }
+  if (isChunkLoadError(errorMessage) && typeof window !== 'undefined')
+    reloadRouteAfterChunkFailure(to.fullPath)
 })
 
 router.afterEach(() => {

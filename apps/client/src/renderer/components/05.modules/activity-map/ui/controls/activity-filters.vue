@@ -19,6 +19,7 @@ const filterWrapperRef = ref<HTMLElement | null>(null)
 
 const formattedDateRange = computed(() => {
   const { start, end } = dateRange.value
+
   if (!start || !end)
     return 'Даты: Все'
 

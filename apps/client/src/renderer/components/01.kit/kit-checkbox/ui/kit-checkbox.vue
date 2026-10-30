@@ -3,7 +3,6 @@ import { Icon } from '@iconify/vue'
 import { CheckboxIndicator, CheckboxRoot } from 'reka-ui'
 
 type CheckboxColor = 'accent' | 'primary' | 'secondary' | 'tertiary' | 'success' | 'warning' | 'error'
-
 interface Props {
   disabled?: boolean
   readonly?: boolean
@@ -13,12 +12,11 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {
   color: 'accent',
 })
-
 const model = defineModel<boolean>()
 
-const colorClass = computed(() => `is-color-${props.color}`)
-
 const id = `kit-checkbox-${Math.random().toString(36).substring(2, 9)}`
+
+const colorClass = computed(() => `is-color-${props.color}`)
 </script>
 
 <template>

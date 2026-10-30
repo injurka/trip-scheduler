@@ -43,6 +43,7 @@ const vRipple: Directive = {
   },
   unmounted(el) {
     el.removeEventListener('mousedown', createRipple)
+
     if (el._rippleContainer) {
       el._rippleContainer.remove()
       delete el._rippleContainer

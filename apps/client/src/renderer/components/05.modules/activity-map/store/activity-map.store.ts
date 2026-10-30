@@ -39,14 +39,24 @@ export const useActivityMapStore = defineStore('activityMap', {
       let endAt = new Date().toISOString()
 
       const startDate = state.dateRange.start.toDate(getLocalTimeZone())
-      startDate.setHours(0, 0, 0, 0)
+      startDate.setHours(
+        0,
+        0,
+        0,
+        0,
+      )
       startAt = startDate.toISOString()
 
       const endDate = state.dateRange.end
         ? state.dateRange.end.toDate(getLocalTimeZone())
         : state.dateRange.start.toDate(getLocalTimeZone())
 
-      endDate.setHours(23, 59, 59, 999)
+      endDate.setHours(
+        23,
+        59,
+        59,
+        999,
+      )
       endAt = endDate.toISOString()
 
       return { startAt, endAt }
@@ -67,6 +77,7 @@ export const useActivityMapStore = defineStore('activityMap', {
         if (this.currentMapParams.screen) {
           params.screen = this.currentMapParams.screen
         }
+
         params.zoomlevel = Math.round(this.currentMapParams.zoomlevel)
       }
 

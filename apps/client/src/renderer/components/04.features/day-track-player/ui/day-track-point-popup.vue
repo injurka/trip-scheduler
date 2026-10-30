@@ -4,7 +4,7 @@ import { Icon } from '@iconify/vue'
 import { computed } from 'vue'
 import { ACTIVITY_COLORS, ACTIVITY_ICONS, ACTIVITY_LABELS } from '../models/types'
 
-const props = defineProps<{
+interface Props {
   selectedPoint: SelectedPointInfo | null
   timezoneMode: TimezoneMode
   formattedTime: string
@@ -12,7 +12,9 @@ const props = defineProps<{
   isCopied: boolean
   isDeleting: boolean
   statusBadge: PointStatusBadge | null
-}>()
+}
+
+const props = defineProps<Props>()
 
 const emit = defineEmits<{
   (e: 'copy', point: DayPoint): void
@@ -22,17 +24,23 @@ const emit = defineEmits<{
 
 const stopDuration = computed(() => {
   const stop = props.selectedPoint?.point?.stop
+
   if (!stop)
     return null
+
   const diffMs = Math.max(0, stop.endedAt - stop.startedAt)
   const totalMin = Math.round(diffMs / 60_000)
+
   if (totalMin < 1)
     return '< 1 мин'
+
   const hours = Math.floor(totalMin / 60)
   const mins = totalMin % 60
+
   if (hours > 0) {
     return mins > 0 ? `${hours} ч ${mins} мин` : `${hours} ч`
   }
+
   return `${mins} мин`
 })
 
@@ -43,8 +51,10 @@ const activityLabel = computed(() => ACTIVITY_LABELS[pointActivity.value] || 'Д
 
 const speedFormatted = computed(() => {
   const sp = props.selectedPoint?.point?.speed
+
   if (sp == null)
     return '0.0 км/ч'
+
   return `${(sp * 3.6).toFixed(1)} км/ч`
 })
 </script>

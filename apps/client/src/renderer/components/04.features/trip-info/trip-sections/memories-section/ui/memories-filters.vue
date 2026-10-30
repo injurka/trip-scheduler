@@ -11,7 +11,6 @@ interface Props {
 }
 
 const props = defineProps<Props>()
-
 const emit = defineEmits<{
   (e: 'toggleFullscreen'): void
 }>()
@@ -20,18 +19,17 @@ const filterRating = defineModel<number>('filterRating', { required: true })
 const sortOrder = defineModel<string>('sortOrder', { required: true })
 const isFullscreen = defineModel<boolean>('isFullscreen', { default: false })
 const gridSize = defineModel<MemoriesGridSize>('gridSize', { default: 'md' })
+
 const isRatingFilterOpen = ref(false)
+
+const currentFilterLabel = computed(() =>
+  props.availableDays.find(d => d.value === filterDay.value)?.label || 'Все дни')
+const starColor = computed(() => filterRating.value > 0 ? 'var(--c-orange-500)' : 'var(--fg-tertiary-color)')
 
 function toggleFullscreen() {
   isFullscreen.value = !isFullscreen.value
   emit('toggleFullscreen')
 }
-
-const currentFilterLabel = computed(() =>
-  props.availableDays.find(d => d.value === filterDay.value)?.label || 'Все дни',
-)
-
-const starColor = computed(() => filterRating.value > 0 ? 'var(--c-orange-500)' : 'var(--fg-tertiary-color)')
 </script>
 
 <template>

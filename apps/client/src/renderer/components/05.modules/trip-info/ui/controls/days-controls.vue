@@ -25,76 +25,33 @@ interface Props {
 const props = defineProps<Props>()
 
 const store = useModuleStore(['ui', 'plan'])
-const { isDaysPanelPinned, isDaysPanelOpen, isViewMode } = storeToRefs(store.ui)
-const { getAllDays, getSelectedDay, isLoading, isLoadingNewDay } = storeToRefs(store.plan)
-const { setCurrentDay, updateDayDetails, deleteDay } = store.plan
 const appStore = useAppStore(['layout'])
-const { isHeaderVisible, headerHeight } = storeToRefs(appStore.layout)
 const { canEdit } = useTripPermissions()
 const confirm = useConfirm()
 const toast = useToast()
+const { mdAndUp } = useDisplay()
+const { width: windowWidth } = useWindowSize()
 
+const { isDaysPanelPinned, isDaysPanelOpen, isViewMode } = storeToRefs(store.ui)
+const { getAllDays, getSelectedDay, isLoading, isLoadingNewDay } = storeToRefs(store.plan)
+const { setCurrentDay, updateDayDetails, deleteDay } = store.plan
+const { isHeaderVisible, headerHeight } = storeToRefs(appStore.layout)
 const controlsRef = ref<HTMLElement | null>(null)
 const fixedLeftControlsRef = ref<HTMLElement | null>(null)
+
+const { width: leftControlsWidth } = useElementBounding(fixedLeftControlsRef)
+
 const fixedRightControlsRef = ref<HTMLElement | null>(null)
+
+const { width: rightControlsWidth } = useElementBounding(fixedRightControlsRef)
 
 const controlsAreVisible = ref(true)
 
-const { mdAndUp } = useDisplay()
-
-const { stop: stopIntersectionObserver } = useIntersectionObserver(
-  controlsRef,
-  ([{ isIntersecting }]) => {
-    controlsAreVisible.value = isIntersecting
-  },
-  { threshold: 0.9 },
-)
-
-const { width: windowWidth } = useWindowSize()
-const { width: leftControlsWidth } = useElementBounding(fixedLeftControlsRef)
-const { width: rightControlsWidth } = useElementBounding(fixedRightControlsRef)
-
-function handleAddNewDay() {
-  store.plan.addNewDay()
-  if (!store.ui.isDaysPanelPinned)
-    store.ui.closeDaysPanel()
-}
-
-function handleAddNewDraftDay() {
-  store.plan.addNewDraftDay()
-  if (!store.ui.isDaysPanelPinned)
-    store.ui.closeDaysPanel()
-}
-
-async function handleDeleteDay() {
-  const isDraft = !getSelectedDay.value?.date
-  const isConfirmed = await confirm({
-    title: isDraft ? 'Удалить черновик дня?' : 'Удалить текущий день?',
-    description: 'Это действие необратимо. Все активности, связанные с этим днем, будут удалены.',
-    type: 'danger',
-    confirmText: 'Удалить',
-  })
-  if (isConfirmed)
-    deleteDay()
-}
-
-function handleUnassignDay() {
-  if (!getSelectedDay.value)
-    return
-  updateDayDetails(getSelectedDay.value.id, { date: null })
-  toast.info('Маршрут отвязан от даты и перемещен в черновики.')
-}
-
-function toggleMode() {
-  const newMode = isViewMode.value ? 'edit' : 'view'
-  if (newMode === 'edit')
-    store.ui.clearCollapsedState()
-
-  store.ui.setInteractionMode(newMode)
-}
+const { stop: stopIntersectionObserver } = useIntersectionObserver(controlsRef, ([{ isIntersecting }]) => {
+  controlsAreVisible.value = isIntersecting
+}, { threshold: 0.9 })
 
 const isDayInfoLoading = computed(() => isLoading.value || isLoadingNewDay.value)
-
 const selectedCalendarDate = computed<CalendarDate | null>({
   get: () => {
     return getSelectedDay.value && getSelectedDay.value.date
@@ -114,9 +71,7 @@ const selectedCalendarDate = computed<CalendarDate | null>({
 
     const newIsoDate = new Date(newDateString).toISOString()
 
-    const occupiedDay = getAllDays.value.find(
-      (day: IDay) => day.date && day.date.startsWith(newDateString) && day.id !== currentDay.id,
-    )
+    const occupiedDay = getAllDays.value.find((day: IDay) => day.date && day.date.startsWith(newDateString) && day.id !== currentDay.id)
 
     if (occupiedDay) {
       updateDayDetails(occupiedDay.id, { date: originalDate })
@@ -135,26 +90,60 @@ const selectedCalendarDate = computed<CalendarDate | null>({
     }
   },
 })
-
 const freeSpaceOnSide = computed(() => props.wrapperBounding.left)
-
 const showFixedControls = computed(() =>
   mdAndUp.value
   && freeSpaceOnSide.value >= (Math.max(leftControlsWidth.value, rightControlsWidth.value) + 20)
-  && !controlsAreVisible.value,
-)
-
+  && !controlsAreVisible.value)
 const topOffset = computed(() => (isHeaderVisible.value ? headerHeight.value : 0) + 20)
-
 const fixedLeftControlsStyle = computed(() => ({
   top: `${topOffset.value}px`,
   left: `${props.wrapperBounding.left - leftControlsWidth.value - 40}px`,
 }))
-
 const fixedRightControlsStyle = computed(() => ({
   top: `${topOffset.value}px`,
   right: `${windowWidth.value - (props.wrapperBounding.left + props.wrapperBounding.width) - rightControlsWidth.value - 20}px`,
 }))
+
+function handleAddNewDay() {
+  store.plan.addNewDay()
+
+  if (!store.ui.isDaysPanelPinned)
+    store.ui.closeDaysPanel()
+}
+function handleAddNewDraftDay() {
+  store.plan.addNewDraftDay()
+
+  if (!store.ui.isDaysPanelPinned)
+    store.ui.closeDaysPanel()
+}
+async function handleDeleteDay() {
+  const isDraft = !getSelectedDay.value?.date
+  const isConfirmed = await confirm({
+    title: isDraft ? 'Удалить черновик дня?' : 'Удалить текущий день?',
+    description: 'Это действие необратимо. Все активности, связанные с этим днем, будут удалены.',
+    type: 'danger',
+    confirmText: 'Удалить',
+  })
+
+  if (isConfirmed)
+    deleteDay()
+}
+function handleUnassignDay() {
+  if (!getSelectedDay.value)
+    return
+
+  updateDayDetails(getSelectedDay.value.id, { date: null })
+  toast.info('Маршрут отвязан от даты и перемещен в черновики.')
+}
+function toggleMode() {
+  const newMode = isViewMode.value ? 'edit' : 'view'
+
+  if (newMode === 'edit')
+    store.ui.clearCollapsedState()
+
+  store.ui.setInteractionMode(newMode)
+}
 
 onUnmounted(() => {
   stopIntersectionObserver()
@@ -175,8 +164,18 @@ onUnmounted(() => {
         </KitTooltip>
 
         <div v-if="isDayInfoLoading" class="current-day-info-skeleton">
-          <KitSkeleton width="100px" height="20px" border-radius="6px" type="wave" />
-          <KitSkeleton width="80px" height="18px" border-radius="6px" type="wave" />
+          <KitSkeleton
+            width="100px"
+            height="20px"
+            border-radius="6px"
+            type="wave"
+          />
+          <KitSkeleton
+            width="80px"
+            height="18px"
+            border-radius="6px"
+            type="wave"
+          />
         </div>
         <CalendarPopover
           v-else
@@ -268,8 +267,18 @@ onUnmounted(() => {
           </KitTooltip>
 
           <div v-if="isDayInfoLoading" class="current-day-info-skeleton">
-            <KitSkeleton width="100px" height="20px" border-radius="6px" type="wave" />
-            <KitSkeleton width="80px" height="18px" border-radius="6px" type="wave" />
+            <KitSkeleton
+              width="100px"
+              height="20px"
+              border-radius="6px"
+              type="wave"
+            />
+            <KitSkeleton
+              width="80px"
+              height="18px"
+              border-radius="6px"
+              type="wave"
+            />
           </div>
           <CalendarPopover
             v-else

@@ -30,10 +30,7 @@ const DEFAULT_TABS: ChecklistTabConfig[] = [
 /**
  * Хук для управления логикой секции чек-листа с поддержкой кастомных вкладок, подзадач и импорта.
  */
-export function useChecklistSection(
-  props: UseChecklistSectionProps,
-  emit: (event: 'updateSection', payload: any) => void,
-) {
+export function useChecklistSection(props: UseChecklistSectionProps, emit: (event: 'updateSection', payload: any) => void) {
   const confirm = useConfirm()
   const toast = useToast()
   const { canEdit } = useTripPermissions()
@@ -48,6 +45,7 @@ export function useChecklistSection(
   // Инициализация элементов
   const initialItems = (props.section.content?.items || []).map((item: any): ChecklistItem => {
     let priority: ChecklistPriority = 1
+
     if (item.priority === 'high') {
       priority = 4
     }
@@ -99,6 +97,7 @@ export function useChecklistSection(
   function addTab(newTab: { id: string, name: string, icon: string }) {
     if (props.readonly || !newTab.name.trim())
       return
+
     tabs.value.push({
       ...newTab,
       isCustom: true,
@@ -111,7 +110,9 @@ export function useChecklistSection(
   function updateTab(updatedTab: { id: string, name: string, icon: string }) {
     if (props.readonly)
       return
+
     const idx = tabs.value.findIndex(t => t.id === updatedTab.id)
+
     if (idx !== -1) {
       tabs.value[idx] = {
         ...tabs.value[idx],
@@ -127,6 +128,7 @@ export function useChecklistSection(
       return
 
     const targetTab = tabs.value.find(t => t.id === tabId)
+
     if (!targetTab)
       return
 
@@ -139,6 +141,7 @@ export function useChecklistSection(
         confirmText: 'Удалить',
         type: 'danger',
       })
+
       if (!isConfirmed)
         return
     }
@@ -174,13 +177,16 @@ export function useChecklistSection(
   function deleteItem(id: string) {
     if (props.readonly)
       return
+
     items.value = items.value.filter(item => item.id !== id)
   }
 
   function updateItem(updatedItem: ChecklistItem) {
     if (props.readonly && !canEdit.value)
       return
+
     const index = items.value.findIndex(i => i.id === updatedItem.id)
+
     if (index !== -1) {
       items.value[index] = updatedItem
       debouncedUpdate()
@@ -191,10 +197,13 @@ export function useChecklistSection(
   function addSubtask(itemId: string, text: string) {
     if (props.readonly || !text.trim())
       return
+
     const item = items.value.find(i => i.id === itemId)
+
     if (item) {
       if (!item.subtasks)
         item.subtasks = []
+
       item.subtasks.push({
         id: uuidv4(),
         text: text.trim(),
@@ -207,9 +216,12 @@ export function useChecklistSection(
   function toggleSubtask(itemId: string, subtaskId: string, completed?: boolean) {
     if (props.readonly && !canEdit.value)
       return
+
     const item = items.value.find(i => i.id === itemId)
+
     if (item && item.subtasks) {
       const subtask = item.subtasks.find(s => s.id === subtaskId)
+
       if (subtask) {
         subtask.completed = completed !== undefined ? completed : !subtask.completed
         debouncedUpdate()
@@ -220,7 +232,9 @@ export function useChecklistSection(
   function deleteSubtask(itemId: string, subtaskId: string) {
     if (props.readonly)
       return
+
     const item = items.value.find(i => i.id === itemId)
+
     if (item && item.subtasks) {
       item.subtasks = item.subtasks.filter(s => s.id !== subtaskId)
       debouncedUpdate()
@@ -231,6 +245,7 @@ export function useChecklistSection(
   function addGroup(tab: ChecklistTab) {
     if (props.readonly)
       return
+
     groups.value.unshift({
       id: uuidv4(),
       name: 'Новая группа',
@@ -259,7 +274,9 @@ export function useChecklistSection(
   function updateGroup(updatedGroup: ChecklistGroup) {
     if (props.readonly)
       return
+
     const index = groups.value.findIndex(g => g.id === updatedGroup.id)
+
     if (index !== -1)
       groups.value[index] = updatedGroup
   }
@@ -319,8 +336,7 @@ export function useChecklistSection(
         || (item.description && item.description.toLowerCase().includes(query))
         || (item.cost && item.cost.toLowerCase().includes(query))
         || (item.location && item.location.toLowerCase().includes(query))
-        || (item.subtasks && item.subtasks.some(s => s.text.toLowerCase().includes(query))),
-      )
+        || (item.subtasks && item.subtasks.some(s => s.text.toLowerCase().includes(query))))
     }
 
     return result
@@ -329,14 +345,18 @@ export function useChecklistSection(
   const itemsByGroupId = computed(() => {
     const map: Record<string, ChecklistItem[]> = {}
     const list = filteredItems.value
+
     for (let i = 0; i < list.length; i++) {
       const item = list[i]
+
       if (item.groupId) {
         if (!map[item.groupId])
           map[item.groupId] = []
+
         map[item.groupId].push(item)
       }
     }
+
     return map
   })
 
@@ -346,9 +366,11 @@ export function useChecklistSection(
         return false
 
       const search = searchQuery.value.trim().toLowerCase()
+
       if (search) {
         const nameMatchesSearch = group.name.toLowerCase().includes(search)
         const hasVisibleItems = (itemsByGroupId.value[group.id] || []).length > 0
+
         return nameMatchesSearch || hasVisibleItems
       }
 
@@ -361,9 +383,12 @@ export function useChecklistSection(
   const progress = computed(() => {
     const relevantItems = items.value.filter(item => item.type === activeTab.value)
     const total = relevantItems.length
+
     if (total === 0)
       return 0
+
     const completed = relevantItems.filter(item => item.completed).length
+
     return Math.round((completed / total) * 100)
   })
 

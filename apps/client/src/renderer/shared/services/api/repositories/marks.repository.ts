@@ -11,6 +11,7 @@ export class MarksRepository implements IMarksRepository {
   @throttle(500)
   async getMarks(params: GetMarksParams): Promise<Mark[]> {
     const result = await trpc.mark.list.query(params)
+
     return result as Mark[]
   }
 
@@ -19,6 +20,7 @@ export class MarksRepository implements IMarksRepository {
     const { photos, ...inputData } = data
 
     const result = await trpc.mark.create.mutate(inputData)
+
     return result as Mark
   }
 }

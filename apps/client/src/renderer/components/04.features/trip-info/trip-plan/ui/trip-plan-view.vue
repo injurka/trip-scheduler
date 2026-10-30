@@ -10,18 +10,19 @@ import { lazyComponent } from '~/shared/lib/lazy-component'
 import { EActivityStatus, EActivityTag } from '~/shared/types/models/activity'
 import DayActivitiesList from './list.vue'
 
-const DayNote = lazyComponent(() => import('./day-note.vue'))
-
 const { plan, ui } = useModuleStore(['plan', 'ui'])
 
+const DayNote = lazyComponent(() => import('./day-note.vue'))
 const { getActivitiesForSelectedDay, getSelectedDay } = storeToRefs(plan)
 const { isViewMode, areAllActivitiesCollapsed, isParallelPlanView } = storeToRefs(ui)
-
 const viewMode = ref<'template' | 'canvas'>('template')
 const isFullScreen = ref(false)
+const hasRenderedCanvas = ref(false)
 
 const hasRenderedPlan = computed(() => isParallelPlanView.value || viewMode.value === 'template')
-const hasRenderedCanvas = ref(false)
+const allActivityIds = computed(() => getActivitiesForSelectedDay.value.map((a: IActivity) => a.id))
+const allRouteBlocksCollapsed = computed(() => areAllActivitiesCollapsed.value(allActivityIds.value))
+const collapseRouteIcon = computed(() => allRouteBlocksCollapsed.value ? 'mdi:chevron-double-down' : 'mdi:chevron-double-up')
 
 watchEffect(() => {
   if (isParallelPlanView.value || viewMode.value === 'canvas') {
@@ -36,7 +37,6 @@ function setViewMode(mode: 'template' | 'canvas') {
     ui.toggleParallelPlanView()
   }
 }
-
 function toggleParallelView() {
   ui.toggleParallelPlanView()
 
@@ -44,11 +44,9 @@ function toggleParallelView() {
     isFullScreen.value = false
   }
 }
-
 function toggleFullScreen() {
   isFullScreen.value = !isFullScreen.value
 }
-
 function handleAddNewActivity() {
   if (!getSelectedDay.value)
     return
@@ -76,10 +74,6 @@ onKeyStroke('Escape', (e) => {
     isFullScreen.value = false
   }
 })
-
-const allActivityIds = computed(() => getActivitiesForSelectedDay.value.map((a: IActivity) => a.id))
-const allRouteBlocksCollapsed = computed(() => areAllActivitiesCollapsed.value(allActivityIds.value))
-const collapseRouteIcon = computed(() => allRouteBlocksCollapsed.value ? 'mdi:chevron-double-down' : 'mdi:chevron-double-up')
 </script>
 
 <template>

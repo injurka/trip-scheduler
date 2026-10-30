@@ -4,14 +4,15 @@ import { KitDialogWithClose } from '~/components/01.kit/kit-dialog-with-close'
 import { TripsHubKey } from '../../composables/use-trips-hub'
 import StepBasicInfo from './step-basic-info.vue'
 
-const tripsHub = inject(TripsHubKey)
-
-if (!tripsHub)
-  throw new Error('TripsHub logic was not provided.')
+const tripsHub = inject(TripsHubKey) ?? throwMissingTripsHubError()
 
 const isFormValid = computed(() => {
   return tripsHub.newTripData.value.title.trim().length > 0
 })
+
+function throwMissingTripsHubError(): never {
+  throw new Error('TripsHub logic was not provided.')
+}
 </script>
 
 <template>

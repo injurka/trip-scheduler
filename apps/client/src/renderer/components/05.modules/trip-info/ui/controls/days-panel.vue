@@ -29,15 +29,14 @@ const { toggleDaysPanelPinned } = ui
 const calendarDays = computed(() =>
   props.days
     .filter(d => !!d.date)
-    .sort((a, b) => new Date(a.date!).getTime() - new Date(b.date!).getTime()),
-)
+    .sort((a, b) => new Date(a.date!).getTime() - new Date(b.date!).getTime()))
 
 const draftDays = computed(() =>
-  props.days.filter(d => !d.date),
-)
+  props.days.filter(d => !d.date))
 
 function onSelectDay(dayId: string) {
   emit('selectDay', dayId)
+
   if (!isDaysPanelPinned.value)
     emit('close')
 }

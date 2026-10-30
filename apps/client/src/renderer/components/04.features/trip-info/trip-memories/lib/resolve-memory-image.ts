@@ -20,6 +20,41 @@ interface VaultContext {
   getRelPath: (tripId: string, imageId: string, dayId?: string) => string
 }
 
+type VariantKey = keyof NonNullable<TripMedia['variants']>
+
+function resolveVariantUrl(variants: TripMedia['variants'], preferredKeys: VariantKey[], fallback?: string): string | undefined {
+  for (const key of preferredKeys) {
+    const value = variants?.[key]
+
+    if (value)
+      return resolveApiUrl(value)
+  }
+
+  return fallback
+}
+
+function getLocalMemorySource(
+  image: TripMedia,
+  vault: VaultContext,
+  tripId: string | null,
+  dayId: string | undefined,
+): MemoryImageSource | null {
+  if (!vault.isLocalMode || !vault.isConfigured || !tripId || !dayId)
+    return null
+
+  const relPath = vault.getRelPath(tripId, image.id, dayId)
+
+  if (!vault.localFilesSet.has(relPath))
+    return null
+
+  const localUrl = `trip-scheduler-vault://${relPath}`
+
+  return {
+    url: localUrl,
+    variants: { small: localUrl, medium: localUrl, large: localUrl },
+  }
+}
+
 export function resolveMemoryImageSource(
   image: TripMedia,
   vault: VaultContext,
@@ -29,23 +64,22 @@ export function resolveMemoryImageSource(
   const serverUrl = resolveApiUrl(image.url)
 
   const variants = {
-    small: image.variants?.small ? resolveApiUrl(image.variants.small) : (image.variants?.poster ? resolveApiUrl(image.variants.poster) : serverUrl),
-    medium: image.variants?.medium ? resolveApiUrl(image.variants.medium) : (image.variants?.poster ? resolveApiUrl(image.variants.poster) : serverUrl),
-    large: image.variants?.large ? resolveApiUrl(image.variants.large) : (image.variants?.web ? resolveApiUrl(image.variants.web) : serverUrl),
-    poster: image.variants?.poster ? resolveApiUrl(image.variants.poster) : (image.variants?.small ? resolveApiUrl(image.variants.small) : undefined),
-    web: image.variants?.web ? resolveApiUrl(image.variants.web) : (image.variants?.large ? resolveApiUrl(image.variants.large) : undefined),
+    small: resolveVariantUrl(image.variants, ['small', 'poster'], serverUrl) ?? serverUrl,
+    medium: resolveVariantUrl(image.variants, ['medium', 'poster'], serverUrl) ?? serverUrl,
+    large: resolveVariantUrl(image.variants, ['large', 'web'], serverUrl) ?? serverUrl,
+    poster: resolveVariantUrl(image.variants, ['poster', 'small']),
+    web: resolveVariantUrl(image.variants, ['web', 'large']),
   }
 
-  if (vault.isLocalMode && vault.isConfigured && tripId && dayId) {
-    const relPath = vault.getRelPath(tripId, image.id, dayId)
-    if (vault.localFilesSet.has(relPath)) {
-      const localUrl = `trip-scheduler-vault://${relPath}`
-      return {
-        url: localUrl,
-        variants: { small: localUrl, medium: localUrl, large: localUrl },
-      }
-    }
-  }
+  const localSource = getLocalMemorySource(
+    image,
+    vault,
+    tripId,
+    dayId,
+  )
+
+  if (localSource)
+    return localSource
 
   return { url: serverUrl, variants }
 }

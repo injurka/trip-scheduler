@@ -12,7 +12,6 @@ import { useAiTripGeneration } from '../../composables/use-ai-trip-generation'
 const emit = defineEmits<{
   (e: 'created', tripId: string): void
 }>()
-
 const visible = defineModel<boolean>('visible', { required: true })
 
 const {
@@ -31,20 +30,8 @@ const country = ref('')
 const startDateIso = ref(new Date().toISOString())
 const days = ref(7)
 const wishes = ref('')
-
 const showCloseConfirm = ref(false)
 const logsBoxEl = ref<HTMLElement | null>(null)
-
-const toYyyyMmDd = (date: string | Date) => new Date(date).toISOString().split('T')[0]
-
-const startDate = computed({
-  get: () => parseDate(toYyyyMmDd(startDateIso.value))!,
-  set: (date: CalendarDate | null) => {
-    if (date)
-      startDateIso.value = date.toDate('UTC').toISOString()
-  },
-})
-
 const wishPresets = [
   { label: '🏖️ Море и пляж', text: 'Больше моря, пляжей и отдыха у воды' },
   { label: '⛰️ Природа и горы', text: 'Акцент на природу: горы, треккинг, национальные парки' },
@@ -55,8 +42,47 @@ const wishPresets = [
   { label: '💸 Бюджетно', text: 'Экономный вариант: бюджетное жилье, общественный транспорт' },
   { label: '🧘 Спокойный темп', text: 'Спокойный ненасыщенный темп, меньше переездов, время на отдых' },
 ]
-
 const activePresets = ref<Set<string>>(new Set())
+
+const isFormValid = computed(() => country.value.trim().length >= 2)
+const isRunning = computed(() => phase.value === 'generating' || phase.value === 'importing')
+const phaseLabel = computed(() => {
+  if (phase.value === 'importing')
+    return 'Импорт сгенерированных заметок в путешествие…'
+
+  return 'ИИ генерирует заметки путешествия…'
+})
+const progressPercent = computed(() => {
+  if (progress.value === null)
+    return null
+
+  return Math.min(100, Math.max(0, progress.value))
+})
+// 1xx progress → indeterminate; иначе точный процент
+const isProgressIndeterminate = computed(() => progress.value === null)
+
+// Автопрокрутка лога вниз по мере поступления записей
+watch(logs, async () => {
+  await nextTick()
+
+  if (logsBoxEl.value)
+    logsBoxEl.value.scrollTop = logsBoxEl.value.scrollHeight
+})
+// Сброс подтверждения при повторном открытии родителем
+watch(visible, (value) => {
+  if (value)
+    showCloseConfirm.value = false
+})
+
+const toYyyyMmDd = (date: string | Date) => new Date(date).toISOString().split('T')[0]
+
+const startDate = computed({
+  get: () => parseDate(toYyyyMmDd(startDateIso.value))!,
+  set: (date: CalendarDate | null) => {
+    if (date)
+      startDateIso.value = date.toDate('UTC').toISOString()
+  },
+})
 
 function togglePreset(preset: { label: string, text: string }) {
   if (activePresets.value.has(preset.label)) {
@@ -73,35 +99,14 @@ function togglePreset(preset: { label: string, text: string }) {
       : preset.text
   }
 }
-
 function isPresetActive(label: string): boolean {
   return activePresets.value.has(label)
 }
-
-const isFormValid = computed(() => country.value.trim().length >= 2)
-
-const isRunning = computed(() => phase.value === 'generating' || phase.value === 'importing')
-
-const phaseLabel = computed(() => {
-  if (phase.value === 'importing')
-    return 'Импорт сгенерированных заметок в путешествие…'
-  return 'ИИ генерирует заметки путешествия…'
-})
-
-const progressPercent = computed(() => {
-  if (progress.value === null)
-    return null
-  return Math.min(100, Math.max(0, progress.value))
-})
-
-// 1xx progress → indeterminate; иначе точный процент
-const isProgressIndeterminate = computed(() => progress.value === null)
-
 function toStartDateString(): string {
   const selected = startDate.value ?? today(getLocalTimeZone())
+
   return selected.toDate('UTC').toISOString()
 }
-
 async function generate() {
   showCloseConfirm.value = false
   await start({
@@ -111,7 +116,6 @@ async function generate() {
     wishes: wishes.value.trim() || undefined,
   })
 }
-
 /**
  * Перехват попытки закрыть модалку. Во время генерации клик вне, Esc или крестик
  * не закрывают диалог — вместо этого показываем подтверждение.
@@ -121,54 +125,42 @@ async function generate() {
 function onVisibleChange(value: boolean) {
   if (value) {
     showCloseConfirm.value = false
+
     return
   }
 
   if (isRunning.value || showCloseConfirm.value) {
     showCloseConfirm.value = true
     visible.value = true
+
     return
   }
 
   close()
 }
-
 function confirmAbort() {
   stopPolling()
   showCloseConfirm.value = false
   visible.value = false
   setTimeout(reset, 300)
 }
-
 function close() {
   if (isRunning.value) {
     showCloseConfirm.value = true
+
     return
   }
+
   showCloseConfirm.value = false
   visible.value = false
   setTimeout(reset, 300)
 }
-
 function openTrip() {
   if (createdTripId.value) {
     emit('created', createdTripId.value)
     close()
   }
 }
-
-// Автопрокрутка лога вниз по мере поступления записей
-watch(logs, async () => {
-  await nextTick()
-  if (logsBoxEl.value)
-    logsBoxEl.value.scrollTop = logsBoxEl.value.scrollHeight
-})
-
-// Сброс подтверждения при повторном открытии родителем
-watch(visible, (value) => {
-  if (value)
-    showCloseConfirm.value = false
-})
 </script>
 
 <template>

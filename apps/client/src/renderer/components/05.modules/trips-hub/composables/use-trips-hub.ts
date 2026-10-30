@@ -42,6 +42,7 @@ function getDefaultTripData() {
 function sortTripsByDate(tripsList: ITrip[]): ITrip[] {
   return tripsList.sort((a, b) => {
     const diff = new Date(b.startDate || 0).getTime() - new Date(a.startDate || 0).getTime()
+
     if (diff !== 0)
       return diff
 
@@ -90,6 +91,7 @@ export function useTripsHub() {
     // If we have trips loaded (e.g. from offline cache), do not block UI with full error screen
     if (trips.value.length > 0)
       return null
+
     return useRequestError(ETripHubKeys.FETCH_ALL).value
   })
 
@@ -108,11 +110,21 @@ export function useTripsHub() {
         return false
 
       const start = new Date(t.startDate)
-      start.setHours(0, 0, 0, 0)
+      start.setHours(
+        0,
+        0,
+        0,
+        0,
+      )
       const startTime = start.getTime()
 
       const end = new Date(t.endDate)
-      end.setHours(23, 59, 59, 999)
+      end.setHours(
+        23,
+        59,
+        59,
+        999,
+      )
       const endTime = end.getTime()
 
       return now >= startTime && now <= endTime && t.status !== TripStatus.DRAFT
@@ -162,12 +174,14 @@ export function useTripsHub() {
       },
       onError: ({ error }) => {
         const savedOfflineTrips = offlineStore.sortedSavedTrips.map(entry => entry.data as unknown as ITrip)
+
         if (savedOfflineTrips.length > 0) {
           trips.value = sortTripsByDate(savedOfflineTrips)
           isInitialized.value = true
           hasLoadedOnce.value = true
           setCount('trip-list', trips.value.length)
           toast.info('Нет подключения к сети. Загружены сохраненные офлайн-путешествия.')
+
           return
         }
 
@@ -180,6 +194,7 @@ export function useTripsHub() {
   async function createTrip() {
     if (!authStore.canCreateTrip) {
       toast.error('Вы достигли лимита на создание путешествий.')
+
       return
     }
 
@@ -202,6 +217,7 @@ export function useTripsHub() {
 
   function deleteTrip(tripId: string) {
     const tripIndex = trips.value.findIndex(t => t.id === tripId)
+
     if (tripIndex === -1)
       return
 
@@ -216,6 +232,7 @@ export function useTripsHub() {
         toast.success(`Путешествие "${removedTrip.title}" удалено.`)
         authStore.decrementTripCount()
         const offlineStore = useOfflineStore()
+
         if (offlineStore.isTripCached(tripId)) {
           offlineStore.removeOfflineTrip(tripId)
         }
@@ -230,6 +247,7 @@ export function useTripsHub() {
 
   function updateTripInList(updatedData: UpdateTripInput & { id: string }) {
     const tripIndex = trips.value.findIndex(t => t.id === updatedData.id)
+
     if (tripIndex === -1)
       return
 
@@ -250,17 +268,21 @@ export function useTripsHub() {
       fn: db => db.trips.update(updatedData.id, updatedData),
       onSuccess: (updatedFromServer) => {
         const finalIndex = trips.value.findIndex(t => t.id === updatedData.id)
+
         if (finalIndex !== -1) {
           trips.value[finalIndex] = { ...trips.value[finalIndex], ...updatedFromServer }
           trips.value = sortTripsByDate(trips.value)
         }
+
         toast.success('Путешествие обновлено.')
       },
       onError: ({ error }) => {
         const revertIndex = trips.value.findIndex(t => t.id === updatedData.id)
+
         if (revertIndex !== -1) {
           trips.value[revertIndex] = originalTrip
         }
+
         toast.error(`Не удалось обновить путешествие: ${error.customMessage}`)
       },
     })
@@ -285,6 +307,7 @@ export function useTripsHub() {
 
     if (!authStore.canCreateTrip) {
       toast.error('Вы достигли лимита на создание путешествий. Улучшите ваш план, чтобы создавать больше.')
+
       return
     }
 

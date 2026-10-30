@@ -59,11 +59,22 @@ onMounted(() => {
     <div class="page-top-bar">
       <NavigationBack />
       <div v-if="canEdit && store.currentPost" class="admin-actions">
-        <KitBtn variant="outlined" color="secondary" size="sm" @click="handleEdit">
+        <KitBtn
+          variant="outlined"
+          color="secondary"
+          size="sm"
+          @click="handleEdit"
+        >
           <Icon icon="mdi:pencil-outline" />
           Редактировать
         </KitBtn>
-        <KitBtn variant="outlined" color="secondary" size="sm" class="delete-btn" @click="handleDelete">
+        <KitBtn
+          variant="outlined"
+          color="secondary"
+          size="sm"
+          class="delete-btn"
+          @click="handleDelete"
+        >
           <Icon icon="mdi:trash-can-outline" />
         </KitBtn>
       </div>
@@ -77,8 +88,18 @@ onMounted(() => {
         <div class="article-skeleton" role="status" aria-label="Загружаем статью">
           <div class="article-skeleton-header" aria-hidden="true">
             <KitSkeleton width="104px" height="14px" border-radius="999px" />
-            <KitSkeleton class="title-line" width="72%" height="2.5rem" border-radius="6px" />
-            <KitSkeleton class="title-line title-line-short" width="48%" height="2.5rem" border-radius="6px" />
+            <KitSkeleton
+              class="title-line"
+              width="72%"
+              height="2.5rem"
+              border-radius="6px"
+            />
+            <KitSkeleton
+              class="title-line title-line-short"
+              width="48%"
+              height="2.5rem"
+              border-radius="6px"
+            />
           </div>
 
           <KitSkeleton class="cover-skeleton" height="auto" border-radius="var(--r-l)" />

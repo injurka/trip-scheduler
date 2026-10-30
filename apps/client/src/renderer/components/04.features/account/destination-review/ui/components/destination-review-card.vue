@@ -12,11 +12,13 @@ import { KitTooltip } from '~/components/01.kit/kit-tooltip'
 import { getImageUrl } from '~/shared/lib/url'
 import { METRIC_LABELS } from '../../composables/use-destination-reviews'
 
-const props = defineProps<{
+interface Props {
   review: DestinationReview
   isOwner: boolean
   selectedMetrics?: DestinationMetricKey[]
-}>()
+}
+
+const props = defineProps<Props>()
 
 const emit = defineEmits(['delete', 'edit'])
 
@@ -50,11 +52,13 @@ const METRIC_DESCRIPTIONS: Record<DestinationMetricKey, string> = {
 
 const numericMetrics = computed(() => {
   const res: Partial<Record<DestinationMetricKey, number>> = {}
+
   for (const [k, v] of Object.entries((props.review.metrics as Record<string, any>) || {})) {
     if (typeof v === 'number' && !k.endsWith('_comment')) {
       res[k as DestinationMetricKey] = v
     }
   }
+
   return res
 })
 
@@ -76,17 +80,21 @@ const averageRating = computed(() => {
 
   if (!values.length)
     return '0.0'
+
   const sum = values.reduce((acc, val) => acc + val, 0)
+
   return (sum / values.length).toFixed(1)
 })
 
 const metricComments = computed(() => {
   const comments: Partial<Record<DestinationMetricKey, string>> = {}
+
   for (const [key, value] of Object.entries((props.review.metrics as Record<string, any>) || {})) {
     if (key.endsWith('_comment')) {
       comments[key.replace('_comment', '') as DestinationMetricKey] = String(value)
     }
   }
+
   return comments
 })
 
@@ -95,10 +103,13 @@ const ratingValue = computed(() => Number(averageRating.value))
 const ratingLevelClass = computed(() => {
   if (ratingValue.value === 0)
     return 'wreath-none'
+
   if (ratingValue.value < 3)
     return 'wreath-poor'
+
   if (ratingValue.value < 4)
     return 'wreath-average'
+
   return 'wreath-excellent'
 })
 
@@ -108,9 +119,11 @@ const placeName = computed(() => `${props.review.city}, ${props.review.country?.
 const coverMediumUrl = computed(() => {
   const variants = (props.review as any).coverVariants as Record<string, string> | undefined
   let src = props.review.coverUrl
+
   if (variants?.medium) {
     src = variants.medium
   }
+
   return src ? (getImageUrl(src) || src) : ''
 })
 
@@ -123,14 +136,17 @@ const mapMarkers = computed(() => [{
 function getMetricColorClass(value: number) {
   if (value <= 2)
     return 'color-low'
+
   if (value === 3)
     return 'color-medium'
+
   return 'color-high'
 }
 
 function isDimmed(key: DestinationMetricKey) {
   if (!props.selectedMetrics || props.selectedMetrics.length === 0)
     return false
+
   return !props.selectedMetrics.includes(key)
 }
 
@@ -144,7 +160,12 @@ function openExpanded() {
     <!-- Мини-карточка (Превью) -->
     <div class="review-card" @click="openExpanded">
       <div class="card-bg">
-        <KitImage v-if="review.coverUrl" :src="coverMediumUrl" class="bg-image" alt="Cover" />
+        <KitImage
+          v-if="review.coverUrl"
+          :src="coverMediumUrl"
+          class="bg-image"
+          alt="Cover"
+        />
         <div v-else class="bg-placeholder">
           <Icon icon="mdi:image-off-outline" />
         </div>
@@ -188,7 +209,12 @@ function openExpanded() {
           </div>
 
           <h3 class="title">
-            <img v-if="flagSrc" :src="flagSrc" class="svg-flag" :alt="review.country?.name">
+            <img
+              v-if="flagSrc"
+              :src="flagSrc"
+              class="svg-flag"
+              :alt="review.country?.name"
+            >
             <span class="place-name">{{ placeName }}</span>
           </h3>
         </div>
@@ -204,7 +230,12 @@ function openExpanded() {
       <template #header>
         <DialogTitle as-child>
           <div class="dialog-custom-title">
-            <img v-if="flagSrc" :src="flagSrc" class="svg-flag lg" :alt="review.country?.name">
+            <img
+              v-if="flagSrc"
+              :src="flagSrc"
+              class="svg-flag lg"
+              :alt="review.country?.name"
+            >
             <span>{{ placeName }}</span>
           </div>
         </DialogTitle>
@@ -213,7 +244,12 @@ function openExpanded() {
       <div class="dialog-content-layout">
         <!-- Обложка внутри диалога -->
         <div class="dialog-banner">
-          <KitImage v-if="review.coverUrl" :src="review.coverUrl" class="banner-image" alt="Cover" />
+          <KitImage
+            v-if="review.coverUrl"
+            :src="review.coverUrl"
+            class="banner-image"
+            alt="Cover"
+          />
           <div v-else class="banner-placeholder">
             <Icon icon="mdi:image-off-outline" />
           </div>

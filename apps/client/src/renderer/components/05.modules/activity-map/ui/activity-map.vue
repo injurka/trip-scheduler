@@ -10,7 +10,6 @@ import ActivityListView from './list/activity-list-view.vue'
 import ActivityMapView from './map/activity-map-view.vue'
 
 export type ActivityStatus = 'upcoming' | 'active' | 'past' | 'static'
-
 export interface ActivityItem {
   id: string
   title: string
@@ -23,6 +22,14 @@ export interface ActivityItem {
   coords: [number, number]
   durationHours: number
 }
+interface CreatePayload {
+  title: string
+  description: string
+  isStatic: boolean
+  startAt: string
+  endAt: string
+  coords: [number, number] | null
+}
 
 const emit = defineEmits<{
   (e: 'modeChange', mode: 'list' | 'map'): void
@@ -32,10 +39,7 @@ const toast = useToast()
 const store = useActivityMapStore()
 
 const { marks, isCreating } = storeToRefs(store)
-
 const viewMode = ref<'list' | 'map'>('list')
-const isCreateDialogOpen = ref(false)
-const createFormCoords = ref<[number, number] | null>(null)
 
 const {
   dateRange,
@@ -48,24 +52,13 @@ const {
   viewMode,
 })
 
-function determineStatus(startAt: string | undefined, endAt: string, isStatic: boolean): ActivityStatus {
-  if (isStatic)
-    return 'static'
-
-  const now = Date.now()
-  const start = startAt ? new Date(startAt).getTime() : new Date(endAt).getTime() - 1000 * 60 * 60 * 24
-  const end = new Date(endAt).getTime()
-
-  if (now < start)
-    return 'upcoming'
-  if (now >= start && now <= end)
-    return 'active'
-  return 'past'
-}
+const isCreateDialogOpen = ref(false)
+const createFormCoords = ref<[number, number] | null>(null)
 
 const activities = computed<ActivityItem[]>(() => {
   return marks.value.map((mark) => {
     const isStatic = mark.duration === 0 || !mark.duration
+
     return {
       id: String(mark.id),
       title: mark.markName,
@@ -80,7 +73,6 @@ const activities = computed<ActivityItem[]>(() => {
     }
   })
 })
-
 const mapMarkers = computed<MapMarker[]>(() => {
   return activities.value.map(act => ({
     id: act.id,
@@ -89,38 +81,51 @@ const mapMarkers = computed<MapMarker[]>(() => {
   }))
 })
 
+watch(dateRange, (newRange) => {
+  store.dateRange = newRange
+  store.fetchMarks()
+}, { deep: true, immediate: true })
+watch(viewMode, (newMode) => {
+  emit('modeChange', newMode)
+}, { immediate: true })
+
+function determineStatus(startAt: string | undefined, endAt: string, isStatic: boolean): ActivityStatus {
+  if (isStatic)
+    return 'static'
+
+  const now = Date.now()
+  const start = startAt ? new Date(startAt).getTime() : new Date(endAt).getTime() - 1000 * 60 * 60 * 24
+  const end = new Date(endAt).getTime()
+
+  if (now < start)
+    return 'upcoming'
+
+  if (now >= start && now <= end)
+    return 'active'
+
+  return 'past'
+}
 function handleModeChange(newMode: 'list' | 'map') {
   viewMode.value = newMode
 }
-
 function handleMapClick(_coords: [number, number]) {
   // Убрано автоматическое открытие при клике. Оставлено для контекстного меню.
 }
-
 function handleContextMenu(coords: [number, number]) {
   createFormCoords.value = coords
   isCreateDialogOpen.value = true
 }
-
-interface CreatePayload {
-  title: string
-  description: string
-  isStatic: boolean
-  startAt: string
-  endAt: string
-  coords: [number, number] | null
-}
-
 function mapDurationToAllowedValue(hours: number): number {
   if (hours <= 0)
     return 0
+
   const allowedDurations = [12, 24, 36, 48]
   const closest = allowedDurations.reduce((prev, curr) => {
     return (Math.abs(curr - hours) < Math.abs(prev - hours) ? curr : prev)
   })
+
   return closest
 }
-
 async function handleCreate(data: CreatePayload) {
   if (!createFormCoords.value && !data.coords)
     return
@@ -163,40 +168,16 @@ async function handleCreate(data: CreatePayload) {
     }
   }
 }
-
 async function handleDelete(id: string) {
   toast.warn(`Удаление в разработке. ID: ${id}`)
 }
-
 function handleMapBoundsChange(bounds: MapBounds) {
-  setMapPosition(
-    bounds.screen.center.lat,
-    bounds.screen.center.lon,
-    bounds.zoomlevel,
-  )
+  setMapPosition(bounds.screen.center.lat, bounds.screen.center.lon, bounds.zoomlevel)
   store.fetchMarks(bounds)
 }
-
 function handleFocusItem(coords: [number, number]) {
   setMapPosition(coords[1], coords[0], 15)
 }
-
-watch(
-  dateRange,
-  (newRange) => {
-    store.dateRange = newRange
-    store.fetchMarks()
-  },
-  { deep: true, immediate: true },
-)
-
-watch(
-  viewMode,
-  (newMode) => {
-    emit('modeChange', newMode)
-  },
-  { immediate: true },
-)
 </script>
 
 <template>

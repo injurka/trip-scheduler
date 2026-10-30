@@ -44,6 +44,7 @@ export const useAuthStore = defineStore('auth', {
       refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY)
 
       const userStr = localStorage.getItem(USER_KEY)
+
       if (userStr) {
         try {
           user = JSON.parse(userStr)
@@ -70,11 +71,13 @@ export const useAuthStore = defineStore('auth', {
     canCreateTrip(state): boolean {
       if (!state.user || !state.user.plan)
         return false
+
       return state.user.currentTripsCount < state.user.plan.maxTrips
     },
     remainingStorageBytes(state): number {
       if (!state.user || !state.user.plan)
         return 0
+
       return state.user.plan.maxStorageBytes - state.user.currentStorageBytes
     },
   },
@@ -95,6 +98,7 @@ export const useAuthStore = defineStore('auth', {
 
     async refresh() {
       const refreshToken = this.tokenPair?.refreshToken
+
       if (!refreshToken)
         return Promise.reject(new Error('Refresh token is not available.'))
 
@@ -106,6 +110,7 @@ export const useAuthStore = defineStore('auth', {
           if (!isNetworkOrServerError(error)) {
             this.clearAuth()
           }
+
           throw error
         },
       })
@@ -115,6 +120,7 @@ export const useAuthStore = defineStore('auth', {
       if (isMobileApp) {
         try {
           const token = await invoke<string>('tracking_get_push_token')
+
           if (token) {
             await useRequest({
               key: EAuthRequestKeys.SIGN_OUT,
@@ -195,6 +201,7 @@ export const useAuthStore = defineStore('auth', {
 
     saveUser(user: User) {
       this.user = user
+
       if (typeof window !== 'undefined') {
         localStorage.setItem(USER_KEY, JSON.stringify(user))
       }
@@ -202,6 +209,7 @@ export const useAuthStore = defineStore('auth', {
 
     saveTokens(tokens: TokenPair) {
       this.tokenPair = tokens
+
       if (typeof window !== 'undefined') {
         localStorage.setItem(TOKEN_KEY, tokens.accessToken)
         localStorage.setItem(REFRESH_TOKEN_KEY, tokens.refreshToken)
@@ -210,6 +218,7 @@ export const useAuthStore = defineStore('auth', {
 
     clearTokens() {
       this.tokenPair = { accessToken: undefined, refreshToken: undefined }
+
       if (typeof window !== 'undefined') {
         localStorage.removeItem(TOKEN_KEY)
         localStorage.removeItem(REFRESH_TOKEN_KEY)
@@ -219,6 +228,7 @@ export const useAuthStore = defineStore('auth', {
     clearAuth() {
       this.user = null
       this.clearTokens()
+
       if (typeof window !== 'undefined') {
         localStorage.removeItem(USER_KEY)
       }
@@ -294,18 +304,22 @@ export const useAuthStore = defineStore('auth', {
     async unlinkProvider(provider: 'google' | 'github' | 'yandex') {
       const { trpc } = await import('~/shared/services/trpc/trpc.service')
       const updatedUser = await trpc.user.unlinkProvider.mutate({ provider })
+
       if (updatedUser) {
         this.saveUser({ ...this.user, ...updatedUser } as User)
       }
+
       return updatedUser
     },
 
     async setPassword(newPassword: string) {
       const { trpc } = await import('~/shared/services/trpc/trpc.service')
       const res = await trpc.user.setPassword.mutate({ newPassword })
+
       if (this.user) {
         this.saveUser({ ...this.user, hasPassword: true } as User)
       }
+
       return res
     },
   },

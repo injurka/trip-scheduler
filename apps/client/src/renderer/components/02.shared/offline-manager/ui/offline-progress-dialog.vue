@@ -5,49 +5,50 @@ import { KitDialogWithClose } from '~/components/01.kit/kit-dialog-with-close'
 import { useOfflineStore } from '~/shared/store/offline.store'
 
 const offlineStore = useOfflineStore()
+
 const isMinimized = ref(false)
 
 const activeDownloadId = computed(() => {
   const ids = Object.keys(offlineStore.isDownloading)
+
   return ids.find(id => offlineStore.isDownloading[id])
 })
-
 const isVisible = computed(() => !!activeDownloadId.value && !isMinimized.value)
-
-watch(activeDownloadId, (newVal) => {
-  if (!newVal) {
-    isMinimized.value = false
-  }
-})
-
 const downloadStatus = computed(() => {
   if (!activeDownloadId.value)
     return null
+
   return offlineStore.getDownloadStatus(activeDownloadId.value)
 })
-
 const progress = computed(() => {
   if (!activeDownloadId.value)
     return 0
+
   return offlineStore.getDownloadProgress(activeDownloadId.value)
 })
-
 const isCompleted = computed(() => progress.value >= 100 && downloadStatus.value?.stage === 'completed')
-
 const tripTitle = computed(() => {
   if (!activeDownloadId.value)
     return 'Путешествие'
+
   const saved = offlineStore.savedTrips[activeDownloadId.value]
+
   if (saved)
     return saved.title
 
   return 'Загрузка данных...'
 })
-
 const statusText = computed(() => {
   if (downloadStatus.value?.statusText)
     return downloadStatus.value.statusText
+
   return 'Кэширование изображений и данных...'
+})
+
+watch(activeDownloadId, (newVal) => {
+  if (!newVal) {
+    isMinimized.value = false
+  }
 })
 
 function handleRunInBackground() {

@@ -2,11 +2,12 @@
 import { Icon } from '@iconify/vue'
 import { ref } from 'vue'
 
-const props = defineProps<{
+interface Props {
   hideCanvasRef?: boolean
   isExternalGenerating?: boolean
-}>()
+}
 
+const props = defineProps<Props>()
 const emit = defineEmits<{
   (e: 'generate', payload: { prompt: string, useDaysContext: boolean, useCanvasAsRef: boolean }): void
 }>()
@@ -15,23 +16,6 @@ const prompt = ref('')
 const useDaysContext = ref(false)
 const useCanvasAsRef = ref(false)
 const isGenerating = ref(false)
-const isExpanded = ref(false)
-
-const isDisabled = computed(() => isGenerating.value || !!props.isExternalGenerating)
-
-function handleSubmit() {
-  if (!prompt.value.trim() || isDisabled.value)
-    return
-  isGenerating.value = true
-  emit('generate', { prompt: prompt.value, useDaysContext: useDaysContext.value, useCanvasAsRef: useCanvasAsRef.value })
-}
-
-function handleKeydown(e: KeyboardEvent) {
-  if (e.key === 'Enter' && !e.shiftKey) {
-    e.preventDefault()
-    handleSubmit()
-  }
-}
 
 defineExpose({
   useDaysContext,
@@ -40,6 +24,24 @@ defineExpose({
     prompt.value = ''
   },
 })
+
+const isExpanded = ref(false)
+
+const isDisabled = computed(() => isGenerating.value || !!props.isExternalGenerating)
+
+function handleSubmit() {
+  if (!prompt.value.trim() || isDisabled.value)
+    return
+
+  isGenerating.value = true
+  emit('generate', { prompt: prompt.value, useDaysContext: useDaysContext.value, useCanvasAsRef: useCanvasAsRef.value })
+}
+function handleKeydown(e: KeyboardEvent) {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault()
+    handleSubmit()
+  }
+}
 </script>
 
 <template>

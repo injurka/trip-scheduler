@@ -8,9 +8,9 @@ import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitInput } from '~/components/01.kit/kit-input'
 import { KitSelectWithSearch } from '~/components/01.kit/kit-select-with-search'
 import { KitViewSwitcher } from '~/components/01.kit/kit-view-switcher'
+import { MetroMapDialog } from '~/components/03.domain/metro'
 import { metroService } from '~/shared/services/database/metro.service'
 import { getMetroGeometry, getMetroRidePath } from '../../lib/metro-route'
-import MetroMapDialog from './metro-map-dialog.vue'
 
 interface Props {
   section: ActivitySectionMetro
@@ -22,6 +22,14 @@ const emit = defineEmits<{
   (e: 'updateSection', value: ActivitySectionMetro): void
 }>()
 
+const metroSystems = ref<{ id: string, city: string }[]>([])
+const activeSystemDetails = ref<MetroSystemDetails | null>(null)
+const loadError = ref('')
+const showMap = ref(false)
+const isLoadingSystems = ref(false)
+const isLoadingDetails = ref(false)
+let detailsRequest = 0
+
 const sectionData = computed(() => {
   const rides = (props.section.rides || []).map(ride => ({
     ...ride,
@@ -29,6 +37,7 @@ const sectionData = computed(() => {
     endStationId: ride.endStationId !== undefined ? ride.endStationId : null,
     lineId: ride.lineId !== undefined ? ride.lineId : null,
   }))
+
   return {
     ...props.section,
     mode: props.section.mode || 'free',
@@ -36,12 +45,16 @@ const sectionData = computed(() => {
     rides,
   }
 })
-
-const metroSystems = ref<{ id: string, city: string }[]>([])
-const activeSystemDetails = ref<MetroSystemDetails | null>(null)
-const loadError = ref('')
-const showMap = ref(false)
 const hasMapData = computed(() => activeSystemDetails.value?.lines.some(line => getMetroGeometry(line.stations)))
+const systemOptions = computed((): KitDropdownItem<string>[] =>
+  metroSystems.value.map(s => ({ value: s.id, label: s.city })))
+const lineOptions = computed((): KitDropdownItem<string>[] =>
+  activeSystemDetails.value?.lines.map(l => ({ value: l.id, label: `${l.lineNumber ? `${l.lineNumber} ` : ''}${l.name}` })) || [])
+
+watch(() => [sectionData.value.systemId, sectionData.value.mode] as const, ([id]) => {
+  fetchSystemDetails(id)
+}, { immediate: true })
+
 function ridePath(ride: MetroRide) {
   return getMetroRidePath(activeSystemDetails.value?.lines.find(line => line.id === ride.lineId), ride.startStationId, ride.endStationId)
 }
@@ -51,8 +64,12 @@ function intermediateStations(ride: MetroRide) {
 function getStops(ride: MetroRide) {
   return sectionData.value.mode === 'city' ? (ridePath(ride)?.stops ?? ride.stops) : ride.stops
 }
-
-function getDistanceKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
+function getDistanceKm(
+  lat1: number,
+  lon1: number,
+  lat2: number,
+  lon2: number,
+): number {
   const R = 6371
   const dLat = (lat2 - lat1) * (Math.PI / 180)
   const dLon = (lon2 - lon1) * (Math.PI / 180)
@@ -61,108 +78,132 @@ function getDistanceKm(lat1: number, lon1: number, lat2: number, lon2: number): 
       + Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180))
       * Math.sin(dLon / 2) * Math.sin(dLon / 2)
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+
   return R * c
 }
-
 function getRideDurationMinutes(ride: MetroRide): number | null {
   const stops = getStops(ride)
+
   if (!stops || stops <= 0)
     return null
 
-  const path = ridePath(ride)
-  if (path && path.stations.length >= 2) {
-    let totalDistanceKm = 0
-    let hasCoordsCount = 0
+  const distanceKm = getCompleteMetroPathDistance(ridePath(ride))
 
-    for (let i = 0; i < path.stations.length - 1; i++) {
-      const s1 = path.stations[i]
-      const s2 = path.stations[i + 1]
-      if (s1.latitude != null && s1.longitude != null && s2.latitude != null && s2.longitude != null) {
-        totalDistanceKm += getDistanceKm(s1.latitude, s1.longitude, s2.latitude, s2.longitude)
-        hasCoordsCount++
-      }
-    }
-
-    if (hasCoordsCount === path.stations.length - 1 && totalDistanceKm > 0) {
-      // Commercial speed in metro ~33 km/h (incl. acceleration, braking, station dwell ~30-40s)
-      const minutes = Math.round((totalDistanceKm / 33) * 60)
-      return Math.max(stops * 1, minutes)
-    }
-  }
+  if (distanceKm !== null)
+    return Math.max(stops, Math.round((distanceKm / 33) * 60))
 
   // Heuristic: ~2.2 minutes per hop (average worldwide for urban rapid transit)
   return Math.max(1, Math.round(stops * 2.2))
 }
 
+function getCompleteMetroPathDistance(path: ReturnType<typeof ridePath>): number | null {
+  if (!path || path.stations.length < 2)
+    return null
+
+  let totalDistanceKm = 0
+  let measuredSegments = 0
+
+  for (let index = 0; index < path.stations.length - 1; index++) {
+    const current = path.stations[index]
+    const next = path.stations[index + 1]
+
+    if (!hasStationCoordinates(current) || !hasStationCoordinates(next))
+      continue
+
+    totalDistanceKm += getDistanceKm(
+      current.latitude!,
+      current.longitude!,
+      next.latitude!,
+      next.longitude!,
+    )
+    measuredSegments++
+  }
+
+  return measuredSegments === path.stations.length - 1 && totalDistanceKm > 0 ? totalDistanceKm : null
+}
+
+function hasStationCoordinates(station: { latitude?: number | null, longitude?: number | null }): boolean {
+  return station.latitude != null && station.longitude != null
+}
 function formatStationsCount(count: number): string {
   const abs = Math.abs(count)
   const mod10 = abs % 10
   const mod100 = abs % 100
+
   if (mod100 >= 11 && mod100 <= 19)
     return `${count} станций`
+
   if (mod10 === 1)
     return `${count} станция`
+
   if (mod10 >= 2 && mod10 <= 4)
     return `${count} станции`
+
   return `${count} станций`
 }
-
 function formatStationsSummary(ride: MetroRide): string {
   const stops = getStops(ride)
+
   if (!stops || stops <= 0)
     return ''
 
   const stationsText = formatStationsCount(stops)
   const duration = getRideDurationMinutes(ride)
+
   return duration ? `${stationsText} · ~${duration} мин` : stationsText
 }
-
 function getTransferText(currentRide: MetroRide, nextRide?: MetroRide): string {
   if (!nextRide)
     return 'Пересадка'
+
   const station = currentRide.endStation || nextRide.startStation
+
   if (station)
     return `Пересадка на ст. «${station}»`
+
   return 'Пересадка'
 }
-
-const isLoadingSystems = ref(false)
-const isLoadingDetails = ref(false)
-
-const systemOptions = computed((): KitDropdownItem<string>[] =>
-  metroSystems.value.map(s => ({ value: s.id, label: s.city })),
-)
-
-const lineOptions = computed((): KitDropdownItem<string>[] =>
-  activeSystemDetails.value?.lines.map(l => ({ value: l.id, label: `${l.lineNumber ? `${l.lineNumber} ` : ''}${l.name}` })) || [],
-)
-
 function getStationOptionsForLine(lineId: string | null): KitDropdownItem<string>[] {
   if (!lineId || !activeSystemDetails.value)
     return []
+
   const line = activeSystemDetails.value.lines.find(l => l.id === lineId)
+
   return line?.stations.map(s => ({ value: s.id, label: s.name })) || []
 }
-
 function getDirectionText(ride: MetroRide): string {
   if (sectionData.value.mode !== 'city')
     return ride.direction || '...'
+
+  return getCityDirectionText(ride)
+}
+
+function getCityDirectionText(ride: MetroRide): string {
   const path = ridePath(ride)
+
   if (path)
     return path.direction
+
   if (!activeSystemDetails.value)
     return ride.direction || (isLoadingDetails.value ? 'Загрузка маршрута…' : 'Направление не указано')
+
+  return getUnavailableDirectionText(ride)
+}
+
+function getUnavailableDirectionText(ride: MetroRide): string {
   if (props.readonly)
     return ride.direction || 'Маршрут недоступен'
+
   if (!ride.lineId || !ride.startStationId || !ride.endStationId)
     return 'Выберите линию и станции'
+
   return ride.startStationId === ride.endStationId
     ? 'Выберите разные станции'
     : 'Станции не найдены на выбранной линии'
 }
-
 async function fetchMetroSystems() {
   isLoadingSystems.value = true
+
   try {
     metroSystems.value = await metroService.listSystems()
   }
@@ -174,24 +215,27 @@ async function fetchMetroSystems() {
     isLoadingSystems.value = false
   }
 }
-
-let detailsRequest = 0
 async function fetchSystemDetails(systemId: string | null) {
   const request = ++detailsRequest
   activeSystemDetails.value = null
   isLoadingDetails.value = false
   loadError.value = ''
+
   if (!systemId || sectionData.value.mode !== 'city')
     return
+
   isLoadingDetails.value = true
+
   try {
     const details = await metroService.getDetails(systemId)
+
     if (request === detailsRequest)
       activeSystemDetails.value = details
   }
   catch (e) {
     if (request === detailsRequest)
       loadError.value = 'Не удалось загрузить метро. Попробуйте ещё раз.'
+
     console.error('Failed to fetch metro details:', e)
   }
   finally {
@@ -199,54 +243,58 @@ async function fetchSystemDetails(systemId: string | null) {
       isLoadingDetails.value = false
   }
 }
-
 function handleSystemChange(systemId: string | null) {
   if (systemId === sectionData.value.systemId)
     return
-  showMap.value = false
-  updateSection({ systemId, rides: sectionData.value.rides.map(ride => ({
-    ...ride,
-    lineId: null,
-    lineNumber: null,
-    lineName: '',
-    lineColor: '#808080',
-    startStationId: null,
-    startStation: '',
-    endStationId: null,
-    endStation: '',
-    direction: '',
-    stops: 0,
-  })) })
-}
 
+  showMap.value = false
+  updateSection({
+    systemId,
+    rides: sectionData.value.rides.map(ride => ({
+      ...ride,
+      lineId: null,
+      lineNumber: null,
+      lineName: '',
+      lineColor: '#808080',
+      startStationId: null,
+      startStation: '',
+      endStationId: null,
+      endStation: '',
+      direction: '',
+      stops: 0,
+    })),
+  })
+}
 function updateSection(newSectionData: Partial<ActivitySectionMetro>) {
   emit('updateSection', { ...sectionData.value, ...newSectionData })
 }
-
 function handleModeChange(newMode: 'free' | 'city') {
   const newSection: ActivitySectionMetro = { ...sectionData.value, mode: newMode }
+
   if (newMode === 'free') {
     newSection.systemId = null
     activeSystemDetails.value = null
   }
+
   emit('updateSection', newSection)
 }
-
 function updateRide(rideId: string, updatedRide: Partial<MetroRide>) {
   const updatedRides = sectionData.value.rides.map((ride) => {
     if (ride.id !== rideId)
       return ride
+
     const next = { ...ride, ...updatedRide }
+
     if (sectionData.value.mode === 'city') {
       const path = ridePath(next)
       next.stops = path?.stops ?? 0
       next.direction = path?.direction ?? ''
     }
+
     return next
   })
   updateSection({ rides: updatedRides })
 }
-
 function handleLineChange(ride: MetroRide, newLineId: string | null) {
   const line = activeSystemDetails.value?.lines.find(l => l.id === newLineId)
 
@@ -261,7 +309,6 @@ function handleLineChange(ride: MetroRide, newLineId: string | null) {
     endStation: '',
   })
 }
-
 function handleStationChange(ride: MetroRide, field: 'startStation' | 'endStation', stationId: string | null) {
   const station = activeSystemDetails.value?.lines.find(line => line.id === ride.lineId)?.stations.find(s => s.id === stationId)
 
@@ -270,7 +317,6 @@ function handleStationChange(ride: MetroRide, field: 'startStation' | 'endStatio
     [field]: station?.name || '',
   })
 }
-
 function addRide() {
   const newRide: MetroRide = {
     id: uuidv4(),
@@ -287,16 +333,12 @@ function addRide() {
   }
   updateSection({ rides: [...sectionData.value.rides, newRide] })
 }
-
 function removeRide(rideId: string) {
   const updatedRides = sectionData.value.rides.filter(ride => ride.id !== rideId)
   updateSection({ rides: updatedRides })
 }
 
 onMounted(fetchMetroSystems)
-watch(() => [sectionData.value.systemId, sectionData.value.mode] as const, ([id]) => {
-  fetchSystemDetails(id)
-}, { immediate: true })
 </script>
 
 <template>
@@ -348,9 +390,25 @@ watch(() => [sectionData.value.systemId, sectionData.value.mode] as const, ([id]
               <span class="line-number">{{ ride.lineNumber }}</span>
             </div>
             <div class="city-inputs">
-              <KitSelectWithSearch :model-value="ride.lineId" :items="lineOptions" :loading="isLoadingDetails" placeholder="Линия" @update:model-value="handleLineChange(ride, $event as string)" />
-              <KitSelectWithSearch :model-value="ride.startStationId" :items="getStationOptionsForLine(ride.lineId)" placeholder="Откуда" @update:model-value="handleStationChange(ride, 'startStation', $event as string)" />
-              <KitSelectWithSearch :model-value="ride.endStationId" :items="getStationOptionsForLine(ride.lineId)" placeholder="Куда" @update:model-value="handleStationChange(ride, 'endStation', $event as string)" />
+              <KitSelectWithSearch
+                :model-value="ride.lineId"
+                :items="lineOptions"
+                :loading="isLoadingDetails"
+                placeholder="Линия"
+                @update:model-value="handleLineChange(ride, $event as string)"
+              />
+              <KitSelectWithSearch
+                :model-value="ride.startStationId"
+                :items="getStationOptionsForLine(ride.lineId)"
+                placeholder="Откуда"
+                @update:model-value="handleStationChange(ride, 'startStation', $event as string)"
+              />
+              <KitSelectWithSearch
+                :model-value="ride.endStationId"
+                :items="getStationOptionsForLine(ride.lineId)"
+                placeholder="Куда"
+                @update:model-value="handleStationChange(ride, 'endStation', $event as string)"
+              />
               <span v-if="ridePath(ride)" class="city-ride-summary">{{ getDirectionText(ride) }} · {{ formatStationsSummary(ride) }}</span>
             </div>
           </div>
@@ -361,15 +419,51 @@ watch(() => [sectionData.value.systemId, sectionData.value.mode] as const, ([id]
               <span class="line-number">{{ ride.lineNumber }}</span>
             </div>
             <div class="free-mode-grid">
-              <KitInput :model-value="ride.startStation" placeholder="Откуда" size="sm" @update:model-value="updateRide(ride.id, { startStation: $event as string })" />
-              <KitInput :model-value="ride.endStation" placeholder="Куда" size="sm" @update:model-value="updateRide(ride.id, { endStation: $event as string })" />
-              <KitInput :model-value="ride.lineName" placeholder="Название линии" size="sm" @update:model-value="updateRide(ride.id, { lineName: $event as string })" />
-              <KitInput :model-value="ride.lineNumber" placeholder="№" size="sm" @update:model-value="updateRide(ride.id, { lineNumber: $event as string })" />
+              <KitInput
+                :model-value="ride.startStation"
+                placeholder="Откуда"
+                size="sm"
+                @update:model-value="updateRide(ride.id, { startStation: $event as string })"
+              />
+              <KitInput
+                :model-value="ride.endStation"
+                placeholder="Куда"
+                size="sm"
+                @update:model-value="updateRide(ride.id, { endStation: $event as string })"
+              />
+              <KitInput
+                :model-value="ride.lineName"
+                placeholder="Название линии"
+                size="sm"
+                @update:model-value="updateRide(ride.id, { lineName: $event as string })"
+              />
+              <KitInput
+                :model-value="ride.lineNumber"
+                placeholder="№"
+                size="sm"
+                @update:model-value="updateRide(ride.id, { lineNumber: $event as string })"
+              />
               <div class="line-color-picker">
-                <input type="color" :value="ride.lineColor" class="color-input" @input="updateRide(ride.id, { lineColor: ($event.target as HTMLInputElement).value })">
+                <input
+                  type="color"
+                  :value="ride.lineColor"
+                  class="color-input"
+                  @input="updateRide(ride.id, { lineColor: ($event.target as HTMLInputElement).value })"
+                >
               </div>
-              <KitInput :model-value="ride.direction" placeholder="Направление (необяз.)" size="sm" @update:model-value="updateRide(ride.id, { direction: $event as string })" />
-              <KitInput :model-value="ride.stops" placeholder="Станции" type="number" size="sm" @update:model-value="updateRide(ride.id, { stops: Number($event) || 0 })" />
+              <KitInput
+                :model-value="ride.direction"
+                placeholder="Направление (необяз.)"
+                size="sm"
+                @update:model-value="updateRide(ride.id, { direction: $event as string })"
+              />
+              <KitInput
+                :model-value="ride.stops"
+                placeholder="Станции"
+                type="number"
+                size="sm"
+                @update:model-value="updateRide(ride.id, { stops: Number($event) || 0 })"
+              />
             </div>
           </div>
 
@@ -416,7 +510,14 @@ watch(() => [sectionData.value.systemId, sectionData.value.mode] as const, ([id]
             </div>
           </div>
 
-          <KitBtn v-if="!readonly" icon="mdi:delete-outline" variant="text" size="sm" class="delete-ride-btn" @click="removeRide(ride.id)" />
+          <KitBtn
+            v-if="!readonly"
+            icon="mdi:delete-outline"
+            variant="text"
+            size="sm"
+            class="delete-ride-btn"
+            @click="removeRide(ride.id)"
+          />
         </div>
         <div v-if="index < sectionData.rides.length - 1" class="transfer-info">
           <Icon icon="mdi:swap-horizontal-bold" class="transfer-icon" />

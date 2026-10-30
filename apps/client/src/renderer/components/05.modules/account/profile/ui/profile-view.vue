@@ -19,67 +19,46 @@ const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
 const profileView = useProfileView()
-
 // Определение размера экрана для адаптивного поведения
 const { width } = useWindowSize()
-const isMobile = computed(() => width.value < 768)
 
 // Состояния раскрытия панели на десктопе и квот на мобильном
 const isSidebarOpen = ref(false)
 const isMobileQuotaOpen = ref(false)
 const sidebarRef = ref<HTMLElement | null>(null)
+const { userProfile } = profileView
 
+const isMobile = computed(() => width.value < 768)
 const activeTab = computed({
   get: () => (route.query.tab as string) || 'trip-map',
   set: (newTab: string) => {
     router.replace({ query: { tab: newTab } })
   },
 })
-
-const { userProfile } = profileView
 const currentUser = computed(() => authStore.user)
-
 const isOwnProfile = computed(() => {
   return currentUser.value?.id === userProfile.value?.id
 })
-
 const userId = computed(() => route.params.id as string)
-
 // Индикатор активности кнопки квот в шапке профиля
 const isActionActive = computed(() => {
   return isMobile.value ? isMobileQuotaOpen.value : isSidebarOpen.value
 })
-
 const actionTooltip = computed(() => {
   if (isMobile.value) {
     return isMobileQuotaOpen.value ? 'Скрыть лимиты' : 'Лимиты тарифа'
   }
+
   return isSidebarOpen.value ? 'Скрыть статистику и квоты' : 'Статистика и квоты'
 })
-
-// Универсальный тоггл для кнопки действий в шапке
-function toggleStatsAndQuotas() {
-  if (isMobile.value) {
-    isMobileQuotaOpen.value = !isMobileQuotaOpen.value
-    if (isMobileQuotaOpen.value) {
-      nextTick(() => {
-        sidebarRef.value?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
-      })
-    }
-  }
-  else {
-    isSidebarOpen.value = !isSidebarOpen.value
-  }
-}
-
 // Отображать ли квоты внутри сайдбара
 const showQuotas = computed(() => {
   if (!isMobile.value) {
     return isSidebarOpen.value
   }
+
   return isMobileQuotaOpen.value
 })
-
 const tabItems = computed<TabItem[]>(() => [
   {
     id: 'trip-map',
@@ -114,7 +93,6 @@ const tabItems = computed<TabItem[]>(() => [
     },
   },
 ])
-
 const headerStyle = computed(() => {
   const cover = userProfile.value?.coverUrl
   const coverUrl = cover ? resolveApiUrl(cover) : '/images/mock.png'
@@ -132,6 +110,22 @@ watch(userId, (newId) => {
     profileView.init(newId)
   }
 }, { immediate: true })
+
+// Универсальный тоггл для кнопки действий в шапке
+function toggleStatsAndQuotas() {
+  if (isMobile.value) {
+    isMobileQuotaOpen.value = !isMobileQuotaOpen.value
+
+    if (isMobileQuotaOpen.value) {
+      nextTick(() => {
+        sidebarRef.value?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+      })
+    }
+  }
+  else {
+    isSidebarOpen.value = !isSidebarOpen.value
+  }
+}
 </script>
 
 <template>

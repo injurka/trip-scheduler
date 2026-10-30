@@ -9,11 +9,12 @@ export interface TabItem<T extends string | number = string | number> extends Vi
   props?: Record<string, any>
 }
 
-const props = defineProps<{
+export interface Props<T extends string | number> {
   items: TabItem<T>[]
   cache?: boolean
-}>()
+}
 
+const props = defineProps<Props<T>>()
 const model = defineModel<T>({ required: true })
 
 const { smAndDown } = useDisplay()
@@ -25,19 +26,24 @@ const isTransitioning = ref(false)
 const currentTab = computed(() => {
   return props.items.find(item => item.id === model.value)
 })
-
 const currentProps = computed(() => {
   return currentTab.value?.props || {}
 })
 
+watch(model, (newVal, oldVal) => {
+  const newIndex = props.items.findIndex(item => item.id === newVal)
+  const oldIndex = props.items.findIndex(item => item.id === oldVal)
+  transitionName.value = newIndex > oldIndex ? 'slide-left' : 'slide-right'
+})
+
 function onBeforeLeave(el: Element) {
   isTransitioning.value = true
+
   if (contentWrapperRef.value) {
     const htmlEl = el as HTMLElement
     contentWrapperRef.value.style.height = `${htmlEl.offsetHeight}px`
   }
 }
-
 function onEnter(el: Element) {
   if (contentWrapperRef.value) {
     const htmlEl = el as HTMLElement
@@ -48,19 +54,13 @@ function onEnter(el: Element) {
     })
   }
 }
-
 function onAfterEnter() {
   isTransitioning.value = false
+
   if (contentWrapperRef.value) {
     contentWrapperRef.value.style.height = 'auto'
   }
 }
-
-watch(model, (newVal, oldVal) => {
-  const newIndex = props.items.findIndex(item => item.id === newVal)
-  const oldIndex = props.items.findIndex(item => item.id === oldVal)
-  transitionName.value = newIndex > oldIndex ? 'slide-left' : 'slide-right'
-})
 </script>
 
 <template>

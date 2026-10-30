@@ -7,6 +7,10 @@ import { KitInput } from '~/components/01.kit/kit-input'
 import { useToast } from '~/shared/composables/use-toast'
 import { useAppSettingsStore } from '~/shared/store/app-settings.store'
 
+interface Props {
+  modelValue: boolean
+}
+
 interface TilePreset {
   id: string
   name: string
@@ -15,14 +19,14 @@ interface TilePreset {
   badge?: string
 }
 
-const props = defineProps<{
-  modelValue: boolean
-}>()
-
+const props = defineProps<Props>()
 const emit = defineEmits<{
   (e: 'update:modelValue', value: boolean): void
   (e: 'applied', sourceId: 'custom' | 'maptilerStreets'): void
 }>()
+
+const appSettingsStore = useAppSettingsStore()
+const toast = useToast()
 
 const TILE_PRESETS: TilePreset[] = [
   {
@@ -82,10 +86,6 @@ const TILE_PRESETS: TilePreset[] = [
     icon: 'mdi:heart-pulse',
   },
 ]
-
-const appSettingsStore = useAppSettingsStore()
-const toast = useToast()
-
 const localKey = ref(appSettingsStore.customMapTilerKey || '')
 const localUrl = ref(appSettingsStore.customTileUrl || '')
 const localName = ref(appSettingsStore.customTileName || 'Пользовательская карта')
@@ -101,15 +101,14 @@ watch(() => props.modelValue, (isOpen) => {
 function close() {
   emit('update:modelValue', false)
 }
-
 function selectPreset(preset: TilePreset, instant = false) {
   localUrl.value = preset.url
   localName.value = preset.name
+
   if (instant) {
     handleSave(true)
   }
 }
-
 function handleSave(applyCustom = true) {
   const cleanKey = localKey.value.trim()
   const cleanUrl = localUrl.value.trim()
@@ -136,7 +135,6 @@ function handleSave(applyCustom = true) {
     emit('applied', 'maptilerStreets')
   }
 }
-
 function handleReset() {
   localKey.value = ''
   localUrl.value = ''

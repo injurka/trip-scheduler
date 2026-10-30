@@ -45,6 +45,7 @@ class MapTileCacheManager {
 
     if (typeof indexedDB === 'undefined') {
       this.dbPromise = Promise.resolve(null)
+
       return this.dbPromise
     }
 
@@ -53,6 +54,7 @@ class MapTileCacheManager {
         const req = indexedDB.open(DB_NAME, DB_VERSION)
         req.onupgradeneeded = () => {
           const db = req.result
+
           if (!db.objectStoreNames.contains(STORE_NAME)) {
             const store = db.createObjectStore(STORE_NAME, { keyPath: 'url' })
             store.createIndex('accessedAt', 'accessedAt', { unique: false })
@@ -75,6 +77,7 @@ class MapTileCacheManager {
 
   private async recordAccess(url: string): Promise<void> {
     const db = await this.getDB()
+
     if (!db)
       return
 
@@ -97,6 +100,7 @@ class MapTileCacheManager {
   public scheduleCleanup(): void {
     if (this.cleanupScheduled)
       return
+
     this.cleanupScheduled = true
 
     // Задержка очистки, чтобы не создавать нагрузку на I/O во время активной отрисовки карты
@@ -118,6 +122,7 @@ class MapTileCacheManager {
       return
 
     const db = await this.getDB()
+
     if (!db)
       return
 
@@ -133,8 +138,10 @@ class MapTileCacheManager {
 
         req.onsuccess = async () => {
           const records: TileMeta[] = req.result || []
+
           if (!records.length) {
             resolve()
+
             return
           }
 
@@ -154,6 +161,7 @@ class MapTileCacheManager {
           if (validRecords.length > MAX_ENTRIES) {
             validRecords.sort((a, b) => a.accessedAt - b.accessedAt)
             const countToRemove = validRecords.length - MAX_ENTRIES
+
             for (let i = 0; i < countToRemove; i++) {
               expiredUrls.push(validRecords[i].url)
             }
@@ -190,6 +198,7 @@ class MapTileCacheManager {
 
     // Если прямо сейчас этот же URL уже загружается — используем общий Promise
     const inFlight = this.inFlightRequests.get(url)
+
     if (inFlight) {
       return inFlight
     }
@@ -206,11 +215,13 @@ class MapTileCacheManager {
           const blob = await cachedResponse.blob()
           const blobUrl = URL.createObjectURL(blob)
           this.activeBlobUrls.add(blobUrl)
+
           return blobUrl
         }
 
         // Сетевой запрос при промахе кэша
         const networkResponse = await fetch(url)
+
         if (networkResponse.ok) {
           // Кэшируем только успешные ответы (200 OK)
           await cache.put(url, networkResponse.clone())
@@ -220,6 +231,7 @@ class MapTileCacheManager {
           const blob = await networkResponse.blob()
           const blobUrl = URL.createObjectURL(blob)
           this.activeBlobUrls.add(blobUrl)
+
           return blobUrl
         }
 
@@ -227,6 +239,7 @@ class MapTileCacheManager {
       }
       catch (e) {
         console.warn('[MapTileCache] Сбой при кэшировании тайла, возврат на оригинальный URL:', e)
+
         return url
       }
       finally {
@@ -235,16 +248,14 @@ class MapTileCacheManager {
     })()
 
     this.inFlightRequests.set(url, fetchPromise)
+
     return fetchPromise
   }
 
   /**
    * Предзагрузка массива URL (тайлов, спрайтов, стилей) в кэш
    */
-  public async precacheUrls(
-    urls: string[],
-    onProgress?: (loaded: number, total: number, failed: number) => void,
-  ): Promise<TilePrecacheResult> {
+  public async precacheUrls(urls: string[], onProgress?: (loaded: number, total: number, failed: number) => void): Promise<TilePrecacheResult> {
     if (typeof caches === 'undefined' || urls.length === 0) {
       return { total: urls.length, successCount: 0, failedCount: urls.length }
     }
@@ -257,41 +268,44 @@ class MapTileCacheManager {
 
     for (let i = 0; i < urls.length; i += BATCH_SIZE) {
       const batch = urls.slice(i, i + BATCH_SIZE)
-      await Promise.all(
-        batch.map(async (url) => {
-          let success = false
-          try {
-            const hasMatch = await cache.match(url)
-            if (hasMatch) {
+      await Promise.all(batch.map(async (url) => {
+        let success = false
+
+        try {
+          const hasMatch = await cache.match(url)
+
+          if (hasMatch) {
+            success = true
+          }
+          else {
+            const res = await fetch(url)
+
+            if (res.ok) {
+              await cache.put(url, res)
+              void this.recordAccess(url)
               success = true
             }
-            else {
-              const res = await fetch(url)
-              if (res.ok) {
-                await cache.put(url, res)
-                void this.recordAccess(url)
-                success = true
-              }
-            }
           }
-          catch {
-            // Ошибка сети или кэширования для отдельного тайла
+        }
+        catch {
+          // Ошибка сети или кэширования для отдельного тайла
+        }
+        finally {
+          if (success) {
+            successCount++
           }
-          finally {
-            if (success) {
-              successCount++
-            }
-            else {
-              failedCount++
-            }
-            loaded++
-            onProgress?.(loaded, urls.length, failedCount)
+          else {
+            failedCount++
           }
-        }),
-      )
+
+          loaded++
+          onProgress?.(loaded, urls.length, failedCount)
+        }
+      }))
     }
 
     this.scheduleCleanup()
+
     return { total: urls.length, successCount, failedCount }
   }
 
@@ -302,6 +316,7 @@ class MapTileCacheManager {
     for (const blobUrl of this.activeBlobUrls) {
       URL.revokeObjectURL(blobUrl)
     }
+
     this.activeBlobUrls.clear()
   }
 }
@@ -330,6 +345,7 @@ export function getMaplibreTransformRequest(): ((url: string, resourceType?: Res
 
     return (async () => {
       const blobUrl = await mapTileCacheManager.getCachedBlobUrl(url)
+
       return { url: blobUrl }
     })()
   }

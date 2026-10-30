@@ -45,14 +45,17 @@ export function useGeolocationPoints(mapApiRef: Ref<GeolocationMapApi | undefine
   // Перемещение метки без автоматического обращения к Nominatim
   async function movePoint(pointId: string, newCoords: Coordinate) {
     const point = points.value.find(p => p.id === pointId)
+
     if (!point)
       return
 
     point.coordinates = newCoords
+
     // Если адрес еще не был получен, обновляем координаты в тексте
     if (!point.address || point.address.startsWith('Метка (')) {
       point.address = formatCoordsLabel(newCoords)
     }
+
     mapApiRef.value?.addOrUpdatePoint(point)
 
     pointToMoveId.value = null
@@ -65,8 +68,10 @@ export function useGeolocationPoints(mapApiRef: Ref<GeolocationMapApi | undefine
 
     if (Number.isNaN(lat) || Number.isNaN(lon)) {
       useToast().error('Неверный формат координат!')
+
       return
     }
+
     point.coordinates = [lon, lat]
 
     await movePoint(point.id, point.coordinates)
@@ -81,6 +86,7 @@ export function useGeolocationPoints(mapApiRef: Ref<GeolocationMapApi | undefine
   // Явный запрос адреса по кнопке 🔄
   async function refreshPointAddress(pointId: string) {
     const pointIndex = points.value.findIndex(p => p.id === pointId)
+
     if (pointIndex === -1)
       return
 
@@ -107,6 +113,7 @@ export function useGeolocationPoints(mapApiRef: Ref<GeolocationMapApi | undefine
   function setInitialPoints(initialPoints: MapPoint[]) {
     if (!initialPoints)
       return
+
     points.value = JSON.parse(JSON.stringify(initialPoints))
     points.value.forEach(p => mapApiRef.value?.addOrUpdatePoint(p))
   }
@@ -114,13 +121,16 @@ export function useGeolocationPoints(mapApiRef: Ref<GeolocationMapApi | undefine
   watch(points, (currentPoints) => {
     if (!mapApiRef.value)
       return
+
     const poiPoints = currentPoints.filter(p => p.type === 'poi')
     poiPoints.forEach((point, index) => {
       const color = POI_COLORS[index % POI_COLORS.length]
+
       if (point.style?.color !== color) {
         const updatedPoint = { ...point, style: { ...point.style, color } }
         mapApiRef.value!.addOrUpdatePoint(updatedPoint)
         const originalPoint = points.value.find(p => p.id === updatedPoint.id)
+
         if (originalPoint)
           originalPoint.style = updatedPoint.style
       }

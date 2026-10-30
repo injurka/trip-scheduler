@@ -17,26 +17,74 @@ function toRgba(css: string, a: number): string {
   const c = Object.assign(document.createElement('canvas'), { width: 1, height: 1 })
   const x = c.getContext('2d')!
   x.fillStyle = css
-  x.fillRect(0, 0, 1, 1)
-  const [r, g, b] = x.getImageData(0, 0, 1, 1).data
+  x.fillRect(
+    0,
+    0,
+    1,
+    1,
+  )
+  const [r, g, b] = x.getImageData(
+    0,
+    0,
+    1,
+    1,
+  ).data
+
   return `rgba(${r},${g},${b},${a})`
 }
 
 function getColors() {
   const dot = readVar('--fg-tertiary-color', '#6b7280')
   const accent = readVar('--fg-accent-color', '#4f98a3')
+
   if (accent !== _accentRaw) {
     _accentRaw = accent
     _glowIn = toRgba(accent, 0.55)
     _glowOut = toRgba(accent, 0)
   }
+
   return { dot, accent, glowIn: _glowIn, glowOut: _glowOut }
 }
 
-export function useMapRenderer(
-  canvasRef: Ref<HTMLCanvasElement | null>,
-  citiesRef: Ref<MapCity[]>,
-) {
+function drawSemanticZoomDots(
+  ctx: CanvasRenderingContext2D,
+  scale: number,
+  low: Path2D,
+  high: Path2D | null,
+): void {
+  if (scale < 2) {
+    ctx.fill(low)
+  }
+  else if (scale <= 3 && high) {
+    const progress = scale - 2
+    ctx.globalAlpha = 1 - progress
+    ctx.fill(low)
+    ctx.globalAlpha = progress
+    ctx.fill(high)
+    ctx.globalAlpha = 1
+  }
+  else if (high) {
+    ctx.fill(high)
+  }
+  else {
+    ctx.fill(low)
+  }
+}
+
+function separateElevatedCities(cities: MapCity[], hoveredId: string | null, selectedId: string | null): [MapCity[], MapCity[]] {
+  const normalCities: MapCity[] = []
+  const elevatedCities: MapCity[] = []
+
+  for (const city of cities) {
+    if (city.id === hoveredId || city.id === selectedId)
+      elevatedCities.push(city)
+    else normalCities.push(city)
+  }
+
+  return [normalCities, elevatedCities]
+}
+
+export function useMapRenderer(canvasRef: Ref<HTMLCanvasElement | null>, citiesRef: Ref<MapCity[]>) {
   let rafId = 0
   let pendingFn: (() => void) | null = null
 
@@ -53,6 +101,7 @@ export function useMapRenderer(
     selectedId: string | null = null,
   ): void {
     const canvas = canvasRef.value
+
     if (!canvas)
       return
 
@@ -60,8 +109,20 @@ export function useMapRenderer(
     const ctx = canvas.getContext('2d')!
     const { dot, accent, glowIn, glowOut } = getColors()
 
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
-    ctx.clearRect(0, 0, w, h)
+    ctx.setTransform(
+      dpr,
+      0,
+      0,
+      dpr,
+      0,
+      0,
+    )
+    ctx.clearRect(
+      0,
+      0,
+      w,
+      h,
+    )
 
     ctx.translate(w / 2 + tx, h / 2 + ty)
     ctx.scale(scale, scale)
@@ -70,37 +131,27 @@ export function useMapRenderer(
     ctx.fillStyle = dot
 
     // Semantic Zoom Blending
-    if (scale < 2) {
-      ctx.fill(dotPathLow)
-    }
-    else if (scale >= 2 && scale <= 3 && dotPathHigh) {
-      const progress = scale - 2
-      ctx.globalAlpha = 1 - progress
-      ctx.fill(dotPathLow)
-      ctx.globalAlpha = progress
-      ctx.fill(dotPathHigh)
-      ctx.globalAlpha = 1
-    }
-    else if (dotPathHigh) {
-      ctx.fill(dotPathHigh)
-    }
-    else {
-      ctx.fill(dotPathLow)
-    }
+    drawSemanticZoomDots(
+      ctx,
+      scale,
+      dotPathLow,
+      dotPathHigh,
+    )
 
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+    ctx.setTransform(
+      dpr,
+      0,
+      0,
+      dpr,
+      0,
+      0,
+    )
 
-    const normalCities: MapCity[] = []
-    const elevatedCities: MapCity[] = []
-
-    for (const city of citiesRef.value) {
-      if (city.id === hoveredId || city.id === selectedId)
-        elevatedCities.push(city)
-      else normalCities.push(city)
-    }
+    const [normalCities, elevatedCities] = separateElevatedCities(citiesRef.value, hoveredId, selectedId)
 
     function drawCity(city: MapCity) {
       const base = baseProj([city.lon, city.lat])
+
       if (!base)
         return
 
@@ -117,22 +168,47 @@ export function useMapRenderer(
       const cr = CITY_R * rMultiplier
       const gr = GLOW_R * rMultiplier
 
-      const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, gr)
+      const g = ctx.createRadialGradient(
+        cx,
+        cy,
+        0,
+        cx,
+        cy,
+        gr,
+      )
       g.addColorStop(0, glowIn)
       g.addColorStop(1, glowOut)
       ctx.fillStyle = g
       ctx.beginPath()
-      ctx.arc(cx, cy, gr, 0, Math.PI * 2)
+      ctx.arc(
+        cx,
+        cy,
+        gr,
+        0,
+        Math.PI * 2,
+      )
       ctx.fill()
 
       ctx.fillStyle = accent
       ctx.beginPath()
-      ctx.arc(cx, cy, cr, 0, Math.PI * 2)
+      ctx.arc(
+        cx,
+        cy,
+        cr,
+        0,
+        Math.PI * 2,
+      )
       ctx.fill()
 
       ctx.fillStyle = 'rgba(255,255,255,0.85)'
       ctx.beginPath()
-      ctx.arc(cx, cy, cr * 0.38, 0, Math.PI * 2)
+      ctx.arc(
+        cx,
+        cy,
+        cr * 0.38,
+        0,
+        Math.PI * 2,
+      )
       ctx.fill()
     }
 
@@ -155,7 +231,18 @@ export function useMapRenderer(
     if (!dotPathLow || !baseProj)
       return
 
-    pendingFn = () => drawImmediate(w, h, dotPathLow, dotPathHigh, baseProj, scale, tx, ty, hoveredId, selectedId)
+    pendingFn = () => drawImmediate(
+      w,
+      h,
+      dotPathLow,
+      dotPathHigh,
+      baseProj,
+      scale,
+      tx,
+      ty,
+      hoveredId,
+      selectedId,
+    )
 
     if (!rafId) {
       rafId = requestAnimationFrame(() => {
@@ -171,6 +258,7 @@ export function useMapRenderer(
       cancelAnimationFrame(rafId)
       rafId = 0
     }
+
     pendingFn = null
   }
 

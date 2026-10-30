@@ -44,6 +44,7 @@ export function transliterate(text: string): string {
 
 export function slugify(text: string): string {
   const transliterated = transliterate(text.trim())
+
   return transliterated
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')

@@ -5,18 +5,17 @@ import TripListEmpty from './states/trip-list-empty.vue'
 import TripListSkeleton from './states/trip-list-skeleton.vue'
 import TripCard from './trip-card/card-item.vue'
 
-const props = defineProps<Props>()
-
-const emit = defineEmits<{
-  (e: 'retry'): void
-}>()
-
 interface Props {
   isLoading: boolean
   error: unknown | null
   trips: ITrip[]
   hasLoadedOnce: boolean
 }
+
+const props = defineProps<Props>()
+const emit = defineEmits<{
+  (e: 'retry'): void
+}>()
 
 const displayData = computed(() => (props.trips.length > 0 ? props.trips : null))
 const transitionName = computed(() => (props.hasLoadedOnce ? 'fade' : 'slide-up'))

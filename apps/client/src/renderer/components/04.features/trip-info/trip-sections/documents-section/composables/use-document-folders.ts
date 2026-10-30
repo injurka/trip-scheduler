@@ -39,14 +39,17 @@ export function useDocumentFolders(
   const currentFolder = computed(() => {
     if (!currentFolderId.value)
       return null
+
     return folders.value.find(f => f.id === currentFolderId.value) || null
   })
 
   const breadcrumbs = computed(() => {
     const crumbs = [{ id: null as string | null, name: 'Все документы' }]
+
     if (currentFolder.value) {
       crumbs.push({ id: currentFolder.value.id, name: currentFolder.value.name })
     }
+
     return crumbs
   })
 
@@ -60,6 +63,7 @@ export function useDocumentFolders(
         sizeBytes: folderDocs.reduce((acc, d) => acc + d.sizeBytes, 0),
       })
     })
+
     return map
   })
 
@@ -67,9 +71,11 @@ export function useDocumentFolders(
   const visibleFolders = computed(() => {
     if (currentFolderId.value)
       return []
+
     if (searchQuery.value.trim() || selectedCategory.value !== 'all' || onlyFavorites.value) {
       return []
     }
+
     return folders.value
   })
 
@@ -85,6 +91,7 @@ export function useDocumentFolders(
   async function addFolder(name: string) {
     if (props.readonly || !name.trim())
       return
+
     folders.value.push({ id: uuidv4(), name: name.trim() })
     isAddingFolder.value = false
     debouncedUpdate()
@@ -97,21 +104,26 @@ export function useDocumentFolders(
       description: 'Все документы внутри папки будут перемещены в корень. Это действие необратимо.',
       type: 'danger',
     })
+
     if (isConfirmed) {
       folders.value = folders.value.filter(f => f.id !== folderId)
       const docsToUpdate = documents.value.filter(d => d.folderId === folderId)
+
       for (const d of docsToUpdate) {
         await updateDocument({ ...d, folderId: null })
       }
+
       if (currentFolderId.value === folderId) {
         setCurrentFolder(null)
       }
+
       debouncedUpdate()
     }
   }
 
   function updateFolder(folder: DocumentFolder) {
     const index = folders.value.findIndex(f => f.id === folder.id)
+
     if (index !== -1) {
       folders.value[index] = folder
       debouncedUpdate()
@@ -128,12 +140,14 @@ export function useDocumentFolders(
 
     currentFolderId.value = folderId
     const query = { ...route.query }
+
     if (folderId) {
       query.folder = folderId
     }
     else {
       delete query.folder
     }
+
     router.push({ query })
   }
 

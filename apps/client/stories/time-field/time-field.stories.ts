@@ -1,8 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/vue3'
 import { Time } from '@internationalized/date'
-import { ref } from 'vue'
-
-import { KitTimeField } from '../../src/renderer/components/01.kit/kit-time-field'
+import { ref } from 'vue'import { KitTimeField } from '../../src/renderer/components/01.kit/kit-time-field'
 
 /**
  * The `TimeField` component allows users to input a time (hours and minutes).
@@ -43,6 +41,7 @@ function interactiveRender(args: any) {
     components: { KitTimeField },
     setup() {
       const timeValue = ref(args.modelValue)
+
       return { args, timeValue }
     },
     template: `

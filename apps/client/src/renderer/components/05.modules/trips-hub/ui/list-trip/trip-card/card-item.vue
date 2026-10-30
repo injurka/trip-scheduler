@@ -28,59 +28,20 @@ const props = withDefaults(defineProps<Props>(), {
   isHighlight: false,
 })
 
-const cities = computed(() => [...(props.cityRefs ?? [])]
-  .sort((a, b) => a.position - b.position)
-  .map(place => place.name))
-
 const router = useRouter()
-const tripsHub = inject(TripsHubKey)
 const confirm = useConfirm()
+
+const tripsHub = inject(TripsHubKey)
 const isMoreMenuOpen = ref(false)
 const isEditModalOpen = ref(false)
 
-function goTo() {
-  router.push(AppRoutePaths.Trip.Info(`${props.id}`))
-}
-
-function navigateToProfile(userId: string) {
-  router.push(AppRoutePaths.User.Profile(userId))
-}
-
-async function handleDelete() {
-  const isConfirmed = await confirm({
-    title: 'Удалить путешествие?',
-    description: 'Это действие необратимо. Все дни, планы и воспоминания, связанные с этим путешествием, будут удалены.',
-    type: 'danger',
-    confirmText: 'Удалить',
-  })
-
-  if (isConfirmed && tripsHub) {
-    tripsHub.deleteTrip(props.id)
-  }
-}
-
-function handleEdit() {
-  isEditModalOpen.value = true
-}
-
-function handleSave(updatedData: UpdateTripInput) {
-  if (tripsHub) {
-    tripsHub.updateTripInList({ id: props.id, ...updatedData })
-  }
-}
-
+const cities = computed(() => [...(props.cityRefs ?? [])]
+  .sort((a, b) => a.position - b.position)
+  .map(place => place.name))
 const moreMenuItems = computed((): KitDropdownItem<string>[] => [
   { value: 'edit', label: 'Редактировать', icon: 'mdi:pencil-outline' },
   { value: 'delete', label: 'Удалить', icon: 'mdi:trash-can-outline', isDestructive: true },
 ])
-
-function handleMenuAction(action: string) {
-  if (action === 'edit')
-    handleEdit()
-  else if (action === 'delete')
-    handleDelete()
-}
-
 const formattedDates = computed(() => {
   const start = new Date(props.startDate)
   const end = new Date(props.endDate)
@@ -93,11 +54,9 @@ const formattedDates = computed(() => {
   if (start.getFullYear() === end.getFullYear()) {
     return `${formatter.format(start)} - ${formatter.format(end)} ${start.getFullYear()}`
   }
-  else {
-    return `${formatter.format(start)} ${start.getFullYear()} - ${formatter.format(end)} ${end.getFullYear()}`
-  }
-})
 
+  return `${formatter.format(start)} ${start.getFullYear()} - ${formatter.format(end)} ${end.getFullYear()}`
+})
 const statusInfo = computed(() => {
   switch (props.status) {
     case 'completed':
@@ -108,7 +67,6 @@ const statusInfo = computed(() => {
       return { text: 'Черновик', class: 'draft', icon: 'mdi:pencil-circle-outline' }
   }
 })
-
 const formattedBudget = computed(() => {
   if (!props.budget || !props.currency)
     return null
@@ -119,7 +77,6 @@ const formattedBudget = computed(() => {
     minimumFractionDigits: 0,
   }).format(props.budget)
 })
-
 const visibilityIcon = computed(() => {
   switch (props.visibility) {
     case 'public':
@@ -130,7 +87,6 @@ const visibilityIcon = computed(() => {
       return { icon: 'mdi:lock-outline', title: 'Приватное путешествие' }
   }
 })
-
 const tripData = computed<Trip>(() => ({
   id: props.id,
   userId: props.userId ?? '',
@@ -151,6 +107,39 @@ const tripData = computed<Trip>(() => ({
   updatedAt: props.updatedAt ?? new Date().toISOString(),
   sections: props.sections ?? [],
 }))
+
+function goTo() {
+  router.push(AppRoutePaths.Trip.Info(`${props.id}`))
+}
+function navigateToProfile(userId: string) {
+  router.push(AppRoutePaths.User.Profile(userId))
+}
+async function handleDelete() {
+  const isConfirmed = await confirm({
+    title: 'Удалить путешествие?',
+    description: 'Это действие необратимо. Все дни, планы и воспоминания, связанные с этим путешествием, будут удалены.',
+    type: 'danger',
+    confirmText: 'Удалить',
+  })
+
+  if (isConfirmed && tripsHub) {
+    tripsHub.deleteTrip(props.id)
+  }
+}
+function handleEdit() {
+  isEditModalOpen.value = true
+}
+function handleSave(updatedData: UpdateTripInput) {
+  if (tripsHub) {
+    tripsHub.updateTripInList({ id: props.id, ...updatedData })
+  }
+}
+function handleMenuAction(action: string) {
+  if (action === 'edit')
+    handleEdit()
+  else if (action === 'delete')
+    handleDelete()
+}
 </script>
 
 <template>

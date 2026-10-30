@@ -2,10 +2,12 @@
 import type { PlaceTag } from '~/shared/types/models/place'
 import { KitCheckbox } from '~/components/01.kit/kit-checkbox'
 
-defineProps<{
+interface Props {
   tags: PlaceTag[]
   selectedTagIds: string[]
-}>()
+}
+
+defineProps<Props>()
 
 const emit = defineEmits<{
   (e: 'toggleTag', tagId: string): void

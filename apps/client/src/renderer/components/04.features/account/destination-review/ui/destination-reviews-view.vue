@@ -21,6 +21,7 @@ interface Props {
   userId: string
   isOwnProfile: boolean
 }
+
 const props = defineProps<Props>()
 
 const {
@@ -58,55 +59,14 @@ const {
   deleteReview,
 } = useDestinationReviews(props.userId)
 
+const selectedCityRef = ref<GeoPlaceRef | null>(null)
+let cityHydrationSequence = 0
+const showMetricsSetup = ref(false)
+
 const countryOptions = computed(() => countries.value.map((c: Country) => ({
   value: c.id,
   label: c.name,
 })))
-
-const selectedCityRef = ref<GeoPlaceRef | null>(null)
-let cityHydrationSequence = 0
-
-watch(selectedCityId, async (cityId) => {
-  const sequence = ++cityHydrationSequence
-  if (!cityId) {
-    selectedCityRef.value = null
-    return
-  }
-
-  await useRequest({
-    key: `destination-reviews:hydrate-filter-city:${cityId}`,
-    fn: db => db.geo.getPlacesByIds([cityId]),
-    onSuccess: (places) => {
-      if (sequence !== cityHydrationSequence)
-        return
-
-      const place = places[0] ?? null
-      if (place && selectedCountry.value && place.countryId !== selectedCountry.value) {
-        selectedCityId.value = null
-        selectedCityRef.value = null
-        return
-      }
-      selectedCityRef.value = place
-    },
-  })
-}, { immediate: true })
-
-watch(selectedCountry, (countryId) => {
-  if (selectedCityRef.value && selectedCityRef.value.countryId !== countryId) {
-    selectedCityRef.value = null
-    selectedCityId.value = null
-  }
-})
-
-function onFilterCitySelected(value: GeoPlaceRef | GeoPlaceRef[] | null) {
-  const place = Array.isArray(value) ? value[0] ?? null : value
-  selectedCityRef.value = place
-  selectedCityId.value = place?.id ?? null
-  if (place?.countryId) {
-    selectedCountry.value = place.countryId
-  }
-}
-
 // Опции сортировки динамически адаптируются под выбранные метрики
 const sortOptions = computed(() => {
   const options = [
@@ -122,9 +82,9 @@ const sortOptions = computed(() => {
       options.push({ value: `${key}-desc`, label: `Высшая оценка: ${label}`, icon: 'mdi:trending-up' })
     }
   }
+
   return options
 })
-
 const activeSortOption = computed({
   get: () => `${sortBy.value}-${sortOrder.value}`,
   set: (val: string) => {
@@ -134,8 +94,51 @@ const activeSortOption = computed({
   },
 })
 
-const showMetricsSetup = ref(false)
+watch(selectedCityId, async (cityId) => {
+  const sequence = ++cityHydrationSequence
 
+  if (!cityId) {
+    selectedCityRef.value = null
+
+    return
+  }
+
+  await useRequest({
+    key: `destination-reviews:hydrate-filter-city:${cityId}`,
+    fn: db => db.geo.getPlacesByIds([cityId]),
+    onSuccess: (places) => {
+      if (sequence !== cityHydrationSequence)
+        return
+
+      const place = places[0] ?? null
+
+      if (place && selectedCountry.value && place.countryId !== selectedCountry.value) {
+        selectedCityId.value = null
+        selectedCityRef.value = null
+
+        return
+      }
+
+      selectedCityRef.value = place
+    },
+  })
+}, { immediate: true })
+watch(selectedCountry, (countryId) => {
+  if (selectedCityRef.value && selectedCityRef.value.countryId !== countryId) {
+    selectedCityRef.value = null
+    selectedCityId.value = null
+  }
+})
+
+function onFilterCitySelected(value: GeoPlaceRef | GeoPlaceRef[] | null) {
+  const place = Array.isArray(value) ? value[0] ?? null : value
+  selectedCityRef.value = place
+  selectedCityId.value = place?.id ?? null
+
+  if (place?.countryId) {
+    selectedCountry.value = place.countryId
+  }
+}
 function clearFilters() {
   selectedCountry.value = null
   selectedCityId.value = null

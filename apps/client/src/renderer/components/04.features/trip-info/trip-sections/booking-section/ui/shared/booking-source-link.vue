@@ -39,6 +39,7 @@ const sourceInfo = computed(() => {
   }
   catch {
     console.error('Invalid URL:', props.url)
+
     return null
   }
 })
@@ -54,7 +55,12 @@ const isValidUrl = computed(() => {
 <template>
   <div v-if="url && isValidUrl && sourceInfo" class="source-link-wrapper">
     <label class="field-label">{{ label }}</label>
-    <a :href="url" target="_blank" rel="noopener noreferrer" class="source-link">
+    <a
+      :href="url"
+      target="_blank"
+      rel="noopener noreferrer"
+      class="source-link"
+    >
       <Icon :icon="sourceInfo.icon" class="source-icon" :style="{ color: sourceInfo.color }" />
       <span class="link-text">{{ sourceInfo.name }}</span>
     </a>

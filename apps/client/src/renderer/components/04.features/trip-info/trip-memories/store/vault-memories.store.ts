@@ -66,6 +66,7 @@ export const useVaultMemoriesStore = defineStore('vaultMemories', {
       if (dayId) {
         return `trips/${tripId}/days/${dayId}/${imageId}.jpg`
       }
+
       return `trips/${tripId}/unsorted/${imageId}.jpg`
     },
   },
@@ -75,6 +76,7 @@ export const useVaultMemoriesStore = defineStore('vaultMemories', {
       if (!isTauri) {
         return
       }
+
       this.vaultPath = await backend.getPath()
     },
 
@@ -82,7 +84,9 @@ export const useVaultMemoriesStore = defineStore('vaultMemories', {
       if (!isTauri) {
         return
       }
+
       const path = await backend.selectFolder()
+
       if (path) {
         this.vaultPath = path
       }
@@ -127,10 +131,12 @@ export const useVaultMemoriesStore = defineStore('vaultMemories', {
         setTimeout(() => {
           this.syncState.isDownloading = false
         }, 500)
+
         return
       }
 
       const BATCH_SIZE = 5
+
       for (let i = 0; i < toDownload.length; i += BATCH_SIZE) {
         if (!this.syncState.isDownloading)
           break
@@ -140,6 +146,7 @@ export const useVaultMemoriesStore = defineStore('vaultMemories', {
         await Promise.all(batch.map(async (task) => {
           try {
             const success = await backend.downloadFile(task.url, task.relPath)
+
             if (success) {
               this.localFilesSet.add(task.relPath)
               this.syncState.loadedBytes += task.sizeBytes

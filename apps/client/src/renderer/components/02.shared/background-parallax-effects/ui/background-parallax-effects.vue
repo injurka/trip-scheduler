@@ -3,6 +3,12 @@ import { Icon, loadIcons } from '@iconify/vue'
 import { useMouse } from '@vueuse/core'
 import { isMobile } from '~/shared/lib/env'
 
+interface Props {
+  quantity?: number
+  staticity?: number
+  ease?: number
+}
+
 interface Particle {
   id: number
   icon: string
@@ -18,15 +24,13 @@ interface Particle {
   magnetism: number
 }
 
-const props = withDefaults(defineProps<{
-  quantity?: number
-  staticity?: number
-  ease?: number
-}>(), {
+const props = withDefaults(defineProps<Props>(), {
   quantity: 40,
   staticity: 50,
   ease: 100,
 })
+
+const { x: mouseX, y: mouseY } = useMouse()
 
 const travelIcons = [
   'mdi:airplane',
@@ -48,32 +52,11 @@ const travelIcons = [
   'mdi:ship-wheel',
   'mdi:flag-variant-outline',
 ]
-
-function getRandomIcon() {
-  return travelIcons[Math.floor(Math.random() * travelIcons.length)]
-}
-
 const containerRef = ref<HTMLDivElement | null>(null)
 const particles = ref<Particle[]>([])
 const mouse = reactive({ x: 0, y: 0 })
 const containerSize = reactive({ w: 0, h: 0 })
-const { x: mouseX, y: mouseY } = useMouse()
 let animationFrameId: number
-
-onMounted(() => {
-  if (isMobile) {
-    return
-  }
-  loadIcons(travelIcons)
-  init()
-  animate()
-  window.addEventListener('resize', init)
-})
-
-onBeforeUnmount(() => {
-  window.removeEventListener('resize', init)
-  cancelAnimationFrame(animationFrameId)
-})
 
 watch([mouseX, mouseY], () => {
   if (containerRef.value) {
@@ -83,6 +66,9 @@ watch([mouseX, mouseY], () => {
   }
 })
 
+function getRandomIcon() {
+  return travelIcons[Math.floor(Math.random() * travelIcons.length)]
+}
 function init() {
   if (containerRef.value) {
     containerSize.w = containerRef.value.offsetWidth
@@ -90,7 +76,6 @@ function init() {
     particles.value = Array.from({ length: props.quantity }, (_, i) => createParticle(i))
   }
 }
-
 function createParticle(id: number): Particle {
   return {
     id,
@@ -107,7 +92,6 @@ function createParticle(id: number): Particle {
     magnetism: 0.1 + Math.random() * 4,
   }
 }
-
 function animate() {
   particles.value.forEach((p) => {
     if (p.alpha < p.targetAlpha)
@@ -121,16 +105,34 @@ function animate() {
 
     if (p.x < -20)
       p.x = containerSize.w + 20
+
     if (p.x > containerSize.w + 20)
       p.x = -20
+
     if (p.y < -20)
       p.y = containerSize.h + 20
+
     if (p.y > containerSize.h + 20)
       p.y = -20
   })
 
   animationFrameId = requestAnimationFrame(animate)
 }
+
+onMounted(() => {
+  if (isMobile) {
+    return
+  }
+
+  loadIcons(travelIcons)
+  init()
+  animate()
+  window.addEventListener('resize', init)
+})
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', init)
+  cancelAnimationFrame(animationFrameId)
+})
 </script>
 
 <template>

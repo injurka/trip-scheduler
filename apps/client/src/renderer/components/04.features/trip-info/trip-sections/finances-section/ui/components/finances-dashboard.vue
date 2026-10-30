@@ -18,7 +18,6 @@ interface CategorySpendingItem {
   budgetLimit?: number
   colorIndex?: number
 }
-
 interface Props {
   mainCurrency: string
   spendingByCategory: CategorySpendingItem[]
@@ -33,22 +32,17 @@ interface Props {
 
 const props = defineProps<Props>()
 
-ChartJS.register(Title, Tooltip, Legend, ArcElement, CategoryScale, BarElement, LinearScale)
-
 const { format: formatCurrency } = useCurrencyFormatter()
 
 const currentView = ref<'category' | 'day'>('category')
 const hoveredIndex = ref<number | null>(null)
-
 const viewSwitcherItems: ViewSwitcherItem<'category' | 'day'>[] = [
   { id: 'category', label: 'По категориям', icon: 'mdi:chart-pie-outline' },
   { id: 'day', label: 'По дням', icon: 'mdi:chart-bar' },
 ]
-
 const borderColor = ref('#E0E0E0')
 const secondaryTextColor = ref('#6B7280')
 const backgroundColor = ref('#FFFFFF')
-
 const CATEGORY_COLORS = [
   '#3B82F6', // Blue
   '#10B981', // Emerald
@@ -62,181 +56,84 @@ const CATEGORY_COLORS = [
   '#84CC16', // Lime
 ]
 
-function getCategoryColor(index: number): string {
-  const safeIndex = Math.max(0, Math.abs(index || 0)) % CATEGORY_COLORS.length
-  return CATEGORY_COLORS[safeIndex]
-}
-
-function getCategoryBg(index: number): string {
-  const hex = getCategoryColor(index)
-  return `${hex}1F`
-}
-
-function formatDate(dateString: string, options: Intl.DateTimeFormatOptions) {
-  return new Date(dateString).toLocaleDateString('ru-RU', options)
-}
-
-function getCategoryWord(count: number): string {
-  const mod10 = count % 10
-  const mod100 = count % 100
-  if (mod100 >= 11 && mod100 <= 19)
-    return 'категорий'
-  if (mod10 === 1)
-    return 'категория'
-  if (mod10 >= 2 && mod10 <= 4)
-    return 'категории'
-  return 'категорий'
-}
-
 const hasBudget = computed(() => {
   return (props.overallBudget && props.overallBudget > 0)
     || props.spendingByCategory.some(c => (c.budgetLimit && c.budgetLimit > 0))
     || (props.plannedTotal > 0 && props.paidTotal !== undefined)
 })
-
 const effectivePaidTotal = computed(() => {
   return props.paidTotal !== undefined ? props.paidTotal : props.filteredTotal
 })
-
 const effectivePlannedTotal = computed(() => {
   return props.plannedTotal
 })
-
 const effectiveOverallBudget = computed(() => {
   if (props.overallBudget && props.overallBudget > 0)
     return props.overallBudget
+
   return effectivePaidTotal.value + effectivePlannedTotal.value
 })
-
 const remainingBudget = computed(() => {
   return Math.max(0, effectiveOverallBudget.value - effectivePaidTotal.value)
 })
-
 const freeBudget = computed(() => {
   return Math.max(0, effectiveOverallBudget.value - effectivePaidTotal.value - effectivePlannedTotal.value)
 })
-
 const paidPercentOfBudget = computed(() => {
   if (effectiveOverallBudget.value === 0)
     return 0
+
   return Math.round((effectivePaidTotal.value / effectiveOverallBudget.value) * 100)
 })
-
 const plannedPercentOfBudget = computed(() => {
   if (effectiveOverallBudget.value === 0)
     return 0
+
   return Math.round((effectivePlannedTotal.value / effectiveOverallBudget.value) * 100)
 })
-
 const categoryTotal = computed(() => {
   return props.spendingByCategory.reduce((sum, cat) => sum + cat.amount, 0)
 })
-
 const totalSpend = computed(() => {
   const sum = props.plannedTotal + props.spontaneousTotal
+
   if (sum > 0)
     return sum
+
   return props.filteredTotal > 0 ? props.filteredTotal : categoryTotal.value
 })
-
 const plannedPercent = computed(() => {
   if (totalSpend.value === 0)
     return 0
+
   return Math.round((props.plannedTotal / totalSpend.value) * 100)
 })
-
 const spontaneousPercent = computed(() => {
   if (totalSpend.value === 0)
     return 0
+
   return Math.round((props.spontaneousTotal / totalSpend.value) * 100)
 })
-
-function getCategoryPercent(amount: number): number {
-  const total = categoryTotal.value > 0 ? categoryTotal.value : totalSpend.value
-  if (total === 0)
-    return 0
-  const p = (amount / total) * 100
-  return Number(p.toFixed(1))
-}
-
 const hoveredCategory = computed(() => {
   if (hoveredIndex.value !== null && props.spendingByCategory[hoveredIndex.value]) {
     return props.spendingByCategory[hoveredIndex.value]
   }
+
   return null
 })
-
 const isDoughnutPlanMode = computed(() => {
   return props.statusFilter === 'planned'
 })
-
-function getCategoryActiveAmount(cat: CategorySpendingItem): number {
-  if (props.statusFilter === 'planned') {
-    return cat.plannedAmount || cat.amount
-  }
-  if (props.statusFilter === 'paid') {
-    return cat.paidAmount !== undefined ? cat.paidAmount : cat.amount
-  }
-  if (isDoughnutPlanMode.value) {
-    return (cat.paidAmount || 0) + (cat.plannedAmount || 0) || cat.amount
-  }
-  return cat.paidAmount !== undefined ? cat.paidAmount : cat.amount
-}
-
-function getCategoryBudgetPercent(cat: CategorySpendingItem): number {
-  if (!cat.budgetLimit || cat.budgetLimit <= 0)
-    return 0
-  const activeAmount = getCategoryActiveAmount(cat)
-  return Math.round((activeAmount / cat.budgetLimit) * 100)
-}
-
-function isCategoryOverBudget(cat: CategorySpendingItem): boolean {
-  if (!cat.budgetLimit || cat.budgetLimit <= 0)
-    return false
-  return getCategoryActiveAmount(cat) > cat.budgetLimit
-}
-
-function getCategoryAmountTitle(cat: CategorySpendingItem): string | undefined {
-  if (props.statusFilter === 'planned') {
-    return cat.budgetLimit
-      ? `В планах: ${formatCurrency(cat.plannedAmount || cat.amount, props.mainCurrency)} (лимит: ${formatCurrency(cat.budgetLimit, props.mainCurrency)})`
-      : `В планах: ${formatCurrency(cat.amount, props.mainCurrency)}`
-  }
-  if (props.statusFilter === 'paid') {
-    return cat.budgetLimit
-      ? `Оплачено: ${formatCurrency(cat.paidAmount || cat.amount, props.mainCurrency)} (лимит: ${formatCurrency(cat.budgetLimit, props.mainCurrency)})`
-      : `Оплачено: ${formatCurrency(cat.amount, props.mainCurrency)}`
-  }
-  return cat.budgetLimit
-    ? `Оплачено: ${formatCurrency(cat.paidAmount || 0, props.mainCurrency)}${cat.plannedAmount ? `, в планах: ${formatCurrency(cat.plannedAmount, props.mainCurrency)}` : ''}, лимит: ${formatCurrency(cat.budgetLimit, props.mainCurrency)}`
-    : `Всего: ${formatCurrency(cat.amount, props.mainCurrency)}`
-}
-
 const doughnutChartItems = computed(() => {
   return props.spendingByCategory.map((cat, i) => {
-    let val = 0
-    if (props.statusFilter === 'planned') {
-      val = cat.plannedAmount || cat.amount
-    }
-    else if (props.statusFilter === 'paid') {
-      val = cat.paidAmount !== undefined ? cat.paidAmount : cat.amount
-    }
-    else if (isDoughnutPlanMode.value) {
-      val = cat.budgetLimit || ((cat.paidAmount || 0) + (cat.plannedAmount || 0)) || cat.amount
-    }
-    else {
-      val = cat.paidAmount !== undefined ? cat.paidAmount : cat.amount
-    }
-
     return {
       name: cat.name,
-      value: val,
+      value: getDoughnutValue(cat, props.statusFilter, isDoughnutPlanMode.value),
       colorIndex: cat.colorIndex !== undefined ? cat.colorIndex : i,
       spendingCategoryIndex: i,
     }
   }).filter(item => item.value > 0)
 })
-
 const doughnutChartData = computed(() => {
   const items = doughnutChartItems.value
   const labels = items.map(cat => cat.name)
@@ -258,80 +155,18 @@ const doughnutChartData = computed(() => {
     ],
   }
 })
-
 const hasDoughnutData = computed(() => doughnutChartData.value.datasets[0].data.length > 0)
-
 const emptyChartMessage = computed(() => {
   if (props.statusFilter === 'planned')
     return 'Нет запланированных трат для отображения.'
+
   if (props.statusFilter === 'paid')
     return 'Нет оплаченных трат для отображения.'
+
   return isDoughnutPlanMode.value
     ? 'Нет данных для плановой диаграммы.'
     : 'Нет оплаченных трат для отображения факта.'
 })
-
-function externalTooltipHandler(context: { chart: any, tooltip: any }) {
-  const { chart, tooltip } = context
-  const parent = chart.canvas?.parentNode
-  if (!parent)
-    return
-
-  let tooltipEl = parent.querySelector('.chartjs-custom-tooltip') as HTMLElement | null
-
-  if (!tooltipEl) {
-    tooltipEl = document.createElement('div')
-    tooltipEl.className = 'chartjs-custom-tooltip'
-    parent.appendChild(tooltipEl)
-  }
-
-  if (tooltip.opacity === 0) {
-    tooltipEl.style.opacity = '0'
-    return
-  }
-
-  if (tooltip.body) {
-    const titleLines = tooltip.title || []
-    const bodyLines = tooltip.body.map((b: any) => b.lines)
-
-    let innerHtml = ''
-    titleLines.forEach((title: string) => {
-      innerHtml += `<div class="tooltip-title">${title}</div>`
-    })
-    bodyLines.forEach((body: string[]) => {
-      innerHtml += `<div class="tooltip-body">${body.join('<br>')}</div>`
-    })
-    tooltipEl.innerHTML = innerHtml
-  }
-
-  const { offsetLeft: positionX, offsetTop: positionY } = chart.canvas
-
-  tooltipEl.style.opacity = '1'
-  tooltipEl.style.position = 'absolute'
-  tooltipEl.style.left = `${positionX + tooltip.caretX}px`
-  tooltipEl.style.top = `${positionY + tooltip.caretY}px`
-
-  if (tooltip.yAlign === 'top') {
-    tooltipEl.style.transform = 'translate(-50%, 10px)'
-  }
-  else if (tooltip.yAlign === 'bottom') {
-    tooltipEl.style.transform = 'translate(-50%, calc(-100% - 10px))'
-  }
-  else if (tooltip.xAlign === 'left') {
-    tooltipEl.style.transform = 'translate(10px, -50%)'
-  }
-  else if (tooltip.xAlign === 'right') {
-    tooltipEl.style.transform = 'translate(calc(-100% - 10px), -50%)'
-  }
-  else {
-    tooltipEl.style.transform = 'translate(-50%, calc(-100% - 10px))'
-  }
-}
-
-onUnmounted(() => {
-  document.querySelectorAll('.chartjs-custom-tooltip').forEach(el => el.remove())
-})
-
 const doughnutChartOptions = computed(() => ({
   responsive: true,
   maintainAspectRatio: false,
@@ -347,6 +182,7 @@ const doughnutChartOptions = computed(() => ({
         title: (items: any[]) => {
           if (!items || items.length === 0)
             return ''
+
           return items[0].label || ''
         },
         label: (context: any) => {
@@ -355,6 +191,7 @@ const doughnutChartOptions = computed(() => ({
             ? (effectivePlannedTotal.value || 1)
             : (isDoughnutPlanMode.value ? effectiveOverallBudget.value : (effectivePaidTotal.value || 1))
           const pct = Number(((val / (base || 1)) * 100).toFixed(1))
+
           return `${formatCurrency(val, props.mainCurrency)} (${pct}%)`
         },
       },
@@ -368,20 +205,20 @@ const doughnutChartOptions = computed(() => ({
     }
   },
 }))
-
 const dailyAverage = computed(() => {
   if (props.spendingByDay.length === 0)
     return 0
+
   const total = props.spendingByDay.reduce((sum, day) => sum + day.amount, 0)
+
   return Math.round(total / props.spendingByDay.length)
 })
-
 const peakDay = computed(() => {
   if (props.spendingByDay.length === 0)
     return null
+
   return [...props.spendingByDay].sort((a, b) => b.amount - a.amount)[0]
 })
-
 const barChartData = computed(() => {
   const labels = props.spendingByDay.map(day => formatDate(day.date, { day: 'numeric', month: 'short' }))
   const data = props.spendingByDay.map(day => day.amount)
@@ -398,7 +235,6 @@ const barChartData = computed(() => {
     ],
   }
 })
-
 const barChartOptions = computed(() => ({
   responsive: true,
   maintainAspectRatio: false,
@@ -445,26 +281,212 @@ const barChartOptions = computed(() => ({
   },
 }))
 
+function getStatusValue(category: CategorySpendingItem, statusFilter: Props['statusFilter']): number {
+  if (statusFilter === 'planned')
+    return category.plannedAmount || category.amount
+
+  if (statusFilter === 'paid')
+    return category.paidAmount !== undefined ? category.paidAmount : category.amount
+
+  return category.paidAmount !== undefined ? category.paidAmount : category.amount
+}
+
+function getPlanModeValue(category: CategorySpendingItem): number {
+  return category.budgetLimit || ((category.paidAmount || 0) + (category.plannedAmount || 0)) || category.amount
+}
+
+function getDoughnutValue(category: CategorySpendingItem, statusFilter: Props['statusFilter'], usePlanMode: boolean): number {
+  if (statusFilter === 'planned' || statusFilter === 'paid')
+    return getStatusValue(category, statusFilter)
+
+  return usePlanMode ? getPlanModeValue(category) : getStatusValue(category, statusFilter)
+}
+
+function getCategoryColor(index: number): string {
+  const safeIndex = Math.max(0, Math.abs(index || 0)) % CATEGORY_COLORS.length
+
+  return CATEGORY_COLORS[safeIndex]
+}
+function getCategoryBg(index: number): string {
+  const hex = getCategoryColor(index)
+
+  return `${hex}1F`
+}
+function formatDate(dateString: string, options: Intl.DateTimeFormatOptions) {
+  return new Date(dateString).toLocaleDateString('ru-RU', options)
+}
+function getCategoryWord(count: number): string {
+  const mod10 = count % 10
+  const mod100 = count % 100
+
+  if (mod100 >= 11 && mod100 <= 19)
+    return 'категорий'
+
+  if (mod10 === 1)
+    return 'категория'
+
+  if (mod10 >= 2 && mod10 <= 4)
+    return 'категории'
+
+  return 'категорий'
+}
+function getCategoryPercent(amount: number): number {
+  const total = categoryTotal.value > 0 ? categoryTotal.value : totalSpend.value
+
+  if (total === 0)
+    return 0
+
+  const p = (amount / total) * 100
+
+  return Number(p.toFixed(1))
+}
+function getCategoryActiveAmount(cat: CategorySpendingItem): number {
+  if (props.statusFilter === 'planned') {
+    return cat.plannedAmount || cat.amount
+  }
+
+  if (props.statusFilter === 'paid') {
+    return cat.paidAmount !== undefined ? cat.paidAmount : cat.amount
+  }
+
+  if (isDoughnutPlanMode.value) {
+    return (cat.paidAmount || 0) + (cat.plannedAmount || 0) || cat.amount
+  }
+
+  return cat.paidAmount !== undefined ? cat.paidAmount : cat.amount
+}
+function getCategoryBudgetPercent(cat: CategorySpendingItem): number {
+  if (!cat.budgetLimit || cat.budgetLimit <= 0)
+    return 0
+
+  const activeAmount = getCategoryActiveAmount(cat)
+
+  return Math.round((activeAmount / cat.budgetLimit) * 100)
+}
+function isCategoryOverBudget(cat: CategorySpendingItem): boolean {
+  if (!cat.budgetLimit || cat.budgetLimit <= 0)
+    return false
+
+  return getCategoryActiveAmount(cat) > cat.budgetLimit
+}
+function getCategoryAmountTitle(cat: CategorySpendingItem): string | undefined {
+  if (props.statusFilter === 'planned') {
+    return cat.budgetLimit
+      ? `В планах: ${formatCurrency(cat.plannedAmount || cat.amount, props.mainCurrency)} (лимит: ${formatCurrency(cat.budgetLimit, props.mainCurrency)})`
+      : `В планах: ${formatCurrency(cat.amount, props.mainCurrency)}`
+  }
+
+  if (props.statusFilter === 'paid') {
+    return cat.budgetLimit
+      ? `Оплачено: ${formatCurrency(cat.paidAmount || cat.amount, props.mainCurrency)} (лимит: ${formatCurrency(cat.budgetLimit, props.mainCurrency)})`
+      : `Оплачено: ${formatCurrency(cat.amount, props.mainCurrency)}`
+  }
+
+  return cat.budgetLimit
+    ? `Оплачено: ${formatCurrency(cat.paidAmount || 0, props.mainCurrency)}${cat.plannedAmount ? `, в планах: ${formatCurrency(cat.plannedAmount, props.mainCurrency)}` : ''}, лимит: ${formatCurrency(cat.budgetLimit, props.mainCurrency)}`
+    : `Всего: ${formatCurrency(cat.amount, props.mainCurrency)}`
+}
+function getTooltipElement(parent: ParentNode): HTMLElement {
+  const existing = parent.querySelector('.chartjs-custom-tooltip') as HTMLElement | null
+
+  if (existing)
+    return existing
+
+  const element = document.createElement('div')
+  element.className = 'chartjs-custom-tooltip'
+  parent.appendChild(element)
+
+  return element
+}
+
+function renderTooltipContent(tooltip: any, tooltipEl: HTMLElement) {
+  if (tooltip.body) {
+    const titleLines = tooltip.title || []
+    const bodyLines = tooltip.body.map((b: any) => b.lines)
+
+    let innerHtml = ''
+    titleLines.forEach((title: string) => {
+      innerHtml += `<div class="tooltip-title">${title}</div>`
+    })
+    bodyLines.forEach((body: string[]) => {
+      innerHtml += `<div class="tooltip-body">${body.join('<br>')}</div>`
+    })
+    tooltipEl.innerHTML = innerHtml
+  }
+}
+
+function getTooltipTransform(tooltip: any): string {
+  if (tooltip.yAlign === 'top')
+    return 'translate(-50%, 10px)'
+
+  if (tooltip.yAlign === 'bottom')
+    return 'translate(-50%, calc(-100% - 10px))'
+
+  if (tooltip.xAlign === 'left')
+    return 'translate(10px, -50%)'
+
+  if (tooltip.xAlign === 'right')
+    return 'translate(calc(-100% - 10px), -50%)'
+
+  return 'translate(-50%, calc(-100% - 10px))'
+}
+
+function positionTooltip(tooltipEl: HTMLElement, chart: any, tooltip: any) {
+  const { offsetLeft: positionX, offsetTop: positionY } = chart.canvas
+
+  tooltipEl.style.opacity = '1'
+  tooltipEl.style.position = 'absolute'
+  tooltipEl.style.left = `${positionX + tooltip.caretX}px`
+  tooltipEl.style.top = `${positionY + tooltip.caretY}px`
+  tooltipEl.style.transform = getTooltipTransform(tooltip)
+}
+
+function externalTooltipHandler(context: { chart: any, tooltip: any }) {
+  const { chart, tooltip } = context
+  const parent = chart.canvas?.parentNode
+
+  if (!parent)
+    return
+
+  const tooltipEl = getTooltipElement(parent)
+
+  if (tooltip.opacity === 0) {
+    tooltipEl.style.opacity = '0'
+
+    return
+  }
+
+  renderTooltipContent(tooltip, tooltipEl)
+  positionTooltip(tooltipEl, chart, tooltip)
+}
 function applyThemeStyles() {
   borderColor.value = getComputedStyle(document.documentElement).getPropertyValue('--border-secondary-color').trim() || '#E0E0E0'
   secondaryTextColor.value = getComputedStyle(document.documentElement).getPropertyValue('--fg-secondary-color').trim() || '#6B7280'
   backgroundColor.value = getComputedStyle(document.documentElement).getPropertyValue('--bg-secondary-color').trim() || '#FFFFFF'
 }
 
+ChartJS.register(
+  Title,
+  Tooltip,
+  Legend,
+  ArcElement,
+  CategoryScale,
+  BarElement,
+  LinearScale,
+)
+useMutationObserver(document.documentElement, () => {
+  applyThemeStyles()
+}, {
+  attributes: true,
+  attributeFilter: ['class', 'style', 'data-theme'],
+})
+
+onUnmounted(() => {
+  document.querySelectorAll('.chartjs-custom-tooltip').forEach(el => el.remove())
+})
 onMounted(() => {
   applyThemeStyles()
 })
-
-useMutationObserver(
-  document.documentElement,
-  () => {
-    applyThemeStyles()
-  },
-  {
-    attributes: true,
-    attributeFilter: ['class', 'style', 'data-theme'],
-  },
-)
 </script>
 
 <template>

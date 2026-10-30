@@ -41,6 +41,7 @@ export const useBlogStore = defineStore('blog', {
     async fetchList(force = false) {
       if (!force && this.list.length > 0)
         return
+
       await useRequest({
         key: EBlogKeys.FETCH_LIST,
         fn: api => api.blog.list(12),
@@ -102,11 +103,13 @@ export const useBlogStore = defineStore('blog', {
           }
         },
       })
+
       return result
     },
 
     async deleteImage(imageId: string) {
       const img = this.postImages.find(i => i.id === imageId)
+
       if (!img)
         return
 
@@ -138,7 +141,9 @@ export const useBlogStore = defineStore('blog', {
           if (this.currentPost && this.currentPost.id === updatedPost.id) {
             this.currentPost = updatedPost
           }
+
           const index = this.list.findIndex(p => p.id === updatedPost.id)
+
           if (index !== -1) {
             this.list[index] = { ...this.list[index], ...updatedPost }
           }

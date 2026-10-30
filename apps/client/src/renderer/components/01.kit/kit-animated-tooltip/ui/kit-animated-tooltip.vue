@@ -13,13 +13,18 @@ const mouseX = ref<number>(0)
 
 const rotation = computed<number>(() => (mouseX.value / 100) * 20)
 const translation = computed<number>(() => (mouseX.value / 100) * -10)
+const tooltipStyle = computed(() => {
+  return {
+    bottom: `calc(100% + ${props.offset}px)`,
+    transform: `translateX(-50%) translateX(${translation.value}px) rotate(${rotation.value}deg)`,
+  }
+})
 
 function handleMouseEnter(event: MouseEvent) {
   isHovered.value = true
   const rect = (event.currentTarget as HTMLElement).getBoundingClientRect()
   mouseX.value = event.clientX - rect.left - rect.width / 2
 }
-
 function handleMouseMove(event: MouseEvent) {
   if (!isHovered.value)
     return
@@ -27,17 +32,9 @@ function handleMouseMove(event: MouseEvent) {
   const rect = (event.currentTarget as HTMLElement).getBoundingClientRect()
   mouseX.value = event.clientX - rect.left - rect.width / 2
 }
-
 function handleMouseLeave() {
   isHovered.value = false
 }
-
-const tooltipStyle = computed(() => {
-  return {
-    bottom: `calc(100% + ${props.offset}px)`,
-    transform: `translateX(-50%) translateX(${translation.value}px) rotate(${rotation.value}deg)`,
-  }
-})
 </script>
 
 <template>

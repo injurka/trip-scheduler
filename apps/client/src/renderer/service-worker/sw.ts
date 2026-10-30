@@ -16,169 +16,112 @@ cleanupOutdatedCaches()
 
 precacheAndRoute(self.__WB_MANIFEST || [])
 
-const runtimeImageStrategy = CacheStrategyFactory.createStaleWhileRevalidate(
-  CACHE_CONFIG.names.images,
-  {
-    maxEntries: CACHE_CONFIG.limits.images,
-    maxAgeSeconds: CACHE_CONFIG.durations.images,
-  },
-)
+const runtimeImageStrategy = CacheStrategyFactory.createStaleWhileRevalidate(CACHE_CONFIG.names.images, {
+  maxEntries: CACHE_CONFIG.limits.images,
+  maxAgeSeconds: CACHE_CONFIG.durations.images,
+})
 
-registerRoute(
-  ({ request, url }) => request.destination === 'image' || url.pathname.startsWith('/image/'),
-  async ({ request, url, event }) => {
-    if (url.pathname.includes('/memories/')) {
-      // eslint-disable-next-line no-useless-catch
-      try {
-        return await fetch(request)
-      }
-      catch (e) {
-        throw e
-      }
-    }
-
+registerRoute(({ request, url }) => request.destination === 'image' || url.pathname.startsWith('/image/'), async ({ request, url, event }) => {
+  if (url.pathname.includes('/memories/')) {
+    // eslint-disable-next-line no-useless-catch
     try {
-      const offlineCache = await caches.open(OFFLINE_MEDIA_CACHE_NAME)
-      let offlineResponse = await offlineCache.match(request) || await offlineCache.match(url.href)
-      if (!offlineResponse && url.searchParams.has('token')) {
-        const cleanUrl = new URL(url.href)
-        cleanUrl.searchParams.delete('token')
-        offlineResponse = await offlineCache.match(cleanUrl.toString())
-      }
-      if (offlineResponse) {
-        if (import.meta.env.DEV)
-          console.log(`[SW] Served from Offline Cache: ${url.pathname}`)
-        return offlineResponse
-      }
+      return await fetch(request)
     }
-    catch {
+    catch (e) {
+      throw e
+    }
+  }
+
+  try {
+    const offlineCache = await caches.open(OFFLINE_MEDIA_CACHE_NAME)
+    let offlineResponse = await offlineCache.match(request) || await offlineCache.match(url.href)
+
+    if (!offlineResponse && url.searchParams.has('token')) {
+      const cleanUrl = new URL(url.href)
+      cleanUrl.searchParams.delete('token')
+      offlineResponse = await offlineCache.match(cleanUrl.toString())
     }
 
-    return runtimeImageStrategy.handle({ event, request, url } as any)
-  },
-)
+    if (offlineResponse) {
+      if (import.meta.env.DEV)
+        console.log(`[SW] Served from Offline Cache: ${url.pathname}`)
+
+      return offlineResponse
+    }
+  }
+  catch {
+  }
+
+  return runtimeImageStrategy.handle({ event, request, url } as any)
+})
 
 if (import.meta.env.PROD) {
   // WEB APP MANIFEST
-  registerRoute(
-    ({ request, sameOrigin }) => sameOrigin && request.destination === 'manifest',
-    CacheStrategyFactory.createNetworkFirst(
-      CACHE_CONFIG.names.webmanifest,
-      {
-        maxEntries: CACHE_CONFIG.limits.manifests,
-        maxAgeSeconds: CACHE_CONFIG.durations.manifests,
-      },
-    ),
-  )
+  registerRoute(({ request, sameOrigin }) => sameOrigin && request.destination === 'manifest', CacheStrategyFactory.createNetworkFirst(CACHE_CONFIG.names.webmanifest, {
+    maxEntries: CACHE_CONFIG.limits.manifests,
+    maxAgeSeconds: CACHE_CONFIG.durations.manifests,
+  }))
 
   // FONTS
-  registerRoute(
-    ({ request }) => request.destination === 'font',
-    CacheStrategyFactory.createCacheFirst(
-      CACHE_CONFIG.names.fonts,
-      {
-        maxEntries: CACHE_CONFIG.limits.fonts,
-        maxAgeSeconds: CACHE_CONFIG.durations.fonts,
-        statuses: [0, 200],
-      },
-    ),
-  )
+  registerRoute(({ request }) => request.destination === 'font', CacheStrategyFactory.createCacheFirst(CACHE_CONFIG.names.fonts, {
+    maxEntries: CACHE_CONFIG.limits.fonts,
+    maxAgeSeconds: CACHE_CONFIG.durations.fonts,
+    statuses: [0, 200],
+  }))
 
   // AIRLINE ICONS
-  registerRoute(
-    ({ url }) =>
-      url.hostname === 'www.skyscanner.net'
-      && url.pathname.startsWith('/images/airlines/favicon/'),
-    CacheStrategyFactory.createCacheFirst(
-      CACHE_CONFIG.names.airlineIcons,
-      {
-        maxEntries: CACHE_CONFIG.limits.airlineIcons,
-        maxAgeSeconds: CACHE_CONFIG.durations.airlineIcons,
-      },
-    ),
-  )
+  registerRoute(({ url }) =>
+    url.hostname === 'www.skyscanner.net'
+    && url.pathname.startsWith('/images/airlines/favicon/'), CacheStrategyFactory.createCacheFirst(CACHE_CONFIG.names.airlineIcons, {
+    maxEntries: CACHE_CONFIG.limits.airlineIcons,
+    maxAgeSeconds: CACHE_CONFIG.durations.airlineIcons,
+  }))
 
   // MAPTILER TILES
-  registerRoute(
-    ({ url }) => url.hostname === 'api.maptiler.com',
-    CacheStrategyFactory.createCacheFirst(
-      CACHE_CONFIG.names.maptiler,
-      {
-        maxEntries: CACHE_CONFIG.limits.maptiler,
-        maxAgeSeconds: CACHE_CONFIG.durations.maptiler,
-      },
-    ),
-  )
+  registerRoute(({ url }) => url.hostname === 'api.maptiler.com', CacheStrategyFactory.createCacheFirst(CACHE_CONFIG.names.maptiler, {
+    maxEntries: CACHE_CONFIG.limits.maptiler,
+    maxAgeSeconds: CACHE_CONFIG.durations.maptiler,
+  }))
 }
 
 // GEOCODING API
-registerRoute(
-  ({ url }) => url.hostname === 'geocoding-api.open-meteo.com',
-  CacheStrategyFactory.createStaleWhileRevalidate(
-    CACHE_CONFIG.names.geocoding,
-    {
-      maxEntries: CACHE_CONFIG.limits.geocoding,
-      maxAgeSeconds: CACHE_CONFIG.durations.geocoding,
-    },
-  ),
-)
+registerRoute(({ url }) => url.hostname === 'geocoding-api.open-meteo.com', CacheStrategyFactory.createStaleWhileRevalidate(CACHE_CONFIG.names.geocoding, {
+  maxEntries: CACHE_CONFIG.limits.geocoding,
+  maxAgeSeconds: CACHE_CONFIG.durations.geocoding,
+}))
 
-registerRoute(
-  ({ url }) => url.hostname === 'api.iconify.design',
-  CacheStrategyFactory.createStaleWhileRevalidate(
-    CACHE_CONFIG.names.icons,
-    {
-      maxEntries: CACHE_CONFIG.limits.icons,
-      maxAgeSeconds: CACHE_CONFIG.durations.icons,
-    },
-  ),
-)
+registerRoute(({ url }) => url.hostname === 'api.iconify.design', CacheStrategyFactory.createStaleWhileRevalidate(CACHE_CONFIG.names.icons, {
+  maxEntries: CACHE_CONFIG.limits.icons,
+  maxAgeSeconds: CACHE_CONFIG.durations.icons,
+}))
 
 // --- СТАТИЧЕСКИЕ АССЕТЫ (JS, CSS) ---
 
-const hashedAssetsStrategy = CacheStrategyFactory.createCacheFirst(
-  CACHE_CONFIG.names.hashedAssets,
-  {
-    maxEntries: CACHE_CONFIG.limits.hashedAssets,
-    maxAgeSeconds: CACHE_CONFIG.durations.static.hashed,
-  },
-)
+const hashedAssetsStrategy = CacheStrategyFactory.createCacheFirst(CACHE_CONFIG.names.hashedAssets, {
+  maxEntries: CACHE_CONFIG.limits.hashedAssets,
+  maxAgeSeconds: CACHE_CONFIG.durations.static.hashed,
+})
 
-const vendorAssetsStrategy = CacheStrategyFactory.createCacheFirst(
-  CACHE_CONFIG.names.vendorAssets,
-  {
-    maxEntries: CACHE_CONFIG.limits.vendorAssets,
-    maxAgeSeconds: CACHE_CONFIG.durations.static.vendor,
-    statuses: [0, 200],
-  },
-)
+const vendorAssetsStrategy = CacheStrategyFactory.createCacheFirst(CACHE_CONFIG.names.vendorAssets, {
+  maxEntries: CACHE_CONFIG.limits.vendorAssets,
+  maxAgeSeconds: CACHE_CONFIG.durations.static.vendor,
+  statuses: [0, 200],
+})
 
-const regularAssetsStrategy = CacheStrategyFactory.createStaleWhileRevalidate(
-  CACHE_CONFIG.names.regularAssets,
-  {
-    maxEntries: CACHE_CONFIG.limits.regularAssets,
-    maxAgeSeconds: CACHE_CONFIG.durations.static.regular,
-  },
-)
+const regularAssetsStrategy = CacheStrategyFactory.createStaleWhileRevalidate(CACHE_CONFIG.names.regularAssets, {
+  maxEntries: CACHE_CONFIG.limits.regularAssets,
+  maxAgeSeconds: CACHE_CONFIG.durations.static.regular,
+})
 
 function isScriptOrStyle({ request, sameOrigin }: { request: Request, sameOrigin: boolean }) {
   return sameOrigin && (request.destination === 'script' || request.destination === 'style')
 }
 
-registerRoute(
-  options => isScriptOrStyle(options) && AssetAnalyzer.getAssetType(options.url.href) === 'hashed',
-  hashedAssetsStrategy,
-)
+registerRoute(options => isScriptOrStyle(options) && AssetAnalyzer.getAssetType(options.url.href) === 'hashed', hashedAssetsStrategy)
 
-registerRoute(
-  options => isScriptOrStyle(options) && AssetAnalyzer.getAssetType(options.url.href) === 'vendor',
-  vendorAssetsStrategy,
-)
+registerRoute(options => isScriptOrStyle(options) && AssetAnalyzer.getAssetType(options.url.href) === 'vendor', vendorAssetsStrategy)
 
-registerRoute(
-  options => isScriptOrStyle(options) && AssetAnalyzer.getAssetType(options.url.href) === 'regular',
-  regularAssetsStrategy,
-)
+registerRoute(options => isScriptOrStyle(options) && AssetAnalyzer.getAssetType(options.url.href) === 'regular', regularAssetsStrategy)
 
 // --- API КЕШИРОВАНИЕ ---
 API_CACHE_RULES.forEach((rule) => {
@@ -203,21 +146,20 @@ API_CACHE_RULES.forEach((rule) => {
       throw new Error(`Unknown cache strategy: ${rule.strategy}`)
   }
 
-  registerRoute(
-    ({ request, url }) =>
-      request.method === 'GET'
-      && url.pathname.includes(rule.path),
-    strategy,
-  )
+  registerRoute(({ request, url }) =>
+    request.method === 'GET'
+    && url.pathname.includes(rule.path), strategy)
 })
 
 // --- SPA НАВИГАЦИЯ ---
 
 let allowlist: undefined | RegExp[]
+
 if (import.meta.env.DEV)
   allowlist = [/^\/$/]
 
 let denylist: undefined | RegExp[]
+
 if (import.meta.env.PROD) {
   denylist = [
     /^\/api\//,
@@ -227,13 +169,10 @@ if (import.meta.env.PROD) {
   ]
 }
 
-registerRoute(new NavigationRoute(
-  createHandlerBoundToURL(import.meta.env.DEV ? 'index.html' : '/'),
-  {
-    allowlist,
-    denylist,
-  },
-))
+registerRoute(new NavigationRoute(createHandlerBoundToURL(import.meta.env.DEV ? 'index.html' : '/'), {
+  allowlist,
+  denylist,
+}))
 
 // --- WEB PUSH NOTIFICATIONS ---
 
@@ -265,23 +204,21 @@ self.addEventListener('notificationclick', (event) => {
   const urlToOpen = event.notification.data?.url || '/'
   const targetUrl = new URL(urlToOpen, self.location.origin)
 
-  event.waitUntil(
-    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
-      if (targetUrl.origin !== self.location.origin)
-        return
+  event.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
+    if (targetUrl.origin !== self.location.origin)
+      return
 
-      // Используем открытую вкладку приложения, переходя на адрес из уведомления.
-      for (const client of windowClients) {
-        if (new URL(client.url).origin === targetUrl.origin) {
-          return client.navigate(targetUrl.href).then(navigatedClient => navigatedClient?.focus() ?? client.focus())
-        }
+    // Используем открытую вкладку приложения, переходя на адрес из уведомления.
+    for (const client of windowClients) {
+      if (new URL(client.url).origin === targetUrl.origin) {
+        return client.navigate(targetUrl.href).then(navigatedClient => navigatedClient?.focus() ?? client.focus())
       }
+    }
 
-      if (self.clients.openWindow) {
-        return self.clients.openWindow(targetUrl.href)
-      }
-    }),
-  )
+    if (self.clients.openWindow) {
+      return self.clients.openWindow(targetUrl.href)
+    }
+  }))
 })
 
 // --- ОБРАБОТКА СООБЩЕНИЙ ---
@@ -294,6 +231,7 @@ self.addEventListener('message', async (event) => {
     return
 
   const handler = messageHandlers[type]
+
   if (handler) {
     try {
       await handler(port, payload)
@@ -320,6 +258,7 @@ if (import.meta.env.DEV) {
   self.addEventListener('fetch', (event) => {
     if (event.request.method === 'GET') {
       const assetType = AssetAnalyzer.getAssetType(event.request.url)
+
       if (!event.request.url.includes('/api/')) {
         console.log(`📥 ${assetType}: ${event.request.url}`)
       }

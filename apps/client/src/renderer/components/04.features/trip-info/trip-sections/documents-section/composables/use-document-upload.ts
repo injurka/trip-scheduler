@@ -14,11 +14,56 @@ export function useDocumentUpload(
   const isUploading = ref(false)
   const uploadProgress = ref({ current: 0, total: 0 })
 
-  async function uploadFiles(
-    files: File[],
-    folderId: string | null = null,
-    access: 'public' | 'private' = 'private',
+  function toDocumentFile(res: TripDocumentResponse, access: 'public' | 'private', folderId: string | null): DocumentFile {
+    const metadata = res.metadata || {}
+
+    return {
+      id: res.id,
+      url: res.url,
+      originalName: res.originalName,
+      sizeBytes: res.sizeBytes,
+      createdAt: res.createdAt,
+      access: metadata.access || access,
+      folderId: metadata.folderId !== undefined ? metadata.folderId : folderId,
+      title: metadata.title ?? null,
+      category: (metadata.category as DocumentCategory) ?? null,
+      isFavorite: Boolean(metadata.isFavorite),
+      note: metadata.note ?? null,
+    }
+  }
+
+  async function uploadSingleFile(
+    file: File,
+    index: number,
+    folderId: string | null,
+    access: 'public' | 'private',
   ) {
+    const res = await useRequest({
+      key: `documents:upload:${Date.now()}_${index}`,
+      cancelPrevious: false,
+      fn: api => api.files.uploadFile(
+        file,
+        tripId,
+        'trip',
+        'documents',
+        null,
+        null,
+        { access, folderId },
+      ),
+    }) as TripDocumentResponse | null
+
+    if (!res)
+      return
+
+    const newDoc = toDocumentFile(res, access, folderId)
+
+    documents.value.unshift(newDoc)
+
+    if (folderId && res.metadata?.folderId !== folderId)
+      await updateDocument(newDoc)
+  }
+
+  async function uploadFiles(files: File[], folderId: string | null = null, access: 'public' | 'private' = 'private') {
     if (readonly || files.length === 0)
       return
 
@@ -27,40 +72,15 @@ export function useDocumentUpload(
 
     try {
       for (let i = 0; i < files.length; i++) {
-        const file = files[i]
-        const res = await useRequest({
-          key: `documents:upload:${Date.now()}_${i}`,
-          cancelPrevious: false,
-          fn: api => api.files.uploadFile(file, tripId, 'trip', 'documents', null, null, { access, folderId }),
-        }) as TripDocumentResponse | null
-
-        if (res) {
-          const docAccess = res.metadata?.access || access
-          const docFolderId = res.metadata?.folderId !== undefined ? res.metadata.folderId : folderId
-
-          const newDoc: DocumentFile = {
-            id: res.id,
-            url: res.url,
-            originalName: res.originalName,
-            sizeBytes: res.sizeBytes,
-            createdAt: res.createdAt,
-            access: docAccess,
-            folderId: docFolderId,
-            title: res.metadata?.title ?? null,
-            category: (res.metadata?.category as DocumentCategory) ?? null,
-            isFavorite: Boolean(res.metadata?.isFavorite),
-            note: res.metadata?.note ?? null,
-          }
-
-          documents.value.unshift(newDoc)
-
-          // Синхронизация, если сервер не вернул folderId
-          if (folderId && res.metadata?.folderId !== folderId) {
-            await updateDocument(newDoc)
-          }
-        }
+        await uploadSingleFile(
+          files[i]!,
+          i,
+          folderId,
+          access,
+        )
         uploadProgress.value.current = i + 1
       }
+
       toast.success(`Загружено ${files.length} файл(ов)`)
     }
     catch (err) {

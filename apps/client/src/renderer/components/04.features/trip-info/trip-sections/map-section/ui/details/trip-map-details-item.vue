@@ -27,6 +27,7 @@ const sectionGroups = computed(() => {
         attachedChildren.push(sections[j])
         j++
       }
+
       groups.push({ parent: currentSection, children: attachedChildren })
       i = j
     }
@@ -35,6 +36,7 @@ const sectionGroups = computed(() => {
       i++
     }
   }
+
   return groups
 })
 </script>

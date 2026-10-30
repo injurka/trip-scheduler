@@ -24,6 +24,7 @@ export function useActivityUrlState(options: UseActivityUrlStateOptions) {
   }
 
   const viewQuery = getQueryString(route.query.view)
+
   if (viewQuery === 'map' || viewQuery === 'list') {
     viewMode.value = viewQuery
   }
@@ -34,6 +35,7 @@ export function useActivityUrlState(options: UseActivityUrlStateOptions) {
   })
 
   const startQuery = getQueryString(route.query.start)
+
   if (startQuery) {
     try {
       dateRange.value.start = parseDate(startQuery)
@@ -44,6 +46,7 @@ export function useActivityUrlState(options: UseActivityUrlStateOptions) {
   }
 
   const endQuery = getQueryString(route.query.end)
+
   if (endQuery) {
     try {
       dateRange.value.end = parseDate(endQuery)
@@ -93,13 +96,9 @@ export function useActivityUrlState(options: UseActivityUrlStateOptions) {
     router.replace({ query })
   }, 500)
 
-  watch(
-    [dateRange, currentLat, currentLon, currentZoom, viewMode],
-    () => {
-      updateUrl()
-    },
-    { deep: true },
-  )
+  watch([dateRange, currentLat, currentLon, currentZoom, viewMode], () => {
+    updateUrl()
+  }, { deep: true })
 
   return {
     dateRange,

@@ -28,20 +28,25 @@ const newItemInputRef = ref<HTMLInputElement | null>(null)
 const groupProgress = computed(() => {
   if (!props.items)
     return { completed: 0, total: 0, percentage: 0 }
+
   const total = props.items.length
+
   if (total === 0)
     return { completed: 0, total: 0, percentage: 0 }
 
   const completed = props.items.filter(item => item.completed).length
+
   return { completed, total, percentage: Math.round((completed / total) * 100) }
 })
 
 const displayGroupName = computed(() => {
   if (!props.group.name)
     return ''
+
   const cleaned = props.group.name
     .replace(/^[\p{Extended_Pictographic}\p{Symbol}\s\uFE00-\uFE0F\u200D\d.)\-]+/gu, '')
     .trim()
+
   return cleaned || props.group.name
 })
 
@@ -59,6 +64,7 @@ function handleUpdateGroupName(name: string) {
 function handleUpdateItem(updatedItem: ChecklistItem) {
   const newItems = [...props.items]
   const index = newItems.findIndex(i => i.id === updatedItem.id)
+
   if (index !== -1) {
     newItems[index] = updatedItem
     emit('update:items', newItems)
@@ -114,7 +120,12 @@ function onAddItem() {
             {{ groupProgress.completed }} / {{ groupProgress.total }}
           </span>
         </div>
-        <button v-if="!readonly" class="delete-group-btn" title="Удалить группу" @click.stop="$emit('delete')">
+        <button
+          v-if="!readonly"
+          class="delete-group-btn"
+          title="Удалить группу"
+          @click.stop="$emit('delete')"
+        >
           <Icon icon="mdi:trash-can-outline" />
         </button>
         <button class="collapse-btn" :title="isCollapsed ? 'Развернуть' : 'Свернуть'">

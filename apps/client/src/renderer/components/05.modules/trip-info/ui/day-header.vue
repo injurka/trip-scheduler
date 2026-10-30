@@ -5,18 +5,12 @@ import { KitMarkdownViewer } from '~/components/01.kit/kit-markdown-viewer'
 import { useModuleStore } from '~/components/05.modules/trip-info/composables/use-trip-info-module'
 import { lazyComponent } from '~/shared/lib/lazy-component'
 
-const KitInlineMdEditorWrapper = lazyComponent(
-  () => import('~/components/01.kit/kit-inline-md-editor').then(module => module.KitInlineMdEditorWrapper),
-)
-const DayRouteVisualizer = lazyComponent(
-  () => import('~/components/04.features/trip-info/trip-plan/ui/route-visualizer/day-route-visualizer.vue'),
-)
-
 const store = useModuleStore(['plan', 'ui'])
 
+const KitInlineMdEditorWrapper = lazyComponent(() => import('~/components/01.kit/kit-inline-md-editor').then(module => module.KitInlineMdEditorWrapper))
+const DayRouteVisualizer = lazyComponent(() => import('~/components/04.features/trip-info/trip-plan/ui/route-visualizer/day-route-visualizer.vue'))
 const { getSelectedDay: selectedDay, currentCalendarDayIndex } = storeToRefs(store.plan)
 const { isViewMode } = storeToRefs(store.ui)
-
 const isVisualizerOpen = ref(false)
 
 const isDraft = computed(() => !selectedDay.value?.date)
@@ -26,17 +20,15 @@ const activitiesCount = computed(() => selectedDay.value?.activities?.length || 
 function updateDayDetails(details: { title?: string, description?: string, meta?: any[] }) {
   store.plan.updateDayDetails(selectedDay.value!.id, details)
 }
-
 function handleDescriptionBlur(newDesc: string) {
   updateDayDetails({ description: newDesc })
 }
-
 function handleTitleBlur(newTitle: string) {
   updateDayDetails({ title: newTitle })
 }
-
 function handleScrollToActivity(activityId: string) {
   const el = document.getElementById(`activity-${activityId}`) || document.querySelector(`[data-activity-id="${activityId}"]`)
+
   if (el) {
     el.scrollIntoView({ behavior: 'smooth', block: 'center' })
     el.classList.remove('highlight-pulse')

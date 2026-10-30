@@ -37,6 +37,7 @@ const starredCount = computed(() => {
 const isCustomDayTitle = computed(() => {
   if (!props.matchedDay?.title)
     return false
+
   return props.matchedDay.title.trim().length > 0
 })
 

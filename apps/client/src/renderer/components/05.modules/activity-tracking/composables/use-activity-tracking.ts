@@ -13,24 +13,19 @@ export function useActivityTracking() {
   const todayUtc = computed(() => new Date().toISOString().slice(0, 10))
 
   const overallDistanceM = computed(() =>
-    summaries.value.reduce((sum, s) => sum + s.totalDistanceM, 0),
-  )
+    summaries.value.reduce((sum, s) => sum + s.totalDistanceM, 0))
 
   const overallDurationMs = computed(() =>
-    summaries.value.reduce((sum, s) => sum + s.totalDurationMs, 0),
-  )
+    summaries.value.reduce((sum, s) => sum + s.totalDurationMs, 0))
 
   const activeDaysCount = computed(() =>
-    summaries.value.filter(s => s.hasData && s.totalDistanceM > 0).length,
-  )
+    summaries.value.filter(s => s.hasData && s.totalDistanceM > 0).length)
 
   const recordedDays = computed(() =>
-    summaries.value.filter(s => s.hasData),
-  )
+    summaries.value.filter(s => s.hasData))
 
   const hasAnyData = computed(() =>
-    recordedDays.value.length > 0,
-  )
+    recordedDays.value.length > 0)
 
   let activeRequestId = 0
 
@@ -43,18 +38,22 @@ export function useActivityTracking() {
     else {
       isRefreshing.value = true
     }
+
     loadError.value = null
     const reqId = ++activeRequestId
 
     try {
       const res = await (trpc as any).tracking.getSummaries.query({ days: selectedDays.value })
+
       if (reqId !== activeRequestId)
         return
+
       summaries.value = res.summaries
     }
     catch (e) {
       if (reqId !== activeRequestId)
         return
+
       loadError.value = e instanceof Error ? e.message : String(e)
     }
     finally {
@@ -72,6 +71,7 @@ export function useActivityTracking() {
   async function setDaysRange(days: number) {
     if (selectedDays.value === days)
       return
+
     selectedDays.value = days
     await loadSummaries({ isSilent: summaries.value.length > 0 })
   }
@@ -83,27 +83,34 @@ export function useActivityTracking() {
   function formatDay(dayUtc: string): string {
     if (isToday(dayUtc))
       return 'Сегодня'
+
     const d = new Date(`${dayUtc}T12:00:00Z`)
+
     return d.toLocaleDateString('ru-RU', { weekday: 'short', day: 'numeric', month: 'long' })
   }
 
   function formatDistance(m: number): string {
     if (m < 1000)
       return `${Math.round(m)} м`
+
     return `${(m / 1000).toFixed(1)} км`
   }
 
   function formatDuration(ms: number): string {
     const min = Math.round(ms / 60_000)
+
     if (min < 60)
       return `${min} мин`
+
     const h = Math.floor(min / 60)
+
     return `${h} ч ${min % 60} мин`
   }
 
   function formatTime(ts: number | null): string {
     if (!ts)
       return '--:--'
+
     return new Date(ts).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' })
   }
 

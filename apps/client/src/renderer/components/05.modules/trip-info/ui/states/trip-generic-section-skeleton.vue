@@ -16,8 +16,18 @@ import { KitSkeleton } from '~/components/01.kit/kit-skeleton'
 
     <div class="grid-skeleton">
       <div v-for="i in 6" :key="i" class="card-skeleton">
-        <KitSkeleton width="100%" height="120px" border-radius="8px" style="margin-bottom: 12px;" />
-        <KitSkeleton width="70%" height="20px" border-radius="4px" style="margin-bottom: 8px;" />
+        <KitSkeleton
+          width="100%"
+          height="120px"
+          border-radius="8px"
+          style="margin-bottom: 12px;"
+        />
+        <KitSkeleton
+          width="70%"
+          height="20px"
+          border-radius="4px"
+          style="margin-bottom: 8px;"
+        />
         <KitSkeleton width="40%" height="16px" border-radius="4px" />
       </div>
     </div>

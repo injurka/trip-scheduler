@@ -9,7 +9,13 @@ import { KitSkeleton } from '~/components/01.kit/kit-skeleton'
         <div class="sidebar-header">
           <KitSkeleton width="80px" height="20px" border-radius="4px" />
           <div class="sidebar-actions">
-            <KitSkeleton v-for="i in 3" :key="i" width="24px" height="24px" border-radius="4px" />
+            <KitSkeleton
+              v-for="i in 3"
+              :key="i"
+              width="24px"
+              height="24px"
+              border-radius="4px"
+            />
           </div>
         </div>
         <div class="tree-wrapper">
@@ -30,7 +36,12 @@ import { KitSkeleton } from '~/components/01.kit/kit-skeleton'
           <KitSkeleton width="100%" height="16px" border-radius="4px" />
           <KitSkeleton width="90%" height="16px" border-radius="4px" />
           <KitSkeleton width="95%" height="16px" border-radius="4px" />
-          <KitSkeleton width="60%" height="16px" border-radius="4px" style="margin-bottom: 24px;" />
+          <KitSkeleton
+            width="60%"
+            height="16px"
+            border-radius="4px"
+            style="margin-bottom: 24px;"
+          />
 
           <KitSkeleton width="100%" height="16px" border-radius="4px" />
           <KitSkeleton width="85%" height="16px" border-radius="4px" />

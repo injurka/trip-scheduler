@@ -49,6 +49,7 @@ export const useTripMemoriesStore = defineStore('tripMemories', {
     memoriesForSelectedDay(state): Memory[] {
       const tripPlanStore = useTripPlanStore()
       const selectedDay = tripPlanStore.getSelectedDay
+
       if (!selectedDay || !selectedDay.date)
         return []
 
@@ -58,7 +59,9 @@ export const useTripMemoriesStore = defineStore('tripMemories', {
         .filter((m) => {
           if (!m.timestamp)
             return false
+
           const memoryDateStr = m.timestamp.split('T')[0]
+
           return memoryDateStr === selectedDateStr
         })
         .sort((a, b) => new Date(a.timestamp!).getTime() - new Date(b.timestamp!).getTime())
@@ -69,14 +72,13 @@ export const useTripMemoriesStore = defineStore('tripMemories', {
     },
 
     memoriesWithGeoForSelectedDay(): Memory[] {
-      return this.memoriesForSelectedDay.filter(
-        (m): m is Memory & { image: TripMedia & { latitude: number, longitude: number } } =>
-          !!m.image?.latitude && !!m.image?.longitude,
-      )
+      return this.memoriesForSelectedDay.filter((m): m is Memory & { image: TripMedia & { latitude: number, longitude: number } } =>
+        !!m.image?.latitude && !!m.image?.longitude)
     },
 
     timelineGroupsForSelectedDay(): TimelineGroup[] {
       const memoriesList = this.memoriesForSelectedDay
+
       if (!memoriesList.length)
         return []
 
@@ -85,18 +87,22 @@ export const useTripMemoriesStore = defineStore('tripMemories', {
 
       const ensureStartGroup = (): TimelineGroup => {
         let startGroup = groups.find(g => g.type === 'start')
+
         if (!startGroup) {
           startGroup = { type: 'start', title: '', memories: [], activity: null }
           groups.unshift(startGroup)
         }
+
         return startGroup
       }
 
       for (const memory of memoriesList) {
         if (memory.title) {
           currentGroup = { type: 'activity', activity: memory, title: memory.title, memories: [] }
+
           if (memory.imageId || memory.comment)
             currentGroup.memories.push(memory)
+
           groups.push(currentGroup)
         }
         else if (currentGroup) {
@@ -108,6 +114,7 @@ export const useTripMemoriesStore = defineStore('tripMemories', {
       }
 
       const startGroup = groups.find(g => g.type === 'start')
+
       if (startGroup && startGroup.memories.length === 0)
         return groups.filter(g => g.type !== 'start')
 
@@ -134,18 +141,22 @@ export const useTripMemoriesStore = defineStore('tripMemories', {
 
     async _processUploadQueue() {
       const isUploading = this.getProcessingMemories.some(p => p.status === 'uploading')
+
       if (isUploading)
         return
 
       const nextToUpload = this.getProcessingMemories.find(p => p.status === 'queued')
+
       if (nextToUpload)
         await this.uploadMemoryImage(nextToUpload)
     },
 
     enqueueFilesForUpload(files: File[]) {
       const tripPlanStore = useTripPlanStore()
+
       if (!tripPlanStore.currentTripId) {
         console.error('Trip ID не установлен для загрузки.')
+
         return
       }
 
@@ -167,8 +178,10 @@ export const useTripMemoriesStore = defineStore('tripMemories', {
     async uploadMemoryImage(item: IProcessingMemory) {
       const tripPlanStore = useTripPlanStore()
       const tripId = tripPlanStore.currentTripId
+
       if (!tripId) {
         console.error('Trip ID не установлен.')
+
         return
       }
 
@@ -176,6 +189,7 @@ export const useTripMemoriesStore = defineStore('tripMemories', {
       const requestKey = `${ETripMemoriesKeys.UPLOAD}:${tempId}`
 
       const processingItem = this.processingMemories.get(tempId)
+
       if (processingItem) {
         processingItem.status = 'uploading'
         processingItem.progress = 0
@@ -186,6 +200,7 @@ export const useTripMemoriesStore = defineStore('tripMemories', {
         fn: async (db, signal) => {
           const onProgress = (progress: number) => {
             const currentItem = this.processingMemories.get(tempId)
+
             if (currentItem)
               currentItem.progress = progress
           }
@@ -203,6 +218,7 @@ export const useTripMemoriesStore = defineStore('tripMemories', {
           const getTimestamp = () => {
             if (!newImage.takenAt)
               return null
+
             const imageDate = (newImage.metadata?.timezoneOffset)
               ? getLocalDate(newImage.takenAt, newImage.metadata?.timezoneOffset)
               : new Date(newImage.takenAt)
@@ -210,6 +226,7 @@ export const useTripMemoriesStore = defineStore('tripMemories', {
 
             if (!selectedDay || !selectedDay.date)
               return null
+
             const selectedDayStr = new Date(selectedDay.date).toISOString().split('T')[0]
 
             return imageDateStr === selectedDayStr ? imageDate.toISOString() : null
@@ -237,6 +254,7 @@ export const useTripMemoriesStore = defineStore('tripMemories', {
             pItem.progress = 0
             pItem.error = error.customMessage
           }
+
           this._processUploadQueue()
         },
         onAbort: () => {
@@ -255,6 +273,7 @@ export const useTripMemoriesStore = defineStore('tripMemories', {
 
     retryMemoryUpload(tempId: string) {
       const processingItem = this.processingMemories.get(tempId)
+
       if (processingItem && processingItem.status === 'error') {
         processingItem.status = 'queued'
         processingItem.error = undefined
@@ -264,6 +283,7 @@ export const useTripMemoriesStore = defineStore('tripMemories', {
 
     removeProcessingMemory(tempId: string) {
       const item = this.processingMemories.get(tempId)
+
       if (item) {
         if (item.status === 'uploading')
           this.cancelMemoryUpload(tempId)
@@ -286,6 +306,7 @@ export const useTripMemoriesStore = defineStore('tripMemories', {
       const tripPlanStore = useTripPlanStore()
       const tripId = tripPlanStore.currentTripId
       const day = tripPlanStore.getSelectedDay
+
       if (!tripId || !day || !day.date)
         return
 
@@ -304,6 +325,7 @@ export const useTripMemoriesStore = defineStore('tripMemories', {
 
     async updateMemory(data: UpdateMemoryInput) {
       const memory = this.memories.find(m => m.id === data.id)
+
       if (!memory)
         return
 
@@ -336,6 +358,7 @@ export const useTripMemoriesStore = defineStore('tripMemories', {
 
     async applyOriginalTimestamp(memoryId: string) {
       const memory = this.memories.find(m => m.id === memoryId)
+
       if (!memory || !memory.imageId)
         return
 
@@ -356,6 +379,7 @@ export const useTripMemoriesStore = defineStore('tripMemories', {
 
     async removeTimestamp(memoryId: string) {
       const memory = this.memories.find(m => m.id === memoryId)
+
       if (!memory)
         return
 

@@ -18,10 +18,10 @@ const formattedDate = computed(() => {
   if (isToday) {
     return `${timeStr}`
   }
-  else {
-    const dateStr = date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })
-    return `${dateStr} в ${timeStr}`
-  }
+
+  const dateStr = date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })
+
+  return `${dateStr} в ${timeStr}`
 })
 </script>
 

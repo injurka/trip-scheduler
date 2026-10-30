@@ -7,7 +7,7 @@ import { computed } from 'vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { CalendarPopover } from '~/components/02.shared/calendar-popover'
 
-const props = withDefaults(defineProps<{
+interface Props {
   selectedDay: string
   todayUtc: string
   headerDayTitle: string
@@ -23,7 +23,9 @@ const props = withDefaults(defineProps<{
   locatedPhotosCount?: number
   unlocatedPhotosCount?: number
   isPhotosVisible?: boolean
-}>(), {
+}
+
+const props = withDefaults(defineProps<Props>(), {
   hasTrack: true,
   days: () => [],
   showTodayButton: true,
@@ -32,7 +34,6 @@ const props = withDefaults(defineProps<{
   unlocatedPhotosCount: 0,
   isPhotosVisible: true,
 })
-
 const emit = defineEmits<{
   (e: 'changeDay', offset: number): void
   (e: 'selectDay', day: string): void
@@ -46,18 +47,41 @@ const calendarDate = computed<CalendarDate | null>({
   get: () => {
     if (!props.selectedDay)
       return null
+
     return parseDay(props.selectedDay) ?? null
   },
   set: (val) => {
     if (!val)
       return
+
     emit('selectDay', val.toString())
   },
+})
+const maxCalendarDate = computed<CalendarDate | undefined>(() => {
+  // Конец списка дней поездки важнее «сегодня»: вне поездки выбирать нечего
+  if (props.days.length > 0)
+    return parseDay(props.days[props.days.length - 1])
+
+  return parseDay(props.todayUtc)
+})
+const minCalendarDate = computed<CalendarDate | undefined>(() =>
+  props.days.length > 0 ? parseDay(props.days[0]) : undefined)
+/** Индекс выбранного дня в списке дней поездки (-1 — дата вне списка) */
+const dayIndexInDays = computed(() =>
+  props.days.length > 0 ? props.days.indexOf(props.selectedDay) : -1)
+const canGoPrev = computed(() =>
+  dayIndexInDays.value >= 0 ? dayIndexInDays.value > 0 : true)
+const canGoNext = computed(() => {
+  if (dayIndexInDays.value >= 0)
+    return dayIndexInDays.value < props.days.length - 1
+
+  return props.selectedDay < props.todayUtc
 })
 
 function parseDay(day?: string): CalendarDate | undefined {
   if (!day)
     return undefined
+
   try {
     return parseDate(day)
   }
@@ -65,32 +89,6 @@ function parseDay(day?: string): CalendarDate | undefined {
     return undefined
   }
 }
-
-const maxCalendarDate = computed<CalendarDate | undefined>(() => {
-  // Конец списка дней поездки важнее «сегодня»: вне поездки выбирать нечего
-  if (props.days.length > 0)
-    return parseDay(props.days[props.days.length - 1])
-  return parseDay(props.todayUtc)
-})
-
-const minCalendarDate = computed<CalendarDate | undefined>(() =>
-  props.days.length > 0 ? parseDay(props.days[0]) : undefined,
-)
-
-/** Индекс выбранного дня в списке дней поездки (-1 — дата вне списка) */
-const dayIndexInDays = computed(() =>
-  props.days.length > 0 ? props.days.indexOf(props.selectedDay) : -1,
-)
-
-const canGoPrev = computed(() =>
-  dayIndexInDays.value >= 0 ? dayIndexInDays.value > 0 : true,
-)
-
-const canGoNext = computed(() => {
-  if (dayIndexInDays.value >= 0)
-    return dayIndexInDays.value < props.days.length - 1
-  return props.selectedDay < props.todayUtc
-})
 </script>
 
 <template>

@@ -58,7 +58,12 @@ onMounted(() => {
       <div class="left">
         <NavigationBack />
       </div>
-      <KitBtn icon="mdi:plus" size="sm" variant="tonal" @click="handleCreate">
+      <KitBtn
+        icon="mdi:plus"
+        size="sm"
+        variant="tonal"
+        @click="handleCreate"
+      >
         Создать
       </KitBtn>
     </div>

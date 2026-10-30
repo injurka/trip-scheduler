@@ -27,9 +27,11 @@ describe('city metro routes', () => {
     expect(red.stations[0]!.id).toBe('tw-taipei-r01')
     expect(new Set(taipei.lines.flatMap(line => line.stations.map(s => s.id))).size).toBe(136)
     expect(new Set(taipei.lines.map(line => line.lineNumber)).size).toBe(6)
+
     for (const line of taipei.lines) {
       expect(new Set(line.stations.map(s => s.id)).size).toBe(line.stations.length)
       expect(getMetroGeometry(line.stations)?.length).toBe(line.stations.length)
+
       for (const station of line.stations) {
         expect(station.latitude).toBeGreaterThan(24.9)
         expect(station.latitude).toBeLessThan(25.3)
@@ -37,6 +39,7 @@ describe('city metro routes', () => {
         expect(station.longitude).toBeLessThan(121.7)
       }
     }
+
     const luzhou = taipei.lines.find(line => line.id === 'tw-taipei-o-luzhou')!
     expect(getMetroRidePath(luzhou, 'tw-taipei-o12', 'tw-taipei-o50')?.stops).toBe(1)
     expect(luzhou.stations.some(s => s.id === 'tw-taipei-o13')).toBe(false)
@@ -49,10 +52,12 @@ test('Kaohsiung and Taichung catalog completeness and circular paths', () => {
   const ring = kaohsiung.lines.find(line => line.lineNumber === 'C')!
   expect(getMetroRidePath(ring, 'tw-kaohsiung-c37', 'tw-kaohsiung-c1')?.stops).toBe(1)
   expect(getMetroRidePath(ring, 'tw-kaohsiung-c1', 'tw-kaohsiung-c37')?.stations.map(s => s.id)).toEqual(['tw-kaohsiung-c1', 'tw-kaohsiung-c37'])
+
   for (const system of [kaohsiung, taichung]) {
     for (const line of system.lines) {
       expect(new Set(line.stations.map(s => s.id)).size).toBe(line.stations.length)
       expect(getMetroGeometry(line.stations)?.length).toBe(line.stations.length)
+
       for (const station of line.stations) {
         expect(station.latitude).toBeGreaterThan(22.5)
         expect(station.latitude).toBeLessThan(24.3)

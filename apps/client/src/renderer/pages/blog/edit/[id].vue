@@ -19,6 +19,7 @@ const form = ref<CreateBlogPostInput>({} as CreateBlogPostInput)
 async function handleSave() {
   if (!form.value?.title?.trim() || !form.value?.content?.trim()) {
     toast.error('Заполните обязательные поля: заголовок и содержание')
+
     return
   }
 

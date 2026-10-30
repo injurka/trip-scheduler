@@ -31,6 +31,7 @@ const pages = computed(() => {
   }
   else {
     pagesToShow.push(1)
+
     if (current > 4) {
       pagesToShow.push('...')
     }
@@ -45,6 +46,7 @@ const pages = computed(() => {
     if (current < total - 3) {
       pagesToShow.push('...')
     }
+
     pagesToShow.push(total)
   }
 

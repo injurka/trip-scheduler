@@ -21,44 +21,58 @@ let measureContext: CanvasRenderingContext2D | null | undefined
 function getMeasureContext(): CanvasRenderingContext2D | null {
   if (typeof document === 'undefined')
     return null
+
   if (measureContext === undefined) {
     const canvas = document.createElement('canvas')
     measureContext = canvas.getContext('2d')
   }
+
   return measureContext
 }
 
 /** Measures the rendered width of a node card title (matches `.card-title`: 0.86rem / 600). */
 export function measureTitleWidth(title: string): number {
   const ctx = getMeasureContext()
+
   if (!ctx)
     return title.length * FALLBACK_CHAR_WIDTH
+
   ctx.font = '600 14px system-ui, -apple-system, "Segoe UI", sans-serif'
+
   // ~6% safety margin so the estimate never undercuts the real render
   return Math.ceil(ctx.measureText(title).width * 1.06)
 }
 
 /** Estimated rendered card height, so layouts reserve real space instead of a fixed 72px. */
 export function estimateNodeHeight(activity: IActivity, nodeWidth: number, isEditMode: boolean): number {
-  const metro = activity.sections?.find(s => s.type === EActivitySectionType.METRO) as ActivitySectionMetro | undefined
-  const bus = activity.sections?.find(s => s.type === EActivitySectionType.BUS) as ActivitySectionBus | undefined
-  const rideCount = (metro?.rides?.length || 0) + (bus?.rides?.length || 0)
+  const rideCount = getRideCount(activity)
 
   const title = activity.title || 'Остановка маршрута'
   const titleLines = measureTitleWidth(title) > nodeWidth - CONTENT_INSET_X ? 2 : 1
 
   let height = NODE_HEIGHT
   height += (titleLines - 1) * TITLE_LINE_HEIGHT
+
   if (rideCount > 0)
     height += rideCount * RIDE_ROW_HEIGHT + 2
+
   if (isEditMode)
     height += EDIT_BAR_HEIGHT
+
   return height
+}
+
+function getRideCount(activity: IActivity): number {
+  const metro = activity.sections?.find(s => s.type === EActivitySectionType.METRO) as ActivitySectionMetro | undefined
+  const bus = activity.sections?.find(s => s.type === EActivitySectionType.BUS) as ActivitySectionBus | undefined
+
+  return (metro?.rides?.length || 0) + (bus?.rides?.length || 0)
 }
 
 /** Card width for the column layout: wide enough to fit the title on a single line. */
 export function estimateColumnNodeWidth(activity: IActivity): number {
   const title = activity.title || 'Остановка маршрута'
   const width = measureTitleWidth(title) + CONTENT_INSET_X + 8
+
   return Math.min(Math.max(width, NODE_WIDTH), MAX_COLUMN_NODE_WIDTH)
 }

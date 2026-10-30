@@ -3,7 +3,9 @@ import type { Place } from '~/shared/types/models/place'
 import { Icon } from '@iconify/vue'
 import { KitImage } from '~/components/01.kit/kit-image'
 
-defineProps<{ place: Place }>()
+interface Props { place: Place }
+
+defineProps<Props>()
 </script>
 
 <template>

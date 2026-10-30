@@ -4,6 +4,7 @@ import { KitBtn } from '~/components/01.kit/kit-btn'
 import { useAppUpdateStore } from '~/shared/store/app-update.store'
 
 const appUpdateStore = useAppUpdateStore()
+
 const {
   hasUpdate,
   latestVersion,
@@ -17,23 +18,29 @@ const {
   isInstalling,
 } = storeToRefs(appUpdateStore)
 
-function formatBytes(bytes: number): string {
-  if (bytes <= 0)
-    return '0 MB'
-  const mb = bytes / (1024 * 1024)
-  return `${mb.toFixed(1)} MB`
-}
-
 const progressDetails = computed(() => {
   if (!isDownloading.value && !downloadedFilePath.value)
     return null
+
   const current = formatBytes(downloadedBytes.value)
+
   if (totalBytes.value && totalBytes.value > 0) {
     const total = formatBytes(totalBytes.value)
+
     return `${current} / ${total}`
   }
+
   return current
 })
+
+function formatBytes(bytes: number): string {
+  if (bytes <= 0)
+    return '0 MB'
+
+  const mb = bytes / (1024 * 1024)
+
+  return `${mb.toFixed(1)} MB`
+}
 </script>
 
 <template>

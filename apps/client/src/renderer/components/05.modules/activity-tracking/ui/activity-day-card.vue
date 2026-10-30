@@ -28,7 +28,9 @@ const emit = defineEmits<{
 const formattedDateSubtitle = computed(() => {
   if (!props.isToday)
     return null
+
   const d = new Date(`${props.summary.dayUtc}T12:00:00Z`)
+
   return d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })
 })
 

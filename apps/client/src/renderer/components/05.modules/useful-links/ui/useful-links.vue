@@ -8,6 +8,7 @@ import { KitTooltip } from '~/components/01.kit/kit-tooltip'
 import { KitViewSwitcher } from '~/components/01.kit/kit-view-switcher'
 import { useDisplay } from '~/shared/composables/use-display'
 import { useUsefulLinks } from '../composables/use-useful-links'
+import MetroMaps from './metro-maps.vue'
 
 const {
   selectedCountryId,
@@ -28,21 +29,28 @@ const {
   isServicePopularIn,
   getServiceCountryNote,
 } = useUsefulLinks()
-
 const { mdAndUp, smAndDown } = useDisplay()
 
+const activeTab = ref<'useful' | 'metro'>('useful')
+const metroVisited = ref(false)
+const pageTabs = [
+  { id: 'useful', label: 'Полезное', icon: 'mdi:apps' },
+  { id: 'metro', label: 'Метро', icon: 'mdi:subway-variant' },
+]
 const viewMode = ref<'grid' | 'list'>('grid')
 const isTipsExpanded = ref(true)
-
 const sortOptions = [
   { value: 'default', label: 'По релевантности', icon: 'mdi:sort-variant' },
   { value: 'alphabetical', label: 'По алфавиту', icon: 'mdi:sort-alphabetical-ascending' },
+]
+const viewModeItems = [
+  { id: 'grid', label: 'Сетка', icon: 'mdi:view-grid-outline' },
+  { id: 'list', label: 'Список', icon: 'mdi:view-list-outline' },
 ]
 
 const currentSortOption = computed(() => {
   return sortOptions.find(opt => opt.value === sortOrder.value) || sortOptions[0]
 })
-
 const countryDropdownItems = computed(() => {
   return allCountries.value.map(country => ({
     value: country.id,
@@ -50,35 +58,35 @@ const countryDropdownItems = computed(() => {
   }))
 })
 
-const viewModeItems = [
-  { id: 'grid', label: 'Сетка', icon: 'mdi:view-grid-outline' },
-  { id: 'list', label: 'Список', icon: 'mdi:view-list-outline' },
-]
+watch(activeTab, (tab) => {
+  if (tab === 'metro')
+    metroVisited.value = true
+})
 
 function getFaviconUrl(url: string) {
   try {
     const domain = new URL(url).hostname
+
     return `https://www.google.com/s2/favicons?domain=${domain}&sz=32`
   }
   catch {
     return ''
   }
 }
-
 function categoryToId(id: string) {
   return `category-section-${id}`
 }
-
 function scrollToCategory(id: string) {
   const element = document.getElementById(categoryToId(id))
+
   if (element) {
     const y = element.getBoundingClientRect().top + window.scrollY - 110
     window.scrollTo({ top: y, behavior: 'smooth' })
   }
 }
-
 function handleCategoryClick(catId: CategoryId | 'all') {
   setCategory(catId)
+
   if (catId !== 'all') {
     nextTick(() => {
       scrollToCategory(catId)
@@ -99,290 +107,312 @@ function handleCategoryClick(catId: CategoryId | 'all') {
       </p>
     </div>
 
-    <!-- Country Selector Section -->
-    <div class="country-selector-section">
-      <div class="section-title-row">
-        <span class="section-label">
-          <Icon icon="mdi:earth" class="label-icon" />
-          Выберите страну или регион:
-        </span>
+    <KitViewSwitcher
+      v-model="activeTab"
+      :items="pageTabs"
+      class="page-tabs"
+      aria-label="Раздел полезных сервисов"
+    />
 
-        <div class="country-dropdown-wrapper">
-          <KitDropdown
-            :model-value="selectedCountryId"
-            :items="countryDropdownItems"
-            align="end"
-            size="sm"
-            @update:model-value="(val) => val && setCountry(val as string)"
-          >
-            <template #trigger>
-              <KitBtn variant="outlined" color="secondary" size="sm" class="all-countries-btn">
-                <span>{{ currentCountry.flag }} {{ currentCountry.name }}</span>
-                <Icon icon="mdi:chevron-down" />
-              </KitBtn>
-            </template>
-          </KitDropdown>
-        </div>
-      </div>
+    <div v-show="activeTab === 'useful'" class="tab-content">
+      <!-- Country Selector Section -->
+      <div class="country-selector-section">
+        <div class="section-title-row">
+          <span class="section-label">
+            <Icon icon="mdi:earth" class="label-icon" />
+            Выберите страну или регион:
+          </span>
 
-      <div class="country-chips-bar">
-        <button
-          v-for="country in popularCountries"
-          :key="country.id"
-          class="country-chip"
-          :class="{ active: selectedCountryId === country.id }"
-          @click="setCountry(country.id)"
-        >
-          <span class="country-flag">{{ country.flag }}</span>
-          <span class="country-name">{{ country.name }}</span>
-        </button>
-      </div>
-    </div>
-
-    <!-- Country Travel Tips & Warnings Banner -->
-    <Transition name="fade-collapse">
-      <div v-if="currentCountry.tips && currentCountry.tips.length" class="country-tips-card">
-        <div class="tips-header" @click="isTipsExpanded = !isTipsExpanded">
-          <div class="tips-title-group">
-            <span class="tips-country-flag">{{ currentCountry.flag }}</span>
-            <div>
-              <h2 class="tips-country-title">
-                Особенности и лайфхаки: {{ currentCountry.name }}
-              </h2>
-              <p class="tips-country-desc">
-                {{ currentCountry.description }}
-              </p>
-            </div>
-          </div>
-          <button class="tips-toggle-btn" :aria-label="isTipsExpanded ? 'Свернуть' : 'Развернуть'">
-            <Icon :icon="isTipsExpanded ? 'mdi:chevron-up' : 'mdi:chevron-down'" />
-          </button>
-        </div>
-
-        <div v-show="isTipsExpanded" class="tips-grid">
-          <div
-            v-for="(tip, idx) in currentCountry.tips"
-            :key="idx"
-            class="tip-item"
-            :class="[`tip--${tip.type || 'tip'}`]"
-          >
-            <div class="tip-icon-box">
-              <Icon :icon="tip.icon || (tip.type === 'warning' ? 'mdi:alert' : 'mdi:lightbulb-outline')" />
-            </div>
-            <div class="tip-content">
-              <h3 class="tip-title">
-                {{ tip.title }}
-              </h3>
-              <p class="tip-text">
-                {{ tip.text }}
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-    </Transition>
-
-    <!-- Category Tabs Navigation -->
-    <div class="category-tabs-bar">
-      <button
-        class="category-tab-btn"
-        :class="{ active: selectedCategory === 'all' }"
-        @click="handleCategoryClick('all')"
-      >
-        <Icon icon="mdi:apps" />
-        <span>Все категории</span>
-        <span class="tab-count">{{ totalResultsCount }}</span>
-      </button>
-
-      <button
-        v-for="cat in categories"
-        :key="cat.id"
-        class="category-tab-btn"
-        :class="{ active: selectedCategory === cat.id }"
-        @click="handleCategoryClick(cat.id)"
-      >
-        <Icon :icon="cat.icon" />
-        <span>{{ cat.title }}</span>
-      </button>
-    </div>
-
-    <!-- Search & Controls Panel -->
-    <div class="tools-panel">
-      <div class="tools-main-row">
-        <div class="search-wrapper">
-          <KitInput
-            v-model="searchQuery"
-            placeholder="Поиск сервиса, приложения или ключевого слова (например, такси, поезда, карты)..."
-            icon="mdi:magnify"
-            class="search-input"
-          />
-        </div>
-
-        <div class="tools-actions">
-          <div class="view-controls">
+          <div class="country-dropdown-wrapper">
             <KitDropdown
-              v-model="sortOrder"
-              :items="sortOptions"
+              :model-value="selectedCountryId"
+              :items="countryDropdownItems"
               align="end"
-              size="md"
+              size="sm"
+              @update:model-value="(val) => val && setCountry(val as string)"
             >
               <template #trigger>
                 <KitBtn
-                  :icon="currentSortOption.icon"
                   variant="outlined"
                   color="secondary"
-                  class="sort-btn"
+                  size="sm"
+                  class="all-countries-btn"
                 >
-                  <span v-if="mdAndUp">{{ currentSortOption.label }}</span>
+                  <span>{{ currentCountry.flag }} {{ currentCountry.name }}</span>
+                  <Icon icon="mdi:chevron-down" />
                 </KitBtn>
               </template>
             </KitDropdown>
+          </div>
+        </div>
 
-            <KitViewSwitcher v-if="mdAndUp" v-model="viewMode" :items="viewModeItems" />
+        <div class="country-chips-bar">
+          <button
+            v-for="country in popularCountries"
+            :key="country.id"
+            class="country-chip"
+            :class="{ active: selectedCountryId === country.id }"
+            @click="setCountry(country.id)"
+          >
+            <span class="country-flag">{{ country.flag }}</span>
+            <span class="country-name">{{ country.name }}</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Country Travel Tips & Warnings Banner -->
+      <Transition name="fade-collapse">
+        <div v-if="currentCountry.tips && currentCountry.tips.length" class="country-tips-card">
+          <div class="tips-header" @click="isTipsExpanded = !isTipsExpanded">
+            <div class="tips-title-group">
+              <span class="tips-country-flag">{{ currentCountry.flag }}</span>
+              <div>
+                <h2 class="tips-country-title">
+                  Особенности и лайфхаки: {{ currentCountry.name }}
+                </h2>
+                <p class="tips-country-desc">
+                  {{ currentCountry.description }}
+                </p>
+              </div>
+            </div>
+            <button class="tips-toggle-btn" :aria-label="isTipsExpanded ? 'Свернуть' : 'Развернуть'">
+              <Icon :icon="isTipsExpanded ? 'mdi:chevron-up' : 'mdi:chevron-down'" />
+            </button>
+          </div>
+
+          <div v-show="isTipsExpanded" class="tips-grid">
+            <div
+              v-for="(tip, idx) in currentCountry.tips"
+              :key="idx"
+              class="tip-item"
+              :class="[`tip--${tip.type || 'tip'}`]"
+            >
+              <div class="tip-icon-box">
+                <Icon :icon="tip.icon || (tip.type === 'warning' ? 'mdi:alert' : 'mdi:lightbulb-outline')" />
+              </div>
+              <div class="tip-content">
+                <h3 class="tip-title">
+                  {{ tip.title }}
+                </h3>
+                <p class="tip-text">
+                  {{ tip.text }}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </Transition>
+
+      <!-- Category Tabs Navigation -->
+      <div class="category-tabs-bar">
+        <button
+          class="category-tab-btn"
+          :class="{ active: selectedCategory === 'all' }"
+          @click="handleCategoryClick('all')"
+        >
+          <Icon icon="mdi:apps" />
+          <span>Все категории</span>
+          <span class="tab-count">{{ totalResultsCount }}</span>
+        </button>
+
+        <button
+          v-for="cat in categories"
+          :key="cat.id"
+          class="category-tab-btn"
+          :class="{ active: selectedCategory === cat.id }"
+          @click="handleCategoryClick(cat.id)"
+        >
+          <Icon :icon="cat.icon" />
+          <span>{{ cat.title }}</span>
+        </button>
+      </div>
+
+      <!-- Search & Controls Panel -->
+      <div class="tools-panel">
+        <div class="tools-main-row">
+          <div class="search-wrapper">
+            <KitInput
+              v-model="searchQuery"
+              placeholder="Поиск сервиса, приложения или ключевого слова (например, такси, поезда, карты)..."
+              icon="mdi:magnify"
+              class="search-input"
+            />
+          </div>
+
+          <div class="tools-actions">
+            <div class="view-controls">
+              <KitDropdown
+                v-model="sortOrder"
+                :items="sortOptions"
+                align="end"
+                size="md"
+              >
+                <template #trigger>
+                  <KitBtn
+                    :icon="currentSortOption.icon"
+                    variant="outlined"
+                    color="secondary"
+                    class="sort-btn"
+                  >
+                    <span v-if="mdAndUp">{{ currentSortOption.label }}</span>
+                  </KitBtn>
+                </template>
+              </KitDropdown>
+
+              <KitViewSwitcher v-if="mdAndUp" v-model="viewMode" :items="viewModeItems" />
+            </div>
           </div>
         </div>
       </div>
-    </div>
 
-    <!-- Active Filters Summary (if filters active) -->
-    <div v-if="searchQuery || selectedCategory !== 'all'" class="active-filters-bar">
-      <span class="filters-summary-text">
-        Найдено: <strong>{{ totalResultsCount }}</strong> сервисов
-      </span>
-      <button class="reset-filters-btn" @click="clearFilters">
-        <Icon icon="mdi:close-circle-outline" />
-        <span>Сбросить фильтры</span>
-      </button>
-    </div>
+      <!-- Active Filters Summary (if filters active) -->
+      <div v-if="searchQuery || selectedCategory !== 'all'" class="active-filters-bar">
+        <span class="filters-summary-text">
+          Найдено: <strong>{{ totalResultsCount }}</strong> сервисов
+        </span>
+        <button class="reset-filters-btn" @click="clearFilters">
+          <Icon icon="mdi:close-circle-outline" />
+          <span>Сбросить фильтры</span>
+        </button>
+      </div>
 
-    <!-- Categories & Service Cards List -->
-    <div v-if="filteredCategories.length > 0" class="categories-container" :class="[`view--${viewMode}`]">
-      <section
-        v-for="category in filteredCategories"
-        :id="categoryToId(category.id)"
-        :key="category.id"
-        class="category-group"
-      >
-        <div class="category-header">
-          <div class="category-icon-wrapper">
-            <Icon :icon="category.icon" />
+      <!-- Categories & Service Cards List -->
+      <div v-if="filteredCategories.length > 0" class="categories-container" :class="[`view--${viewMode}`]">
+        <section
+          v-for="category in filteredCategories"
+          :id="categoryToId(category.id)"
+          :key="category.id"
+          class="category-group"
+        >
+          <div class="category-header">
+            <div class="category-icon-wrapper">
+              <Icon :icon="category.icon" />
+            </div>
+            <h2 class="category-title">
+              {{ category.title }}
+            </h2>
+            <span class="category-count">{{ category.links.length }}</span>
           </div>
-          <h2 class="category-title">
-            {{ category.title }}
-          </h2>
-          <span class="category-count">{{ category.links.length }}</span>
-        </div>
 
-        <ul class="links-grid">
-          <li v-for="link in category.links" :key="link.id" class="link-card-wrapper">
-            <div
-              class="link-card"
-              :class="{
-                'is-blocked': isServiceBlocked(link),
-                'is-popular': isServicePopularIn(link),
-              }"
-            >
-              <!-- Card Header -->
-              <div class="link-card-header">
-                <div class="favicon-wrapper">
-                  <img :src="getFaviconUrl(link.url)" alt="" loading="lazy">
+          <ul class="links-grid">
+            <li v-for="link in category.links" :key="link.id" class="link-card-wrapper">
+              <div
+                class="link-card"
+                :class="{
+                  'is-blocked': isServiceBlocked(link),
+                  'is-popular': isServicePopularIn(link),
+                }"
+              >
+                <!-- Card Header -->
+                <div class="link-card-header">
+                  <div class="favicon-wrapper">
+                    <img :src="getFaviconUrl(link.url)" alt="" loading="lazy">
+                  </div>
+
+                  <div class="link-meta">
+                    <a
+                      :href="link.url"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      class="link-title"
+                    >
+                      <span>{{ link.name }}</span>
+                      <Icon icon="mdi:open-in-new" class="external-icon" />
+                    </a>
+
+                    <div class="badges-row">
+                      <!-- Popular in selected country badge -->
+                      <span v-if="isServicePopularIn(link)" class="badge badge--popular">
+                        <Icon icon="mdi:star" />
+                        {{ isGlobalView ? 'Популярный' : `Топ в ${currentCountry.name}` }}
+                      </span>
+
+                      <!-- Blocked in country badge -->
+                      <span v-if="isServiceBlocked(link)" class="badge badge--blocked">
+                        <Icon icon="mdi:alert-circle" />
+                        Не работает в {{ currentCountry.name }}
+                      </span>
+                    </div>
+                  </div>
                 </div>
 
-                <div class="link-meta">
-                  <a
-                    :href="link.url"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    class="link-title"
-                  >
-                    <span>{{ link.name }}</span>
-                    <Icon icon="mdi:open-in-new" class="external-icon" />
-                  </a>
+                <!-- Blocked warning banner -->
+                <div v-if="isServiceBlocked(link)" class="blocked-warning-box">
+                  <Icon icon="mdi:alert-outline" class="box-icon" />
+                  <p>{{ isServiceBlocked(link)?.reason }}</p>
+                </div>
 
-                  <div class="badges-row">
-                    <!-- Popular in selected country badge -->
-                    <span v-if="isServicePopularIn(link)" class="badge badge--popular">
-                      <Icon icon="mdi:star" />
-                      {{ isGlobalView ? 'Популярный' : `Топ в ${currentCountry.name}` }}
+                <!-- Country specific lifehack/note banner -->
+                <div v-else-if="getServiceCountryNote(link)" class="country-note-box">
+                  <Icon icon="mdi:lightbulb-on-outline" class="box-icon" />
+                  <p>{{ getServiceCountryNote(link) }}</p>
+                </div>
+
+                <!-- Description -->
+                <p class="link-description">
+                  {{ link.description }}
+                </p>
+
+                <!-- Card Footer -->
+                <div class="link-card-footer">
+                  <div class="footer-badges">
+                    <span v-if="link.recommended && !isServicePopularIn(link)" class="badge badge--recommended">
+                      <Icon icon="mdi:thumb-up-outline" /> Наш выбор
                     </span>
 
-                    <!-- Blocked in country badge -->
-                    <span v-if="isServiceBlocked(link)" class="badge badge--blocked">
-                      <Icon icon="mdi:alert-circle" />
-                      Не работает в {{ currentCountry.name }}
+                    <KitTooltip
+                      v-if="link.isGlobal && !isGlobalView && !link.countries.includes(selectedCountryId)"
+                      text="Глобальный международный сервис"
+                    >
+                      <span class="badge badge--global">
+                        <Icon icon="mdi:earth" /> Глобальный
+                      </span>
+                    </KitTooltip>
+                  </div>
+
+                  <div v-if="link.tags && link.tags.length" class="mini-tags">
+                    <span
+                      v-for="tag in link.tags.slice(0, smAndDown ? 2 : 3)"
+                      :key="tag"
+                      class="mini-tag"
+                    >
+                      {{ tag }}
+                    </span>
+                    <span v-if="link.tags.length > (smAndDown ? 2 : 3)" class="more-tag">
+                      +{{ link.tags.length - (smAndDown ? 2 : 3) }}
                     </span>
                   </div>
                 </div>
               </div>
-
-              <!-- Blocked warning banner -->
-              <div v-if="isServiceBlocked(link)" class="blocked-warning-box">
-                <Icon icon="mdi:alert-outline" class="box-icon" />
-                <p>{{ isServiceBlocked(link)?.reason }}</p>
-              </div>
-
-              <!-- Country specific lifehack/note banner -->
-              <div v-else-if="getServiceCountryNote(link)" class="country-note-box">
-                <Icon icon="mdi:lightbulb-on-outline" class="box-icon" />
-                <p>{{ getServiceCountryNote(link) }}</p>
-              </div>
-
-              <!-- Description -->
-              <p class="link-description">
-                {{ link.description }}
-              </p>
-
-              <!-- Card Footer -->
-              <div class="link-card-footer">
-                <div class="footer-badges">
-                  <span v-if="link.recommended && !isServicePopularIn(link)" class="badge badge--recommended">
-                    <Icon icon="mdi:thumb-up-outline" /> Наш выбор
-                  </span>
-
-                  <KitTooltip
-                    v-if="link.isGlobal && !isGlobalView && !link.countries.includes(selectedCountryId)"
-                    text="Глобальный международный сервис"
-                  >
-                    <span class="badge badge--global">
-                      <Icon icon="mdi:earth" /> Глобальный
-                    </span>
-                  </KitTooltip>
-                </div>
-
-                <div v-if="link.tags && link.tags.length" class="mini-tags">
-                  <span
-                    v-for="tag in link.tags.slice(0, smAndDown ? 2 : 3)"
-                    :key="tag"
-                    class="mini-tag"
-                  >
-                    {{ tag }}
-                  </span>
-                  <span v-if="link.tags.length > (smAndDown ? 2 : 3)" class="more-tag">
-                    +{{ link.tags.length - (smAndDown ? 2 : 3) }}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </li>
-        </ul>
-      </section>
-    </div>
-
-    <!-- Empty State -->
-    <div v-else class="no-results">
-      <div class="no-results-icon-box">
-        <Icon icon="mdi:magnify-remove-outline" />
+            </li>
+          </ul>
+        </section>
       </div>
-      <h3 class="no-results-title">
-        Ничего не найдено
-      </h3>
-      <p class="no-results-desc">
-        Попробуйте изменить поисковый запрос, выбрать другую страну или сбросить активные фильтры.
-      </p>
-      <KitBtn variant="tonal" color="primary" class="reset-btn" @click="clearFilters">
-        <Icon icon="mdi:refresh" />
-        <span>Сбросить фильтры</span>
-      </KitBtn>
+
+      <!-- Empty State -->
+      <div v-else class="no-results">
+        <div class="no-results-icon-box">
+          <Icon icon="mdi:magnify-remove-outline" />
+        </div>
+        <h3 class="no-results-title">
+          Ничего не найдено
+        </h3>
+        <p class="no-results-desc">
+          Попробуйте изменить поисковый запрос, выбрать другую страну или сбросить активные фильтры.
+        </p>
+        <KitBtn
+          variant="tonal"
+          color="primary"
+          class="reset-btn"
+          @click="clearFilters"
+        >
+          <Icon icon="mdi:refresh" />
+          <span>Сбросить фильтры</span>
+        </KitBtn>
+      </div>
+    </div>
+    <div v-if="metroVisited" v-show="activeTab === 'metro'" class="tab-content">
+      <MetroMaps />
     </div>
   </section>
 </template>
@@ -392,12 +422,30 @@ function handleCategoryClick(catId: CategoryId | 'all') {
   width: 100%;
   display: flex;
   flex-direction: column;
-  gap: 1.75rem;
+  gap: 1rem;
   padding-bottom: 5rem;
+}
+
+.tab-content {
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+  min-width: 0;
+}
+
+.page-tabs {
+  align-self: flex-start;
+  max-width: 100%;
+
+  @include media-down(sm) {
+    align-self: stretch;
+  }
 }
 
 /* Header */
 .page-header {
+  margin: 0;
+  padding: 0;
   display: flex;
   flex-direction: column;
   gap: 0.5rem;

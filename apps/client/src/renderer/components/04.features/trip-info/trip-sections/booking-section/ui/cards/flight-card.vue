@@ -20,6 +20,7 @@ interface Props {
   readonly: boolean
   showDragHandle?: boolean
 }
+
 const props = withDefaults(defineProps<Props>(), {
   showDragHandle: true,
 })
@@ -30,111 +31,21 @@ const emit = defineEmits<{
 
 const route = useRoute()
 const tripPlanStore = useTripPlanStore()
-const tripId = computed(() => (route?.params?.id as string) || tripPlanStore?.currentTripId || '')
 
-const photosList = computed<string[]>(() => props.booking.data.photos || props.booking.data.imageUrls || [])
-
-function updatePhotos(newPhotos: string[]) {
-  emit('update:booking', {
-    ...props.booking,
-    data: {
-      ...props.booking.data,
-      photos: newPhotos,
-      imageUrls: newPhotos,
-    },
-  })
-}
-
-const segments = computed(() => props.booking.data.segments || [])
-const firstSegment = computed(() => segments.value[0])
-const lastSegment = computed(() => segments.value[segments.value.length - 1])
 const selectedCityRefs = ref<Record<string, GeoPlaceRef>>({})
 let cityHydrationSequence = 0
 
-function cityRefKey(segmentIndex: number, field: 'departure' | 'arrival') {
-  return `${segmentIndex}:${field}`
-}
-
-function segmentCityId(segment: FlightSegment, field: 'departure' | 'arrival') {
-  return field === 'departure' ? segment.departureCityId : segment.arrivalCityId
-}
-
-function updateSegmentCity(segmentIndex: number, field: 'departure' | 'arrival', value: GeoPlaceRef | GeoPlaceRef[] | null) {
-  const place = Array.isArray(value) ? value[0] ?? null : value
-  const segment = segments.value[segmentIndex]
-  if (!segment)
-    return
-
-  const newSegments = JSON.parse(JSON.stringify(props.booking.data.segments || [])) as FlightSegment[]
-  const nextSegment = newSegments[segmentIndex]
-  if (!nextSegment)
-    return
-
-  if (field === 'departure') {
-    nextSegment.departureCityId = place?.id
-    nextSegment.departureCity = place?.name
-  }
-  else {
-    nextSegment.arrivalCityId = place?.id
-    nextSegment.arrivalCity = place?.name
-  }
-
-  const key = cityRefKey(segmentIndex, field)
-  const nextSelected = { ...selectedCityRefs.value }
-  if (place)
-    nextSelected[key] = place
-  else
-    delete nextSelected[key]
-  selectedCityRefs.value = nextSelected
-
-  emit('update:booking', {
-    ...props.booking,
-    data: { ...props.booking.data, segments: newSegments },
-  })
-}
-
-watch(segments, async (currentSegments) => {
-  const sequence = ++cityHydrationSequence
-  const currentIds = new Set(currentSegments.flatMap(segment => [segment.departureCityId, segment.arrivalCityId].filter((id): id is string => !!id)))
-  const cached = Object.fromEntries(Object.entries(selectedCityRefs.value).filter(([key]) => {
-    const [index, field] = key.split(':')
-    const segment = currentSegments[Number(index)]
-    return !!segment && currentIds.has(segmentCityId(segment, field as 'departure' | 'arrival') ?? '')
-  }))
-  selectedCityRefs.value = cached
-
-  const missingIds = [...new Set(currentSegments.flatMap((segment) => {
-    const departureMissing = segment.departureCityId && !Object.values(cached).some(place => place.id === segment.departureCityId)
-    const arrivalMissing = segment.arrivalCityId && !Object.values(cached).some(place => place.id === segment.arrivalCityId)
-    return [departureMissing ? segment.departureCityId : undefined, arrivalMissing ? segment.arrivalCityId : undefined].filter((id): id is string => !!id)
-  }))]
-  if (missingIds.length === 0)
-    return
-
-  const places = await useRequest({
-    key: `flight-card:cities:${props.booking.id}:${missingIds.join(',')}`,
-    fn: db => db.geo.getPlacesByIds(missingIds),
-  })
-  if (sequence !== cityHydrationSequence)
-    return
-
-  const nextSelected = { ...selectedCityRefs.value }
-  for (const place of places ?? []) {
-    currentSegments.forEach((segment, index) => {
-      if (segment.departureCityId === place.id)
-        nextSelected[cityRefKey(index, 'departure')] = place
-      if (segment.arrivalCityId === place.id)
-        nextSelected[cityRefKey(index, 'arrival')] = place
-    })
-  }
-  selectedCityRefs.value = nextSelected
-}, { immediate: true, deep: true })
-
+const tripId = computed(() => (route?.params?.id as string) || tripPlanStore?.currentTripId || '')
+const photosList = computed<string[]>(() => props.booking.data.photos || props.booking.data.imageUrls || [])
+const segments = computed(() => props.booking.data.segments || [])
+const firstSegment = computed(() => segments.value[0])
+const lastSegment = computed(() => segments.value[segments.value.length - 1])
 const uniqueAirlines = computed(() => {
   if (!segments.value || segments.value.length === 0)
     return []
 
   const seen = new Set()
+
   return segments.value
     .map(segment => ({
       iataCode: segment.airlineIataCode,
@@ -145,67 +56,22 @@ const uniqueAirlines = computed(() => {
         return false
 
       seen.add(airline.iataCode)
+
       return true
     })
 })
-
-function getAirlineLogoUrl(iataCode?: string): string | null {
-  if (!iataCode || iataCode.length < 2)
-    return null
-  return `https://www.skyscanner.net/images/airlines/favicon/${iataCode.toUpperCase()}.png`
-}
-
-function createDateWithTimezone(dateTime?: string, timeZone?: string): Date | null {
-  if (!dateTime)
-    return null
-  const hasOffset = /Z|[+-]\d{2}(?::\d{2})?$/.test(dateTime)
-  if (hasOffset) {
-    const date = new Date(dateTime)
-    return Number.isNaN(date.getTime()) ? null : date
-  }
-  if (timeZone) {
-    const fullIso = `${dateTime}${timeZone}`
-    const date = new Date(fullIso)
-    return Number.isNaN(date.getTime()) ? null : date
-  }
-  return null
-}
-
-function formatDisplayDateTime(localDateTime?: string) {
-  if (!localDateTime)
-    return { time: '', date: '' }
-  try {
-    const time = localDateTime.substring(11, 16)
-    const dateOnly = localDateTime.substring(0, 10)
-    const dateObj = new Date(`${dateOnly}T12:00:00Z`)
-    const dateStr = dateObj.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', weekday: 'short' })
-    return { time, date: dateStr }
-  }
-  catch {
-    return { time: '??:??', date: 'Неверная дата' }
-  }
-}
-
-function formatDuration(ms: number) {
-  if (ms < 0)
-    return '---'
-  const hours = Math.floor(ms / (1000 * 60 * 60))
-  const minutes = Math.round((ms % (1000 * 60 * 60)) / (1000 * 60))
-  return `${hours}ч ${minutes}м`
-}
-
 const totalDurationMs = computed(() => {
   const startDate = createDateWithTimezone(firstSegment.value?.departureDateTime, firstSegment.value?.departureTimeZone)
   const endDate = createDateWithTimezone(lastSegment.value?.arrivalDateTime, lastSegment.value?.arrivalTimeZone)
+
   if (!startDate || !endDate)
     return 0
+
   return endDate.getTime() - startDate.getTime()
 })
-
 const totalDurationFormatted = computed(() => {
   return formatDuration(totalDurationMs.value)
 })
-
 const journeySegments = computed(() => {
   if (totalDurationMs.value <= 0 || segments.value.length === 0)
     return []
@@ -222,6 +88,7 @@ const journeySegments = computed(() => {
       continue
 
     const flightDurationMs = arrivalDate.getTime() - departureDate.getTime()
+
     if (flightDurationMs > 0) {
       journeyParts.push({
         type: 'flight',
@@ -233,10 +100,12 @@ const journeySegments = computed(() => {
     if (i < segments.value.length - 1) {
       const nextSegment = segments.value[i + 1]
       const nextDepartureDate = createDateWithTimezone(nextSegment.departureDateTime, nextSegment.departureTimeZone)
+
       if (!nextDepartureDate)
         continue
 
       const layoverDurationMs = nextDepartureDate.getTime() - arrivalDate.getTime()
+
       if (layoverDurationMs > 0) {
         journeyParts.push({
           type: 'layover',
@@ -246,41 +115,196 @@ const journeySegments = computed(() => {
       }
     }
   }
+
   return journeyParts
 })
 
+watch(segments, async (currentSegments) => {
+  const sequence = ++cityHydrationSequence
+  const currentIds = new Set(currentSegments.flatMap(segment => [segment.departureCityId, segment.arrivalCityId].filter((id): id is string => !!id)))
+  const cached = Object.fromEntries(Object.entries(selectedCityRefs.value).filter(([key]) => {
+    const [index, field] = key.split(':')
+    const segment = currentSegments[Number(index)]
+
+    return !!segment && currentIds.has(segmentCityId(segment, field as 'departure' | 'arrival') ?? '')
+  }))
+  selectedCityRefs.value = cached
+
+  const missingIds = [...new Set(currentSegments.flatMap((segment) => {
+    const departureMissing = segment.departureCityId && !Object.values(cached).some(place => place.id === segment.departureCityId)
+    const arrivalMissing = segment.arrivalCityId && !Object.values(cached).some(place => place.id === segment.arrivalCityId)
+
+    return [departureMissing ? segment.departureCityId : undefined, arrivalMissing ? segment.arrivalCityId : undefined].filter((id): id is string => !!id)
+  }))]
+
+  if (missingIds.length === 0)
+    return
+
+  const places = await useRequest({
+    key: `flight-card:cities:${props.booking.id}:${missingIds.join(',')}`,
+    fn: db => db.geo.getPlacesByIds(missingIds),
+  })
+
+  if (sequence !== cityHydrationSequence)
+    return
+
+  const nextSelected = { ...selectedCityRefs.value }
+
+  for (const place of places ?? []) {
+    currentSegments.forEach((segment, index) => {
+      if (segment.departureCityId === place.id)
+        nextSelected[cityRefKey(index, 'departure')] = place
+
+      if (segment.arrivalCityId === place.id)
+        nextSelected[cityRefKey(index, 'arrival')] = place
+    })
+  }
+
+  selectedCityRefs.value = nextSelected
+}, { immediate: true, deep: true })
+
+function updatePhotos(newPhotos: string[]) {
+  emit('update:booking', {
+    ...props.booking,
+    data: {
+      ...props.booking.data,
+      photos: newPhotos,
+      imageUrls: newPhotos,
+    },
+  })
+}
+function cityRefKey(segmentIndex: number, field: 'departure' | 'arrival') {
+  return `${segmentIndex}:${field}`
+}
+function segmentCityId(segment: FlightSegment, field: 'departure' | 'arrival') {
+  return field === 'departure' ? segment.departureCityId : segment.arrivalCityId
+}
+function updateSegmentCity(segmentIndex: number, field: 'departure' | 'arrival', value: GeoPlaceRef | GeoPlaceRef[] | null) {
+  const place = Array.isArray(value) ? value[0] ?? null : value
+
+  if (!segments.value[segmentIndex])
+    return
+
+  const newSegments = JSON.parse(JSON.stringify(props.booking.data.segments || [])) as FlightSegment[]
+  const nextSegment = newSegments[segmentIndex]
+
+  if (!nextSegment)
+    return
+
+  assignSegmentCity(nextSegment, field, place)
+  updateSelectedCityRef(segmentIndex, field, place)
+
+  emit('update:booking', {
+    ...props.booking,
+    data: { ...props.booking.data, segments: newSegments },
+  })
+}
+function assignSegmentCity(segment: FlightSegment, field: 'departure' | 'arrival', place: GeoPlaceRef | null) {
+  if (field === 'departure') {
+    segment.departureCityId = place?.id
+    segment.departureCity = place?.name
+
+    return
+  }
+
+  segment.arrivalCityId = place?.id
+  segment.arrivalCity = place?.name
+}
+function updateSelectedCityRef(segmentIndex: number, field: 'departure' | 'arrival', place: GeoPlaceRef | null) {
+  const key = cityRefKey(segmentIndex, field)
+  const nextSelected = { ...selectedCityRefs.value }
+
+  if (place)
+    nextSelected[key] = place
+  else
+    delete nextSelected[key]
+
+  selectedCityRefs.value = nextSelected
+}
+function getAirlineLogoUrl(iataCode?: string): string | null {
+  if (!iataCode || iataCode.length < 2)
+    return null
+
+  return `https://www.skyscanner.net/images/airlines/favicon/${iataCode.toUpperCase()}.png`
+}
+function createDateWithTimezone(dateTime?: string, timeZone?: string): Date | null {
+  if (!dateTime)
+    return null
+
+  const hasOffset = /Z|[+-]\d{2}(?::\d{2})?$/.test(dateTime)
+
+  if (hasOffset) {
+    const date = new Date(dateTime)
+
+    return Number.isNaN(date.getTime()) ? null : date
+  }
+
+  if (timeZone) {
+    const fullIso = `${dateTime}${timeZone}`
+    const date = new Date(fullIso)
+
+    return Number.isNaN(date.getTime()) ? null : date
+  }
+
+  return null
+}
+function formatDisplayDateTime(localDateTime?: string) {
+  if (!localDateTime)
+    return { time: '', date: '' }
+
+  try {
+    const time = localDateTime.substring(11, 16)
+    const dateOnly = localDateTime.substring(0, 10)
+    const dateObj = new Date(`${dateOnly}T12:00:00Z`)
+    const dateStr = dateObj.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', weekday: 'short' })
+
+    return { time, date: dateStr }
+  }
+  catch {
+    return { time: '??:??', date: 'Неверная дата' }
+  }
+}
+function formatDuration(ms: number) {
+  if (ms < 0)
+    return '---'
+
+  const hours = Math.floor(ms / (1000 * 60 * 60))
+  const minutes = Math.round((ms % (1000 * 60 * 60)) / (1000 * 60))
+
+  return `${hours}ч ${minutes}м`
+}
 function segmentDuration(segment: FlightSegment) {
   const departureDate = createDateWithTimezone(segment.departureDateTime, segment.departureTimeZone)
   const arrivalDate = createDateWithTimezone(segment.arrivalDateTime, segment.arrivalTimeZone)
+
   if (!departureDate || !arrivalDate)
     return ''
-  return formatDuration(
-    arrivalDate.getTime() - departureDate.getTime(),
-  )
-}
 
+  return formatDuration(arrivalDate.getTime() - departureDate.getTime())
+}
 function getLayoverDuration(prevSegment: FlightSegment, currentSegment: FlightSegment): string {
   const prevArrivalDate = createDateWithTimezone(prevSegment.arrivalDateTime, prevSegment.arrivalTimeZone)
   const currentDepartureDate = createDateWithTimezone(currentSegment.departureDateTime, currentSegment.departureTimeZone)
+
   if (!prevArrivalDate || !currentDepartureDate)
     return ''
+
   const durationMs = currentDepartureDate.getTime() - prevArrivalDate.getTime()
+
   return formatDuration(durationMs)
 }
-
 function updateTitle(newTitle: string) {
   emit('update:booking', { ...props.booking, title: newTitle })
 }
-
 function updateDataField<K extends keyof FlightData>(key: K, value: FlightData[K]) {
   emit('update:booking', {
     ...props.booking,
     data: { ...props.booking.data, [key]: value },
   })
 }
-
 function updateSegmentField<K extends keyof FlightSegment>(segmentIndex: number, key: K, value: FlightSegment[K]) {
   const newSegments = JSON.parse(JSON.stringify(props.booking.data.segments || []))
+
   if (newSegments[segmentIndex]) {
     newSegments[segmentIndex][key] = value
     emit('update:booking', {
@@ -426,8 +450,21 @@ function updateSegmentField<K extends keyof FlightSegment>(segmentIndex: number,
             </div>
           </div>
 
-          <BookingField :model-value="segment.airline" label="Авиакомпания" icon="mdi:compass-rose" :readonly="readonly" @update:model-value="updateSegmentField(index, 'airline', $event)" />
-          <BookingField :model-value="segment.airlineIataCode" label="Код авиакомпании" icon="mdi:barcode" :readonly="readonly" placeholder="SU" @update:model-value="updateSegmentField(index, 'airlineIataCode', $event)" />
+          <BookingField
+            :model-value="segment.airline"
+            label="Авиакомпания"
+            icon="mdi:compass-rose"
+            :readonly="readonly"
+            @update:model-value="updateSegmentField(index, 'airline', $event)"
+          />
+          <BookingField
+            :model-value="segment.airlineIataCode"
+            label="Код авиакомпании"
+            icon="mdi:barcode"
+            :readonly="readonly"
+            placeholder="SU"
+            @update:model-value="updateSegmentField(index, 'airlineIataCode', $event)"
+          />
           <div v-if="readonly" class="flight-city-field">
             <span class="field-label">Город вылета</span>
             <span>{{ segment.departureCity || '—' }}</span>
@@ -454,17 +491,89 @@ function updateSegmentField<K extends keyof FlightSegment>(segmentIndex: number,
               @update:model-value="updateSegmentCity(index, 'arrival', $event)"
             />
           </div>
-          <BookingField :model-value="segment.departureAirport" label="Аэропорт вылета" icon="mdi:airplane-takeoff" :readonly="readonly" @update:model-value="updateSegmentField(index, 'departureAirport', $event)" />
-          <BookingField :model-value="segment.arrivalAirport" label="Аэропорт прилета" icon="mdi:airplane-landing" :readonly="readonly" @update:model-value="updateSegmentField(index, 'arrivalAirport', $event)" />
-          <BookingDateTimeField :model-value="segment.departureDateTime" label="Время вылета" icon="mdi:clock-start" :readonly="readonly" type="datetime" @update:model-value="updateSegmentField(index, 'departureDateTime', $event)" />
-          <BookingField :model-value="segment.departureTimeZone" label="Часовой пояс вылета" icon="mdi:clock-time-four-outline" :readonly="readonly" placeholder="+03:00" @update:model-value="updateSegmentField(index, 'departureTimeZone', $event)" />
-          <BookingDateTimeField :model-value="segment.arrivalDateTime" label="Время прилета" icon="mdi:clock-end" :readonly="readonly" type="datetime" @update:model-value="updateSegmentField(index, 'arrivalDateTime', $event)" />
-          <BookingField :model-value="segment.arrivalTimeZone" label="Часовой пояс прилета" icon="mdi:clock-time-four-outline" :readonly="readonly" placeholder="+08:00" @update:model-value="updateSegmentField(index, 'arrivalTimeZone', $event)" />
-          <BookingField :model-value="segment.terminalDeparture" label="Терминал вылета" icon="mdi:gate" :readonly="readonly" @update:model-value="updateSegmentField(index, 'terminalDeparture', $event)" />
-          <BookingField :model-value="segment.terminalArrival" label="Терминал прилета" icon="mdi:gate" :readonly="readonly" @update:model-value="updateSegmentField(index, 'terminalArrival', $event)" />
-          <BookingField :model-value="segment.aircraft" label="Самолет" icon="mdi:airplane" :readonly="readonly" class="span-2" @update:model-value="updateSegmentField(index, 'aircraft', $event)" />
-          <BookingField :model-value="segment.seat" label="Место" icon="mdi:seat-passenger" :readonly="readonly" placeholder="12A" @update:model-value="updateSegmentField(index, 'seat', $event)" />
-          <BookingField :model-value="segmentDuration(segment)" label="В пути" icon="mdi:timer-sand" :readonly="readonly" disabled />
+          <BookingField
+            :model-value="segment.departureAirport"
+            label="Аэропорт вылета"
+            icon="mdi:airplane-takeoff"
+            :readonly="readonly"
+            @update:model-value="updateSegmentField(index, 'departureAirport', $event)"
+          />
+          <BookingField
+            :model-value="segment.arrivalAirport"
+            label="Аэропорт прилета"
+            icon="mdi:airplane-landing"
+            :readonly="readonly"
+            @update:model-value="updateSegmentField(index, 'arrivalAirport', $event)"
+          />
+          <BookingDateTimeField
+            :model-value="segment.departureDateTime"
+            label="Время вылета"
+            icon="mdi:clock-start"
+            :readonly="readonly"
+            type="datetime"
+            @update:model-value="updateSegmentField(index, 'departureDateTime', $event)"
+          />
+          <BookingField
+            :model-value="segment.departureTimeZone"
+            label="Часовой пояс вылета"
+            icon="mdi:clock-time-four-outline"
+            :readonly="readonly"
+            placeholder="+03:00"
+            @update:model-value="updateSegmentField(index, 'departureTimeZone', $event)"
+          />
+          <BookingDateTimeField
+            :model-value="segment.arrivalDateTime"
+            label="Время прилета"
+            icon="mdi:clock-end"
+            :readonly="readonly"
+            type="datetime"
+            @update:model-value="updateSegmentField(index, 'arrivalDateTime', $event)"
+          />
+          <BookingField
+            :model-value="segment.arrivalTimeZone"
+            label="Часовой пояс прилета"
+            icon="mdi:clock-time-four-outline"
+            :readonly="readonly"
+            placeholder="+08:00"
+            @update:model-value="updateSegmentField(index, 'arrivalTimeZone', $event)"
+          />
+          <BookingField
+            :model-value="segment.terminalDeparture"
+            label="Терминал вылета"
+            icon="mdi:gate"
+            :readonly="readonly"
+            @update:model-value="updateSegmentField(index, 'terminalDeparture', $event)"
+          />
+          <BookingField
+            :model-value="segment.terminalArrival"
+            label="Терминал прилета"
+            icon="mdi:gate"
+            :readonly="readonly"
+            @update:model-value="updateSegmentField(index, 'terminalArrival', $event)"
+          />
+          <BookingField
+            :model-value="segment.aircraft"
+            label="Самолет"
+            icon="mdi:airplane"
+            :readonly="readonly"
+            class="span-2"
+            @update:model-value="updateSegmentField(index, 'aircraft', $event)"
+          />
+          <BookingField
+            :model-value="segment.seat"
+            label="Место"
+            icon="mdi:seat-passenger"
+            :readonly="readonly"
+            placeholder="12A"
+            @update:model-value="updateSegmentField(index, 'seat', $event)"
+          />
+          <BookingField
+            :model-value="segmentDuration(segment)"
+            label="В пути"
+            icon="mdi:timer-sand"
+            :readonly="readonly"
+            disabled
+          />
         </template>
 
         <KitDivider class="span-2" />

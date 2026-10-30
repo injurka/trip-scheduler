@@ -21,6 +21,7 @@ export function useDataTimestamp() {
    */
   function peek(key: string) {
     const time = timestampsMap.value[key]
+
     if (time) {
       lastDataTimestamp.value = time
     }

@@ -7,11 +7,7 @@ interface Props {
 
 const props = defineProps<Props>()
 
-const { pause, resume } = useIntervalFn(
-  updateCountdown,
-  1000,
-  { immediate: false },
-)
+const { pause, resume } = useIntervalFn(updateCountdown, 1000, { immediate: false })
 
 const timeLeft = ref({
   days: '00',
@@ -28,6 +24,7 @@ function updateCountdown() {
   if (difference <= 0) {
     timeLeft.value = { days: '00', hours: '00', minutes: '00', seconds: '00' }
     pause()
+
     return
   }
 

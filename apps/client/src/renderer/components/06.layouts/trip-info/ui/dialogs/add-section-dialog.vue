@@ -4,10 +4,7 @@ import { KitDialogWithClose } from '~/components/01.kit/kit-dialog-with-close'
 import { useModuleStore } from '~/components/05.modules/trip-info/composables'
 import { TripSectionType } from '~/shared/types/models/trip'
 
-defineProps<{ visible: boolean }>()
-const emit = defineEmits(['update:visible', 'addSection'])
-
-const { sections: sectionsStore } = useModuleStore(['sections'])
+interface Props { visible: boolean }
 
 interface SectionPreset {
   type: TripSectionType
@@ -17,8 +14,14 @@ interface SectionPreset {
   isAvailable: boolean
 }
 
+defineProps<Props>()
+const emit = defineEmits(['update:visible', 'addSection'])
+
+const { sections: sectionsStore } = useModuleStore(['sections'])
+
 const sectionPresets = computed((): SectionPreset[] => {
   const existingTypes = sectionsStore.existingUniqueSectionTypes
+
   return [
     {
       type: TripSectionType.BOOKINGS,
@@ -64,7 +67,6 @@ const sectionPresets = computed((): SectionPreset[] => {
     },
   ]
 })
-
 const availablePresets = computed(() => {
   return sectionPresets.value.filter(p => p.isAvailable)
 })

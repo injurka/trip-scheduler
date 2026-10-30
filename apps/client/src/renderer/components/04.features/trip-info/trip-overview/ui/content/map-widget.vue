@@ -23,13 +23,19 @@ const props = withDefaults(defineProps<Props>(), {
 
 const router = useRouter()
 const { smAndDown } = useDisplay()
+
 const mapWidgetRef = ref<HTMLElement | null>(null)
+
 const { isFullscreen, toggle: toggleFullscreen } = useFullscreen(mapWidgetRef)
 
 const isLoading = ref(true)
 const mapPoints = ref<MapPoint[]>([])
 const mapRoutes = ref<MapRoute[]>([])
 const mapCenter = ref<Coordinate>([37.6176, 55.7558])
+
+watch(() => [props.cityRefs, props.points, props.routes], () => {
+  initMapData()
+}, { deep: true })
 
 async function initMapData() {
   if (props.points.length > 0 || props.routes.length > 0) {
@@ -39,11 +45,13 @@ async function initMapData() {
     props.points.forEach((p) => {
       if (p && p.coordinates && isValidCoordinate(p.coordinates)) {
         let [lon, lat] = p.coordinates
+
         if (Math.abs(lat) > 90 && Math.abs(lon) <= 90) {
           const temp = lat
           lat = lon
           lon = temp
         }
+
         points.push({
           id: p.id,
           coordinates: [lon, lat],
@@ -62,11 +70,13 @@ async function initMapData() {
           title: r.title || 'Маршрут',
           points: (r.points || []).map((rp: any) => {
             let [lon, lat] = rp.coordinates || [0, 0]
+
             if (Math.abs(lat) > 90 && Math.abs(lon) <= 90) {
               const temp = lat
               lat = lon
               lon = temp
             }
+
             return {
               ...rp,
               coordinates: [lon, lat],
@@ -86,11 +96,13 @@ async function initMapData() {
         r.points.forEach((rp: any) => {
           if (rp && rp.coordinates && isValidCoordinate(rp.coordinates)) {
             let [lon, lat] = rp.coordinates
+
             if (Math.abs(lat) > 90 && Math.abs(lon) <= 90) {
               const temp = lat
               lat = lon
               lon = temp
             }
+
             if (!points.some(m => m.id === rp.id)) {
               points.push({
                 id: rp.id,
@@ -117,6 +129,7 @@ async function initMapData() {
     }
 
     isLoading.value = false
+
     return
   }
 
@@ -133,6 +146,7 @@ async function initMapData() {
     mapPoints.value = points
     mapRoutes.value = []
     isLoading.value = false
+
     return
   }
 
@@ -140,17 +154,14 @@ async function initMapData() {
   mapRoutes.value = []
   isLoading.value = false
 }
-
 function openFullMap() {
   router.push({ query: { ...router.currentRoute.value.query, section: 'map' } })
 }
-
 function handleMapReady(controller: ReturnType<typeof useGeolocationMap>) {
   if (controller.mapInstance.value) {
     fitViewToData(controller.mapInstance.value)
   }
 }
-
 function fitViewToData(map: any) {
   let minLon = Number.POSITIVE_INFINITY
   let minLat = Number.POSITIVE_INFINITY
@@ -160,13 +171,18 @@ function fitViewToData(map: any) {
   const considerPoint = (coords: Coordinate) => {
     if (!isValidCoordinate(coords))
       return
+
     const [lon, lat] = coords
+
     if (lon < minLon)
       minLon = lon
+
     if (lon > maxLon)
       maxLon = lon
+
     if (lat < minLat)
       minLat = lat
+
     if (lat > maxLat)
       maxLat = lat
   }
@@ -183,27 +199,20 @@ function fitViewToData(map: any) {
   })
 
   if (minLon !== Number.POSITIVE_INFINITY && maxLon !== Number.NEGATIVE_INFINITY) {
-    map.fitBounds(
-      [
-        [minLon, minLat],
-        [maxLon, maxLat],
-      ],
-      {
-        padding: 60,
-        maxZoom: 13.5,
-        duration: 500,
-      },
-    )
+    map.fitBounds([
+      [minLon, minLat],
+      [maxLon, maxLat],
+    ], {
+      padding: 60,
+      maxZoom: 13.5,
+      duration: 500,
+    })
   }
 }
 
 onMounted(() => {
   initMapData()
 })
-
-watch(() => [props.cityRefs, props.points, props.routes], () => {
-  initMapData()
-}, { deep: true })
 </script>
 
 <template>

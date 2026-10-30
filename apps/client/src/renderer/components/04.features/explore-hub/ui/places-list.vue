@@ -2,7 +2,9 @@
 import type { Place } from '~/shared/types/models/place'
 import PlaceCard from './place-card.vue'
 
-defineProps<{ places: Place[] }>()
+interface Props { places: Place[] }
+
+defineProps<Props>()
 </script>
 
 <template>

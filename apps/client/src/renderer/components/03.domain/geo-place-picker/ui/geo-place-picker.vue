@@ -6,7 +6,6 @@ import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { useRequest } from '~/plugins/request'
 
 type GeoPlaceSelection = GeoPlaceRef | GeoPlaceRef[] | null
-
 interface Props {
   modelValue: GeoPlaceSelection
   fallbackLabel?: string
@@ -35,12 +34,16 @@ const props = withDefaults(defineProps<Props>(), {
   icon: undefined,
   size: 'md',
 })
-
 const emit = defineEmits<{
   (event: 'update:modelValue', value: GeoPlaceSelection): void
 }>()
 
+const { height: windowHeight } = useWindowSize()
+
 const rootElement = ref<HTMLElement | null>(null)
+
+const { bottom: wrapperBottom, top: wrapperTop } = useElementBounding(rootElement)
+
 const inputElement = ref<HTMLInputElement | null>(null)
 const query = ref('')
 const results = ref<GeoPlaceSearchResult[]>([])
@@ -51,11 +54,22 @@ const activeIndex = ref(-1)
 const requestSequence = ref(0)
 const requestKey = `geo-place-picker:${Math.random().toString(36).slice(2)}`
 let debounceTimer: ReturnType<typeof setTimeout> | undefined
-
 const openDirection = ref<'down' | 'up'>('down')
 const DROPDOWN_MIN_HEIGHT = 250
-const { height: windowHeight } = useWindowSize()
-const { bottom: wrapperBottom, top: wrapperTop } = useElementBounding(rootElement)
+
+const selectedPlaces = computed((): GeoPlaceRef[] => {
+  if (Array.isArray(props.modelValue))
+    return props.modelValue
+
+  return props.modelValue ? [props.modelValue] : []
+})
+const selectedPlaceIds = computed(() => new Set(selectedPlaces.value.map(place => place.id)))
+const displayValue = computed(() => {
+  if (!props.multiple && !query.value)
+    return selectedPlaces.value[0]?.name || props.fallbackLabel || ''
+
+  return query.value
+})
 
 watch(isOpen, (isNowOpen) => {
   if (isNowOpen) {
@@ -72,20 +86,6 @@ watch(isOpen, (isNowOpen) => {
     })
   }
 })
-
-const selectedPlaces = computed((): GeoPlaceRef[] => {
-  if (Array.isArray(props.modelValue))
-    return props.modelValue
-  return props.modelValue ? [props.modelValue] : []
-})
-
-const selectedPlaceIds = computed(() => new Set(selectedPlaces.value.map(place => place.id)))
-const displayValue = computed(() => {
-  if (!props.multiple && !query.value)
-    return selectedPlaces.value[0]?.name || props.fallbackLabel || ''
-  return query.value
-})
-
 watch([query, () => props.countryId, () => props.countryCode, () => props.kinds], () => {
   if (debounceTimer)
     clearTimeout(debounceTimer)
@@ -98,6 +98,7 @@ watch([query, () => props.countryId, () => props.countryCode, () => props.kinds]
   if (currentQuery.length < 2) {
     results.value = []
     isLoading.value = false
+
     return
   }
 
@@ -131,26 +132,24 @@ async function searchPlaces(searchQuery: string, sequence: number) {
   results.value = response ?? []
   isLoading.value = false
 }
-
 function onFocus() {
   if (props.disabled || isOpen.value)
     return
+
   isOpen.value = true
+
   if (!props.multiple && (selectedPlaces.value.length > 0 || props.fallbackLabel)) {
     query.value = ''
     nextTick(() => inputElement.value?.select())
   }
 }
-
 function onInput(value: string) {
   query.value = value
   isOpen.value = true
 }
-
 function emitSelection(places: GeoPlaceRef[]) {
   emit('update:modelValue', props.multiple ? places : places[0] ?? null)
 }
-
 function selectPlace(place: GeoPlaceRef) {
   if (props.multiple) {
     if (!selectedPlaceIds.value.has(place.id))
@@ -166,12 +165,10 @@ function selectPlace(place: GeoPlaceRef) {
   activeIndex.value = -1
   inputElement.value?.focus()
 }
-
 function removePlace(placeId: string) {
   emitSelection(selectedPlaces.value.filter(place => place.id !== placeId))
   inputElement.value?.focus()
 }
-
 function clearSelection() {
   emitSelection([])
   query.value = ''
@@ -179,51 +176,74 @@ function clearSelection() {
   isOpen.value = false
   inputElement.value?.focus()
 }
-
-function onKeydown(event: KeyboardEvent) {
-  if (event.key === 'Escape') {
-    handleClose()
-    return
-  }
-
+function handleArrowNavigation(event: KeyboardEvent): boolean {
   if (event.key === 'ArrowDown' && results.value.length > 0) {
     event.preventDefault()
     isOpen.value = true
     activeIndex.value = Math.min(activeIndex.value + 1, results.value.length - 1)
+
+    return true
   }
-  else if (event.key === 'ArrowUp' && results.value.length > 0) {
+
+  if (event.key === 'ArrowUp' && results.value.length > 0) {
     event.preventDefault()
     activeIndex.value = Math.max(activeIndex.value - 1, 0)
+
+    return true
   }
-  else if (event.key === 'Enter' && isOpen.value && activeIndex.value >= 0) {
-    event.preventDefault()
-    const place = results.value[activeIndex.value]
-    if (place)
-      selectPlace(place)
-  }
-  else if (event.key === 'Backspace' && props.multiple && !query.value && selectedPlaces.value.length > 0) {
-    removePlace(selectedPlaces.value[selectedPlaces.value.length - 1]!.id)
-  }
+
+  return false
 }
 
+function handleEnterSelection(event: KeyboardEvent): boolean {
+  if (event.key !== 'Enter' || !isOpen.value || activeIndex.value < 0)
+    return false
+
+  event.preventDefault()
+  const place = results.value[activeIndex.value]
+
+  if (place)
+    selectPlace(place)
+
+  return true
+}
+
+function handleBackspaceRemoval(event: KeyboardEvent): void {
+  if (event.key === 'Backspace' && props.multiple && !query.value && selectedPlaces.value.length > 0)
+    removePlace(selectedPlaces.value[selectedPlaces.value.length - 1]!.id)
+}
+
+function onKeydown(event: KeyboardEvent) {
+  if (event.key === 'Escape') {
+    handleClose()
+
+    return
+  }
+
+  if (handleArrowNavigation(event) || handleEnterSelection(event))
+    return
+
+  handleBackspaceRemoval(event)
+}
 function handleClose() {
   if (!isOpen.value)
     return
+
   isOpen.value = false
   query.value = ''
   results.value = []
   activeIndex.value = -1
 }
-
-onClickOutside(rootElement, handleClose)
-
 function placeContext(place: GeoPlaceRef) {
   return [place.regionName, place.countryName].filter(Boolean).join(' · ')
 }
 
+onClickOutside(rootElement, handleClose)
+
 onBeforeUnmount(() => {
   if (debounceTimer)
     clearTimeout(debounceTimer)
+
   requestSequence.value++
 })
 </script>

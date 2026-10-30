@@ -26,7 +26,6 @@ type LocalBlogForm = Partial<CreateBlogPostInput> & {
   id?: string
   publishedAt?: string | null
 }
-
 interface Props {
   isEditing?: boolean
   isLoading?: boolean
@@ -37,7 +36,6 @@ const emit = defineEmits<{
   (e: 'save'): void
   (e: 'cancel'): void
 }>()
-
 const modelValue = defineModel<Partial<CreateBlogPostInput> & { id?: string }>({ required: true })
 
 const store = useBlogStore()
@@ -47,12 +45,10 @@ const isSlugManuallyEdited = ref(false)
 const isSettingsDrawerOpen = ref(false)
 const isMediaDrawerOpen = ref(false)
 const viewMode = ref<'edit' | 'preview'>('edit')
-
 const viewItems = [
   { id: 'edit', label: 'Редактор', icon: 'mdi:pencil-outline' },
   { id: 'preview', label: 'Предпросмотр', icon: 'mdi:eye-outline' },
 ]
-
 const localForm = ref<LocalBlogForm>({
   id: modelValue.value?.id || uuidv4(),
   title: modelValue.value?.title || '',
@@ -63,21 +59,28 @@ const localForm = ref<LocalBlogForm>({
   published: modelValue.value?.published ?? true,
   publishedAt: (modelValue.value as any)?.publishedAt || new Date().toISOString(),
 })
-
-// Initialize manual edit flag if slug was already provided
-if (modelValue.value?.slug) {
-  isSlugManuallyEdited.value = true
-}
-
 const selectedDate = shallowRef<CalendarDate>(today(getLocalTimeZone()))
 const selectedTime = shallowRef<Time>(new Time(new Date().getHours(), new Date().getMinutes()))
 const isInternalDateUpdate = ref(false)
 
-// Handle keyboard shortcut (Ctrl+S / Cmd+S)
-useEventListener('keydown', (e: KeyboardEvent) => {
-  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
-    e.preventDefault()
-    emit('save')
+const formattedPublishDate = computed(() => {
+  if (!localForm.value.publishedAt)
+    return 'Не выбрана'
+
+  return formatDate(localForm.value.publishedAt, { dateStyle: 'long', timeStyle: 'short' })
+})
+// Text stats calculation
+const contentStats = computed(() => {
+  const content = localForm.value.content || ''
+  const cleanText = content.replace(/[#*`_~[\]()!-]/g, ' ').trim()
+  const words = cleanText ? cleanText.split(/\s+/).length : 0
+  const chars = content.length
+  const readingTimeMin = Math.max(1, Math.ceil(words / 180))
+
+  return {
+    words,
+    chars,
+    readingTimeMin,
   }
 })
 
@@ -100,7 +103,6 @@ watch(() => localForm.value.publishedAt, (newVal) => {
     }
   }
 }, { immediate: true })
-
 watch([selectedDate, selectedTime], ([date, time]) => {
   if (date && time) {
     const localDate = new Date(
@@ -122,56 +124,36 @@ watch([selectedDate, selectedTime], ([date, time]) => {
     }
   }
 })
-
-const formattedPublishDate = computed(() => {
-  if (!localForm.value.publishedAt)
-    return 'Не выбрана'
-  return formatDate(localForm.value.publishedAt, { dateStyle: 'long', timeStyle: 'short' })
-})
-
 // Auto-sync images for post ID
-watch(
-  () => localForm.value.id,
-  (newId) => {
-    if (newId && !props.isEditing)
-      store.fetchPostImages(newId)
-  },
-  { immediate: true },
-)
-
+watch(() => localForm.value.id, (newId) => {
+  if (newId && !props.isEditing)
+    store.fetchPostImages(newId)
+}, { immediate: true })
 // Sync modelValue from external changes
-watch(
-  () => modelValue.value,
-  (newVal) => {
-    if (!newVal)
-      return
+watch(() => modelValue.value, (newVal) => {
+  if (!newVal)
+    return
 
-    const inputWithId = newVal as LocalBlogForm
-    const incomingId = inputWithId.id || localForm.value.id
+  const inputWithId = newVal as LocalBlogForm
+  const incomingId = inputWithId.id || localForm.value.id
 
-    if (localForm.value.id !== incomingId || !localForm.value.title) {
-      localForm.value = {
-        ...localForm.value,
-        ...newVal,
-        id: incomingId,
-        publishedAt: (newVal as any)?.publishedAt || new Date().toISOString(),
-      }
-      if (newVal.slug) {
-        isSlugManuallyEdited.value = true
-      }
+  if (localForm.value.id !== incomingId || !localForm.value.title) {
+    localForm.value = {
+      ...localForm.value,
+      ...newVal,
+      id: incomingId,
+      publishedAt: (newVal as any)?.publishedAt || new Date().toISOString(),
     }
-  },
-  { deep: true, immediate: true },
-)
 
+    if (newVal.slug) {
+      isSlugManuallyEdited.value = true
+    }
+  }
+}, { deep: true, immediate: true })
 // Sync back to modelValue
-watch(
-  localForm,
-  (newVal) => {
-    Object.assign(modelValue.value, newVal)
-  },
-  { deep: true },
-)
+watch(localForm, (newVal) => {
+  Object.assign(modelValue.value, newVal)
+}, { deep: true })
 
 // Auto-generate slug when title changes unless manually edited
 function handleTitleInput() {
@@ -179,19 +161,18 @@ function handleTitleInput() {
     localForm.value.slug = slugify(localForm.value.title)
   }
 }
-
 function handleSlugManualChange() {
   if (localForm.value.slug) {
     isSlugManuallyEdited.value = true
   }
   else {
     isSlugManuallyEdited.value = false
+
     if (localForm.value.title) {
       localForm.value.slug = slugify(localForm.value.title)
     }
   }
 }
-
 function regenerateSlug() {
   if (localForm.value.title) {
     localForm.value.slug = slugify(localForm.value.title)
@@ -199,34 +180,29 @@ function regenerateSlug() {
     toast.info('Slug обновлен из заголовка')
   }
 }
-
 function handleSetCover(url: string) {
   localForm.value.coverImage = url
   toast.success('Обложка установлена')
 }
-
 function handleInsertMarkdown(markdown: string) {
   localForm.value.content = `${localForm.value.content || ''}\n\n${markdown}\n`
   toast.success('Изображение добавлено в текст')
 }
-
 function removeCover() {
   localForm.value.coverImage = ''
   toast.info('Обложка удалена')
 }
 
-// Text stats calculation
-const contentStats = computed(() => {
-  const content = localForm.value.content || ''
-  const cleanText = content.replace(/[#*`_~[\]()!-]/g, ' ').trim()
-  const words = cleanText ? cleanText.split(/\s+/).length : 0
-  const chars = content.length
-  const readingTimeMin = Math.max(1, Math.ceil(words / 180))
+// Initialize manual edit flag if slug was already provided
+if (modelValue.value?.slug) {
+  isSlugManuallyEdited.value = true
+}
 
-  return {
-    words,
-    chars,
-    readingTimeMin,
+// Handle keyboard shortcut (Ctrl+S / Cmd+S)
+useEventListener('keydown', (e: KeyboardEvent) => {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+    e.preventDefault()
+    emit('save')
   }
 })
 </script>
@@ -442,7 +418,13 @@ const contentStats = computed(() => {
               <div class="date-picker-row">
                 <CalendarPopover v-model="selectedDate">
                   <template #trigger>
-                    <KitBtn variant="outlined" color="secondary" icon="mdi:calendar" size="sm" class="date-btn">
+                    <KitBtn
+                      variant="outlined"
+                      color="secondary"
+                      icon="mdi:calendar"
+                      size="sm"
+                      class="date-btn"
+                    >
                       {{ formattedPublishDate }}
                     </KitBtn>
                   </template>
@@ -498,7 +480,12 @@ const contentStats = computed(() => {
                   <KitBtn variant="tonal" size="sm" @click="isMediaDrawerOpen = true">
                     Сменить
                   </KitBtn>
-                  <KitBtn variant="tonal" size="sm" class="cover-delete-btn" @click="removeCover">
+                  <KitBtn
+                    variant="tonal"
+                    size="sm"
+                    class="cover-delete-btn"
+                    @click="removeCover"
+                  >
                     Удалить
                   </KitBtn>
                 </div>

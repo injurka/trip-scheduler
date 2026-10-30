@@ -16,7 +16,6 @@ interface TimelineGroup {
   memories: Memory[]
   activity: Memory | null
 }
-
 interface Props {
   group: TimelineGroup
   isViewMode: boolean
@@ -27,7 +26,6 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {
   isFullScreen: false,
 })
-
 const emit = defineEmits<{ toggleCollapse: [] }>()
 
 const { memories: memoriesStore, plan: tripPlanStore } = useModuleStore(['memories', 'plan'])
@@ -40,11 +38,39 @@ const editableTitle = ref('')
 const titleEditorRef = ref(null)
 const editableTime = shallowRef<Time | null>(null)
 
+const tagInfo = computed(() => {
+  if (!props.group.activity?.tag)
+    return null
+
+  return getTagInfo(props.group.activity.tag)
+})
+const tagSolidColor = computed(() => {
+  if (!tagInfo.value?.color)
+    return undefined
+
+  const c = tagInfo.value.color
+
+  if (c.startsWith('#') && c.length === 9) {
+    return c.slice(0, 7)
+  }
+
+  return c
+})
+const displayTime = computed(() => {
+  if (!props.group.activity?.timestamp)
+    return ''
+
+  return formatTimestamp(props.group.activity.timestamp)
+})
+const photosCount = computed(() => props.group.memories.filter(m => m.imageId).length)
+const notesCount = computed(() => props.group.memories.filter(m => !m.imageId).length)
+
 function handleTimeClick() {
   if (props.isViewMode || props.group.type !== 'activity' || !props.group.activity)
     return
 
   isEditingTime.value = true
+
   if (props.group.activity.timestamp) {
     editableTime.value = getTimeFromTimestamp(props.group.activity.timestamp)
   }
@@ -53,83 +79,66 @@ function handleTimeClick() {
     editableTime.value = new Time(now.getHours(), now.getMinutes())
   }
 }
-
 function handleTitleClick() {
   if (props.isViewMode || props.group.type !== 'activity' || !props.group.activity)
     return
+
   isEditingTitle.value = true
   editableTitle.value = props.group.title
 }
-
 function saveTime() {
   if (!isEditingTime.value || !editableTime.value || !props.group.activity) {
     isEditingTime.value = false
+
     return
   }
+
   const day = tripPlanStore.getSelectedDay
+
   if (!day || !day.date) {
     isEditingTime.value = false
+
     return
   }
+
   const datePart = day.date.split('T')[0]
   const h = editableTime.value.hour.toString().padStart(2, '0')
   const m = editableTime.value.minute.toString().padStart(2, '0')
   const newTimestamp = `${datePart}T${h}:${m}:00.000Z`
+
   if (newTimestamp !== props.group.activity.timestamp)
     memoriesStore.updateMemory({ id: props.group.activity.id, timestamp: newTimestamp })
+
   isEditingTime.value = false
 }
-
 function saveTitle() {
   if (!isEditingTitle.value || !props.group.activity) {
     isEditingTitle.value = false
+
     return
   }
+
   const newTitle = editableTitle.value.trim()
+
   if (newTitle && newTitle !== props.group.title)
     memoriesStore.updateMemory({ id: props.group.activity.id, title: newTitle })
+
   isEditingTitle.value = false
 }
-
 async function handleDeleteActivity() {
   if (!props.group.activity)
     return
+
   const isConfirmed = await confirm({
     title: `Удалить «${props.group.title}»?`,
     description: 'Активность будет удалена без возможности восстановления.',
     type: 'danger',
     confirmText: 'Удалить',
   })
+
   if (isConfirmed)
     await memoriesStore.deleteMemory(props.group.activity.id)
 }
-
-const tagInfo = computed(() => {
-  if (!props.group.activity?.tag)
-    return null
-  return getTagInfo(props.group.activity.tag)
-})
-
-const tagSolidColor = computed(() => {
-  if (!tagInfo.value?.color)
-    return undefined
-  const c = tagInfo.value.color
-  if (c.startsWith('#') && c.length === 9) {
-    return c.slice(0, 7)
-  }
-  return c
-})
-
-const displayTime = computed(() => {
-  if (!props.group.activity?.timestamp)
-    return ''
-
-  return formatTimestamp(props.group.activity.timestamp)
-})
-
-const photosCount = computed(() => props.group.memories.filter(m => m.imageId).length)
-const notesCount = computed(() => props.group.memories.filter(m => !m.imageId).length)
-
 function handleHeaderClick() {
   if (props.isFullScreen && props.isCollapsed) {
     emit('toggleCollapse')
@@ -161,7 +170,12 @@ onClickOutside(titleEditorRef, saveTitle)
           }"
           @click.stop="handleTimeClick"
         >
-          <div v-if="isEditingTime" ref="timeEditorRef" class="time-editor-inline" @click.stop>
+          <div
+            v-if="isEditingTime"
+            ref="timeEditorRef"
+            class="time-editor-inline"
+            @click.stop
+          >
             <KitTimeField v-model="editableTime" />
 
             <button class="save-btn" @click="saveTime">
@@ -242,7 +256,12 @@ onClickOutside(titleEditorRef, saveTitle)
       }"
       @click="handleTitleClick"
     >
-      <div v-if="isEditingTitle" ref="titleEditorRef" class="title-editor-wrapper" @click.stop>
+      <div
+        v-if="isEditingTitle"
+        ref="titleEditorRef"
+        class="title-editor-wrapper"
+        @click.stop
+      >
         <KitInput v-model="editableTitle" class="title-editor" @keydown.enter="saveTitle" />
         <button class="save-btn" @click="saveTitle">
           <Icon icon="mdi:check" />

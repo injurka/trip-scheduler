@@ -14,7 +14,13 @@ vi.mock('../src/renderer/components/03.domain/trip-info/geolocation-section/ui/g
 
 describe('route transport icons', () => {
   it('changes the header icon for every selected mode, including readonly display', async () => {
-    const route = reactive<MapRoute>({ id: 'route', title: 'A → B', points: [], isVisible: true, transportMode: 'foot' })
+    const route = reactive<MapRoute>({
+      id: 'route',
+      title: 'A → B',
+      points: [],
+      isVisible: true,
+      transportMode: 'foot',
+    })
     const wrapper = mount(GeolocationRouteList, {
       props: {
         routes: [route],
@@ -26,11 +32,13 @@ describe('route transport icons', () => {
     expect(wrapper.findAll('.transport-btn')).toHaveLength(3)
     const modes = ['foot', 'bike', 'car'] as const
     const icons = ['mdi:walk', 'mdi:bicycle', 'mdi:car']
+
     for (const index of [2, 1, 0]) {
       await wrapper.findAll('.transport-btn')[index].trigger('click')
       expect(route.transportMode).toBe(modes[index])
       expect(wrapper.get('.route-mode-icon').attributes('data-icon')).toBe(icons[index])
     }
+
     await wrapper.findAll('.transport-btn')[2].trigger('click')
     await wrapper.setProps({ readonly: true })
     expect(wrapper.get('.route-mode-icon').attributes('data-icon')).toBe('mdi:car')
@@ -55,6 +63,7 @@ vi.mock('../src/renderer/components/03.domain/trip-info/geolocation-section/ui/g
         removeRoute: vi.fn(),
         addOrUpdatePoint: vi.fn(),
       }))
+
       return () => h('div')
     },
   }),
@@ -63,13 +72,18 @@ vi.mock('../src/renderer/components/03.domain/trip-info/geolocation-section/ui/g
 it('persists Auto before the debounce and keeps the saved snapshot independent', async () => {
   const wrapper = mount(GeolocationSection, {
     props: {
-      section: { id: 'geo', type: 'geolocation', points: [], routes: [{
-        id: 'route',
-        title: 'A → B',
-        transportMode: 'foot',
-        isVisible: true,
-        points: [{ id: 'a', coordinates: [121.54, 25.15], type: 'start' }, { id: 'b', coordinates: [121.52, 25.08], type: 'end' }],
-      }] } as any,
+      section: {
+        id: 'geo',
+        type: 'geolocation',
+        points: [],
+        routes: [{
+          id: 'route',
+          title: 'A → B',
+          transportMode: 'foot',
+          isVisible: true,
+          points: [{ id: 'a', coordinates: [121.54, 25.15], type: 'start' }, { id: 'b', coordinates: [121.52, 25.08], type: 'end' }],
+        }],
+      } as any,
     },
   })
   await flushPromises()

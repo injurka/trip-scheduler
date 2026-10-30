@@ -41,6 +41,7 @@ const isDownloading = ref(false)
 
 const extension = computed(() => {
   const urlExt = props.document.url.split('.').pop()?.toLowerCase() || ''
+
   return urlExt.split('?')[0]
 })
 
@@ -60,6 +61,7 @@ const displayName = computed(() => {
   if (props.document.title?.trim()) {
     return props.document.title.trim()
   }
+
   return props.document.originalName || 'Файл'
 })
 
@@ -67,21 +69,25 @@ const secondaryName = computed(() => {
   if (props.document.title?.trim() && props.document.originalName !== props.document.title) {
     return props.document.originalName
   }
+
   return null
 })
 
 function formatBytes(bytes: number) {
   if (!bytes || bytes === 0)
     return '0 Байт'
+
   const k = 1024
   const sizes = ['Байт', 'КБ', 'МБ', 'ГБ']
   const i = Math.floor(Math.log(bytes) / Math.log(k))
+
   return `${Number.parseFloat((bytes / k ** i).toFixed(1))} ${sizes[i]}`
 }
 
 function formatDate(dateString: string | Date) {
   if (!dateString)
     return ''
+
   return new Intl.DateTimeFormat('ru-RU', {
     day: '2-digit',
     month: '2-digit',
@@ -92,6 +98,7 @@ function formatDate(dateString: string | Date) {
 function toggleAccess() {
   if (props.readonly)
     return
+
   const newAccess = props.document.access === 'public' ? 'private' : 'public'
   emit('update', { ...props.document, access: newAccess })
   toast.info(newAccess === 'public' ? 'Файл стал публичным' : 'Файл доступен только участникам')
@@ -105,6 +112,7 @@ async function fetchFileBlob(absoluteUrl: string, _rawUrl: string): Promise<Blob
       const cache = await caches.open('trip-scheduler-offline-media')
       const match = await cache.match(absoluteUrl)
         || (urlWithoutToken ? await cache.match(urlWithoutToken) : null)
+
       if (match) {
         return await match.blob()
       }
@@ -116,6 +124,7 @@ async function fetchFileBlob(absoluteUrl: string, _rawUrl: string): Promise<Blob
 
   try {
     const response = await fetch(absoluteUrl)
+
     if (response.ok) {
       return await response.blob()
     }
@@ -123,12 +132,14 @@ async function fetchFileBlob(absoluteUrl: string, _rawUrl: string): Promise<Blob
   catch {
     // ignore
   }
+
   return null
 }
 
 async function handleDownload() {
   if (isDownloading.value)
     return
+
   isDownloading.value = true
 
   try {
@@ -145,12 +156,14 @@ async function handleDownload() {
       document.body.removeChild(link)
       URL.revokeObjectURL(objectUrl)
       toast.success('Загрузка файла началась')
+
       return
     }
 
     if (isTauri) {
       await openExternalUrl(absoluteUrl)
       toast.info('Загрузка файла передана системе...')
+
       return
     }
 
@@ -174,6 +187,7 @@ async function handleDownload() {
 
 async function handleCopyLink() {
   const absoluteUrl = resolveApiUrl(props.document.url)
+
   try {
     await navigator.clipboard.writeText(absoluteUrl)
     toast.success('Ссылка на файл скопирована в буфер')
@@ -228,7 +242,12 @@ function handleCardClick() {
         @click.stop="emit('toggleSelect', document.id)"
       >
         <div class="custom-checkbox" :class="{ 'is-checked': isSelected }">
-          <Icon v-if="isSelected" icon="mdi:check" width="14" height="14" />
+          <Icon
+            v-if="isSelected"
+            icon="mdi:check"
+            width="14"
+            height="14"
+          />
         </div>
       </div>
 
@@ -280,7 +299,12 @@ function handleCardClick() {
 
       <!-- Заметка, если есть -->
       <div v-if="document.note" class="card-note-box">
-        <Icon icon="mdi:note-text-outline" width="14" height="14" class="note-icon" />
+        <Icon
+          icon="mdi:note-text-outline"
+          width="14"
+          height="14"
+          class="note-icon"
+        />
         <span class="card-note-text" :title="document.note">{{ document.note }}</span>
       </div>
 
@@ -295,7 +319,12 @@ function handleCardClick() {
         <div class="card-actions" @click.stop>
           <KitTooltip text="Скачать">
             <button class="footer-btn" :disabled="isDownloading" @click="handleDownload">
-              <Icon :icon="isDownloading ? 'mdi:loading' : 'mdi:download-outline'" :class="{ spin: isDownloading }" width="17" height="17" />
+              <Icon
+                :icon="isDownloading ? 'mdi:loading' : 'mdi:download-outline'"
+                :class="{ spin: isDownloading }"
+                width="17"
+                height="17"
+              />
             </button>
           </KitTooltip>
 
@@ -393,14 +422,29 @@ function handleCardClick() {
       @click.stop="emit('toggleSelect', document.id)"
     >
       <div class="custom-checkbox" :class="{ 'is-checked': isSelected }">
-        <Icon v-if="isSelected" icon="mdi:check" width="13" height="13" />
+        <Icon
+          v-if="isSelected"
+          icon="mdi:check"
+          width="13"
+          height="13"
+        />
       </div>
     </div>
 
     <!-- Иконка или мини-превью -->
     <div class="row-icon-box" :style="{ backgroundColor: fileTypeInfo.bgColor, color: fileTypeInfo.color }">
-      <img v-if="isImage" v-resolve-src="document.url" :alt="displayName" class="row-img-thumb">
-      <Icon v-else :icon="fileTypeInfo.icon" width="22" height="22" />
+      <img
+        v-if="isImage"
+        v-resolve-src="document.url"
+        :alt="displayName"
+        class="row-img-thumb"
+      >
+      <Icon
+        v-else
+        :icon="fileTypeInfo.icon"
+        width="22"
+        height="22"
+      />
     </div>
 
     <!-- Название и заметка -->

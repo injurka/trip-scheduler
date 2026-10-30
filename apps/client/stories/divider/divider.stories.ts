@@ -1,6 +1,4 @@
-import type { Meta, StoryObj } from '@storybook/vue3'
-
-import { KitDivider } from '../../src/renderer/components/01.kit/kit-divider'
+import type { Meta, StoryObj } from '@storybook/vue3'import { KitDivider } from '../../src/renderer/components/01.kit/kit-divider'
 
 /**
  * The `Divider` component is used to visually separate content into distinct sections.

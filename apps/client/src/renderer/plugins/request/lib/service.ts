@@ -8,10 +8,9 @@ export function setDatabaseService(service: IDatabaseClient) {
 
 export function getDatabaseService(): IDatabaseClient {
   const service = databaseServiceInstance.value
+
   if (!service) {
-    throw new Error(
-      'Database service has not been initialized. Did you install the request plugin with app.use(requestPlugin)?',
-    )
+    throw new Error('Database service has not been initialized. Did you install the request plugin with app.use(requestPlugin)?')
   }
 
   return service

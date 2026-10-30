@@ -16,14 +16,12 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {
   isEditMode: false,
 })
-
 const emit = defineEmits<{
   (e: 'edit', activity: IActivity): void
   (e: 'delete', activityId: string): void
   (e: 'toggleStatus', payload: { activity: IActivity, status: EActivityStatus }): void
   (e: 'scrollToActivity', activityId: string): void
 }>()
-
 const visible = defineModel<boolean>('visible', { required: true })
 
 const solidTagColors: Record<EActivityTag, string> = {
@@ -34,75 +32,73 @@ const solidTagColors: Record<EActivityTag, string> = {
   [EActivityTag.RELAX]: '#06B6D4',
   [EActivityTag.ACTIVITY]: '#64748B',
 }
+const descriptionModel = ref('')
 
 const tagColor = computed(() => {
   if (props.activity?.tag && solidTagColors[props.activity.tag]) {
     return solidTagColors[props.activity.tag]
   }
+
   return '#64748B'
 })
-
 const tagLabel = computed(() => {
   if (props.activity?.tag && activityTagLabels[props.activity.tag]) {
     return activityTagLabels[props.activity.tag]
   }
+
   return 'Активность'
 })
-
 const tagIcon = computed(() => {
   if (props.activity?.tag && activityTagIcons[props.activity.tag]) {
     return activityTagIcons[props.activity.tag]
   }
+
   return 'mdi:map-marker'
 })
+const durationMinutes = computed(() => {
+  if (!props.activity)
+    return 0
 
-const descriptionModel = ref('')
+  return timeRangeDurationMinutes(props.activity.startTime, props.activity.endTime)
+})
+const formattedDuration = computed(() => {
+  const dur = durationMinutes.value
+
+  if (dur < 60)
+    return `${dur} минут`
+
+  const hours = Math.floor(dur / 60)
+  const mins = dur % 60
+
+  return mins > 0 ? `${hours} ч ${mins} мин` : `${hours} ч`
+})
+const metroRides = computed(() => {
+  const metroSection = props.activity?.sections?.find(s => s.type === EActivitySectionType.METRO) as ActivitySectionMetro | undefined
+
+  return metroSection?.rides || []
+})
+const busRides = computed(() => {
+  const busSection = props.activity?.sections?.find(s => s.type === EActivitySectionType.BUS) as ActivitySectionBus | undefined
+
+  return busSection?.rides || []
+})
+const isCompleted = computed(() => props.activity?.status === EActivityStatus.COMPLETED)
 
 watch(() => props.activity, (act) => {
   if (!act) {
     descriptionModel.value = ''
+
     return
   }
-  const descSection = act.sections?.find(
-    s => s.type === EActivitySectionType.DESCRIPTION,
-  ) as { text?: string } | undefined
+
+  const descSection = act.sections?.find(s => s.type === EActivitySectionType.DESCRIPTION) as { text?: string } | undefined
   descriptionModel.value = descSection?.text || act.explanation || ''
 }, { immediate: true })
-
-const durationMinutes = computed(() => {
-  if (!props.activity)
-    return 0
-  return timeRangeDurationMinutes(props.activity.startTime, props.activity.endTime)
-})
-
-const formattedDuration = computed(() => {
-  const dur = durationMinutes.value
-  if (dur < 60)
-    return `${dur} минут`
-  const hours = Math.floor(dur / 60)
-  const mins = dur % 60
-  return mins > 0 ? `${hours} ч ${mins} мин` : `${hours} ч`
-})
-
-const metroRides = computed(() => {
-  const metroSection = props.activity?.sections?.find(
-    s => s.type === EActivitySectionType.METRO,
-  ) as ActivitySectionMetro | undefined
-  return metroSection?.rides || []
-})
-
-const busRides = computed(() => {
-  const busSection = props.activity?.sections?.find(
-    s => s.type === EActivitySectionType.BUS,
-  ) as ActivitySectionBus | undefined
-  return busSection?.rides || []
-})
-
-const isCompleted = computed(() => props.activity?.status === EActivityStatus.COMPLETED)
 
 function handleScrollTo() {
   if (!props.activity)
     return
+
   emit('scrollToActivity', props.activity.id)
   visible.value = false
 }

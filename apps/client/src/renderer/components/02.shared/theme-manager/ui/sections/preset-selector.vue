@@ -2,10 +2,12 @@
 import type { ThemePreset } from '../../constants/color-presets'
 import type { ColorPalette } from '~/shared/store/theme.store'
 
-const props = defineProps<{
+interface Props {
   presets: ThemePreset[]
   currentPalette?: ColorPalette
-}>()
+}
+
+const props = defineProps<Props>()
 
 const emit = defineEmits<{
   (e: 'applyPreset', palette: ColorPalette): void
@@ -14,6 +16,7 @@ const emit = defineEmits<{
 function isPresetActive(preset: ThemePreset): boolean {
   if (!props.currentPalette)
     return false
+
   return (
     preset.palette['bg-primary-color'] === props.currentPalette['bg-primary-color']
     && preset.palette['fg-accent-color'] === props.currentPalette['fg-accent-color']

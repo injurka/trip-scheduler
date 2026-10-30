@@ -94,6 +94,7 @@ const defaultRadiusPalette: RadiusPalette = {
 
 function hexToRgb(hex: string): { r: number, g: number, b: number } | null {
   const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex)
+
   return result
     ? {
         r: Number.parseInt(result[1], 16),
@@ -105,11 +106,15 @@ function hexToRgb(hex: string): { r: number, g: number, b: number } | null {
 
 function generateShadowsFromColor(color: string): ShadowPalette {
   const rgb = hexToRgb(color)
+
   if (!rgb) {
     console.error('Invalid hex color for shadow generation:', color)
+
     return {}
   }
+
   const rgbStr = `${rgb.r}, ${rgb.g}, ${rgb.b}`
+
   return {
     's-xs': `0 1px 2px 0 rgba(${rgbStr}, 0.05)`,
     's-s': `0 1px 3px 0 rgba(${rgbStr}, 0.1), 0 1px 2px -1px rgba(${rgbStr}, 0.1)`,
@@ -152,6 +157,7 @@ export const useThemeStore = defineStore('theme', () => {
 
   function setTheme(name: ThemeType) {
     activeThemeName.value = name
+
     if (name !== 'custom') {
       resetBackgroundSettings()
     }
@@ -193,28 +199,34 @@ export const useThemeStore = defineStore('theme', () => {
     isCreatorOpen.value = false
   }
 
-  function loadInitialTheme() {
-    if (!customThemePalette.value || Object.keys(customThemePalette.value).length === 0) {
-      customThemePalette.value = { ...defaultLightPalette }
-    }
-    if (!customThemeRadius.value || Object.keys(customThemeRadius.value).length === 0) {
-      customThemeRadius.value = { ...defaultRadiusPalette }
-    }
-    if (!customThemeShadowColor.value) {
-      customThemeShadowColor.value = defaultLightShadowColor
-    }
-    if (!customThemeShadows.value || Object.keys(customThemeShadows.value).length === 0) {
-      customThemeShadows.value = generateShadowsFromColor(customThemeShadowColor.value)
-    }
-    if (!backgroundSettings.value) {
+  function restoreEmptyRecord<T extends Record<string, string>>(current: T | null | undefined, fallback: T): T {
+    if (!current || Object.keys(current).length === 0)
+      return { ...fallback }
+
+    return current
+  }
+
+  function ensureBackgroundSettings(): void {
+    if (!backgroundSettings.value)
       backgroundSettings.value = { ...defaultBackgroundSettings }
-    }
-    if (typeof backgroundSettings.value.contentDimmingOpacity === 'undefined') {
+
+    if (typeof backgroundSettings.value.contentDimmingOpacity === 'undefined')
       backgroundSettings.value.contentDimmingOpacity = defaultBackgroundSettings.contentDimmingOpacity
-    }
-    if (typeof backgroundSettings.value.contentGradientWidth === 'undefined') {
+
+    if (typeof backgroundSettings.value.contentGradientWidth === 'undefined')
       backgroundSettings.value.contentGradientWidth = defaultBackgroundSettings.contentGradientWidth
-    }
+  }
+
+  function ensureInitialThemeRecords(): void {
+    customThemePalette.value = restoreEmptyRecord(customThemePalette.value, defaultLightPalette)
+    customThemeRadius.value = restoreEmptyRecord(customThemeRadius.value, defaultRadiusPalette)
+    customThemeShadows.value = restoreEmptyRecord(customThemeShadows.value, generateShadowsFromColor(customThemeShadowColor.value))
+  }
+
+  function loadInitialTheme() {
+    customThemeShadowColor.value ||= defaultLightShadowColor
+    ensureInitialThemeRecords()
+    ensureBackgroundSettings()
   }
 
   return {

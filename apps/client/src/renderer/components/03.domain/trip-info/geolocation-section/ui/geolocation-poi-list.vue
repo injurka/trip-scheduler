@@ -13,12 +13,18 @@ interface Props {
   readonly?: boolean
   isRoutePoints?: boolean
 }
+interface MapProvider {
+  name: string
+  icon: string
+  getExternalUrl: (lat: number, lon: number) => string
+  getEmbedUrl: (lat: number, lon: number) => string
+  matchesUrl: (url: string) => boolean
+}
 
 withDefaults(defineProps<Props>(), {
   readonly: false,
   isRoutePoints: false,
 })
-
 const emit = defineEmits<{
   (e: 'focusOnPoint', point: MapPoint): void
   (e: 'updatePoint', point: MapPoint): void
@@ -28,40 +34,12 @@ const emit = defineEmits<{
   (e: 'refreshAddress', pointId: string): void
 }>()
 
-function togglePointConnect(point: MapPoint) {
-  if (point.type === 'connect') {
-    emit('updatePoint', {
-      ...point,
-      type: 'via',
-      address: point.address || 'Промежуточная остановка',
-      comment: undefined,
-    })
-  }
-  else {
-    emit('updatePoint', {
-      ...point,
-      type: 'connect',
-      address: undefined,
-      comment: undefined,
-    })
-  }
-}
-
-interface MapProvider {
-  name: string
-  icon: string
-  getExternalUrl: (lat: number, lon: number) => string
-  getEmbedUrl: (lat: number, lon: number) => string
-  matchesUrl: (url: string) => boolean
-}
-
 const mapChoicePanelRef = ref<HTMLElement | null>(null)
 const mapIframeContainerRef = ref<HTMLElement | null>(null)
 const isMapChoiceVisible = ref(false)
 const isMapVisible = ref(false)
 const selectedMapUrl = ref<string | null>(null)
 const selectedPointForMap = ref<MapPoint | null>(null)
-
 const mapProviders: MapProvider[] = [
   {
     name: 'Google Maps',
@@ -91,6 +69,7 @@ const mapProviders: MapProvider[] = [
     getEmbedUrl: (lat, lon) => {
       const delta = 0.008
       const bbox = [lon - delta, lat - delta, lon + delta, lat + delta].join(',')
+
       return `https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${lat},${lon}`
     },
     matchesUrl: url => /openstreetmap\.org/i.test(url),
@@ -104,16 +83,33 @@ const mapProviders: MapProvider[] = [
   },
 ]
 
+function togglePointConnect(point: MapPoint) {
+  if (point.type === 'connect') {
+    emit('updatePoint', {
+      ...point,
+      type: 'via',
+      address: point.address || 'Промежуточная остановка',
+      comment: undefined,
+    })
+  }
+  else {
+    emit('updatePoint', {
+      ...point,
+      type: 'connect',
+      address: undefined,
+      comment: undefined,
+    })
+  }
+}
 function openMapChoice(point: MapPoint) {
   selectedPointForMap.value = point
   isMapChoiceVisible.value = true
 }
-
 function hasOriginalUrl(provider: MapProvider): boolean {
   const url = selectedPointForMap.value?.externalUrl
+
   return !!url && provider.matchesUrl(url)
 }
-
 async function selectMapProvider(provider: MapProvider) {
   if (!selectedPointForMap.value)
     return
@@ -127,6 +123,7 @@ async function selectMapProvider(provider: MapProvider) {
   if (selectedPoint.externalUrl && provider.matchesUrl(selectedPoint.externalUrl)) {
     await openExternalUrl(selectedPoint.externalUrl)
     selectedPointForMap.value = null
+
     return
   }
 
@@ -134,6 +131,7 @@ async function selectMapProvider(provider: MapProvider) {
     const url = provider.getExternalUrl(lat, lon)
     await openExternalUrl(url)
     selectedPointForMap.value = null
+
     return
   }
 
@@ -141,7 +139,6 @@ async function selectMapProvider(provider: MapProvider) {
   selectedMapUrl.value = url
   isMapVisible.value = true
 }
-
 function closeMap() {
   isMapVisible.value = false
   selectedMapUrl.value = null
@@ -151,7 +148,6 @@ function closeMap() {
 onClickOutside(mapChoicePanelRef, () => {
   isMapChoiceVisible.value = false
 })
-
 onClickOutside(mapIframeContainerRef, () => {
   if (isMapVisible.value)
     closeMap()

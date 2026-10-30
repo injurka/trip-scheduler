@@ -5,9 +5,7 @@
  * @param stores - Объект, где ключи - это псевдонимы, а значения - функции-создатели сторов (use...Store).
  * @returns - Хук `useStore`, который можно использовать внутри компонентов.
  */
-export function createStoreHook<T extends Record<string, () => any>>(
-  stores: T,
-) {
+export function createStoreHook<T extends Record<string, () => any>>(stores: T) {
   function useStore<K extends keyof T>(key: K): Readonly<ReturnType<T[K]>>
   function useStore<K extends keyof T>(keys: K[]): Readonly<{ [P in K]: ReturnType<T[P]> }>
 
@@ -17,9 +15,8 @@ export function createStoreHook<T extends Record<string, () => any>>(
    */
   function useStore<K extends keyof T>(keyOrKeys: K | K[]) {
     if (Array.isArray(keyOrKeys)) {
-      const requestedStores = Object.fromEntries(
-        keyOrKeys.map(key => [key, stores[key]()]),
-      ) as { [P in K]: ReturnType<T[P]> }
+      const requestedStores = Object.fromEntries(keyOrKeys.map(key => [key, stores[key]()])) as { [P in K]: ReturnType<T[P]> }
+
       return requestedStores
     }
 

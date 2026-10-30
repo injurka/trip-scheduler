@@ -92,9 +92,11 @@ export const CALLOUT_DEFINITIONS: Record<string, CalloutDefinition> = {
 
 function getCalloutDef(typeKey: string): CalloutDefinition {
   const normalized = typeKey.toLowerCase()
+
   if (CALLOUT_DEFINITIONS[normalized]) {
     return CALLOUT_DEFINITIONS[normalized]
   }
+
   return {
     type: normalized,
     label: typeKey.toUpperCase(),
@@ -117,11 +119,13 @@ export const calloutPlugin = $prose(() => {
             return
 
           const firstChild = node.firstChild
+
           if (!firstChild || !firstChild.isTextblock)
             return
 
           const firstText = firstChild.textContent
           const match = firstText.match(CALLOUT_REGEX)
+
           if (!match)
             return
 
@@ -129,15 +133,14 @@ export const calloutPlugin = $prose(() => {
           const calloutDef = getCalloutDef(rawType)
 
           // 1. Add callout card class to blockquote node
-          decorations.push(
-            Decoration.node(pos, pos + node.nodeSize, {
-              'class': `milkdown-callout ${calloutDef.colorClass}`,
-              'data-callout-type': calloutDef.type,
-            }),
-          )
+          decorations.push(Decoration.node(pos, pos + node.nodeSize, {
+            'class': `milkdown-callout ${calloutDef.colorClass}`,
+            'data-callout-type': calloutDef.type,
+          }))
 
           // 2. Locate tag position inside first child text
           const matchIndex = firstText.indexOf(`[!${rawType}`)
+
           if (matchIndex !== -1) {
             const firstChildTextStart = pos + 2
             const tagStart = firstChildTextStart + matchIndex
@@ -146,51 +149,47 @@ export const calloutPlugin = $prose(() => {
 
             let whitespaceLen = 0
             const closeIdx = bracketClose !== -1 ? bracketClose + 1 : matchIndex + match[0].length
+
             while (firstText[closeIdx + whitespaceLen] === ' ') {
               whitespaceLen++
             }
+
             const tagEndWithSpace = baseTagEnd + whitespaceLen
 
             // Hide the raw [!TYPE] marker in view
-            decorations.push(
-              Decoration.inline(tagStart, tagEndWithSpace, {
-                class: 'milkdown-callout-tag',
-              }),
-            )
+            decorations.push(Decoration.inline(tagStart, tagEndWithSpace, {
+              class: 'milkdown-callout-tag',
+            }))
 
             // If the first paragraph is only the tag (and spaces), collapse it
             const remainder = firstText.slice(closeIdx + whitespaceLen).trim()
+
             if (!remainder) {
-              decorations.push(
-                Decoration.node(pos + 1, pos + 1 + firstChild.nodeSize, {
-                  class: 'milkdown-callout-lead-empty',
-                }),
-              )
+              decorations.push(Decoration.node(pos + 1, pos + 1 + firstChild.nodeSize, {
+                class: 'milkdown-callout-lead-empty',
+              }))
             }
           }
 
           // 3. Add stylish header banner at the top of the blockquote
-          const widget = Decoration.widget(
-            pos + 1,
-            () => {
-              const header = document.createElement('div')
-              header.className = 'milkdown-callout-header'
-              header.contentEditable = 'false'
+          const widget = Decoration.widget(pos + 1, () => {
+            const header = document.createElement('div')
+            header.className = 'milkdown-callout-header'
+            header.contentEditable = 'false'
 
-              const iconBadge = document.createElement('span')
-              iconBadge.className = 'milkdown-callout-icon-badge'
-              iconBadge.innerHTML = calloutDef.iconSvg
+            const iconBadge = document.createElement('span')
+            iconBadge.className = 'milkdown-callout-icon-badge'
+            iconBadge.innerHTML = calloutDef.iconSvg
 
-              const title = document.createElement('span')
-              title.className = 'milkdown-callout-title'
-              title.textContent = calloutDef.label
+            const title = document.createElement('span')
+            title.className = 'milkdown-callout-title'
+            title.textContent = calloutDef.label
 
-              header.appendChild(iconBadge)
-              header.appendChild(title)
-              return header
-            },
-            { side: -1, key: `callout-header-${pos}` },
-          )
+            header.appendChild(iconBadge)
+            header.appendChild(title)
+
+            return header
+          }, { side: -1, key: `callout-header-${pos}` })
 
           decorations.push(widget)
         })

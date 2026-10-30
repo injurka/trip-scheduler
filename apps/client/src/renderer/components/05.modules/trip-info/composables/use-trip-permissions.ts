@@ -17,6 +17,7 @@ export function useTripPermissions() {
 
     const currentUser = auth.user
     const trip = plan.trip
+
     if (!currentUser || !trip)
       return false
 
@@ -24,6 +25,7 @@ export function useTripPermissions() {
       return true
 
     const participants = trip.participants
+
     if (!participants)
       return false
 
@@ -33,6 +35,7 @@ export function useTripPermissions() {
   const isOwner = computed(() => {
     const currentUser = auth.user
     const trip = plan.trip
+
     if (!currentUser || !trip)
       return false
 

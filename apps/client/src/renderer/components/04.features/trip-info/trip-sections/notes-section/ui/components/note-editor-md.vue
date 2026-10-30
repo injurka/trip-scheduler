@@ -9,14 +9,15 @@ import { createDataviewJsNodeView } from '../../lib/dataviewjs-renderer'
 import { composeNoteContent, readNoteFrontmatter } from '../../lib/note-frontmatter'
 import NoteProperties from './note-properties.vue'
 
-const props = defineProps<{
+interface Props {
   noteId: string
   content: string | null
   readonly: boolean
   dataviewNotes: TripNote[]
   dataviewRefreshKey: number
-}>()
+}
 
+const props = defineProps<Props>()
 const emit = defineEmits<{
   'update:content': [noteId: string, value: string]
   'uploadImage': [file: File]
@@ -26,17 +27,6 @@ const emit = defineEmits<{
 const frontmatter = ref<NoteFrontmatter>({ raw: '', body: '', properties: [] })
 const localContent = ref('')
 const containerRef = ref<HTMLElement | null>(null)
-
-/**
- * Свойства заметки (Obsidian frontmatter) вырезаются из содержимого редактора и
- * показываются отдельным блоком: Milkdown YAML-блок не разбирает и рисует его
- * сырым текстом. Сам блок держим байт-в-байт и дописываем обратно при записи,
- * иначе сохранение из редактора потеряло бы свойства.
- */
-function applyContent(content: string | null): void {
-  frontmatter.value = readNoteFrontmatter(content)
-  localContent.value = frontmatter.value.body
-}
 
 // Обновляем локальный контент ТОЛЬКО при смене самой заметки.
 // Если сервер возвращает ответ, пока мы печатаем - мы его игнорируем
@@ -48,21 +38,30 @@ watch(() => props.noteId, () => {
     }
   })
 }, { immediate: true })
-
 // Если мы в ReadOnly - разрешаем обновление извне
 watch(() => props.content, (newVal) => {
   if (!props.readonly)
     return
+
   if (newVal !== composeNoteContent(frontmatter.value.raw, localContent.value)) {
     applyContent(newVal)
   }
 })
 
+/**
+ * Свойства заметки (Obsidian frontmatter) вырезаются из содержимого редактора и
+ * показываются отдельным блоком: Milkdown YAML-блок не разбирает и рисует его
+ * сырым текстом. Сам блок держим байт-в-байт и дописываем обратно при записи,
+ * иначе сохранение из редактора потеряло бы свойства.
+ */
+function applyContent(content: string | null): void {
+  frontmatter.value = readNoteFrontmatter(content)
+  localContent.value = frontmatter.value.body
+}
 function handleUpdate(val: string) {
   localContent.value = val
   emit('update:content', props.noteId, composeNoteContent(frontmatter.value.raw, val))
 }
-
 function createCodeBlockNodeView(node: ProseMirrorNode): NodeView | undefined {
   if (String(node.attrs.language ?? '').toLowerCase() !== 'dataviewjs')
     return undefined
@@ -74,17 +73,19 @@ function createCodeBlockNodeView(node: ProseMirrorNode): NodeView | undefined {
     toggleTask: payload => emit('toggleTask', payload),
   })
 }
-
 function handlePaste(event: ClipboardEvent) {
   if (props.readonly)
     return
+
   const items = event.clipboardData?.items
+
   if (!items)
     return
 
   for (const item of items) {
     if (item.type.startsWith('image/')) {
       const file = item.getAsFile()
+
       if (file) {
         event.preventDefault()
         emit('uploadImage', file)

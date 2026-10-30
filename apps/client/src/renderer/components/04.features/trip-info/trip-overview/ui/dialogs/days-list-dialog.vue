@@ -16,12 +16,10 @@ const emit = defineEmits<{
 const calendarDays = computed(() =>
   props.days
     .filter(d => !!d.date)
-    .sort((a, b) => new Date(a.date!).getTime() - new Date(b.date!).getTime()),
-)
+    .sort((a, b) => new Date(a.date!).getTime() - new Date(b.date!).getTime()))
 
 const draftDays = computed(() =>
-  props.days.filter(d => !d.date),
-)
+  props.days.filter(d => !d.date))
 
 function handleNavigate(dayId: string) {
   emit('navigate', dayId)
@@ -55,7 +53,12 @@ function handleNavigate(dayId: string) {
           <span>Черновики и варианты маршрутов</span>
         </div>
         <ul class="days-list">
-          <li v-for="(day, index) in draftDays" :key="day.id" class="draft-item" @click="handleNavigate(day.id)">
+          <li
+            v-for="(day, index) in draftDays"
+            :key="day.id"
+            class="draft-item"
+            @click="handleNavigate(day.id)"
+          >
             <div class="day-number day-number--draft">
               <Icon icon="mdi:map-marker-path" />
             </div>

@@ -10,11 +10,11 @@ interface Props {
 withDefaults(defineProps<Props>(), {
   activityTitle: '',
 })
-
 const emit = defineEmits<{
   (e: 'generate', payload: { prompt: string }): void
   (e: 'close'): void
 }>()
+defineExpose({ finishGeneration })
 
 const prompt = ref('')
 const isGenerating = ref(false)
@@ -22,15 +22,13 @@ const isGenerating = ref(false)
 function handleSubmit() {
   if (!prompt.value.trim() || isGenerating.value)
     return
+
   isGenerating.value = true
   emit('generate', { prompt: prompt.value.trim() })
 }
-
 function finishGeneration() {
   isGenerating.value = false
 }
-
-defineExpose({ finishGeneration })
 </script>
 
 <template>

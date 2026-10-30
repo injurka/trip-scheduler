@@ -6,7 +6,7 @@ import { useEventListener, useScrollLock } from '@vueuse/core'
 import { toRef, watch } from 'vue'
 import DayTrackPlayer from './day-track-player.vue'
 
-const props = withDefaults(defineProps<{
+interface Props {
   open?: boolean
   dayUtc?: string
   mode?: 'track' | 'memories'
@@ -15,7 +15,9 @@ const props = withDefaults(defineProps<{
   showTodayButton?: boolean
   memories?: Memory[]
   galleryImages?: ImageViewerImage[]
-}>(), {
+}
+
+const props = withDefaults(defineProps<Props>(), {
   open: false,
   mode: 'track',
   dayDates: () => [],

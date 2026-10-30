@@ -15,18 +15,39 @@ import CommandPaletteDialog from './dialogs/command-palette-dialog.vue'
 import CreateNoteDialog from './dialogs/create-note-dialog.vue'
 import NotesGalleryDialog from './dialogs/notes-gallery-dialog.vue'
 
-const props = defineProps<{
-  section: TripSection
-  readonly: boolean
-}>()
-
-const NoteEditorExcalidraw = lazyComponent(() => import('./components/note-editor-excalidraw.vue'), { showLoader: true })
-const NoteEditorMd = lazyComponent(() => import('./components/note-editor-md.vue'), { showLoader: true })
-
 interface TripSection {
   tripId: string
   [key: string]: unknown
 }
+interface Props {
+  section: TripSection
+  readonly: boolean
+}
+interface ExcalidrawEditorInstance {
+  exportImage: (format: 'png' | 'svg', title?: string) => Promise<void>
+}
+
+const props = defineProps<Props>()
+
+const { width } = useWindowSize()
+const { copy } = useClipboard()
+
+const NoteEditorExcalidraw = lazyComponent(() => import('./components/note-editor-excalidraw.vue'), { showLoader: true })
+const NoteEditorMd = lazyComponent(() => import('./components/note-editor-md.vue'), { showLoader: true })
+const isSidebarOpen = ref(false)
+const isFullscreen = ref(false)
+const isCommandPaletteOpen = ref(false)
+const isExportMenuOpen = ref(false)
+const isSortMenuOpen = ref(false)
+const excalidrawRef = ref<ExcalidrawEditorInstance | null>(null)
+const editorBodyRef = ref<HTMLElement | null>(null)
+const isCreateDialogOpen = ref(false)
+const createType = ref<NoteType>('markdown')
+const createParentId = ref<string | null>(null)
+const dataviewRefreshKey = ref(0)
+let dataviewRefreshTimer: ReturnType<typeof setTimeout> | undefined
+const isGalleryOpen = ref(false)
+const isUploadingPastedImage = ref(false)
 
 const tripIdRef = computed(() => props.section.tripId)
 const readonlyRef = computed(() => props.readonly)
@@ -51,40 +72,24 @@ const {
   imageUsage,
 } = useNotesSection(tripIdRef, readonlyRef)
 
-const { width } = useWindowSize()
 const isMobile = computed(() => width.value <= 768)
-const isSidebarOpen = ref(false)
-const isFullscreen = ref(false)
-
-interface ExcalidrawEditorInstance {
-  exportImage: (format: 'png' | 'svg', title?: string) => Promise<void>
-}
-
-const isCommandPaletteOpen = ref(false)
-const isExportMenuOpen = ref(false)
-const isSortMenuOpen = ref(false)
-const excalidrawRef = ref<ExcalidrawEditorInstance | null>(null)
-
-const { copy } = useClipboard()
 
 watch([isMobile, activeNoteId], ([mobile, noteId]) => {
   if (mobile && !noteId)
     isSidebarOpen.value = true
 }, { immediate: true })
-
 watch(isLoading, (loading) => {
   if (!loading && notesTree.value.length > 0 && !activeNoteId.value) {
     const hash = window.location.hash
+
     if (hash && hash.startsWith('#note-')) {
       const id = hash.replace('#note-', '')
+
       if (flatFiles.value.some(f => f.id === id))
         selectNote(id)
     }
   }
 })
-
-const editorBodyRef = ref<HTMLElement | null>(null)
-
 watch(activeNoteId, () => {
   nextTick(() => {
     if (editorBodyRef.value) {
@@ -92,28 +97,10 @@ watch(activeNoteId, () => {
     }
   })
 })
-
-onKeyStroke('Escape', () => {
-  if (isFullscreen.value)
-    isFullscreen.value = false
-})
-
-onKeyStroke('p', (e) => {
-  if (e.metaKey || e.ctrlKey) {
-    e.preventDefault()
-    isCommandPaletteOpen.value = true
-  }
-})
-
-const isCreateDialogOpen = ref(false)
-const createType = ref<NoteType>('markdown')
-const createParentId = ref<string | null>(null)
-const dataviewRefreshKey = ref(0)
-let dataviewRefreshTimer: ReturnType<typeof setTimeout> | undefined
-
 watch(() => notes.value.map(note => [note.id, note.content]), () => {
   if (dataviewRefreshTimer)
     clearTimeout(dataviewRefreshTimer)
+
   dataviewRefreshTimer = setTimeout(() => {
     dataviewRefreshKey.value += 1
   }, 120)
@@ -124,21 +111,17 @@ function openCreateDialog(type: NoteType, parentId: string | null = null): void 
   createParentId.value = parentId
   isCreateDialogOpen.value = true
 }
-
 function handleCreate(title: string): void {
   createNote({ title, type: createType.value, parentId: createParentId.value })
 }
-
-const isGalleryOpen = ref(false)
-
 function openGallery(): void {
   fetchImagesUsage()
   isGalleryOpen.value = true
 }
-
 function handleInsertImage(markdownSnippet: string): void {
   if (!activeNote.value || activeNote.value.type !== 'markdown') {
     useToast().info('Откройте markdown-заметку, чтобы вставить изображение')
+
     return
   }
 
@@ -146,18 +129,21 @@ function handleInsertImage(markdownSnippet: string): void {
   const newContent = `${current}\n${markdownSnippet}`
   saveContent(activeNote.value.id, newContent)
 }
-
-const isUploadingPastedImage = ref(false)
-
 async function handlePasteImage(file: File) {
   if (props.readonly)
     return
+
   isUploadingPastedImage.value = true
   const toast = useToast()
 
   await useRequest({
     key: `notes:upload-paste:${Date.now()}`,
-    fn: db => db.files.uploadFile(file, props.section.tripId, 'trip', 'notes'),
+    fn: db => db.files.uploadFile(
+      file,
+      props.section.tripId,
+      'trip',
+      'notes',
+    ),
     onSuccess: (data) => {
       if (data) {
         const url = resolveApiUrl(data.variants?.large ?? data.url)
@@ -165,6 +151,7 @@ async function handlePasteImage(file: File) {
         handleInsertImage(markdownSnippet)
         toast.success('Изображение загружено')
       }
+
       isUploadingPastedImage.value = false
     },
     onError: ({ error }) => {
@@ -172,40 +159,41 @@ async function handlePasteImage(file: File) {
     },
   })
 }
-
 function selectNote(id: string): void {
   flushPendingSave()
   activeNoteId.value = id
   window.history.replaceState(null, '', `#note-${id}`)
+
   if (isMobile.value)
     isSidebarOpen.value = false
 }
-
 function toggleChecklistTask(payload: { noteId: string, lineIndex: number }): void {
   if (props.readonly)
     return
 
   const note = notes.value.find(item => item.id === payload.noteId)
+
   if (!note || note.type !== 'markdown')
     return
 
   const updatedContent = toggleMarkdownChecklistTask(note.content, payload.lineIndex)
+
   if (updatedContent !== note.content)
     saveContent(note.id, updatedContent)
 }
-
 function copyDirectLink(): void {
   if (!activeNoteId.value)
     return
+
   const url = new URL(window.location.href)
   url.hash = `note-${activeNoteId.value}`
   copy(url.toString())
   useToast().success('Ссылка на заметку скопирована')
 }
-
 function exportMarkdown(): void {
   if (!activeNote.value || activeNote.value.type !== 'markdown')
     return
+
   const content = activeNote.value.content || ''
   const blob = new Blob([content], { type: 'text/markdown;charset=utf-8' })
   const url = URL.createObjectURL(blob)
@@ -215,18 +203,30 @@ function exportMarkdown(): void {
   a.click()
   URL.revokeObjectURL(url)
 }
-
 function exportExcalidraw(format: 'png' | 'svg'): void {
   if (!activeNote.value || !excalidrawRef.value)
     return
+
   excalidrawRef.value.exportImage(format, activeNote.value.title)
   isExportMenuOpen.value = false
 }
+
+onKeyStroke('Escape', () => {
+  if (isFullscreen.value)
+    isFullscreen.value = false
+})
+onKeyStroke('p', (e) => {
+  if (e.metaKey || e.ctrlKey) {
+    e.preventDefault()
+    isCommandPaletteOpen.value = true
+  }
+})
 
 onMounted(() => fetchNotes())
 onBeforeUnmount(() => {
   if (dataviewRefreshTimer)
     clearTimeout(dataviewRefreshTimer)
+
   flushPendingSave()
 })
 </script>
@@ -251,7 +251,12 @@ onBeforeUnmount(() => {
                 <!-- ... Шаблон сайдбара без изменений ... -->
                 <KitDropdown align="end" :open="isSortMenuOpen" @update:open="val => isSortMenuOpen = val!">
                   <template #trigger>
-                    <KitBtn icon="mdi:sort-variant" variant="text" size="sm" title="Сортировка" />
+                    <KitBtn
+                      icon="mdi:sort-variant"
+                      variant="text"
+                      size="sm"
+                      title="Сортировка"
+                    />
                   </template>
                   <div class="sort-menu">
                     <button :class="{ active: sortMode === 'manual' }" @click="sortMode = 'manual'; isSortMenuOpen = false">
@@ -266,11 +271,41 @@ onBeforeUnmount(() => {
                   </div>
                 </KitDropdown>
 
-                <KitBtn icon="mdi:magnify" variant="text" size="sm" title="Поиск (Ctrl+P)" @click="isCommandPaletteOpen = true" />
-                <KitBtn icon="mdi:image-multiple-outline" variant="text" size="sm" title="Галерея изображений" @click="openGallery" />
-                <KitBtn icon="mdi:folder-plus-outline" variant="text" size="sm" title="Новая папка" @click="openCreateDialog('folder')" />
-                <KitBtn icon="mdi:file-document-plus-outline" variant="text" size="sm" title="Новая заметка" @click="openCreateDialog('markdown')" />
-                <KitBtn icon="mdi:draw-pen" variant="text" size="sm" title="Новый скетч" @click="openCreateDialog('excalidraw')" />
+                <KitBtn
+                  icon="mdi:magnify"
+                  variant="text"
+                  size="sm"
+                  title="Поиск (Ctrl+P)"
+                  @click="isCommandPaletteOpen = true"
+                />
+                <KitBtn
+                  icon="mdi:image-multiple-outline"
+                  variant="text"
+                  size="sm"
+                  title="Галерея изображений"
+                  @click="openGallery"
+                />
+                <KitBtn
+                  icon="mdi:folder-plus-outline"
+                  variant="text"
+                  size="sm"
+                  title="Новая папка"
+                  @click="openCreateDialog('folder')"
+                />
+                <KitBtn
+                  icon="mdi:file-document-plus-outline"
+                  variant="text"
+                  size="sm"
+                  title="Новая заметка"
+                  @click="openCreateDialog('markdown')"
+                />
+                <KitBtn
+                  icon="mdi:draw-pen"
+                  variant="text"
+                  size="sm"
+                  title="Новый скетч"
+                  @click="openCreateDialog('excalidraw')"
+                />
               </div>
             </div>
 
@@ -298,7 +333,14 @@ onBeforeUnmount(() => {
             <!-- ... Шаблон редактора без изменений ... -->
             <div class="editor-header">
               <div class="editor-header-left">
-                <KitBtn v-if="isMobile" icon="mdi:menu" variant="text" size="sm" class="mobile-menu-btn" @click="isSidebarOpen = true" />
+                <KitBtn
+                  v-if="isMobile"
+                  icon="mdi:menu"
+                  variant="text"
+                  size="sm"
+                  class="mobile-menu-btn"
+                  @click="isSidebarOpen = true"
+                />
                 <template v-if="activeNote">
                   <Icon :icon="activeNote.type === 'excalidraw' ? 'mdi:draw' : 'mdi:file-document-outline'" class="editor-type-icon" :class="activeNote.type" />
                   <div class="editor-title-wrapper">
@@ -327,12 +369,42 @@ onBeforeUnmount(() => {
 
               <div class="editor-header-actions">
                 <template v-if="activeNote">
-                  <KitBtn icon="mdi:link-variant" variant="text" size="sm" title="Скопировать ссылку" @click="copyDirectLink" />
-                  <KitBtn v-if="!readonly && activeNote.type === 'markdown'" icon="mdi:image-plus-outline" variant="text" size="sm" title="Вставить фото" @click="openGallery" />
-                  <KitBtn v-if="activeNote.type === 'markdown'" icon="mdi:download-outline" variant="text" size="sm" title="Скачать .md" @click="exportMarkdown" />
-                  <KitDropdown v-if="activeNote.type === 'excalidraw'" :open="isExportMenuOpen" align="end" @update:open="val => isExportMenuOpen = val!">
+                  <KitBtn
+                    icon="mdi:link-variant"
+                    variant="text"
+                    size="sm"
+                    title="Скопировать ссылку"
+                    @click="copyDirectLink"
+                  />
+                  <KitBtn
+                    v-if="!readonly && activeNote.type === 'markdown'"
+                    icon="mdi:image-plus-outline"
+                    variant="text"
+                    size="sm"
+                    title="Вставить фото"
+                    @click="openGallery"
+                  />
+                  <KitBtn
+                    v-if="activeNote.type === 'markdown'"
+                    icon="mdi:download-outline"
+                    variant="text"
+                    size="sm"
+                    title="Скачать .md"
+                    @click="exportMarkdown"
+                  />
+                  <KitDropdown
+                    v-if="activeNote.type === 'excalidraw'"
+                    :open="isExportMenuOpen"
+                    align="end"
+                    @update:open="val => isExportMenuOpen = val!"
+                  >
                     <template #trigger>
-                      <KitBtn icon="mdi:download-outline" variant="text" size="sm" title="Скачать скетч" />
+                      <KitBtn
+                        icon="mdi:download-outline"
+                        variant="text"
+                        size="sm"
+                        title="Скачать скетч"
+                      />
                     </template>
                     <div class="export-menu">
                       <button @click="exportExcalidraw('png')">
@@ -344,7 +416,13 @@ onBeforeUnmount(() => {
                     </div>
                   </KitDropdown>
                 </template>
-                <KitBtn :icon="isFullscreen ? 'mdi:fullscreen-exit' : 'mdi:fullscreen'" variant="text" size="sm" :title="isFullscreen ? 'Свернуть' : 'На весь экран'" @click="isFullscreen = !isFullscreen" />
+                <KitBtn
+                  :icon="isFullscreen ? 'mdi:fullscreen-exit' : 'mdi:fullscreen'"
+                  variant="text"
+                  size="sm"
+                  :title="isFullscreen ? 'Свернуть' : 'На весь экран'"
+                  @click="isFullscreen = !isFullscreen"
+                />
               </div>
             </div>
 
@@ -362,7 +440,15 @@ onBeforeUnmount(() => {
                   @upload-image="handlePasteImage"
                   @toggle-task="toggleChecklistTask"
                 />
-                <NoteEditorExcalidraw v-else-if="activeNote.type === 'excalidraw'" :key="activeNote.id + 2" ref="excalidrawRef" :note-id="activeNote.id" :content="activeNote.content" :readonly="readonly" @update:content="saveContent" />
+                <NoteEditorExcalidraw
+                  v-else-if="activeNote.type === 'excalidraw'"
+                  :key="activeNote.id + 2"
+                  ref="excalidrawRef"
+                  :note-id="activeNote.id"
+                  :content="activeNote.content"
+                  :readonly="readonly"
+                  @update:content="saveContent"
+                />
               </template>
               <div v-else class="editor-empty">
                 <Icon icon="mdi:note-edit-outline" class="editor-empty-icon" />
@@ -377,8 +463,20 @@ onBeforeUnmount(() => {
       </Teleport>
     </template>
 
-    <CreateNoteDialog v-model:visible="isCreateDialogOpen" :type="createType" :parent-id="createParentId" @create="handleCreate" />
-    <NotesGalleryDialog v-model:visible="isGalleryOpen" :trip-id="section.tripId" :images="imageUsage" :readonly="readonly" @refresh="fetchImagesUsage" @insert-image="handleInsertImage" />
+    <CreateNoteDialog
+      v-model:visible="isCreateDialogOpen"
+      :type="createType"
+      :parent-id="createParentId"
+      @create="handleCreate"
+    />
+    <NotesGalleryDialog
+      v-model:visible="isGalleryOpen"
+      :trip-id="section.tripId"
+      :images="imageUsage"
+      :readonly="readonly"
+      @refresh="fetchImagesUsage"
+      @insert-image="handleInsertImage"
+    />
     <CommandPaletteDialog v-model:visible="isCommandPaletteOpen" :files="flatFiles" @select="selectNote" />
   </div>
 </template>

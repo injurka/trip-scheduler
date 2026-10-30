@@ -47,18 +47,21 @@ const solidTagColors: Record<EActivityTag, string> = {
 function getTagColor(tag?: EActivityTag): string {
   if (tag && solidTagColors[tag])
     return solidTagColors[tag]
+
   return '#64748B'
 }
 
 function getTagIcon(tag?: EActivityTag): string {
   if (tag && activityTagIcons[tag])
     return activityTagIcons[tag]
+
   return 'mdi:map-marker'
 }
 
 function handleInsert() {
   if (!props.edgeInfo)
     return
+
   const start = props.edgeInfo.fromActivity.endTime
   const end = props.edgeInfo.toActivity.startTime
   emit('insertActivity', { startTime: start, endTime: end })

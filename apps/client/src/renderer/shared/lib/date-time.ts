@@ -25,6 +25,7 @@ export function timeToMinutes(time: string): number {
 export function timeRangeDurationMinutes(startTime: string, endTime: string): number {
   const start = timeToMinutes(startTime)
   const end = timeToMinutes(endTime)
+
   return end >= start ? end - start : end + 24 * 60 - start
 }
 
@@ -48,6 +49,7 @@ export function formatTimestamp(timestamp: string): string {
   const d = new Date(timestamp)
   const hours = d.getUTCHours().toString().padStart(2, '0')
   const minutes = d.getUTCMinutes().toString().padStart(2, '0')
+
   return `${hours}:${minutes}`
 }
 
@@ -57,6 +59,7 @@ export function formatTimestamp(timestamp: string): string {
  */
 export function getTimeFromTimestamp(timestamp: string): Time {
   const d = new Date(timestamp)
+
   return new Time(d.getUTCHours(), d.getUTCMinutes())
 }
 

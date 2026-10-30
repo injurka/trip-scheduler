@@ -32,8 +32,38 @@ const emit = defineEmits<{
   (e: 'update:booking', value: Booking & { type: 'hotel' }): void
 }>()
 
+const route = useRoute()
+const tripPlanStore = useTripPlanStore()
+
 const isLocationPickerOpen = ref(false)
 const isLocationViewerOpen = ref(false)
+
+const tripId = computed(() => (route?.params?.id as string) || tripPlanStore?.currentTripId || '')
+const photosList = computed<string[]>(() => props.booking.data.photos || props.booking.data.imageUrls || [])
+const hotelWebsiteUrl = computed(() => {
+  const web = props.booking.data.website
+
+  if (!web)
+    return null
+
+  if (web.startsWith('http'))
+    return web
+
+  return `https://${web}`
+})
+const nightsCount = computed(() => {
+  if (!props.booking.data.checkInDate || !props.booking.data.checkOutDate)
+    return null
+
+  const inDate = new Date(props.booking.data.checkInDate.split('T')[0])
+  const outDate = new Date(props.booking.data.checkOutDate.split('T')[0])
+  const diffTime = outDate.getTime() - inDate.getTime()
+
+  if (Number.isNaN(diffTime) || diffTime <= 0)
+    return null
+
+  return Math.round(diffTime / (1000 * 60 * 60 * 24))
+})
 
 function updateDataField<K extends keyof HotelData>(key: K, value: HotelData[K]) {
   emit('update:booking', {
@@ -41,17 +71,9 @@ function updateDataField<K extends keyof HotelData>(key: K, value: HotelData[K])
     data: { ...props.booking.data, [key]: value },
   })
 }
-
 function updateTitle(newTitle: string) {
   emit('update:booking', { ...props.booking, title: newTitle })
 }
-
-const route = useRoute()
-const tripPlanStore = useTripPlanStore()
-const tripId = computed(() => (route?.params?.id as string) || tripPlanStore?.currentTripId || '')
-
-const photosList = computed<string[]>(() => props.booking.data.photos || props.booking.data.imageUrls || [])
-
 function updatePhotos(newPhotos: string[]) {
   emit('update:booking', {
     ...props.booking,
@@ -62,61 +84,46 @@ function updatePhotos(newPhotos: string[]) {
     },
   })
 }
-
-const hotelWebsiteUrl = computed(() => {
-  const web = props.booking.data.website
-  if (!web)
-    return null
-
-  if (web.startsWith('http'))
-    return web
-
-  return `https://${web}`
-})
-
-const nightsCount = computed(() => {
-  if (!props.booking.data.checkInDate || !props.booking.data.checkOutDate)
-    return null
-  const inDate = new Date(props.booking.data.checkInDate.split('T')[0])
-  const outDate = new Date(props.booking.data.checkOutDate.split('T')[0])
-  const diffTime = outDate.getTime() - inDate.getTime()
-  if (Number.isNaN(diffTime) || diffTime <= 0)
-    return null
-  return Math.round(diffTime / (1000 * 60 * 60 * 24))
-})
-
 function formatNights(n: number): string {
   const mod10 = n % 10
   const mod100 = n % 100
+
   if (mod10 === 1 && mod100 !== 11)
     return `${n} ночь`
+
   if ([2, 3, 4].includes(mod10) && ![12, 13, 14].includes(mod100))
     return `${n} ночи`
+
   return `${n} ночей`
 }
-
 function formatStayDate(iso?: string): string {
   if (!iso)
     return '—'
+
   const d = new Date(iso.split('T')[0])
+
   if (Number.isNaN(d.getTime()))
     return iso
+
   return new Intl.DateTimeFormat('ru-RU', {
     day: 'numeric',
     month: 'short',
     year: 'numeric',
   }).format(d)
 }
-
 function getStayWeekday(iso?: string): string {
   if (!iso)
     return ''
+
   const d = new Date(iso.split('T')[0])
+
   if (Number.isNaN(d.getTime()))
     return ''
+
   const wd = new Intl.DateTimeFormat('ru-RU', {
     weekday: 'short',
   }).format(d)
+
   return wd.charAt(0).toUpperCase() + wd.slice(1)
 }
 </script>
@@ -236,22 +243,64 @@ function getStayWeekday(iso?: string): string {
       />
 
       <div class="address-field-wrapper span-2">
-        <BookingField :model-value="booking.data.address" label="Адрес (текстом)" icon="mdi:map-marker-radius-outline" :readonly="readonly" @update:model-value="updateDataField('address', $event)" />
+        <BookingField
+          :model-value="booking.data.address"
+          label="Адрес (текстом)"
+          icon="mdi:map-marker-radius-outline"
+          :readonly="readonly"
+          @update:model-value="updateDataField('address', $event)"
+        />
         <KitBtn icon="mdi:map-marker-outline" title="Указать на карте" @click="isLocationPickerOpen = true" />
       </div>
 
-      <BookingDateTimeField :model-value="booking.data.checkInDate" label="Дата заезда" icon="mdi:calendar-arrow-right" :readonly="readonly" type="date" @update:model-value="updateDataField('checkInDate', $event)" />
-      <BookingDateTimeField :model-value="booking.data.checkOutDate" label="Дата выезда" icon="mdi:calendar-arrow-left" :readonly="readonly" type="date" @update:model-value="updateDataField('checkOutDate', $event)" />
+      <BookingDateTimeField
+        :model-value="booking.data.checkInDate"
+        label="Дата заезда"
+        icon="mdi:calendar-arrow-right"
+        :readonly="readonly"
+        type="date"
+        @update:model-value="updateDataField('checkInDate', $event)"
+      />
+      <BookingDateTimeField
+        :model-value="booking.data.checkOutDate"
+        label="Дата выезда"
+        icon="mdi:calendar-arrow-left"
+        :readonly="readonly"
+        type="date"
+        @update:model-value="updateDataField('checkOutDate', $event)"
+      />
     </div>
 
     <template #details>
       <div class="details-grid">
-        <BookingField v-if="!readonly || booking.data.roomType" :model-value="booking.data.roomType" label="Тип номера" icon="mdi:bed-outline" :readonly="readonly" @update:model-value="updateDataField('roomType', $event)" />
-        <BookingField v-if="!readonly || booking.data.guests" :model-value="booking.data.guests" label="Количество гостей" icon="mdi:account-group-outline" :readonly="readonly" @update:model-value="updateDataField('guests', $event)" />
+        <BookingField
+          v-if="!readonly || booking.data.roomType"
+          :model-value="booking.data.roomType"
+          label="Тип номера"
+          icon="mdi:bed-outline"
+          :readonly="readonly"
+          @update:model-value="updateDataField('roomType', $event)"
+        />
+        <BookingField
+          v-if="!readonly || booking.data.guests"
+          :model-value="booking.data.guests"
+          label="Количество гостей"
+          icon="mdi:account-group-outline"
+          :readonly="readonly"
+          @update:model-value="updateDataField('guests', $event)"
+        />
 
         <KitDivider v-if="!readonly || (booking.data.confirmationNumber || booking.data.sourceUrl)" class="span-2" />
 
-        <BookingField v-if="!readonly || booking.data.confirmationNumber" :model-value="booking.data.confirmationNumber" label="Номер подтверждения" icon="mdi:barcode-scan" :readonly="readonly" class="span-2" @update:model-value="updateDataField('confirmationNumber', $event)" />
+        <BookingField
+          v-if="!readonly || booking.data.confirmationNumber"
+          :model-value="booking.data.confirmationNumber"
+          label="Номер подтверждения"
+          icon="mdi:barcode-scan"
+          :readonly="readonly"
+          class="span-2"
+          @update:model-value="updateDataField('confirmationNumber', $event)"
+        />
         <BookingField
           v-if="!readonly"
           :model-value="booking.data.sourceUrl"
@@ -266,9 +315,34 @@ function getStayWeekday(iso?: string): string {
 
         <KitDivider v-if="!readonly || (booking.data.phone || booking.data.email || booking.data.website)" class="span-2" />
 
-        <BookingField v-if="!readonly || booking.data.phone" :model-value="booking.data.phone" label="Телефон" icon="mdi:phone-outline" :readonly="readonly" link-type="tel" @update:model-value="updateDataField('phone', $event)" />
-        <BookingField v-if="!readonly || booking.data.email" :model-value="booking.data.email" label="Email" icon="mdi:email-outline" :readonly="readonly" link-type="email" @update:model-value="updateDataField('email', $event)" />
-        <BookingField v-if="!readonly || booking.data.website" :model-value="booking.data.website" label="Веб-сайт отеля" icon="mdi:web" :readonly="readonly" class="span-2" link-type="web" @update:model-value="updateDataField('website', $event)" />
+        <BookingField
+          v-if="!readonly || booking.data.phone"
+          :model-value="booking.data.phone"
+          label="Телефон"
+          icon="mdi:phone-outline"
+          :readonly="readonly"
+          link-type="tel"
+          @update:model-value="updateDataField('phone', $event)"
+        />
+        <BookingField
+          v-if="!readonly || booking.data.email"
+          :model-value="booking.data.email"
+          label="Email"
+          icon="mdi:email-outline"
+          :readonly="readonly"
+          link-type="email"
+          @update:model-value="updateDataField('email', $event)"
+        />
+        <BookingField
+          v-if="!readonly || booking.data.website"
+          :model-value="booking.data.website"
+          label="Веб-сайт отеля"
+          icon="mdi:web"
+          :readonly="readonly"
+          class="span-2"
+          link-type="web"
+          @update:model-value="updateDataField('website', $event)"
+        />
 
         <KitDivider v-if="!readonly || booking.data.notes" class="span-2" />
 

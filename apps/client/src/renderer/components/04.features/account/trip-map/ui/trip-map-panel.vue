@@ -3,11 +3,13 @@ import type { MapCity } from '../composables/use-trip-map'
 import { Icon } from '@iconify/vue'
 import { ref } from 'vue'
 
-defineProps<{
+interface Props {
   open: boolean
   cities: MapCity[]
   grouped: [string, MapCity[]][]
-}>()
+}
+
+defineProps<Props>()
 
 defineEmits<{
   'update:open': [boolean]

@@ -10,16 +10,18 @@ export function useIconPicker() {
     if (activeCategoryId.value === ALL_CATEGORY_ID) {
       return iconCategories.flatMap(c => c.icons)
     }
+
     return iconCategories.find(c => c.id === activeCategoryId.value)?.icons ?? []
   })
 
   const filteredIcons = computed(() => {
     const q = searchQuery.value.trim().toLowerCase()
+
     if (!q)
       return currentCategoryIcons.value
+
     return currentCategoryIcons.value.filter(icon =>
-      icon.toLowerCase().includes(q),
-    )
+      icon.toLowerCase().includes(q))
   })
 
   function reset() {

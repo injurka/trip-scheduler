@@ -38,10 +38,12 @@ function movie(version: number) {
   bytes.set(new TextEncoder().encode('mvhd'), 12)
   data.setUint8(16, version)
   const seconds = Date.parse('2026-11-04T10:30:00Z') / 1000 + 2082844800
+
   if (version === 1)
     data.setBigUint64(20, BigInt(seconds))
   else
     data.setUint32(20, seconds)
+
   return new Blob([bytes])
 }
 describe('video capture metadata', () => {
@@ -78,6 +80,7 @@ describe('group analysis frames', () => {
     const paths: string[] = []
     expect(await prepareGroupAnalysisFrame(groups[0], async (path) => {
       paths.push(path)
+
       return 'frame'
     })).toBeUndefined()
     expect(paths).toEqual([])
@@ -90,6 +93,7 @@ describe('group analysis frames', () => {
     const paths: string[] = []
     expect(await prepareGroupAnalysisFrame(groups[0], async (path) => {
       paths.push(path)
+
       return 'frame'
     })).toBe('frame')
     expect(paths).toEqual(['photo.jpg'])
@@ -102,8 +106,10 @@ describe('group analysis frames', () => {
     const paths: string[] = []
     const frame = await prepareGroupAnalysisFrame(groups[0], async (path) => {
       paths.push(path)
+
       if (path === 'missing.jpg')
         throw new Error('Not found')
+
       return path === 'good.jpg' ? 'frame' : undefined
     })
     expect(frame).toBe('frame')

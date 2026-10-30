@@ -1,6 +1,4 @@
-import type { Meta, StoryObj } from '@storybook/vue3'
-
-import { KitSkeleton } from '../../src/renderer/components/01.kit/kit-skeleton'
+import type { Meta, StoryObj } from '@storybook/vue3'import { KitSkeleton } from '../../src/renderer/components/01.kit/kit-skeleton'
 
 /**
  * The `Skeleton` component is used to display a placeholder preview of your content

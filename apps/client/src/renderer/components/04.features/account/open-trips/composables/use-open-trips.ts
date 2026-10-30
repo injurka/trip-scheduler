@@ -62,6 +62,7 @@ export function useOpenTrips(userId: string) {
       onSuccess: (result) => {
         trips.value = result.sort((a, b) => {
           const diff = new Date(b.startDate || 0).getTime() - new Date(a.startDate || 0).getTime()
+
           if (diff !== 0)
             return diff
 

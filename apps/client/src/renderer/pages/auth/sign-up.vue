@@ -13,7 +13,6 @@ const router = useRouter()
 const route = useRoute()
 
 const step = ref<'details' | 'verify'>('details')
-
 const form = reactive<SignUpPayload & { confirmPassword: string }>({
   name: '',
   email: '',
@@ -24,7 +23,6 @@ const verificationCode = ref('')
 const terms = ref(false)
 const formError = ref<string | null>(null)
 const isPasswordVisible = ref(false)
-
 const emailRules = [
   (v: string) => !!v || 'Почтовый адрес обязателен',
   (v: string) => /.[^\n\r@\u2028\u2029]*@.+\..+/.test(v) || 'Неверный формат почты',
@@ -43,6 +41,16 @@ const verificationCodeRules = [
   (v: string) => v.length === 6 || 'Код должен состоять из 6 цифр',
 ]
 
+const isLoading = computed(() => store.auth.isLoading)
+const passwordInputType = computed(() => (isPasswordVisible.value ? 'text' : 'password'))
+const passwordToggleIcon = computed(() => (isPasswordVisible.value ? 'mdi:eye-off-outline' : 'mdi:eye-outline'))
+
+watch(formError, (newError) => {
+  if (newError) {
+    toast.error(newError, { expire: 4000 })
+  }
+})
+
 function validateDetailsForm(): boolean {
   const checks = [
     ...nameRules.map(rule => rule(form.name)),
@@ -52,33 +60,39 @@ function validateDetailsForm(): boolean {
   ]
 
   const error = checks.find(res => res !== true)
+
   if (error) {
     formError.value = error as string
+
     return false
   }
 
   if (!terms.value) {
     formError.value = 'Необходимо принять условия использования.'
+
     return false
   }
 
   formError.value = null
+
   return true
 }
-
 function validateVerificationForm(): boolean {
   const checks = [
     ...verificationCodeRules.map(rule => rule(verificationCode.value)),
   ]
   const error = checks.find(res => res !== true)
+
   if (error) {
     formError.value = error as string
+
     return false
   }
+
   formError.value = null
+
   return true
 }
-
 async function submitSignUp() {
   if (!validateDetailsForm()) {
     return
@@ -97,7 +111,6 @@ async function submitSignUp() {
     toast.error(error.message || 'Произошла ошибка при отправке кода.')
   }
 }
-
 async function submitVerification() {
   if (!validateVerificationForm()) {
     return
@@ -114,16 +127,6 @@ async function submitVerification() {
     toast.error(error.message || 'Произошла ошибка при подтверждении почты.')
   }
 }
-
-const isLoading = computed(() => store.auth.isLoading)
-const passwordInputType = computed(() => (isPasswordVisible.value ? 'text' : 'password'))
-const passwordToggleIcon = computed(() => (isPasswordVisible.value ? 'mdi:eye-off-outline' : 'mdi:eye-outline'))
-
-watch(formError, (newError) => {
-  if (newError) {
-    toast.error(newError, { expire: 4000 })
-  }
-})
 </script>
 
 <template>
@@ -218,7 +221,12 @@ watch(formError, (newError) => {
         >
           Подтвердить и войти
         </KitBtn>
-        <button type="button" class="util-link" style="margin-top: 16px; background: none; border: none; cursor: pointer;" @click="step = 'details'">
+        <button
+          type="button"
+          class="util-link"
+          style="margin-top: 16px; background: none; border: none; cursor: pointer;"
+          @click="step = 'details'"
+        >
           Изменить email
         </button>
       </form>

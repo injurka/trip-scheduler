@@ -5,8 +5,6 @@ import { ArcElement, Chart as ChartJS, Legend, Title, Tooltip } from 'chart.js'
 import { computed } from 'vue'
 import { Doughnut } from 'vue-chartjs'
 
-defineProps<Props>()
-
 interface ChartData {
   labels: string[]
   datasets: {
@@ -15,29 +13,16 @@ interface ChartData {
     backgroundColor: string[]
   }[]
 }
-
 interface Props {
   chartData: ChartData
   title: string
 }
 
-ChartJS.register(Title, Tooltip, Legend, ArcElement)
+defineProps<Props>()
 
 const { width } = useWindowSize()
+
 const isMobile = computed(() => width.value < 640)
-
-function formatBytes(bytes: number, decimals = 2) {
-  if (bytes === 0)
-    return '0 Байт'
-
-  const k = 1024
-  const dm = decimals < 0 ? 0 : decimals
-  const sizes = ['Байт', 'КБ', 'МБ', 'ГБ', 'ТБ']
-  const i = Math.floor(Math.log(bytes) / Math.log(k))
-
-  return `${Number.parseFloat((bytes / k ** i).toFixed(dm))} ${sizes[i]}`
-}
-
 const chartOptions = computed(() => ({
   responsive: true,
   maintainAspectRatio: false,
@@ -57,6 +42,7 @@ const chartOptions = computed(() => ({
       callbacks: {
         label(context: any) {
           let label = context.dataset.label || ''
+
           if (label)
             label += ': '
 
@@ -69,6 +55,25 @@ const chartOptions = computed(() => ({
     },
   },
 }))
+
+function formatBytes(bytes: number, decimals = 2) {
+  if (bytes === 0)
+    return '0 Байт'
+
+  const k = 1024
+  const dm = decimals < 0 ? 0 : decimals
+  const sizes = ['Байт', 'КБ', 'МБ', 'ГБ', 'ТБ']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+
+  return `${Number.parseFloat((bytes / k ** i).toFixed(dm))} ${sizes[i]}`
+}
+
+ChartJS.register(
+  Title,
+  Tooltip,
+  Legend,
+  ArcElement,
+)
 </script>
 
 <template>

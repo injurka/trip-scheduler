@@ -26,6 +26,7 @@ async function scanFiles(dir: string): Promise<string[]> {
     else if (entry.isFile() && /\.(?:vue|ts|js|json)$/.test(entry.name)) {
       const content = await fs.readFile(fullPath, 'utf-8')
       const matches = content.match(ICON_REGEX)
+
       if (matches) {
         matches.forEach(match => icons.add(match.replace('mdi:', '')))
       }
@@ -42,6 +43,7 @@ async function bundle() {
   if (usedIcons.length === 0) {
     console.warn('⚠️ Иконки не найдены. Проверьте путь сканирования или префикс.')
     await fs.writeFile(OUTPUT_FILE, JSON.stringify({ prefix: 'mdi', icons: {} }))
+
     return
   }
 
@@ -63,12 +65,14 @@ async function bundle() {
   }
   catch (error) {
     console.error('❌ Ошибка при сборке иконок:')
+
     if (error instanceof Error && (error as any).code === 'MODULE_NOT_FOUND') {
       console.error('   Пакет @iconify-json/mdi не найден. Установите его: bun add -D @iconify-json/mdi')
     }
     else {
       console.error(error)
     }
+
     process.exit(1)
   }
 }

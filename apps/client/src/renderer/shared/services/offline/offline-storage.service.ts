@@ -20,6 +20,7 @@ class OfflineStorageService {
 
     if (typeof indexedDB === 'undefined') {
       this.dbPromise = Promise.resolve(null)
+
       return this.dbPromise
     }
 
@@ -28,6 +29,7 @@ class OfflineStorageService {
         const req = indexedDB.open(DB_NAME, DB_VERSION)
         req.onupgradeneeded = () => {
           const db = req.result
+
           if (!db.objectStoreNames.contains(STORE_NAME)) {
             db.createObjectStore(STORE_NAME, { keyPath: 'id' })
           }
@@ -82,14 +84,17 @@ class OfflineStorageService {
     if (Object.keys(result).length === 0 && typeof localStorage !== 'undefined') {
       try {
         const legacyRaw = localStorage.getItem(LEGACY_STORAGE_KEY)
+
         if (legacyRaw) {
           const parsed = JSON.parse(legacyRaw) as Record<string, OfflineTripEntry>
+
           if (parsed && typeof parsed === 'object') {
             for (const [id, entry] of Object.entries(parsed)) {
               result[id] = entry
               // Сохраняем в IndexedDB
               await this.saveTrip(entry)
             }
+
             // Очищаем localStorage, освобождая системную квоту 5 МБ
             localStorage.removeItem(LEGACY_STORAGE_KEY)
           }
@@ -108,6 +113,7 @@ class OfflineStorageService {
    */
   public async saveTrip(entry: OfflineTripEntry): Promise<void> {
     const db = await this.getDB()
+
     if (db) {
       await new Promise<void>((resolve, reject) => {
         try {
@@ -122,6 +128,7 @@ class OfflineStorageService {
           reject(e)
         }
       })
+
       return
     }
 
@@ -147,6 +154,7 @@ class OfflineStorageService {
    */
   public async removeTrip(tripId: string): Promise<void> {
     const db = await this.getDB()
+
     if (db) {
       await new Promise<void>((resolve, reject) => {
         try {
@@ -161,6 +169,7 @@ class OfflineStorageService {
           reject(e)
         }
       })
+
       return
     }
 
@@ -171,6 +180,7 @@ class OfflineStorageService {
 
     try {
       const raw = localStorage.getItem(LEGACY_STORAGE_KEY)
+
       if (raw) {
         const current = JSON.parse(raw)
         delete current[tripId]

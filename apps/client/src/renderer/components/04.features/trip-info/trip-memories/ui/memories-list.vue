@@ -27,7 +27,6 @@ interface Props {
 withDefaults(defineProps<Props>(), {
   isFullScreen: false,
 })
-
 const emit = defineEmits<{
   (e: 'upload'): void
   (e: 'addNote'): void
@@ -36,11 +35,11 @@ const emit = defineEmits<{
 }>()
 
 const { memories: memoriesStore } = useModuleStore(['memories'])
-const { memoriesWithGeoForSelectedDay, memoriesToProcess } = storeToRefs(memoriesStore)
+const isMobile = useMediaQuery('(max-width: 768px)')
 
+const { memoriesWithGeoForSelectedDay, memoriesToProcess } = storeToRefs(memoriesStore)
 const isMapVisible = ref(false)
 const showImportSheet = ref(false)
-const isMobile = useMediaQuery('(max-width: 768px)')
 
 function handleImportSelect(activity: Activity) {
   emit('import', activity)

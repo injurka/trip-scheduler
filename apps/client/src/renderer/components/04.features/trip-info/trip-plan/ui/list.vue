@@ -15,7 +15,6 @@ const emit = defineEmits<{
 }>()
 
 const toast = useToast()
-
 const { plan: data, ui } = useModuleStore(['plan', 'ui'])
 
 const {
@@ -24,10 +23,6 @@ const {
   getSelectedDay,
   isPreviewMode,
 } = storeToRefs(data)
-
-function getDraftForActivity(activityId: string) {
-  return data.getDraftForActivity(activityId)
-}
 const {
   reorderActivities,
   updateActivity,
@@ -42,15 +37,30 @@ const {
 } = data
 const { isViewMode } = storeToRefs(ui)
 const { collapsedActivities } = storeToRefs(ui)
+const assistantRef = ref<InstanceType<typeof LlmCanvasAssistant> | null>(null)
+const isGeneratingGlobal = ref(false)
+const generatingActivityId = ref<string | null>(null)
+const undoDayId = ref<string | null>(null)
+let undoTimer: ReturnType<typeof setTimeout> | null = null
 
+const draggableActivities = computed({
+  get: () => getActivitiesForSelectedDay.value,
+  set: (newOrder: IActivity[]) => {
+    if (!hasDraftForDay.value) {
+      reorderActivities(newOrder)
+    }
+  },
+})
+
+function getDraftForActivity(activityId: string) {
+  return data.getDraftForActivity(activityId)
+}
 function onUpdateActivity(updatedActivity: IActivity) {
   updateActivity(getSelectedDay.value!.id, updatedActivity)
 }
-
 function onDeleteActivity(activityId: string) {
   removeActivity(getSelectedDay.value!.id, activityId)
 }
-
 function onMoveActivity(activity: IActivity, direction: 'up' | 'down') {
   const activities = [...getActivitiesForSelectedDay.value]
   const currentIndex = activities.findIndex(a => a.id === activity.id)
@@ -64,19 +74,6 @@ function onMoveActivity(activity: IActivity, direction: 'up' | 'down') {
     reorderActivities(activities)
   }
 }
-
-const draggableActivities = computed({
-  get: () => getActivitiesForSelectedDay.value,
-  set: (newOrder: IActivity[]) => {
-    if (!hasDraftForDay.value) {
-      reorderActivities(newOrder)
-    }
-  },
-})
-
-const assistantRef = ref<InstanceType<typeof LlmCanvasAssistant> | null>(null)
-const isGeneratingGlobal = ref(false)
-
 function buildDaysContext(excludeDayId: string) {
   return data.getAllDays
     .filter(d => d.id !== excludeDayId)
@@ -90,10 +87,10 @@ function buildDaysContext(excludeDayId: string) {
         .map(a => ({ startTime: a.startTime, endTime: a.endTime, title: a.title, tag: a.tag })),
     }))
 }
-
 async function handleGlobalGenerate({ prompt, useDaysContext, useCanvasAsRef }: { prompt: string, useDaysContext: boolean, useCanvasAsRef: boolean }) {
   if (!getSelectedDay.value)
     return
+
   isGeneratingGlobal.value = true
 
   try {
@@ -105,19 +102,7 @@ async function handleGlobalGenerate({ prompt, useDaysContext, useCanvasAsRef }: 
       daysContext: useDaysContext ? buildDaysContext(getSelectedDay.value.id) : undefined,
     })
 
-    // Разносим по отдельным драфтам, чтобы поблочное подтверждение работало
-    const origIds = new Set(getActivitiesForSelectedDay.value.map(a => a.id))
-    for (const updatedActivity of updatedActivities as IActivity[]) {
-      if (origIds.has(updatedActivity.id)) {
-        setActivityDraft(updatedActivity.id, updatedActivity)
-      }
-      else {
-        const tempId = `new-ai-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
-        const newActivity = { ...updatedActivity, id: tempId, dayId: getSelectedDay.value.id }
-        getSelectedDay.value.activities.push(newActivity)
-        setActivityDraft(tempId, newActivity)
-      }
-    }
+    applyGlobalGenerateResults(updatedActivities as IActivity[])
   }
   catch (error: any) {
     console.error('Global template generation failed:', error)
@@ -129,11 +114,31 @@ async function handleGlobalGenerate({ prompt, useDaysContext, useCanvasAsRef }: 
   }
 }
 
-const generatingActivityId = ref<string | null>(null)
+function applyGlobalGenerateResults(updatedActivities: IActivity[]) {
+  const selectedDay = getSelectedDay.value
 
+  if (!selectedDay)
+    return
+
+  // Разносим по отдельным драфтам, чтобы поблочное подтверждение работало
+  const origIds = new Set(getActivitiesForSelectedDay.value.map(a => a.id))
+
+  for (const updatedActivity of updatedActivities) {
+    if (origIds.has(updatedActivity.id)) {
+      setActivityDraft(updatedActivity.id, updatedActivity)
+      continue
+    }
+
+    const tempId = `new-ai-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+    const newActivity = { ...updatedActivity, id: tempId, dayId: selectedDay.id }
+    selectedDay.activities.push(newActivity)
+    setActivityDraft(tempId, newActivity)
+  }
+}
 async function handleActivityAiEdit(activity: IActivity, prompt: string) {
   if (!getSelectedDay.value)
     return
+
   generatingActivityId.value = activity.id
 
   try {
@@ -144,6 +149,7 @@ async function handleActivityAiEdit(activity: IActivity, prompt: string) {
     })
 
     const updatedActivity = (updatedActivities as IActivity[])[0]
+
     if (updatedActivity) {
       setActivityDraft(activity.id, { ...updatedActivity, id: activity.id })
     }
@@ -156,49 +162,45 @@ async function handleActivityAiEdit(activity: IActivity, prompt: string) {
     generatingActivityId.value = null
   }
 }
-
 function onAcceptActivityDraft(activityId: string) {
   if (!getSelectedDay.value)
     return
+
   acceptActivityDraft(getSelectedDay.value.id, activityId)
 }
-
 function onDiscardActivityDraft(activityId: string) {
   discardActivityDraft(activityId)
 }
-
 function onAcceptActivityDraftFields(activityId: string, fields: string[]) {
   if (!getSelectedDay.value)
     return
+
   acceptActivityDraftFields(getSelectedDay.value.id, activityId, fields)
 }
-
 function acceptAll() {
   if (getSelectedDay.value)
     acceptAllDraftsForDay(getSelectedDay.value.id)
 }
-
-const undoDayId = ref<string | null>(null)
-let undoTimer: ReturnType<typeof setTimeout> | null = null
-
 function discardAll() {
   if (getSelectedDay.value) {
     const dayId = getSelectedDay.value.id
     discardAllDraftsForDay(dayId)
 
     undoDayId.value = dayId
+
     if (undoTimer)
       clearTimeout(undoTimer)
+
     undoTimer = setTimeout(() => {
       undoDayId.value = null
     }, 5000)
   }
 }
-
 function handleUndo() {
   if (undoDayId.value) {
     data.undoDiscardAllDraftsForDay(undoDayId.value)
     undoDayId.value = null
+
     if (undoTimer)
       clearTimeout(undoTimer)
   }
@@ -207,7 +209,12 @@ function handleUndo() {
 
 <template>
   <div class="day-activities">
-    <LlmCanvasAssistant v-if="!isViewMode" ref="assistantRef" :is-external-generating="isGeneratingGlobal" @generate="handleGlobalGenerate" />
+    <LlmCanvasAssistant
+      v-if="!isViewMode"
+      ref="assistantRef"
+      :is-external-generating="isGeneratingGlobal"
+      @generate="handleGlobalGenerate"
+    />
 
     <div v-if="isGeneratingGlobal" class="draft-loading">
       <Icon icon="mdi:loading" class="spin-icon draft-spinner" />
@@ -240,7 +247,12 @@ function handleUndo() {
         </KitBtn>
       </div>
       <div class="global-draft-actions">
-        <KitBtn variant="text" color="secondary" size="sm" @click="discardAll">
+        <KitBtn
+          variant="text"
+          color="secondary"
+          size="sm"
+          @click="discardAll"
+        >
           Отклонить все
         </KitBtn>
         <KitBtn color="primary" size="sm" @click="acceptAll">

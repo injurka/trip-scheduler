@@ -8,7 +8,13 @@ import { KitSkeleton } from '~/components/01.kit/kit-skeleton'
 
     <div class="content-container">
       <div class="sticky-nav-skeleton">
-        <KitSkeleton v-for="i in 3" :key="i" width="80px" height="28px" border-radius="99px" />
+        <KitSkeleton
+          v-for="i in 3"
+          :key="i"
+          width="80px"
+          height="28px"
+          border-radius="99px"
+        />
       </div>
 
       <div class="timeline-skeleton">

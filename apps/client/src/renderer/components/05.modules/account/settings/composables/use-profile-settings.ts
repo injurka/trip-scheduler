@@ -22,8 +22,10 @@ export function useProfileSettings() {
 
   async function checkManualUpdate() {
     isCheckingUpdate.value = true
+
     try {
       await appUpdateStore.checkForUpdates(false)
+
       if (!appUpdateStore.hasUpdate) {
         toast.success('У вас установлена последняя версия')
       }
@@ -76,13 +78,11 @@ export function useProfileSettings() {
   const isPasswordFormValid = computed(() =>
     passwordForm.currentPassword
     && passwordForm.newPassword.length >= 6
-    && passwordForm.newPassword === passwordForm.confirmPassword,
-  )
+    && passwordForm.newPassword === passwordForm.confirmPassword)
 
   const isSetPasswordFormValid = computed(() =>
     setPasswordForm.newPassword.length >= 6
-    && setPasswordForm.newPassword === setPasswordForm.confirmPassword,
-  )
+    && setPasswordForm.newPassword === setPasswordForm.confirmPassword)
 
   const deleteForm = reactive({
     password: '',
@@ -118,6 +118,7 @@ export function useProfileSettings() {
       return
 
     isChangingPassword.value = true
+
     try {
       await trpc.user.changePassword.mutate({
         currentPassword: passwordForm.currentPassword,
@@ -139,6 +140,7 @@ export function useProfileSettings() {
       return
 
     isSettingPassword.value = true
+
     try {
       await authStore.setPassword(setPasswordForm.newPassword)
       toast.success('Пароль успешно установлен!')
@@ -184,6 +186,7 @@ export function useProfileSettings() {
       return
 
     unlinkingProvider.value = provider
+
     try {
       await authStore.unlinkProvider(provider)
       toast.success(`Аккаунт ${providerNames[provider]} успешно отвязан`)
@@ -208,6 +211,7 @@ export function useProfileSettings() {
       return
 
     isDeletingAccount.value = true
+
     try {
       await trpc.user.deleteAccount.mutate({ password: deleteForm.password })
       toast.success('Ваш аккаунт был успешно удален.')
@@ -225,6 +229,7 @@ export function useProfileSettings() {
 
   async function handleAvatarUpload(event: Event) {
     const file = (event.target as HTMLInputElement).files?.[0]
+
     if (!file)
       return
 
@@ -240,6 +245,7 @@ export function useProfileSettings() {
   function handleCoverSelect(event: Event) {
     const input = event.target as HTMLInputElement
     const file = input.files?.[0]
+
     if (!file)
       return
 
@@ -250,6 +256,7 @@ export function useProfileSettings() {
 
   function cancelCrop() {
     isCropperVisible.value = false
+
     if (tempCoverUrl.value) {
       URL.revokeObjectURL(tempCoverUrl.value)
       tempCoverUrl.value = null
@@ -267,12 +274,15 @@ export function useProfileSettings() {
       })
 
       coverFile.value = croppedFile
+
       if (coverPreviewUrl.value) {
         URL.revokeObjectURL(coverPreviewUrl.value)
       }
+
       coverPreviewUrl.value = URL.createObjectURL(croppedFile)
 
       isCropperVisible.value = false
+
       if (tempCoverUrl.value) {
         URL.revokeObjectURL(tempCoverUrl.value)
         tempCoverUrl.value = null

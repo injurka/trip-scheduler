@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { IconPicker } from '~/components/02.shared/icon-picker'
 
-const props = defineProps<{ disabled?: boolean }>()
+interface Props { disabled?: boolean }
+
+const props = defineProps<Props>()
 const model = defineModel<string>({ required: true })
 </script>
 

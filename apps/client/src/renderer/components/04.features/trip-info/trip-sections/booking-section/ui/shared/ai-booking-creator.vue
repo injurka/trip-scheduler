@@ -23,22 +23,15 @@ const emit = defineEmits<{
 
 const state = ref<CreatorState>('upload')
 const error = ref<string | null>(null)
-
 const selectedType = ref<BookingType>('flight')
 const notes = ref<string>('')
 const generatedBooking = ref<Booking | null>(null)
 const uploadedFile = ref<File | null>(null)
-
 const bookingTypeOptions = Object.entries(BOOKING_TYPES_CONFIG).map(([key, value]) => ({
   value: key as BookingType,
   label: value.label,
   icon: value.icon,
 }))
-
-const selectedTypeIcon = computed(() => {
-  return BOOKING_TYPES_CONFIG[selectedType.value]?.icon
-})
-
 const cardComponents = {
   flight: FlightCard,
   hotel: HotelCard,
@@ -47,6 +40,13 @@ const cardComponents = {
   attraction: AttractionCard,
   other: OtherCard,
 }
+const GENERATE_BOOKING_KEY = 'booking:generate'
+
+const isLoading = useRequestStatus(GENERATE_BOOKING_KEY)
+
+const selectedTypeIcon = computed(() => {
+  return BOOKING_TYPES_CONFIG[selectedType.value]?.icon
+})
 const previewCardComponent = computed(() => {
   return generatedBooking.value ? cardComponents[generatedBooking.value.type] : null
 })
@@ -58,15 +58,13 @@ function resetState() {
   uploadedFile.value = null
   generatedBooking.value = null
 }
-
-const GENERATE_BOOKING_KEY = 'booking:generate'
-const isLoading = useRequestStatus(GENERATE_BOOKING_KEY)
-
 async function handleGenerate() {
   if (!uploadedFile.value) {
     useToast().error('Пожалуйста, выберите файл для анализа.')
+
     return
   }
+
   state.value = 'loading'
   error.value = null
 
@@ -99,7 +97,6 @@ async function handleGenerate() {
     state.value = 'error'
   }
 }
-
 function handleSave() {
   if (generatedBooking.value) {
     const { id, ...bookingData } = generatedBooking.value
@@ -107,7 +104,6 @@ function handleSave() {
     resetState()
   }
 }
-
 function updatePreviewBooking(updatedBooking: Booking) {
   generatedBooking.value = updatedBooking
 }

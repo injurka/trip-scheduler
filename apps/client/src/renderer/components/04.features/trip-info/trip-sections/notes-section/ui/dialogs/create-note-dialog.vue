@@ -5,12 +5,13 @@ import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitDialogWithClose } from '~/components/01.kit/kit-dialog-with-close'
 import { KitInput } from '~/components/01.kit/kit-input'
 
-const props = defineProps<{
+interface Props {
   visible: boolean
   type: NoteType
   parentId: string | null
-}>()
+}
 
+const props = defineProps<Props>()
 const emit = defineEmits<{
   'update:visible': [value: boolean]
   'create': [title: string]
@@ -19,42 +20,47 @@ const emit = defineEmits<{
 const vFocus = {
   mounted: (el: HTMLElement) => el.focus(),
 }
-
 const title = ref('')
+
+const dialogTitle = computed(() => {
+  if (props.type === 'folder')
+    return 'Новая папка'
+
+  if (props.type === 'markdown')
+    return 'Новая заметка'
+
+  return 'Новый скетч'
+})
+const icon = computed(() => {
+  if (props.type === 'folder')
+    return 'mdi:folder-plus-outline'
+
+  if (props.type === 'markdown')
+    return 'mdi:file-document-plus-outline'
+
+  return 'mdi:draw-pen'
+})
+const placeholder = computed(() => {
+  if (props.type === 'folder')
+    return 'Название папки...'
+
+  if (props.type === 'markdown')
+    return 'Название заметки...'
+
+  return 'Название скетча...'
+})
 
 watch(() => props.visible, (v) => {
   if (v)
     title.value = ''
 })
 
-const dialogTitle = computed(() => {
-  if (props.type === 'folder')
-    return 'Новая папка'
-  if (props.type === 'markdown')
-    return 'Новая заметка'
-  return 'Новый скетч'
-})
-
-const icon = computed(() => {
-  if (props.type === 'folder')
-    return 'mdi:folder-plus-outline'
-  if (props.type === 'markdown')
-    return 'mdi:file-document-plus-outline'
-  return 'mdi:draw-pen'
-})
-
-const placeholder = computed(() => {
-  if (props.type === 'folder')
-    return 'Название папки...'
-  if (props.type === 'markdown')
-    return 'Название заметки...'
-  return 'Название скетча...'
-})
-
 function submit(): void {
   const trimmed = title.value.trim()
+
   if (!trimmed)
     return
+
   emit('create', trimmed)
   emit('update:visible', false)
 }

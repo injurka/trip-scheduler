@@ -4,7 +4,6 @@ import type { TileSourceId } from '../../../../../shared/lib/map-styles-sources'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitDropdown } from '~/components/01.kit/kit-dropdown'
 import { CustomTileSettingsDialog } from '~/components/02.shared/custom-tile-settings-dialog'
-
 import { useAppSettingsStore } from '~/shared/store/app-settings.store'
 import { TILE_SOURCES } from '../../../../../shared/lib/map-styles-sources'
 
@@ -49,12 +48,16 @@ const tillerItems = computed(() => [
 function handleTileSourceSelect(selected: any) {
   if (selected === 'configure_custom') {
     isTileSettingsOpen.value = true
+
     return
   }
+
   if (selected === 'custom' && !appSettingsStore.customTileUrl) {
     isTileSettingsOpen.value = true
+
     return
   }
+
   emit('setTileSource', selected as TileSourceId)
 }
 

@@ -18,7 +18,9 @@ import { useToast } from '~/shared/composables/use-toast'
 import { useAuthStore } from '~/shared/store/auth.store'
 import { METRIC_KEYS, METRIC_LABELS } from '../../composables/use-destination-reviews'
 
-const props = defineProps<{ countries: Country[] }>()
+interface Props { countries: Country[] }
+
+const props = defineProps<Props>()
 const emit = defineEmits(['success'])
 const visible = defineModel<boolean>('visible', { required: true })
 
@@ -27,13 +29,6 @@ const toast = useToast()
 
 const step = ref(1)
 const isSubmitting = ref(false)
-
-watch(visible, (val) => {
-  if (val) {
-    step.value = 1
-  }
-})
-
 const form = reactive({
   type: 'city',
   countryId: '',
@@ -43,15 +38,56 @@ const form = reactive({
   latitude: '' as number | string,
   longitude: '' as number | string,
   content: '',
-  metrics: { safety: 3, culture: 3, infrastructure: 3, nature: 3, food: 3, prices: 3, vibe: 3, climate: 3, people: 3, entertainment: 3 } as Record<DestinationMetricKey, number>,
+  metrics: {
+    safety: 3,
+    culture: 3,
+    infrastructure: 3,
+    nature: 3,
+    food: 3,
+    prices: 3,
+    vibe: 3,
+    climate: 3,
+    people: 3,
+    entertainment: 3,
+  } as Record<DestinationMetricKey, number>,
 })
+const selectedCityRef = ref<GeoPlaceRef | null>(null)
+const mapCenter = ref<[number, number]>([20, 45])
 
 const countryOptions = computed(() => {
   return props.countries.map(c => ({ value: c.id, label: c.name, flagUrl: c.flagUrl }))
 })
+const mapMarkers = computed(() => {
+  const lat = Number(form.latitude)
+  const lon = Number(form.longitude)
 
-const selectedCityRef = ref<GeoPlaceRef | null>(null)
+  if (!Number.isNaN(lat) && !Number.isNaN(lon) && form.latitude !== '' && form.longitude !== '') {
+    return [{ id: 'pin', coords: { lat, lon } }]
+  }
 
+  return []
+})
+const isStep1Invalid = computed(() => {
+  if (!form.countryId)
+    return true
+
+  if (!form.geoPlaceId)
+    return true
+
+  if (form.latitude === '' || form.longitude === '')
+    return true
+
+  if (Number.isNaN(Number(form.latitude)) || Number.isNaN(Number(form.longitude)))
+    return true
+
+  return false
+})
+
+watch(visible, (val) => {
+  if (val) {
+    step.value = 1
+  }
+})
 watch(() => form.countryId, (countryId) => {
   if (selectedCityRef.value && selectedCityRef.value.countryId !== countryId) {
     selectedCityRef.value = null
@@ -65,55 +101,39 @@ function selectCity(value: GeoPlaceRef | GeoPlaceRef[] | null) {
   selectedCityRef.value = place
   form.geoPlaceId = place?.id ?? null
   form.city = place?.name ?? ''
+
   if (place?.countryId)
     form.countryId = place.countryId
 }
-
-const mapCenter = ref<[number, number]>([20, 45])
-const mapMarkers = computed(() => {
-  const lat = Number(form.latitude)
-  const lon = Number(form.longitude)
-  if (!Number.isNaN(lat) && !Number.isNaN(lon) && form.latitude !== '' && form.longitude !== '') {
-    return [{ id: 'pin', coords: { lat, lon } }]
-  }
-  return []
-})
-
 function handleMapClick(coords: [number, number]) {
   const [lon, lat] = coords
   form.longitude = Number(lon.toFixed(6))
   form.latitude = Number(lat.toFixed(6))
 }
-
-const isStep1Invalid = computed(() => {
-  if (!form.countryId)
-    return true
-  if (!form.geoPlaceId)
-    return true
-  if (form.latitude === '' || form.longitude === '')
-    return true
-  if (Number.isNaN(Number(form.latitude)) || Number.isNaN(Number(form.longitude)))
-    return true
-  return false
-})
-
 function goToStep(targetStep: number) {
   if (isSubmitting.value)
     return
+
   if (targetStep > 1 && isStep1Invalid.value)
     return
+
   step.value = targetStep
 }
-
 async function submit() {
   isSubmitting.value = true
+
   try {
     let coverUrl: string | null = null
 
     if (form.coverFile && auth.user?.id) {
       await useRequest({
         key: 'destination-reviews:upload-cover',
-        fn: db => db.files.uploadFile(form.coverFile!, auth.user!.id, 'review', 'cover'),
+        fn: db => db.files.uploadFile(
+          form.coverFile!,
+          auth.user!.id,
+          'review',
+          'cover',
+        ),
         onSuccess: (uploadedImage) => { coverUrl = uploadedImage.variants?.medium || uploadedImage.url },
         onError: ({ error }) => {
           toast.error(error.customMessage || 'Ошибка при загрузке обложки')
@@ -157,12 +177,13 @@ async function submit() {
     isSubmitting.value = false
   }
 }
-
 function getSliderColor(value: number) {
   if (value <= 2)
     return 'error'
+
   if (value === 3)
     return 'warning'
+
   return 'success'
 }
 </script>
@@ -217,9 +238,19 @@ function getSliderColor(value: number) {
       </div>
 
       <div v-if="step === 1" class="step-content">
-        <KitSelectWithSearch v-model="form.countryId" :items="countryOptions" label="Страна" placeholder="Выберите страну">
+        <KitSelectWithSearch
+          v-model="form.countryId"
+          :items="countryOptions"
+          label="Страна"
+          placeholder="Выберите страну"
+        >
           <template #item="{ item }">
-            <img v-if="(item as any).flagUrl" :src="(item as any).flagUrl" class="dropdown-flag" alt="">
+            <img
+              v-if="(item as any).flagUrl"
+              :src="(item as any).flagUrl"
+              class="dropdown-flag"
+              alt=""
+            >
             <span>{{ item.label }}</span>
           </template>
         </KitSelectWithSearch>
@@ -239,11 +270,29 @@ function getSliderColor(value: number) {
             Кликните по карте или введите координаты вручную
           </p>
           <div class="coords-inputs">
-            <KitInput v-model="form.latitude" type="number" step="any" placeholder="Широта" />
-            <KitInput v-model="form.longitude" type="number" step="any" placeholder="Долгота" />
+            <KitInput
+              v-model="form.latitude"
+              type="number"
+              step="any"
+              placeholder="Широта"
+            />
+            <KitInput
+              v-model="form.longitude"
+              type="number"
+              step="any"
+              placeholder="Долгота"
+            />
           </div>
           <div class="map-container">
-            <KitMap enable-search :center="mapCenter" :zoom="2" height="280px" :markers="mapMarkers" :auto-pan="false" @click="handleMapClick" />
+            <KitMap
+              enable-search
+              :center="mapCenter"
+              :zoom="2"
+              height="280px"
+              :markers="mapMarkers"
+              :auto-pan="false"
+              @click="handleMapClick"
+            />
           </div>
         </div>
       </div>
@@ -266,10 +315,13 @@ function getSliderColor(value: number) {
         </h4>
         <div class="metrics-grid">
           <KitSlider
-            v-for="key in METRIC_KEYS" :key="key"
+            v-for="key in METRIC_KEYS"
+            :key="key"
             v-model="form.metrics[key]"
             :label="METRIC_LABELS[key]"
-            :min="1" :max="5" :step="1"
+            :min="1"
+            :max="5"
+            :step="1"
             :value-formatter="v => `${v} / 5`"
             :color="getSliderColor(form.metrics[key])"
           />
@@ -299,7 +351,12 @@ function getSliderColor(value: number) {
         <KitBtn v-if="step < 4" :disabled="step === 1 && isStep1Invalid" @click="step++">
           Далее
         </KitBtn>
-        <KitBtn v-if="step === 4" color="primary" :loading="isSubmitting" @click="submit">
+        <KitBtn
+          v-if="step === 4"
+          color="primary"
+          :loading="isSubmitting"
+          @click="submit"
+        >
           Сохранить
         </KitBtn>
       </div>

@@ -14,11 +14,7 @@ export const TRANSIT_LAYOUT_OPTIONS: ILayoutOption[] = [
 ]
 
 /** Master Layout Dispatcher */
-export function calculateTransitLayout(
-  mode: TransitLayoutMode,
-  items: IActivity[],
-  options: CalculateLayoutOptions = {},
-): LayoutResult {
+export function calculateTransitLayout(mode: TransitLayoutMode, items: IActivity[], options: CalculateLayoutOptions = {}): LayoutResult {
   if (!items || items.length === 0) {
     return {
       nodes: [],

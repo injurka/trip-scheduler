@@ -8,50 +8,57 @@ import { AppRouteNames, AppRoutePaths } from '~/shared/constants/routes'
 
 enum OAuthErrors { MissingToken = 'missing_token', MeError = 'me_error' }
 
-const emailRules = [
-  (v: string) => !!v || 'Почтовый адрес обязателен',
-  (v: string) => /.[^\n\r@\u2028\u2029]*@.+\..+/.test(v) || 'Неверный формат почты',
-]
-
-const passwordRules = [
-  (v: string) => !!v || 'Пароль обязателен',
-  (v: string) => v.length >= 8 || 'Пароль должен быть не менее 8 символов',
-]
-
 const store = useAppStore(['auth'])
 const toast = useToast()
 const route = useRoute()
 const router = useRouter()
 
+const emailRules = [
+  (v: string) => !!v || 'Почтовый адрес обязателен',
+  (v: string) => /.[^\n\r@\u2028\u2029]*@.+\..+/.test(v) || 'Неверный формат почты',
+]
+const passwordRules = [
+  (v: string) => !!v || 'Пароль обязателен',
+  (v: string) => v.length >= 8 || 'Пароль должен быть не менее 8 символов',
+]
 const email = ref('')
 const password = ref('')
 const terms = ref(false)
 const formError = ref<string | null>(null)
-
 const isPasswordVisible = ref(false)
 
 const isLoading = computed(() => store.auth.isLoading)
-
 const passwordInputType = computed(() => isPasswordVisible.value ? 'text' : 'password')
 const passwordToggleIcon = computed(() => isPasswordVisible.value ? 'mdi-eye-off-outline' : 'mdi-eye-outline')
+
+watch(formError, (newError) => {
+  if (newError) {
+    toast.error(newError, { expire: 4000 })
+  }
+})
 
 async function submitSignIn() {
   formError.value = null
 
   const emailError = emailRules.map(rule => rule(email.value)).find(res => res !== true)
+
   if (emailError) {
     formError.value = emailError
+
     return
   }
 
   const passwordError = passwordRules.map(rule => rule(password.value)).find(res => res !== true)
+
   if (passwordError) {
     formError.value = passwordError
+
     return
   }
 
   if (!terms.value) {
     formError.value = 'Необходимо принять условия использования.'
+
     return
   }
 
@@ -65,16 +72,12 @@ async function submitSignIn() {
   }
 }
 
-watch(formError, (newError) => {
-  if (newError) {
-    toast.error(newError, { expire: 4000 })
-  }
-})
-
 onMounted(() => {
   const oauthError = route.query.oa_error as OAuthErrors
+
   if (oauthError) {
     let msg = ''
+
     switch (oauthError) {
       case OAuthErrors.MissingToken:
         msg = 'Ошибка при OAuth авторизации.'
@@ -83,6 +86,7 @@ onMounted(() => {
         msg = 'Не удалось получить данные пользователя.'
         break
     }
+
     toast.error(msg)
     router.replace({ query: {} })
   }

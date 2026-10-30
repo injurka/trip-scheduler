@@ -24,11 +24,9 @@ export const useTripSectionsStore = defineStore('tripSections', {
       return [...state.sections].sort((a, b) => a.order - b.order)
     },
     existingUniqueSectionTypes: (state): Set<TripSectionType> => {
-      return new Set(
-        state.sections
-          .map(s => s.type)
-          .filter(t => t !== TripSectionType.NOTES),
-      )
+      return new Set(state.sections
+        .map(s => s.type)
+        .filter(t => t !== TripSectionType.NOTES))
     },
   },
 
@@ -39,8 +37,10 @@ export const useTripSectionsStore = defineStore('tripSections', {
 
     async addSection(type: TripSectionType) {
       const tripPlanStore = useTripPlanStore()
+
       if (!tripPlanStore.currentTripId) {
         useToast().error('Невозможно создать раздел: не определено путешествие.')
+
         return
       }
 
@@ -116,6 +116,7 @@ export const useTripSectionsStore = defineStore('tripSections', {
         }),
         onSuccess: (createdSection) => {
           const index = this.sections.findIndex(s => s.id === tempId)
+
           if (index !== -1 && createdSection) {
             this.sections[index] = createdSection as TripSection
           }
@@ -129,6 +130,7 @@ export const useTripSectionsStore = defineStore('tripSections', {
 
     async updateSection(section: TripSection) {
       const index = this.sections.findIndex(s => s.id === section.id)
+
       if (index === -1)
         return
 
@@ -157,14 +159,17 @@ export const useTripSectionsStore = defineStore('tripSections', {
 
     async clearSection(sectionId: string) {
       const index = this.sections.findIndex(s => s.id === sectionId)
+
       if (index === -1) {
         useToast().error('Не удалось найти раздел для очистки.')
+
         return
       }
 
       const sectionToClear = this.sections[index]
 
       let defaultContent: any = {}
+
       switch (sectionToClear.type) {
         case TripSectionType.NOTES:
           defaultContent = { markdown: '' }
@@ -199,6 +204,7 @@ export const useTripSectionsStore = defineStore('tripSections', {
 
     async deleteSection(sectionId: string) {
       const index = this.sections.findIndex(s => s.id === sectionId)
+
       if (index === -1)
         return
 

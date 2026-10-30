@@ -2,42 +2,43 @@
 import { Icon } from '@iconify/vue'
 import { useElementHover, useEventListener, useFileDialog } from '@vueuse/core'
 
-const props = withDefaults(defineProps<{
+interface Props {
   modelValue: File | null
   accept?: string
   multiple?: boolean
   previewUrl?: string | null
   loading?: boolean
   disabled?: boolean
-}>(), {
+}
+
+const props = withDefaults(defineProps<Props>(), {
   accept: '.png,.jpg,.jpeg,.pdf',
   multiple: false,
   previewUrl: null,
   loading: false,
   disabled: false,
 })
-
 const emit = defineEmits<{
   (e: 'update:modelValue', value: File | null): void
 }>()
 
 const toast = useToast()
-
 const { files, open, reset } = useFileDialog({
   accept: props.accept,
   multiple: props.multiple,
 })
 
 const fileInputAreaRef = ref<HTMLElement | null>(null)
+
+const isHovered = useElementHover(fileInputAreaRef)
+
 const isDragOver = ref(false)
 const isFocused = ref(false)
-const isHovered = useElementHover(fileInputAreaRef)
 const localPreviewUrl = ref<string | null>(null)
 
 const isBusy = computed(() => props.loading || props.disabled)
 const hasValue = computed(() => Boolean(props.modelValue || props.previewUrl || localPreviewUrl.value))
 const previewUrl = computed(() => localPreviewUrl.value || props.previewUrl || null)
-
 const fileName = computed(() => {
   if (props.modelValue?.name)
     return props.modelValue.name
@@ -47,26 +48,30 @@ const fileName = computed(() => {
 
   return ''
 })
-
 const fileSize = computed(() => {
   if (!props.modelValue)
     return ''
 
   return `${(props.modelValue.size / 1024).toFixed(1)} KB`
 })
-
 const isImagePreview = computed(() => {
   if (previewUrl.value)
     return true
 
   return props.modelValue?.type?.startsWith('image/') ?? false
 })
+const componentClasses = computed(() => ({
+  'file-input-area': true,
+  'is-drag-over': isDragOver.value,
+  'is-disabled': props.disabled,
+  'is-loading': props.loading,
+  'has-preview': Boolean(previewUrl.value),
+}))
 
 watch(files, (newFiles) => {
   if (newFiles && newFiles.length > 0)
     emit('update:modelValue', newFiles[0])
 })
-
 watch(() => props.modelValue, (newValue) => {
   revokeLocalPreview()
 
@@ -88,20 +93,15 @@ function revokeLocalPreview() {
   URL.revokeObjectURL(localPreviewUrl.value)
   localPreviewUrl.value = null
 }
-
-onBeforeUnmount(revokeLocalPreview)
-
 function openDialog() {
   if (isBusy.value)
     return
 
   open()
 }
-
 function applyFile(file: File) {
   emit('update:modelValue', file)
 }
-
 function handlePaste(event: ClipboardEvent) {
   if (isBusy.value)
     return
@@ -110,6 +110,7 @@ function handlePaste(event: ClipboardEvent) {
   event.stopPropagation()
 
   const items = event.clipboardData?.items
+
   if (!items)
     return
 
@@ -118,28 +119,20 @@ function handlePaste(event: ClipboardEvent) {
       continue
 
     const file = item.getAsFile()
+
     if (!file)
       continue
 
     const fileExtension = file.type.split('/')[1] || 'png'
-    const namedFile = new File(
-      [file],
-      `pasted-image-${Date.now()}.${fileExtension}`,
-      { type: file.type },
-    )
+    const namedFile = new File([file], `pasted-image-${Date.now()}.${fileExtension}`, { type: file.type })
 
     applyFile(namedFile)
+
     return
   }
 
   toast.info('В буфере обмена не найдено изображений для вставки.')
 }
-
-useEventListener(document, 'paste', (event: ClipboardEvent) => {
-  if (isHovered.value || isFocused.value)
-    handlePaste(event)
-})
-
 function onDrop(event: DragEvent) {
   if (isBusy.value)
     return
@@ -147,10 +140,10 @@ function onDrop(event: DragEvent) {
   isDragOver.value = false
 
   const droppedFiles = event.dataTransfer?.files
+
   if (droppedFiles && droppedFiles.length > 0)
     applyFile(droppedFiles[0])
 }
-
 function clearFile() {
   if (isBusy.value)
     return
@@ -159,13 +152,12 @@ function clearFile() {
   reset()
 }
 
-const componentClasses = computed(() => ({
-  'file-input-area': true,
-  'is-drag-over': isDragOver.value,
-  'is-disabled': props.disabled,
-  'is-loading': props.loading,
-  'has-preview': Boolean(previewUrl.value),
-}))
+useEventListener(document, 'paste', (event: ClipboardEvent) => {
+  if (isHovered.value || isFocused.value)
+    handlePaste(event)
+})
+
+onBeforeUnmount(revokeLocalPreview)
 </script>
 
 <template>

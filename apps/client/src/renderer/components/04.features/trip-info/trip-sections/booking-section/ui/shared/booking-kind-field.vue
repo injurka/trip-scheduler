@@ -3,7 +3,7 @@ import type { BookingKindMeta } from '../../models/booking-kinds'
 import { KitSelectWithSearch } from '~/components/01.kit/kit-select-with-search'
 import BookingField from './booking-field.vue'
 
-const props = defineProps<{
+interface Props {
   /** Текущее значение пометки. */
   modelValue?: string
   /** Доступные пометки для типа бронирования. */
@@ -11,7 +11,9 @@ const props = defineProps<{
   readonly: boolean
   label?: string
   icon?: string
-}>()
+}
+
+const props = defineProps<Props>()
 
 const emit = defineEmits<{ (e: 'update:modelValue', value: string | undefined): void }>()
 

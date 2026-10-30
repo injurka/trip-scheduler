@@ -16,7 +16,6 @@ interface Props {
 }
 
 const props = defineProps<Props>()
-
 const emit = defineEmits<{
   (e: 'clickLocation', location: any): void
   (e: 'clickCard', id: string): void
@@ -27,19 +26,48 @@ const emit = defineEmits<{
 }>()
 
 const authStore = useAppStore('auth')
-const { user } = storeToRefs(authStore)
-
-const isOwner = computed(() => !!user.value && user.value.id === props.post.user.id)
-
 const timeAgo = useTimeAgo(new Date(props.post.createdAt))
+
+const { user } = storeToRefs(authStore)
 const activeMediaIndex = ref(0)
 const activeMarkId = ref<string | null>(null)
 const cardAccentColor = ref('#A8AAAE')
-
 const menuItems: KitDropdownItem[] = [
   { label: 'Редактировать', value: 'edit', icon: 'mdi:pencil' },
   { label: 'Удалить', value: 'delete', icon: 'mdi:trash-can-outline', isDestructive: true },
 ]
+
+const isOwner = computed(() => !!user.value && user.value.id === props.post.user.id)
+const currentMedia = computed(() => props.post.media[activeMediaIndex.value])
+const hasMultipleMedia = computed(() => props.post.media.length > 1)
+const formattedStartDate = computed(() => {
+  if (!props.post.startDate)
+    return ''
+
+  const d = new Date(props.post.startDate)
+
+  return d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric' })
+})
+const formattedDuration = computed(() => {
+  const hours = props.post.statsDetail?.duration || 0
+
+  if (!hours)
+    return ''
+
+  if (hours >= 24 && hours % 24 === 0)
+    return `${hours / 24} дн.`
+
+  return `${hours} ч.`
+})
+const cardStyle = computed(() => ({
+  '--post-card-accent': cardAccentColor.value,
+}))
+
+watch(() => props.post.media[0], (newMedia) => {
+  if (newMedia) {
+    extractAverageColor(getBlurImgUrl(newMedia))
+  }
+}, { immediate: true })
 
 function handleMenuAction(action: string) {
   if (action === 'edit')
@@ -47,68 +75,45 @@ function handleMenuAction(action: string) {
   else if (action === 'delete')
     emit('delete', props.post.id)
 }
-
-const currentMedia = computed(() => props.post.media[activeMediaIndex.value])
-const hasMultipleMedia = computed(() => props.post.media.length > 1)
-
-const formattedStartDate = computed(() => {
-  if (!props.post.startDate)
-    return ''
-  const d = new Date(props.post.startDate)
-  return d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric' })
-})
-
-const formattedDuration = computed(() => {
-  const hours = props.post.statsDetail?.duration || 0
-  if (!hours)
-    return ''
-  if (hours >= 24 && hours % 24 === 0)
-    return `${hours / 24} дн.`
-  return `${hours} ч.`
-})
-
 function nextImage() {
   if (activeMediaIndex.value < props.post.media.length - 1) {
     activeMediaIndex.value++
     activeMarkId.value = null
   }
 }
-
 function prevImage() {
   if (activeMediaIndex.value > 0) {
     activeMediaIndex.value--
     activeMarkId.value = null
   }
 }
-
 function toggleMark(markId: string) {
   activeMarkId.value = activeMarkId.value === markId ? null : markId
 }
-
 function getMainImgUrl(media: PostMedia) {
   if (media.hasAccess === false)
     return ''
 
   const variants = getPostMediaVariants(media)
+
   if (media.type === 'video') {
     return ''
   }
 
   return variants?.medium || media.url
 }
-
 function getBlurImgUrl(media: PostMedia) {
   if (media.hasAccess === false)
     return ''
 
   const variants = getPostMediaVariants(media)
+
   if (media.type === 'video') {
     return variants.poster || variants.small || variants.medium || ''
   }
 
   return variants?.small || variants?.medium || media.url
 }
-
 async function extractAverageColor(url: string) {
   if (!url)
     return
@@ -126,6 +131,7 @@ async function extractAverageColor(url: string) {
   img.onload = () => {
     const canvas = document.createElement('canvas')
     const ctx = canvas.getContext('2d', { willReadFrequently: true })
+
     if (!ctx)
       return
 
@@ -133,14 +139,26 @@ async function extractAverageColor(url: string) {
     canvas.height = 1
 
     try {
-      ctx.drawImage(img, 0, 0, 1, 1)
+      ctx.drawImage(
+        img,
+        0,
+        0,
+        1,
+        1,
+      )
 
-      const pixelData = ctx.getImageData(0, 0, 1, 1).data
+      const pixelData = ctx.getImageData(
+        0,
+        0,
+        1,
+        1,
+      ).data
       const [r, g, b, a] = pixelData
 
       if (a === 0) {
         console.warn(`Анализ цвета не удался (прозрачный пиксель), используется цвет по умолчанию. URL: ${resolvedUrl}`)
         cardAccentColor.value = '#A8AAAE'
+
         return
       }
 
@@ -154,22 +172,11 @@ async function extractAverageColor(url: string) {
 
   img.src = resolvedUrl
 }
-
 function onClickLocation() {
   const { city, country, latitude, longitude } = props.post
 
   emit('clickLocation', { city, country, lat: latitude, lng: longitude })
 }
-
-watch(() => props.post.media[0], (newMedia) => {
-  if (newMedia) {
-    extractAverageColor(getBlurImgUrl(newMedia))
-  }
-}, { immediate: true })
-
-const cardStyle = computed(() => ({
-  '--post-card-accent': cardAccentColor.value,
-}))
 </script>
 
 <template>
@@ -197,7 +204,12 @@ const cardStyle = computed(() => ({
           @update:model-value="handleMenuAction"
         >
           <template #trigger>
-            <KitBtn variant="text" size="xs" icon="mdi:dots-horizontal" class="more-btn" />
+            <KitBtn
+              variant="text"
+              size="xs"
+              icon="mdi:dots-horizontal"
+              class="more-btn"
+            />
           </template>
         </KitDropdown>
       </div>

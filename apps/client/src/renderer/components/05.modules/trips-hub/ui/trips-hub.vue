@@ -15,29 +15,40 @@ import TripsFilters from './controls/trips-filters.vue'
 import TripList from './list-trip/list.vue'
 import UnauthorizedPlaceholder from './list-trip/states/unauthorized-placeholder.vue'
 import TripCard from './list-trip/trip-card/card-item.vue'
-
 import CreateAiTripFlow from './new-trip/create-ai-trip-flow.vue'
 import CreateTripFlow from './new-trip/create-trip-flow.vue'
+
+type CreateOption = 'manual' | 'ai'
 
 const emit = defineEmits<{
   (e: 'update:hasError', value: boolean): void
 }>()
 
 const router = useRouter()
+const tripsHub = useTripsHub()
+const authStore = useAuthStore()
+const { mdAndUp, smAndDown } = useDisplay()
 
 const isAiModalOpen = ref(false)
-
-type CreateOption = 'manual' | 'ai'
-
 const createOptions: Array<{ value: CreateOption, label: string, icon: string }> = [
   { value: 'manual', label: 'Вручную', icon: 'mdi:pencil-outline' },
   { value: 'ai', label: 'Сгенерировать', icon: 'mdi:auto-fix' },
 ]
-
-const tripsHub = useTripsHub()
-const authStore = useAuthStore()
 const { isAuthenticated } = storeToRefs(authStore)
-const { mdAndUp, smAndDown } = useDisplay()
+const tabItems: ViewSwitcherItem<TripsHubTab>[] = [
+  { id: 'public', label: 'Общие путешествия', icon: 'mdi:earth' },
+  { id: 'my', label: 'Мои путешествия', icon: 'mdi:account-heart-outline' },
+]
+const displayModeItems: ViewSwitcherItem<TDisplayMode>[] = [
+  { id: 'column', icon: 'mdi:view-grid-outline', label: '' },
+  { id: 'row', icon: 'mdi:view-list-outline', label: '' },
+]
+const statusOptions = [
+  { value: 'planned', label: 'Запланировано' },
+  { value: 'completed', label: 'Завершено' },
+  { value: 'draft', label: 'Черновик' },
+]
+const selectedCity = tripsHub.selectedCity
 
 const currentTab = computed({
   get: () => tripsHub.activeTab.value,
@@ -48,43 +59,30 @@ const currentTab = computed({
       tripsHub.setActiveTab(tab)
   },
 })
-
-const tabItems: ViewSwitcherItem<TripsHubTab>[] = [
-  { id: 'public', label: 'Общие путешествия', icon: 'mdi:earth' },
-  { id: 'my', label: 'Мои путешествия', icon: 'mdi:account-heart-outline' },
-]
-
 const tabLabel = computed(() => tabItems.find(f => f.id === currentTab.value))
-
-const displayModeItems: ViewSwitcherItem<TDisplayMode>[] = [
-  { id: 'column', icon: 'mdi:view-grid-outline', label: '' },
-  { id: 'row', icon: 'mdi:view-list-outline', label: '' },
-]
-
 const currentDisplayMode = computed({
   get: () => tripsHub.displayMode.value,
   set: (mode: TDisplayMode) => tripsHub.setDisplayMode(mode),
 })
-
-const statusOptions = [
-  { value: 'planned', label: 'Запланировано' },
-  { value: 'completed', label: 'Завершено' },
-  { value: 'draft', label: 'Черновик' },
-]
-
-const selectedCity = tripsHub.selectedCity
-
-function onCitySelected(value: GeoPlaceRef | GeoPlaceRef[] | null) {
-  selectedCity.value = Array.isArray(value) ? value[0] ?? null : value
-  tripsHub.filters.value.cityIds = selectedCity.value ? [selectedCity.value.id] : []
-}
-
 const selectedTag = computed({
   get: () => tripsHub.filters.value.tags[0] || null,
   set: val => tripsHub.filters.value.tags = val ? [val] : [],
 
 })
 
+watch(() => tripsHub.isFiltersOpen.value, (isOpen) => {
+  if (isOpen) {
+    tripsHub.searchTags()
+  }
+})
+watch(() => tripsHub.fetchError.value, (newError) => {
+  emit('update:hasError', !!newError)
+})
+
+function onCitySelected(value: GeoPlaceRef | GeoPlaceRef[] | null) {
+  selectedCity.value = Array.isArray(value) ? value[0] ?? null : value
+  tripsHub.filters.value.cityIds = selectedCity.value ? [selectedCity.value.id] : []
+}
 function onAiTripCreated(tripId: string) {
   // Трип создаётся приватным — открываем вкладку «Мои путешествия», чтобы он был виден,
   // и сразу открываем его страницу. Явный форс-fetch покрывает случай, когда вкладка уже «my».
@@ -94,16 +92,6 @@ function onAiTripCreated(tripId: string) {
   tripsHub.fetchTrips(true)
   router.push(AppRoutePaths.Trip.Info(tripId))
 }
-
-watch(
-  () => tripsHub.isFiltersOpen.value,
-  (isOpen) => {
-    if (isOpen) {
-      tripsHub.searchTags()
-    }
-  },
-)
-
 function onCreateOptionSelected(option: CreateOption) {
   if (option === 'ai')
     isAiModalOpen.value = true
@@ -111,18 +99,11 @@ function onCreateOptionSelected(option: CreateOption) {
     tripsHub.openCreateModal()
 }
 
-watch(
-  () => tripsHub.fetchError.value,
-  (newError) => {
-    emit('update:hasError', !!newError)
-  },
-)
+provide(TripsHubKey, tripsHub)
 
 onMounted(() => {
   tripsHub.fetchTrips()
 })
-
-provide(TripsHubKey, tripsHub)
 </script>
 
 <template>

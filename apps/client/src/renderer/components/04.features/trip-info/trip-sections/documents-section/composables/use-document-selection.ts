@@ -17,13 +17,16 @@ export function useDocumentSelection(
 
   function toggleDocSelection(docId: string) {
     const set = new Set(selectedDocIds.value)
+
     if (set.has(docId)) {
       set.delete(docId)
     }
     else {
       set.add(docId)
     }
+
     selectedDocIds.value = set
+
     if (set.size > 0 && !isSelectionMode.value) {
       isSelectionMode.value = true
     }
@@ -45,6 +48,7 @@ export function useDocumentSelection(
 
   async function deleteSelectedDocs() {
     const count = selectedDocIds.value.size
+
     if (count === 0)
       return
 
@@ -58,6 +62,7 @@ export function useDocumentSelection(
       return
 
     const idsToDelete = Array.from(selectedDocIds.value)
+
     for (const id of idsToDelete) {
       await useRequest({
         key: `documents:delete:${id}`,
@@ -65,22 +70,27 @@ export function useDocumentSelection(
       })
       documents.value = documents.value.filter(d => d.id !== id)
     }
+
     clearSelection()
     toast.success(`Удалено файлов: ${count}`)
   }
 
   async function moveSelectedDocs(targetFolderId: string | null) {
     const count = selectedDocIds.value.size
+
     if (count === 0)
       return
 
     const ids = Array.from(selectedDocIds.value)
+
     for (const id of ids) {
       const doc = documents.value.find(d => d.id === id)
+
       if (doc) {
         await updateDocument({ ...doc, folderId: targetFolderId })
       }
     }
+
     clearSelection()
     const targetName = targetFolderId ? folders.value.find(f => f.id === targetFolderId)?.name : 'Корень'
     toast.success(`Перемещено файлов (${count}) в «${targetName || 'Все документы'}»`)

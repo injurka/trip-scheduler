@@ -73,139 +73,220 @@ function createEmptyForm(): HighlightFormState {
   }
 }
 
-function readRationals(view: DataView, offset: number, count: number, littleEndian: boolean): number[] {
+function readRationals(
+  view: DataView,
+  offset: number,
+  count: number,
+  littleEndian: boolean,
+): number[] {
   const result: number[] = []
+
   for (let i = 0; i < count; i++) {
     const numerator = view.getUint32(offset + (i * 8), littleEndian)
     const denominator = view.getUint32(offset + (i * 8) + 4, littleEndian)
     result.push(denominator === 0 ? 0 : numerator / denominator)
   }
+
   return result
 }
 
 function extractMetadataFromJpeg(file: File): Promise<ExtractedMetadata> {
   return new Promise((resolve) => {
     const result: ExtractedMetadata = { latitude: null, longitude: null, takenAt: null }
-    if (!file || file.type !== 'image/jpeg') {
+
+    if (!file || file.type !== 'image/jpeg')
       return resolve(result)
-    }
 
     const reader = new FileReader()
-    reader.onload = function (e) {
-      try {
-        const buffer = e.target?.result as ArrayBuffer
-        if (!buffer)
-          return resolve(result)
-
-        const view = new DataView(buffer)
-        if (view.getUint16(0, false) !== 0xFFD8)
-          return resolve(result)
-
-        let offset = 2
-        const length = view.byteLength
-        let exifOffset = -1
-
-        while (offset < length - 2) {
-          const marker = view.getUint16(offset, false)
-          if (marker === 0xFFE1) {
-            exifOffset = offset + 4
-            break
-          }
-          offset += view.getUint16(offset + 2, false) + 2
-        }
-
-        if (exifOffset === -1)
-          return resolve(result)
-        if (view.getUint32(exifOffset, false) !== 0x45786966)
-          return resolve(result)
-
-        const tiffOffset = exifOffset + 6
-        const littleEndian = view.getUint16(tiffOffset, false) === 0x4949
-        const ifd0Offset = view.getUint32(tiffOffset + 4, littleEndian)
-        const numEntries = view.getUint16(tiffOffset + ifd0Offset, littleEndian)
-
-        let gpsOffset = -1
-        let exifSubIfdOffset = -1
-
-        for (let i = 0; i < numEntries; i++) {
-          const entryOffset = tiffOffset + ifd0Offset + 2 + (i * 12)
-          const tag = view.getUint16(entryOffset, littleEndian)
-          if (tag === 0x8825) {
-            gpsOffset = view.getUint32(entryOffset + 8, littleEndian)
-          }
-          else if (tag === 0x8769) {
-            exifSubIfdOffset = view.getUint32(entryOffset + 8, littleEndian)
-          }
-        }
-
-        if (gpsOffset !== -1) {
-          const gpsNumEntries = view.getUint16(tiffOffset + gpsOffset, littleEndian)
-          let lat: number[] | null = null
-          let lon: number[] | null = null
-          let latRef = 'N'
-          let lonRef = 'E'
-
-          for (let i = 0; i < gpsNumEntries; i++) {
-            const entryOffset = tiffOffset + gpsOffset + 2 + (i * 12)
-            const tag = view.getUint16(entryOffset, littleEndian)
-            const dataValueOffset = view.getUint32(entryOffset + 8, littleEndian)
-
-            if (tag === 1)
-              latRef = String.fromCharCode(view.getUint8(entryOffset + 8))
-            else if (tag === 2)
-              lat = readRationals(view, tiffOffset + dataValueOffset, 3, littleEndian)
-            else if (tag === 3)
-              lonRef = String.fromCharCode(view.getUint8(entryOffset + 8))
-            else if (tag === 4)
-              lon = readRationals(view, tiffOffset + dataValueOffset, 3, littleEndian)
-          }
-
-          if (lat && lon && lat.length === 3 && lon.length === 3) {
-            let ddLat = lat[0] + lat[1] / 60 + lat[2] / 3600
-            let ddLon = lon[0] + lon[1] / 60 + lon[2] / 3600
-            if (latRef === 'S')
-              ddLat *= -1
-            if (lonRef === 'W')
-              ddLon *= -1
-
-            result.latitude = Number(ddLat.toFixed(6))
-            result.longitude = Number(ddLon.toFixed(6))
-          }
-        }
-
-        if (exifSubIfdOffset !== -1) {
-          const exifNumEntries = view.getUint16(tiffOffset + exifSubIfdOffset, littleEndian)
-          for (let i = 0; i < exifNumEntries; i++) {
-            const entryOffset = tiffOffset + exifSubIfdOffset + 2 + (i * 12)
-            const tag = view.getUint16(entryOffset, littleEndian)
-
-            if (tag === 0x9003) {
-              const dataValueOffset = view.getUint32(entryOffset + 8, littleEndian)
-              if (tiffOffset + dataValueOffset + 19 <= view.byteLength) {
-                let dateStr = ''
-                for (let j = 0; j < 19; j++) {
-                  dateStr += String.fromCharCode(view.getUint8(tiffOffset + dataValueOffset + j))
-                }
-                const parts = dateStr.split(' ')
-                if (parts.length === 2) {
-                  const datePart = parts[0].replace(/:/g, '-')
-                  result.takenAt = `${datePart}T${parts[1]}.000Z`
-                }
-              }
-              break
-            }
-          }
-        }
-
-        resolve(result)
-      }
-      catch {
-        resolve(result)
-      }
+    reader.onload = (event) => {
+      resolve(readJpegMetadata(event.target?.result as ArrayBuffer | null, result))
     }
+    reader.onerror = () => resolve(result)
 
     reader.readAsArrayBuffer(file.slice(0, 128 * 1024))
   })
+}
+
+function readJpegMetadata(buffer: ArrayBuffer | null, result: ExtractedMetadata): ExtractedMetadata {
+  if (!buffer)
+    return result
+
+  try {
+    const view = new DataView(buffer)
+    const exifOffset = findExifOffset(view)
+
+    if (view.getUint16(0, false) !== 0xFFD8 || exifOffset < 0 || view.getUint32(exifOffset, false) !== 0x45786966)
+      return result
+
+    const tiffOffset = exifOffset + 6
+    const littleEndian = view.getUint16(tiffOffset, false) === 0x4949
+    const directoryOffsets = findExifDirectoryOffsets(view, tiffOffset, littleEndian)
+
+    applyGpsMetadata(
+      view,
+      tiffOffset,
+      littleEndian,
+      directoryOffsets.gpsOffset,
+      result,
+    )
+    result.takenAt = readExifDate(
+      view,
+      tiffOffset,
+      littleEndian,
+      directoryOffsets.exifOffset,
+    )
+  }
+  catch {
+    return result
+  }
+
+  return result
+}
+
+function findExifOffset(view: DataView): number {
+  let offset = 2
+
+  while (offset < view.byteLength - 2) {
+    const marker = view.getUint16(offset, false)
+
+    if (marker === 0xFFE1)
+      return offset + 4
+
+    offset += view.getUint16(offset + 2, false) + 2
+  }
+
+  return -1
+}
+
+function findExifDirectoryOffsets(view: DataView, tiffOffset: number, littleEndian: boolean): { gpsOffset: number, exifOffset: number } {
+  const ifd0Offset = view.getUint32(tiffOffset + 4, littleEndian)
+  const numEntries = view.getUint16(tiffOffset + ifd0Offset, littleEndian)
+  const offsets = { gpsOffset: -1, exifOffset: -1 }
+
+  for (let i = 0; i < numEntries; i++) {
+    const entryOffset = tiffOffset + ifd0Offset + 2 + (i * 12)
+    const tag = view.getUint16(entryOffset, littleEndian)
+
+    if (tag === 0x8825)
+      offsets.gpsOffset = view.getUint32(entryOffset + 8, littleEndian)
+    else if (tag === 0x8769)
+      offsets.exifOffset = view.getUint32(entryOffset + 8, littleEndian)
+  }
+
+  return offsets
+}
+
+function applyGpsMetadata(
+  view: DataView,
+  tiffOffset: number,
+  littleEndian: boolean,
+  gpsOffset: number,
+  result: ExtractedMetadata,
+) {
+  if (gpsOffset < 0)
+    return
+
+  const count = view.getUint16(tiffOffset + gpsOffset, littleEndian)
+  const coordinates = { latitude: null as number[] | null, longitude: null as number[] | null, latitudeRef: 'N', longitudeRef: 'E' }
+
+  for (let i = 0; i < count; i++) {
+    const entryOffset = tiffOffset + gpsOffset + 2 + (i * 12)
+    readGpsEntry(
+      view,
+      tiffOffset,
+      littleEndian,
+      entryOffset,
+      coordinates,
+    )
+  }
+
+  if (!coordinates.latitude || !coordinates.longitude)
+    return
+
+  result.latitude = toDecimalDegrees(coordinates.latitude, coordinates.latitudeRef)
+  result.longitude = toDecimalDegrees(coordinates.longitude, coordinates.longitudeRef)
+}
+
+function readGpsEntry(
+  view: DataView,
+  tiffOffset: number,
+  littleEndian: boolean,
+  entryOffset: number,
+  coordinates: { latitude: number[] | null, longitude: number[] | null, latitudeRef: string, longitudeRef: string },
+) {
+  const tag = view.getUint16(entryOffset, littleEndian)
+  const valueOffset = view.getUint32(entryOffset + 8, littleEndian)
+
+  switch (tag) {
+    case 1:
+      coordinates.latitudeRef = String.fromCharCode(view.getUint8(entryOffset + 8))
+      break
+    case 2:
+      coordinates.latitude = readRationals(
+        view,
+        tiffOffset + valueOffset,
+        3,
+        littleEndian,
+      )
+      break
+    case 3:
+      coordinates.longitudeRef = String.fromCharCode(view.getUint8(entryOffset + 8))
+      break
+    case 4:
+      coordinates.longitude = readRationals(
+        view,
+        tiffOffset + valueOffset,
+        3,
+        littleEndian,
+      )
+      break
+  }
+}
+
+function toDecimalDegrees(parts: number[], direction: string): number {
+  const degrees = parts[0] + parts[1] / 60 + parts[2] / 3600
+  const signed = direction === 'S' || direction === 'W' ? -degrees : degrees
+
+  return Number(signed.toFixed(6))
+}
+
+function readExifDate(
+  view: DataView,
+  tiffOffset: number,
+  littleEndian: boolean,
+  exifOffset: number,
+): string | null {
+  if (exifOffset < 0)
+    return null
+
+  const count = view.getUint16(tiffOffset + exifOffset, littleEndian)
+
+  for (let i = 0; i < count; i++) {
+    const entryOffset = tiffOffset + exifOffset + 2 + (i * 12)
+
+    if (view.getUint16(entryOffset, littleEndian) !== 0x9003)
+      continue
+
+    const valueOffset = view.getUint32(entryOffset + 8, littleEndian)
+
+    return formatExifDate(view, tiffOffset + valueOffset)
+  }
+
+  return null
+}
+
+function formatExifDate(view: DataView, offset: number): string | null {
+  if (offset + 19 > view.byteLength)
+    return null
+
+  let value = ''
+
+  for (let index = 0; index < 19; index++)
+    value += String.fromCharCode(view.getUint8(offset + index))
+
+  const [date, time] = value.split(' ')
+
+  return date && time ? `${date.replace(/:/g, '-')}T${time}.000Z` : null
 }
 
 export function useHighlights() {
@@ -228,15 +309,20 @@ export function useHighlights() {
   const dateRange = useQuerySync<HighlightDateRange | null>('dates', null, {
     parse(val) {
       const str = Array.isArray(val) ? val[0] : val
+
       if (!str)
         return null
+
       const [start, end] = str.split('~')
       const parseDate = (d: string) => {
         if (!d)
           return null
+
         const [y, m, day] = d.split('-').map(Number)
+
         return new CalendarDate(y, m, day)
       }
+
       return {
         start: parseDate(start),
         end: parseDate(end),
@@ -245,8 +331,10 @@ export function useHighlights() {
     serialize(val) {
       if (!val || (!val.start && !val.end))
         return undefined
+
       const s = val.start ? `${val.start.year}-${val.start.month}-${val.start.day}` : ''
       const e = val.end ? `${val.end.year}-${val.end.month}-${val.end.day}` : ''
+
       return `${s}~${e}`
     },
   })
@@ -281,8 +369,10 @@ export function useHighlights() {
   let cityFilterHydrationSequence = 0
   watch(selectedCityIds, async (ids) => {
     const sequence = ++cityFilterHydrationSequence
+
     if (ids.length === 0) {
       selectedCityRefs.value = []
+
       return
     }
 
@@ -305,25 +395,46 @@ export function useHighlights() {
   async function fetchHighlights() {
     if (!userId.value)
       return
+
     fetchError.value = false
 
     const filters: Record<string, string | string[]> = {}
+
     if (selectedCityIds.value.length > 0)
       filters.cityIds = selectedCityIds.value
 
     if (dateRange.value?.start) {
       const s = dateRange.value.start
-      filters.startDate = new Date(s.year, s.month - 1, s.day, 0, 0, 0).toISOString()
+      filters.startDate = new Date(
+        s.year,
+        s.month - 1,
+        s.day,
+        0,
+        0,
+        0,
+      ).toISOString()
     }
 
     if (dateRange.value?.end) {
       const e = dateRange.value.end
-      filters.endDate = new Date(e.year, e.month - 1, e.day, 23, 59, 59).toISOString()
+      filters.endDate = new Date(
+        e.year,
+        e.month - 1,
+        e.day,
+        23,
+        59,
+        59,
+      ).toISOString()
     }
 
     await useRequest({
       key: EHighlightsKeys.FETCH,
-      fn: db => db.user.getHighlights(userId.value, itemsPerPage, currentPage.value, filters),
+      fn: db => db.user.getHighlights(
+        userId.value,
+        itemsPerPage,
+        currentPage.value,
+        filters,
+      ),
       onSuccess: (data) => {
         highlights.value = data.items
         totalItems.value = data.total
@@ -388,21 +499,39 @@ export function useHighlights() {
   }
 
   function fillEditForm(highlight: Highlight) {
-    Object.assign(editForm, {
-      imageUrl: highlight.imageUrl || '',
-      countryId: highlight.countryId || highlight.country?.id || '',
+    Object.assign(editForm, createHighlightEditValues(highlight))
+  }
+
+  function createHighlightEditValues(highlight: Highlight): HighlightFormState {
+    return {
+      ...getHighlightIdentityValues(highlight),
+      ...getHighlightTextValues(highlight),
+      ...getHighlightLocationValues(highlight),
+      ...getHighlightImageValues(highlight),
+    }
+  }
+
+  function getHighlightIdentityValues(highlight: Highlight): Pick<HighlightFormState, 'imageUrl' | 'countryId'> {
+    return { imageUrl: highlight.imageUrl || '', countryId: highlight.countryId || highlight.country?.id || '' }
+  }
+
+  function getHighlightTextValues(highlight: Highlight): Pick<HighlightFormState, 'city' | 'address' | 'comment'> {
+    return { city: highlight.city || '', address: highlight.address || '', comment: highlight.comment || '' }
+  }
+
+  function getHighlightLocationValues(highlight: Highlight): Pick<HighlightFormState, 'geoPlaceId' | 'latitude' | 'longitude' | 'takenAt' | 'width' | 'height'> {
+    return {
       geoPlaceId: highlight.geoPlaceId ?? null,
-      city: highlight.city || '',
-      address: highlight.address || '',
-      comment: highlight.comment || '',
       latitude: highlight.latitude ?? null,
       longitude: highlight.longitude ?? null,
       takenAt: highlight.takenAt ?? null,
       width: highlight.width ?? null,
       height: highlight.height ?? null,
-      variants: highlight.variants || {},
-      metadata: highlight.metadata || null,
-    })
+    }
+  }
+
+  function getHighlightImageValues(highlight: Highlight): Pick<HighlightFormState, 'variants' | 'metadata'> {
+    return { variants: highlight.variants || {}, metadata: highlight.metadata || null }
   }
 
   function restoreOriginalEditImage() {
@@ -428,8 +557,7 @@ export function useHighlights() {
 
     const normalized = exifCountry.toLowerCase()
     const matchedCountry = countries.value.find((country: Country) =>
-      country.name.toLowerCase() === normalized,
-    )
+      country.name.toLowerCase() === normalized)
 
     if (matchedCountry) {
       target.countryId = matchedCountry.id
@@ -443,27 +571,37 @@ export function useHighlights() {
     const uploadMeta = data.metadata || {}
     const rawMeta = uploadMeta.metadata || {}
 
+    target.metadata = rawMeta
+    applyUploadedExifValues(target, uploadMeta)
+    applyUploadedIptcCity(target, rawMeta)
+    syncCountryFromMetadata(target, rawMeta)
+  }
+
+  function applyUploadedExifValues(target: HighlightFormState, uploadMeta: NonNullable<UploadResult['metadata']>) {
     target.latitude = uploadMeta.latitude ?? target.latitude ?? null
     target.longitude = uploadMeta.longitude ?? target.longitude ?? null
     target.takenAt = uploadMeta.takenAt ?? target.takenAt ?? null
     target.width = uploadMeta.width ?? null
     target.height = uploadMeta.height ?? null
+  }
 
-    target.metadata = rawMeta
-
+  function applyUploadedIptcCity(target: HighlightFormState, rawMeta: Record<string, unknown>) {
     const iptc = rawMeta.iptc as Record<string, unknown> | undefined
-    if (typeof iptc?.city === 'string' && !target.city) {
-      target.city = iptc.city
-    }
 
-    syncCountryFromMetadata(target, rawMeta)
+    if (typeof iptc?.city === 'string' && !target.city)
+      target.city = iptc.city
   }
 
   function uploadHighlightImage(file: File, target: HighlightFormState, fileRef: typeof formFile): Promise<boolean> {
     return new Promise((resolve) => {
       useRequest<UploadResult>({
         key: EHighlightsKeys.UPLOAD,
-        fn: db => db.files.uploadFile(file, authStore.user!.id, 'highlight', null) as unknown as Promise<UploadResult>,
+        fn: db => db.files.uploadFile(
+          file,
+          authStore.user!.id,
+          'highlight',
+          null,
+        ) as unknown as Promise<UploadResult>,
         onSuccess: (data) => {
           applyUploadedImage(target, data)
           resolve(true)
@@ -480,6 +618,7 @@ export function useHighlights() {
   async function handleFileSelect(file: File | null) {
     if (!file) {
       resetCreateForm()
+
       return
     }
 
@@ -487,10 +626,13 @@ export function useHighlights() {
     form.imageUrl = URL.createObjectURL(file)
 
     const meta = await extractMetadataFromJpeg(file)
+
     if (meta.latitude !== null)
       form.latitude = meta.latitude
+
     if (meta.longitude !== null)
       form.longitude = meta.longitude
+
     if (meta.takenAt !== null)
       form.takenAt = meta.takenAt
   }
@@ -499,6 +641,7 @@ export function useHighlights() {
     if (!file) {
       editFormFile.value = null
       restoreOriginalEditImage()
+
       return
     }
 
@@ -506,10 +649,13 @@ export function useHighlights() {
     editForm.imageUrl = URL.createObjectURL(file)
 
     const meta = await extractMetadataFromJpeg(file)
+
     if (meta.latitude !== null)
       editForm.latitude = meta.latitude
+
     if (meta.longitude !== null)
       editForm.longitude = meta.longitude
+
     if (meta.takenAt !== null)
       editForm.takenAt = meta.takenAt
   }
@@ -517,34 +663,55 @@ export function useHighlights() {
   function toNumberOrNull(value: unknown) {
     if (value === '' || value === null || value === undefined)
       return null
+
     const normalized = Number(value)
+
     return Number.isNaN(normalized) ? null : normalized
   }
 
   function normalizeForm(source: HighlightFormState): CreateHighlightInput {
     return {
-      imageUrl: source.imageUrl || '',
-      countryId: source.countryId || '',
-      geoPlaceId: source.geoPlaceId || null,
-      city: source.city?.trim() || '',
-      address: source.address?.trim() || '',
-      comment: source.comment?.trim() || '',
-      latitude: toNumberOrNull(source.latitude),
-      longitude: toNumberOrNull(source.longitude),
-      takenAt: source.takenAt || null,
-      width: toNumberOrNull(source.width),
-      height: toNumberOrNull(source.height),
-      variants: source.variants || {},
-      metadata: source.metadata || null,
+      ...normalizeHighlightIdentity(source),
+      ...normalizeHighlightText(source),
+      ...normalizeHighlightCoordinates(source, toNumberOrNull),
+      ...normalizeHighlightMedia(source),
     } as CreateHighlightInput
   }
 
+  function normalizeHighlightIdentity(source: HighlightFormState): Pick<CreateHighlightInput, 'imageUrl' | 'countryId' | 'geoPlaceId'> {
+    return { imageUrl: source.imageUrl || '', countryId: source.countryId || '', geoPlaceId: source.geoPlaceId || null }
+  }
+
+  function normalizeHighlightText(source: HighlightFormState): Pick<CreateHighlightInput, 'city' | 'address' | 'comment'> {
+    return {
+      city: normalizeText(source.city),
+      address: normalizeText(source.address),
+      comment: normalizeText(source.comment),
+    }
+  }
+
+  function normalizeText(value?: string | null): string {
+    return value?.trim() || ''
+  }
+
+  function normalizeHighlightCoordinates(source: HighlightFormState, normalizeNumber: (value: unknown) => number | null): Pick<CreateHighlightInput, 'latitude' | 'longitude' | 'takenAt' | 'width' | 'height'> {
+    return {
+      latitude: normalizeNumber(source.latitude),
+      longitude: normalizeNumber(source.longitude),
+      takenAt: source.takenAt || null,
+      width: normalizeNumber(source.width),
+      height: normalizeNumber(source.height),
+    }
+  }
+
+  function normalizeHighlightMedia(source: HighlightFormState): Pick<CreateHighlightInput, 'variants' | 'metadata'> {
+    return { variants: source.variants || {}, metadata: source.metadata || null }
+  }
+
   function isFormValid(source: HighlightFormState) {
-    return Boolean(
-      source.imageUrl
+    return Boolean(source.imageUrl
       && source.countryId
-      && source.geoPlaceId,
-    )
+      && source.geoPlaceId)
   }
 
   async function openCreateModal() {
@@ -564,13 +731,16 @@ export function useHighlights() {
   async function submitHighlight() {
     if (!isFormValid(form)) {
       toast.error('Заполни фото, страну и выбери город из справочника.')
+
       return
     }
 
     isActionProcessing.value = true
+
     try {
       if (formFile.value) {
         const success = await uploadHighlightImage(formFile.value, form, formFile)
+
         if (!success)
           return
       }
@@ -606,13 +776,16 @@ export function useHighlights() {
 
     if (!isFormValid(editForm)) {
       toast.error('Заполни фото, страну и город.')
+
       return
     }
 
     isActionProcessing.value = true
+
     try {
       if (editFormFile.value) {
         const success = await uploadHighlightImage(editFormFile.value, editForm, editFormFile)
+
         if (!success)
           return
       }

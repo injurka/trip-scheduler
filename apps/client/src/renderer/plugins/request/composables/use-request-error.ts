@@ -12,16 +12,19 @@ export function useRequestError(keys: MaybeRef<string | string[]>) {
 
   const keysAsArray = computed<string[]>(() => {
     const unwrappedKeys = unref(keys)
+
     return Array.isArray(unwrappedKeys) ? unwrappedKeys : [unwrappedKeys]
   })
 
   return computed(() => {
     for (const key of keysAsArray.value) {
       const error = store.errors.get(key)
+
       if (error) {
         return error
       }
     }
+
     return null
   })
 }

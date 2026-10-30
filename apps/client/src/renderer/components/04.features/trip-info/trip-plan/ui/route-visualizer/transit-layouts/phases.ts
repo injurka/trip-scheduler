@@ -31,6 +31,7 @@ export function computePhasesLayout(items: IActivity[], options: CalculateLayout
 
   items.forEach((activity, index) => {
     const startMin = timeToMinutes(activity.startTime)
+
     if (Number.isNaN(startMin) || startMin < 12 * 60) {
       morningItems.push({ activity, index })
     }
@@ -43,9 +44,27 @@ export function computePhasesLayout(items: IActivity[], options: CalculateLayout
   })
 
   const phaseBuckets: PhaseBucket[] = [
-    { id: 'morning', title: 'Утро', icon: 'mdi:weather-sunset-up', timeSpan: 'до 12:00', items: morningItems },
-    { id: 'afternoon', title: 'День', icon: 'mdi:white-balance-sunny', timeSpan: '12:00 – 17:00', items: afternoonItems },
-    { id: 'evening', title: 'Вечер', icon: 'mdi:weather-night', timeSpan: 'после 17:00', items: eveningItems },
+    {
+      id: 'morning',
+      title: 'Утро',
+      icon: 'mdi:weather-sunset-up',
+      timeSpan: 'до 12:00',
+      items: morningItems,
+    },
+    {
+      id: 'afternoon',
+      title: 'День',
+      icon: 'mdi:white-balance-sunny',
+      timeSpan: '12:00 – 17:00',
+      items: afternoonItems,
+    },
+    {
+      id: 'evening',
+      title: 'Вечер',
+      icon: 'mdi:weather-night',
+      timeSpan: 'после 17:00',
+      items: eveningItems,
+    },
   ]
 
   const phaseContainers: PhaseContainer[] = []
@@ -99,6 +118,7 @@ export function computePhasesLayout(items: IActivity[], options: CalculateLayout
   const nodes: LayoutNode[] = items.map((_, i) => nodesMap.get(i)!).filter(Boolean)
 
   const edges: LayoutEdge[] = []
+
   for (let i = 0; i < nodes.length - 1; i++) {
     const from = nodes[i]
     const to = nodes[i + 1]
@@ -126,5 +146,11 @@ export function computePhasesLayout(items: IActivity[], options: CalculateLayout
   const totalWidth = PADDING_X * 2 + 3 * PHASE_COL_WIDTH + 2 * GAP_PHASE + 40
   const totalHeight = PADDING_Y * 2 + tallestPhase + 40
 
-  return { nodes, edges, totalWidth, totalHeight, decorators: { phaseContainers } }
+  return {
+    nodes,
+    edges,
+    totalWidth,
+    totalHeight,
+    decorators: { phaseContainers },
+  }
 }

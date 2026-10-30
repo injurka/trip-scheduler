@@ -95,6 +95,7 @@ export function getBookingKindOptions(type: string): BookingKindMeta[] {
 export function getBookingKindMeta(type: string, kind?: string | null): BookingKindMeta | null {
   if (!kind)
     return null
+
   return BOOKING_KINDS[type]?.find(item => item.value === kind) || null
 }
 
@@ -104,9 +105,12 @@ export function getBookingKindMeta(type: string, kind?: string | null): BookingK
 export function inferBookingKind(type: string, icon?: string | null): BookingKindMeta | null {
   if (!icon)
     return null
+
   const hinted = ICON_KIND_HINTS[icon]
+
   if (!hinted)
     return null
+
   return getBookingKindMeta(type, hinted)
 }
 

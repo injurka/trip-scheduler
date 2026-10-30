@@ -26,6 +26,7 @@ const center = computed((): [number, number] => {
 const markers = computed<MapMarker[]>(() => {
   if (!props.location)
     return []
+
   return [
     {
       id: 'booking-location-marker',
@@ -50,7 +51,12 @@ function closeModal() {
     @update:visible="closeModal"
   >
     <div class="location-viewer-content">
-      <KitMap :center="center" :zoom="14" :markers="markers" height="500px" />
+      <KitMap
+        :center="center"
+        :zoom="14"
+        :markers="markers"
+        height="500px"
+      />
     </div>
   </KitDialogWithClose>
 </template>

@@ -58,28 +58,37 @@ export const useTrackingStore = defineStore('tracking', {
     hasTelemetry: state => state.isRunning || state.telemetry.distanceM > 0 || state.telemetry.speedKmh !== null,
     formattedDuration: (state) => {
       const ms = state.telemetry.durationMs
+
       if (!ms || ms <= 0)
         return '00:00:00'
+
       const totalSec = Math.floor(ms / 1000)
       const h = Math.floor(totalSec / 3600)
       const m = Math.floor((totalSec % 3600) / 60)
       const s = totalSec % 60
+
       return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
     },
     formattedDistance: (state) => {
       const d = state.telemetry.distanceM
+
       if (d < 1000)
         return `${Math.round(d)} м`
+
       return `${(d / 1000).toFixed(2)} км`
     },
     accuracyQuality: (state): 'good' | 'medium' | 'poor' | 'unknown' => {
       const acc = state.telemetry.accuracyM
+
       if (acc === null)
         return 'unknown'
+
       if (acc <= 15)
         return 'good'
+
       if (acc <= 35)
         return 'medium'
+
       return 'poor'
     },
   },
@@ -90,6 +99,7 @@ export const useTrackingStore = defineStore('tracking', {
       try {
         const available = await geotrack.isAvailable()
         this.isSupported = available
+
         if (!available)
           return
 
@@ -98,9 +108,11 @@ export const useTrackingStore = defineStore('tracking', {
         this.unsentCount = status.unsentCount
         this.network = status.network
         this.batteryIgnored = status.batteryIgnored
+
         if (status.telemetry) {
           this.telemetry = { ...status.telemetry }
         }
+
         this.hasPermissionDenied = false
       }
       catch (e) {
@@ -110,6 +122,7 @@ export const useTrackingStore = defineStore('tracking', {
         else {
           const msg = e instanceof Error ? e.message : String(e)
           this.lastError = msg
+
           if (msg.toLowerCase().includes('запрещ') || msg.toLowerCase().includes('denied')) {
             this.hasPermissionDenied = true
           }
@@ -119,9 +132,11 @@ export const useTrackingStore = defineStore('tracking', {
 
     async startPolling(intervalMs = 3000) {
       await this.refreshStatus()
+
       if (pollTimer) {
         clearInterval(pollTimer)
       }
+
       pollTimer = setInterval(() => {
         void this.refreshStatus()
       }, intervalMs)
@@ -137,22 +152,25 @@ export const useTrackingStore = defineStore('tracking', {
     async requestPermission(): Promise<boolean> {
       try {
         const granted = await geotrack.requestPermission()
+
         if (granted) {
           this.hasPermissionDenied = false
           this.lastError = null
           await this.toggle(true)
+
           return true
         }
-        else {
-          this.hasPermissionDenied = true
-          this.lastError = 'Доступ к геолокации запрещён пользователем или системой'
-          return false
-        }
+
+        this.hasPermissionDenied = true
+        this.lastError = 'Доступ к геолокации запрещён пользователем или системой'
+
+        return false
       }
       catch (e) {
         const msg = e instanceof Error ? e.message : String(e)
         this.lastError = msg
         this.hasPermissionDenied = true
+
         return false
       }
     },
@@ -161,22 +179,23 @@ export const useTrackingStore = defineStore('tracking', {
       this.isStarting = true
       this.lastError = null
       this.hasPermissionDenied = false
+
       try {
         const actionPromise = enable ? geotrack.start() : geotrack.stop()
         let timeoutTimer: any
         const timeoutPromise = new Promise<never>((_, reject) => {
-          timeoutTimer = setTimeout(
-            () => reject(new Error(enable ? 'Превышено время ожидания запуска трекинга' : 'Превышено время ожидания остановки трекинга')),
-            8000,
-          )
+          timeoutTimer = setTimeout(() => reject(new Error(enable ? 'Превышено время ожидания запуска трекинга' : 'Превышено время ожидания остановки трекинга')), 8000)
         })
+
         try {
           const status = await Promise.race([actionPromise, timeoutPromise])
           this.isRunning = status.running
           this.unsentCount = status.unsentCount
+
           if (status.telemetry) {
             this.telemetry = { ...status.telemetry }
           }
+
           if (!enable) {
             // При остановке сразу отправляем оставшиеся точки на сервер
             void this.syncNow()
@@ -189,9 +208,11 @@ export const useTrackingStore = defineStore('tracking', {
       catch (e) {
         const msg = e instanceof Error ? e.message : String(e)
         this.lastError = msg
+
         if (msg.toLowerCase().includes('запрещ') || msg.toLowerCase().includes('denied')) {
           this.hasPermissionDenied = true
         }
+
         throw e
       }
       finally {
@@ -203,10 +224,13 @@ export const useTrackingStore = defineStore('tracking', {
     async syncNow(): Promise<number> {
       if (this.isSyncing)
         return 0
+
       this.isSyncing = true
       this.lastError = null
+
       try {
         const auth = useAuthStore()
+
         if (!auth.isAuthenticated) {
           throw new Error('Для синхронизации точек войдите в аккаунт')
         }
@@ -214,18 +238,22 @@ export const useTrackingStore = defineStore('tracking', {
         const synced = await runSync()
         await this.refreshStatus()
         this.lastSyncAt = Date.now()
+
         return synced
       }
       catch (e: any) {
         const raw = e instanceof Error ? e.message : String(e)
         let msg = raw
+
         if (raw.includes('UNAUTHORIZED') || raw.includes('Not authenticated')) {
           msg = 'Для синхронизации точек войдите в аккаунт'
         }
         else if (raw.includes('Failed to fetch') || raw.includes('NetworkError') || raw.includes('Load failed')) {
           msg = 'Сервер недоступен. Проверьте подключение к сети'
         }
+
         this.lastError = msg
+
         return 0
       }
       finally {
@@ -248,6 +276,7 @@ export const useTrackingStore = defineStore('tracking', {
     async requestIgnoreBatteryOptimizations(): Promise<boolean> {
       const res = await geotrack.requestIgnoreBatteryOptimizations()
       await this.refreshStatus()
+
       return res
     },
 

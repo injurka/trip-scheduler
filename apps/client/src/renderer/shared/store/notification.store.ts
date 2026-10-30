@@ -32,11 +32,13 @@ const useNotificationStore = defineStore('notification', {
   actions: {
     async _ensureNativePushCapability(): Promise<string> {
       const hasPermission = await invoke<boolean>('tracking_request_notification_permission')
+
       if (!hasPermission) {
         throw new Error('Разрешите уведомления в настройках Android, чтобы следить за поездкой')
       }
 
       const token = await invoke<string>('tracking_get_push_token')
+
       if (!token) {
         throw new Error('RuStore не выдал push-токен. Проверьте, что на устройстве установлен RuStore или приложение VK')
       }
@@ -50,6 +52,7 @@ const useNotificationStore = defineStore('notification', {
 
       try {
         const token = refreshedToken ?? await invoke<string>('tracking_get_push_token')
+
         if (!token)
           return
 
@@ -76,11 +79,13 @@ const useNotificationStore = defineStore('notification', {
       }
 
       const vapidPublicKey = import.meta.env.VITE_VAPID_PUBLIC_KEY
+
       if (!vapidPublicKey) {
         throw new Error('VAPID Public Key не найден в переменных окружения (.env)')
       }
 
       const permission = await Notification.requestPermission()
+
       if (permission !== 'granted') {
         throw new Error('Нет разрешения на уведомления. Пожалуйста, разрешите их в настройках браузера.')
       }
@@ -88,8 +93,7 @@ const useNotificationStore = defineStore('notification', {
       const registration = await Promise.race([
         navigator.serviceWorker.ready,
         new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error('Timeout: Service Worker не готов. Возможно, он отключен в dev-режиме или не зарегистрирован.')), 3000),
-        ),
+          setTimeout(() => reject(new Error('Timeout: Service Worker не готов. Возможно, он отключен в dev-режиме или не зарегистрирован.')), 3000)),
       ]) as ServiceWorkerRegistration
 
       let subscription = await registration.pushManager.getSubscription()
@@ -111,6 +115,7 @@ const useNotificationStore = defineStore('notification', {
      */
     async checkTripSubscription(tripId: string) {
       const userId = useAuthStore().user?.id
+
       if (!userId)
         return
 
@@ -120,6 +125,7 @@ const useNotificationStore = defineStore('notification', {
         onSuccess: (isSubscribed) => {
           if (useAuthStore().user?.id !== userId)
             return
+
           if (isSubscribed) {
             this.subscribedTripIds.add(tripId)
           }

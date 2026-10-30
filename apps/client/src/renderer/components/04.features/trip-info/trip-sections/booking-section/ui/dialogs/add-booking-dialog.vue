@@ -4,9 +4,11 @@ import type { BookingType } from '../../models/types'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitDialogWithClose } from '~/components/01.kit/kit-dialog-with-close'
 
-defineProps<{
+interface Props {
   bookingTypeConfigs: typeof BOOKING_TYPES_CONFIG
-}>()
+}
+
+defineProps<Props>()
 
 const emit = defineEmits<{
   (e: 'add', type: BookingType): void
@@ -28,6 +30,7 @@ function formatAddButtonLabel(label: string): string {
   else if (lastWord.endsWith('а')) {
     words[words.length - 1] = `${lastWord.slice(0, -1)}о`
   }
+
   return `Добавить ${words.join(' ')}`
 }
 </script>

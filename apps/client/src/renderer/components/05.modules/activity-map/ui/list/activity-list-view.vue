@@ -44,7 +44,12 @@ const dateRange = defineModel<DateRange>('dateRange', { required: true })
       </div>
 
       <div v-else class="activities-grid">
-        <div v-for="act in activities" :key="act.id" class="activity-card" :class="`status-${act.status}`">
+        <div
+          v-for="act in activities"
+          :key="act.id"
+          class="activity-card"
+          :class="`status-${act.status}`"
+        >
           <div class="card-status-line" />
           <div class="card-content">
             <div class="card-header">

@@ -17,6 +17,7 @@ export class DestinationReviewRepository implements IDestinationReviewRepository
   @throttle(500)
   async getUserReviews(params: GetUserReviewsParams): Promise<{ items: DestinationReview[], total: number }> {
     const result = await trpc.destinationReview.getUserReviews.query(params)
+
     return result as { items: DestinationReview[], total: number }
   }
 

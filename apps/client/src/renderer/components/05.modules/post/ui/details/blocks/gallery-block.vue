@@ -8,65 +8,17 @@ import { KitImageViewer, useImageViewer } from '~/components/01.kit/kit-image-vi
 import { getPostMediaVariants } from '~/components/05.modules/post/lib/media-variants'
 import PostVideoThumbnail from '../../shared/post-video-thumbnail.vue'
 
-const props = withDefaults(defineProps<{
+interface Props {
   images: PostMedia[]
   comment?: string
   displayType?: 'grid' | 'panorama' | 'masonry' | 'slider'
-}>(), {
+}
+
+const props = withDefaults(defineProps<Props>(), {
   displayType: 'grid',
 })
 
 const { isOpen, open, currentIndex } = useImageViewer()
-
-const accessibleMedia = computed(() => props.images.filter(img => img.hasAccess !== false))
-
-const viewerImages = computed<ImageViewerImage[]>(() => {
-  return accessibleMedia.value.map((img) => {
-    const variants = getPostMediaVariants(img)
-    const videoUrl = img.type === 'video' ? variants.web || img.url : img.url
-
-    return {
-      url: videoUrl,
-      alt: img.originalName || 'Image',
-      mediaType: img.type,
-      meta: {
-        ...(img.metadata || {}),
-        imageId: img.id,
-        mediaType: img.type,
-        width: img.width ?? img.metadata?.width,
-        height: img.height ?? img.metadata?.height,
-        takenAt: img.takenAt ?? img.metadata?.takenAt,
-        latitude: img.latitude ?? img.metadata?.latitude,
-        longitude: img.longitude ?? img.metadata?.longitude,
-      },
-      variants: img.type === 'video'
-        ? {
-            ...variants,
-            small: variants.poster || variants.small || variants.medium || videoUrl,
-            medium: variants.poster || variants.medium || variants.small || videoUrl,
-            large: variants.web || variants.large || videoUrl,
-          }
-        : variants,
-    }
-  })
-})
-
-function getOptimizedUrl(img: PostMedia) {
-  const variants = getPostMediaVariants(img)
-  if (img.type === 'video') {
-    return variants.poster || variants.medium || variants.small || ''
-  }
-
-  if (props.displayType === 'grid' || props.displayType === 'masonry') {
-    return variants.medium || variants.small || img.url
-  }
-
-  if (props.displayType === 'slider' || props.displayType === 'panorama') {
-    return variants.large || variants.medium || img.url
-  }
-
-  return img.url
-}
 
 const sliderRef = ref<HTMLElement | null>(null)
 let isDown = false
@@ -74,26 +26,97 @@ let startX = 0
 let scrollLeft = 0
 const isDragging = ref(false)
 
+const accessibleMedia = computed(() => props.images.filter(img => img.hasAccess !== false))
+const viewerImages = computed<ImageViewerImage[]>(() => accessibleMedia.value.map(toViewerImage))
+
+function firstAvailableUrl(...values: Array<string | null | undefined>): string {
+  return values.find(Boolean) || ''
+}
+
+function getMetaValue(value: unknown, metadata: Record<string, any> | undefined, key: string) {
+  return value ?? metadata?.[key]
+}
+
+function getViewerMeta(img: PostMedia) {
+  return {
+    ...(img.metadata || {}),
+    imageId: img.id,
+    mediaType: img.type,
+    width: getMetaValue(img.width, img.metadata, 'width'),
+    height: getMetaValue(img.height, img.metadata, 'height'),
+    takenAt: getMetaValue(img.takenAt, img.metadata, 'takenAt'),
+    latitude: getMetaValue(img.latitude, img.metadata, 'latitude'),
+    longitude: getMetaValue(img.longitude, img.metadata, 'longitude'),
+  }
+}
+
+function getVideoViewerVariants(variants: ReturnType<typeof getPostMediaVariants>, videoUrl: string) {
+  return {
+    ...variants,
+    small: firstAvailableUrl(
+      variants.poster,
+      variants.small,
+      variants.medium,
+      videoUrl,
+    ),
+    medium: firstAvailableUrl(
+      variants.poster,
+      variants.medium,
+      variants.small,
+      videoUrl,
+    ),
+    large: firstAvailableUrl(variants.web, variants.large, videoUrl),
+  }
+}
+
+function toViewerImage(img: PostMedia): ImageViewerImage {
+  const variants = getPostMediaVariants(img)
+  const isVideo = img.type === 'video'
+  const videoUrl = isVideo ? firstAvailableUrl(variants.web, img.url) : img.url
+
+  return {
+    url: videoUrl,
+    alt: img.originalName || 'Image',
+    mediaType: img.type,
+    meta: getViewerMeta(img),
+    variants: isVideo ? getVideoViewerVariants(variants, videoUrl) : variants,
+  }
+}
+
+function getOptimizedUrl(img: PostMedia) {
+  const variants = getPostMediaVariants(img)
+
+  if (img.type === 'video')
+    return firstAvailableUrl(variants.poster, variants.medium, variants.small)
+
+  if (props.displayType === 'grid' || props.displayType === 'masonry')
+    return firstAvailableUrl(variants.medium, variants.small, img.url)
+
+  if (props.displayType === 'slider' || props.displayType === 'panorama')
+    return firstAvailableUrl(variants.large, variants.medium, img.url)
+
+  return img.url
+}
 function startDrag(e: MouseEvent) {
   isDown = true
   isDragging.value = false
   startX = e.pageX - (sliderRef.value?.offsetLeft || 0)
   scrollLeft = sliderRef.value?.scrollLeft || 0
 }
-
 function stopDrag() {
   isDown = false
   setTimeout(() => {
     isDragging.value = false
   }, 50)
 }
-
 function onDrag(e: MouseEvent) {
   if (!isDown)
     return
+
   e.preventDefault()
   const x = e.pageX - (sliderRef.value?.offsetLeft || 0)
   const walk = (x - startX) * 2
+
   if (Math.abs(walk) > 5)
     isDragging.value = true
 
@@ -101,11 +124,11 @@ function onDrag(e: MouseEvent) {
     sliderRef.value.scrollLeft = scrollLeft - walk
   }
 }
-
 function handleItemClick(img: PostMedia, e: Event) {
   if (isDragging.value) {
     e.preventDefault()
     e.stopPropagation()
+
     return
   }
 
@@ -114,6 +137,7 @@ function handleItemClick(img: PostMedia, e: Event) {
   }
 
   const imageIndex = accessibleMedia.value.findIndex(media => media.id === img.id)
+
   if (imageIndex !== -1) {
     open(viewerImages.value, imageIndex)
   }
@@ -187,7 +211,12 @@ function handleItemClick(img: PostMedia, e: Event) {
               :poster="getOptimizedUrl(img)"
               :alt="img.originalName || 'Видео'"
             />
-            <KitImage v-else :src="getOptimizedUrl(img)" object-fit="cover" draggable="false" />
+            <KitImage
+              v-else
+              :src="getOptimizedUrl(img)"
+              object-fit="cover"
+              draggable="false"
+            />
             <div v-if="img.type === 'video'" class="video-play-badge">
               <Icon icon="mdi:play" />
             </div>

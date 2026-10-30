@@ -7,11 +7,17 @@ import { useThemeStore } from '~/shared/store/theme.store'
  */
 function hexToRgbString(hex: string): string | null {
   const shorthandRegex = /^#?([a-f\d])([a-f\d])([a-f\d])$/i
-  hex = hex.replace(shorthandRegex, (_, r, g, b) => {
+  hex = hex.replace(shorthandRegex, (
+    _,
+    r,
+    g,
+    b,
+  ) => {
     return r + r + g + g + b + b
   })
 
   const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex)
+
   return result
     ? `${Number.parseInt(result[1], 16)}, ${Number.parseInt(result[2], 16)}, ${Number.parseInt(result[3], 16)}`
     : null
@@ -24,6 +30,7 @@ function applyColorPalette(element: HTMLElement, palette: Record<string, string>
 
     if (colorValue.startsWith('#')) {
       const rgbString = hexToRgbString(colorValue)
+
       if (rgbString) {
         const rgbKey = `--${key}-rgb`
         element.style.setProperty(rgbKey, rgbString)
@@ -40,10 +47,13 @@ function applyGenericPalette(element: HTMLElement, palette: Record<string, strin
 
 function isDarkColor(hex: string): boolean {
   const rgb = hexToRgbString(hex)
+
   if (!rgb)
     return false
+
   const [r, g, b] = rgb.split(',').map(n => Number(n.trim()))
   const yiq = (r * 299 + g * 587 + b * 114) / 1000
+
   return yiq < 128
 }
 
@@ -55,11 +65,13 @@ function updateSystemBarTheme(isDark: boolean, themeColor: string) {
   htmlElement.style.colorScheme = isDark ? 'dark' : 'light'
 
   let metaThemeColor = document.querySelector('meta[name="theme-color"]') as HTMLMetaElement | null
+
   if (!metaThemeColor) {
     metaThemeColor = document.createElement('meta')
     metaThemeColor.name = 'theme-color'
     document.head.appendChild(metaThemeColor)
   }
+
   metaThemeColor.content = themeColor
 }
 
@@ -103,6 +115,7 @@ export function setupCssVariablesUpdater() {
 
       if (currentOpacity)
         htmlElement.style.setProperty('--content-bg-opacity', currentOpacity)
+
       if (currentWidth)
         htmlElement.style.setProperty('--content-gradient-width', currentWidth)
 

@@ -14,14 +14,19 @@ const slots = useSlots()
 const hasContent = computed(() => {
   if (!slots.default)
     return false
+
   const nodes = slots.default()
+
   return nodes.some((node) => {
     if (node.type === Comment)
       return false
+
     if (typeof node.children === 'string' && !node.children.trim())
       return false
+
     if (Array.isArray(node.children) && node.children.length === 0)
       return false
+
     return true
   })
 })

@@ -2,7 +2,6 @@
 import type { useGeolocationMap } from '~/components/03.domain/trip-info/geolocation-section/composables/use-geolocation-map'
 import type { ActivitySectionGeolocation, MapPoint, MapRoute } from '~/components/03.domain/trip-info/geolocation-section/models/types'
 import type { IDay } from '~/components/04.features/trip-info/trip-plan/models/types'
-
 import { Icon } from '@iconify/vue'
 import { useFullscreen, useMediaQuery } from '@vueuse/core'
 import { KitBtn } from '~/components/01.kit/kit-btn'
@@ -16,121 +15,10 @@ import TripMapSidebarItem from './trip-map-sidebar-item.vue'
 interface Props {
   days: IDay[]
 }
-const props = defineProps<Props>()
-
-const mapSectionWrapperRef = ref<HTMLElement | null>(null)
-const { isFullscreen: isNativeFullscreen, isSupported: isFullscreenSupported, toggle: toggleNativeFullscreen } = useFullscreen(mapSectionWrapperRef)
-const isCustomFullscreen = ref(false)
-const isFullscreen = computed(() => isNativeFullscreen.value || isCustomFullscreen.value)
-
-const mapController = ref<ReturnType<typeof useGeolocationMap>>()
-
-async function handleToggleFullscreen() {
-  if (isFullscreenSupported.value) {
-    try {
-      await toggleNativeFullscreen()
-      isCustomFullscreen.value = false
-    }
-    catch {
-      isCustomFullscreen.value = !isCustomFullscreen.value
-    }
-  }
-  else {
-    isCustomFullscreen.value = !isCustomFullscreen.value
-  }
-
-  nextTick(() => {
-    mapController.value?.mapInstance.value?.resize()
-  })
-}
-
-const selectedDayId = ref('all')
-const selectedItemId = ref<string | null>(null)
-
-const isSmallScreen = useMediaQuery('(max-width: 1200px)')
-const isLargeScreen = useMediaQuery('(min-width: 1920px)')
-
-const isSidebarVisible = ref(!isSmallScreen.value)
-const sidebarWidth = ref(320)
-const isSidebarResizing = ref(false)
-
-function startSidebarResize(e: MouseEvent) {
-  isSidebarResizing.value = true
-  const startX = e.clientX
-  const startWidth = sidebarWidth.value
-
-  const doResize = (moveEvent: MouseEvent) => {
-    if (!isSidebarResizing.value)
-      return
-    const newWidth = startWidth + (moveEvent.clientX - startX)
-    if (newWidth > 200 && newWidth < 600) {
-      sidebarWidth.value = newWidth
-    }
-  }
-
-  const stopResize = () => {
-    isSidebarResizing.value = false
-    document.removeEventListener('mousemove', doResize)
-    document.removeEventListener('mouseup', stopResize)
-    document.body.style.cursor = ''
-    document.body.style.userSelect = ''
-  }
-
-  document.addEventListener('mousemove', doResize)
-  document.addEventListener('mouseup', stopResize)
-  document.body.style.cursor = 'col-resize'
-  document.body.style.userSelect = 'none'
-}
-
-const detailsPanelSize = ref(isLargeScreen ? 600 : 300)
-const isDetailsResizing = ref(false)
-
-function startDetailsResize(e: MouseEvent) {
-  isDetailsResizing.value = true
-  const startX = e.clientX
-  const startY = e.clientY
-  const startSize = detailsPanelSize.value
-  const isSideMode = isLargeScreen.value
-
-  const doResize = (moveEvent: MouseEvent) => {
-    if (!isDetailsResizing.value)
-      return
-
-    if (isSideMode) {
-      const diff = startX - moveEvent.clientX
-      const newWidth = startSize + diff
-      if (newWidth > 300 && newWidth < 1000) {
-        detailsPanelSize.value = newWidth
-      }
-    }
-    else {
-      const diff = startY - moveEvent.clientY
-      const newHeight = startSize + diff
-      if (newHeight > 150 && newHeight < 600) {
-        detailsPanelSize.value = newHeight
-      }
-    }
-  }
-
-  const stopResize = () => {
-    isDetailsResizing.value = false
-    document.removeEventListener('mousemove', doResize)
-    document.removeEventListener('mouseup', stopResize)
-    document.body.style.cursor = ''
-    document.body.style.userSelect = ''
-  }
-
-  document.addEventListener('mousemove', doResize)
-  document.addEventListener('mouseup', stopResize)
-  document.body.style.cursor = isSideMode ? 'col-resize' : 'row-resize'
-  document.body.style.userSelect = 'none'
-}
-
 interface TimelineItem {
   item: MapPoint | MapRoute
   type: 'point' | 'route'
 }
-
 interface TimelineActivity {
   id: string
   dayNumber: number
@@ -141,14 +29,34 @@ interface TimelineActivity {
   items: TimelineItem[]
 }
 
+const props = defineProps<Props>()
+
+const isSmallScreen = useMediaQuery('(max-width: 1200px)')
+const isLargeScreen = useMediaQuery('(min-width: 1920px)')
+
+const mapSectionWrapperRef = ref<HTMLElement | null>(null)
+
+const { isFullscreen: isNativeFullscreen, isSupported: isFullscreenSupported, toggle: toggleNativeFullscreen } = useFullscreen(mapSectionWrapperRef)
+
+const isCustomFullscreen = ref(false)
+const mapController = ref<ReturnType<typeof useGeolocationMap>>()
+const selectedDayId = ref('all')
+const selectedItemId = ref<string | null>(null)
+const isSidebarVisible = ref(!isSmallScreen.value)
+const sidebarWidth = ref(320)
+const isSidebarResizing = ref(false)
+const detailsPanelSize = ref(isLargeScreen ? 600 : 300)
+const isDetailsResizing = ref(false)
+
+const isFullscreen = computed(() => isNativeFullscreen.value || isCustomFullscreen.value)
 const dayOptions = computed(() => {
   const options: any[] = [{ value: 'all', label: 'Все дни', dayNumber: null }]
   props.days.forEach((day, index) => {
     options.push({ value: day.id, label: day.title || `День ${index + 1}`, dayNumber: index + 1 })
   })
+
   return options
 })
-
 const allGeoSections = computed(() => {
   const sections: { section: any, dayId: string, activityId: string, activityTitle: string }[] = []
   props.days.forEach((day) => {
@@ -160,15 +68,13 @@ const allGeoSections = computed(() => {
       })
     })
   })
+
   return sections
 })
-
 const allPoints = computed(() => allGeoSections.value.flatMap(s => s.section.points.map((p: any) => ({ ...p, dayId: s.dayId }))))
 const allRoutes = computed(() => allGeoSections.value.flatMap(s => s.section.routes.map((r: any) => ({ ...r, dayId: s.dayId }))))
-
 const filteredPoints = computed(() => selectedDayId.value === 'all' ? allPoints.value : allPoints.value.filter(p => p.dayId === selectedDayId.value))
 const filteredRoutes = computed(() => selectedDayId.value === 'all' ? allRoutes.value : allRoutes.value.filter(r => r.dayId === selectedDayId.value))
-
 const timelineActivities = computed<TimelineActivity[]>(() => props.days.flatMap((day, dayIndex) => {
   if (selectedDayId.value !== 'all' && day.id !== selectedDayId.value)
     return []
@@ -197,7 +103,6 @@ const timelineActivities = computed<TimelineActivity[]>(() => props.days.flatMap
     })
     .filter(activity => activity.items.length > 0)
 }))
-
 const selectedActivity = computed(() => {
   if (!selectedItemId.value)
     return null
@@ -206,17 +111,15 @@ const selectedActivity = computed(() => {
     s.section.points.some((p: any) => p.id === selectedItemId.value)
     || s.section.routes.some((route: MapRoute) =>
       route.id === selectedItemId.value
-      || route.points.some(point => point.id === selectedItemId.value),
-    ),
-  )
+      || route.points.some(point => point.id === selectedItemId.value)))
 
   if (!geoSection)
     return null
 
   const day = props.days.find(d => d.id === geoSection.dayId)
+
   return day?.activities.find(a => a.id === geoSection.activityId) || null
 })
-
 const detailsPanelStyle = computed(() => {
   const style: Record<string, string> = {}
 
@@ -233,39 +136,130 @@ const detailsPanelStyle = computed(() => {
 
   return style
 })
-
 const mapCenter = computed((): [number, number] => {
   if (allPoints.value.length > 0)
     return allPoints.value[0].coordinates
+
   const firstRoute = allRoutes.value[0]
+
   if (firstRoute?.geometry?.length)
     return firstRoute.geometry[0]
+
   if (firstRoute?.points?.length)
     return firstRoute.points[0].coordinates
+
   return [37.6176, 55.7558] // Moscow
 })
-
 const geolocationMapPoints = computed<MapPoint[]>(() => {
   const routePoints = filteredRoutes.value.flatMap(route =>
     route.points.map((point: { style: any }) => ({
       ...point,
       style: { ...point.style, color: route.color },
-    })),
-  )
+    })))
+
   return [...filteredPoints.value, ...routePoints]
 })
 const geolocationMapRoutes = computed<MapRoute[]>(() => filteredRoutes.value)
 
+async function handleToggleFullscreen() {
+  if (isFullscreenSupported.value) {
+    try {
+      await toggleNativeFullscreen()
+      isCustomFullscreen.value = false
+    }
+    catch {
+      isCustomFullscreen.value = !isCustomFullscreen.value
+    }
+  }
+  else {
+    isCustomFullscreen.value = !isCustomFullscreen.value
+  }
+
+  nextTick(() => {
+    mapController.value?.mapInstance.value?.resize()
+  })
+}
+function startSidebarResize(e: MouseEvent) {
+  isSidebarResizing.value = true
+  const startX = e.clientX
+  const startWidth = sidebarWidth.value
+
+  const doResize = (moveEvent: MouseEvent) => {
+    if (!isSidebarResizing.value)
+      return
+
+    const newWidth = startWidth + (moveEvent.clientX - startX)
+
+    if (newWidth > 200 && newWidth < 600) {
+      sidebarWidth.value = newWidth
+    }
+  }
+
+  const stopResize = () => {
+    isSidebarResizing.value = false
+    document.removeEventListener('mousemove', doResize)
+    document.removeEventListener('mouseup', stopResize)
+    document.body.style.cursor = ''
+    document.body.style.userSelect = ''
+  }
+
+  document.addEventListener('mousemove', doResize)
+  document.addEventListener('mouseup', stopResize)
+  document.body.style.cursor = 'col-resize'
+  document.body.style.userSelect = 'none'
+}
+function startDetailsResize(e: MouseEvent) {
+  isDetailsResizing.value = true
+  const startX = e.clientX
+  const startY = e.clientY
+  const startSize = detailsPanelSize.value
+  const isSideMode = isLargeScreen.value
+
+  const doResize = (moveEvent: MouseEvent) => {
+    if (!isDetailsResizing.value)
+      return
+
+    if (isSideMode) {
+      const diff = startX - moveEvent.clientX
+      const newWidth = startSize + diff
+
+      if (newWidth > 300 && newWidth < 1000) {
+        detailsPanelSize.value = newWidth
+      }
+    }
+    else {
+      const diff = startY - moveEvent.clientY
+      const newHeight = startSize + diff
+
+      if (newHeight > 150 && newHeight < 600) {
+        detailsPanelSize.value = newHeight
+      }
+    }
+  }
+
+  const stopResize = () => {
+    isDetailsResizing.value = false
+    document.removeEventListener('mousemove', doResize)
+    document.removeEventListener('mouseup', stopResize)
+    document.body.style.cursor = ''
+    document.body.style.userSelect = ''
+  }
+
+  document.addEventListener('mousemove', doResize)
+  document.addEventListener('mouseup', stopResize)
+  document.body.style.cursor = isSideMode ? 'col-resize' : 'row-resize'
+  document.body.style.userSelect = 'none'
+}
 function onMapReady(controller: ReturnType<typeof useGeolocationMap>) {
   mapController.value = controller
 }
-
 function handleMapClick(coords: [number, number]) {
   if (mapController.value?.mapInstance.value) {
     const map = mapController.value.mapInstance.value
     const point = map.project(coords)
     const features = map.queryRenderedFeatures([point.x, point.y])
     const routeFeature = features.find(f => f.properties?.id)
+
     if (routeFeature?.properties?.id) {
       selectedItemId.value = routeFeature.properties.id
     }
@@ -274,14 +268,15 @@ function handleMapClick(coords: [number, number]) {
     }
   }
 }
-
 function focusOnItem(item: MapPoint | MapRoute) {
   selectedItemId.value = item.id
+
   if ('coordinates' in item) { // MapPoint
     mapController.value?.flyToLocation(item.coordinates[0], item.coordinates[1], 14)
   }
   else if ('geometry' in item) { // MapRoute
     const start = item.geometry?.[0] || item.points[0]?.coordinates
+
     if (start)
       mapController.value?.flyToLocation(start[0], start[1], 13)
   }
@@ -308,7 +303,8 @@ function focusOnItem(item: MapPoint | MapRoute) {
               <KitSelectWithSearch
                 v-model="selectedDayId"
                 :items="dayOptions"
-                :clearable="false" size="sm"
+                :clearable="false"
+                size="sm"
               >
                 <template #item="{ item }">
                   <div class="day-option-content">
@@ -399,7 +395,12 @@ function focusOnItem(item: MapPoint | MapRoute) {
 
             <div class="details-header">
               <h4>Активность: {{ selectedActivity.title }}</h4>
-              <KitBtn icon="mdi:close" variant="text" size="sm" @click="selectedItemId = null" />
+              <KitBtn
+                icon="mdi:close"
+                variant="text"
+                size="sm"
+                @click="selectedItemId = null"
+              />
             </div>
             <div class="details-content">
               <TripMapDetailsItem :activity="selectedActivity" />

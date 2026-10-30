@@ -18,9 +18,6 @@ import DayHeader from './day-header.vue'
 import TripInfoEmpty from './states/trip-info-empty.vue'
 import TripInfoSkeleton from './states/trip-info-skeleton.vue'
 
-const DayRouteMap = lazyComponent(() => import('./content/day-route-map.vue'))
-const TripOverviewContent = lazyComponent(() => import('./content/trip-overview.vue'))
-
 const {
   tripId,
   dayId,
@@ -28,50 +25,51 @@ const {
   sectionQuery,
   handleSaveTrip,
 } = useTripInfoView()
-
 const { plan, ui, sections } = useModuleStore(['plan', 'ui', 'sections'])
-const { days, isLoading, fetchError, getPreviousDayId, getNextDayId, getSelectedDay } = storeToRefs(plan)
-const { activeView, isViewMode } = storeToRefs(ui)
-
-const isEditModalOpen = ref(false)
-
-function handleEditTrip() {
-  isEditModalOpen.value = true
-}
-
 const { mdAndUp } = useDisplay()
+const { width: windowWidth, height: windowHeight } = useWindowSize()
+
+const DayRouteMap = lazyComponent(() => import('./content/day-route-map.vue'))
+const TripOverviewContent = lazyComponent(() => import('./content/trip-overview.vue'))
+const {
+  days,
+  isLoading,
+  fetchError,
+  getPreviousDayId,
+  getNextDayId,
+  getSelectedDay,
+} = storeToRefs(plan)
+const { activeView, isViewMode } = storeToRefs(ui)
+const isEditModalOpen = ref(false)
 const tripInfoWrapperRef = ref<HTMLElement | null>(null)
+
+const { left: wrapperLeft, width: wrapperWidth, bottom: wrapperBottom } = useElementBounding(tripInfoWrapperRef)
+
 const dayNavigationWrapperRef = ref<HTMLElement | null>(null)
 const dayNavigationIsVisible = ref(true)
 
-const { stop: stopIntersectionObserver } = useIntersectionObserver(
-  dayNavigationWrapperRef,
-  ([{ isIntersecting }]) => {
-    dayNavigationIsVisible.value = isIntersecting
-  },
-)
-
-const { width: windowWidth, height: windowHeight } = useWindowSize()
-const { left: wrapperLeft, width: wrapperWidth, bottom: wrapperBottom } = useElementBounding(tripInfoWrapperRef)
+const { stop: stopIntersectionObserver } = useIntersectionObserver(dayNavigationWrapperRef, ([{ isIntersecting }]) => {
+  dayNavigationIsVisible.value = isIntersecting
+})
 
 const freeSpaceOnSide = computed(() => wrapperLeft.value)
 const showFixedNavButtons = computed(() => mdAndUp.value && freeSpaceOnSide.value >= 240 && !dayNavigationIsVisible.value)
 const isDayMetaBadges = computed(() => !!(getSelectedDay.value && (getSelectedDay.value.meta?.length || !isViewMode.value)))
-
 const fixedNavPrevBtnStyle = computed(() => ({
   bottom: `${Math.max(20, windowHeight.value - wrapperBottom.value)}px`,
   left: `${wrapperLeft.value - 240}px`,
 }))
-
 const fixedNavNextBtnStyle = computed(() => ({
   bottom: `${Math.max(20, windowHeight.value - wrapperBottom.value)}px`,
   right: `${windowWidth.value - (wrapperLeft.value + wrapperWidth.value) - 240}px`,
 }))
 
+function handleEditTrip() {
+  isEditModalOpen.value = true
+}
 function handleSelectPreviousDay() {
   plan.selectPreviousDay()
 }
-
 function handleSelectNextDay() {
   plan.selectNextDay()
 }
@@ -96,7 +94,12 @@ onUnmounted(() => {
       </template>
 
       <template #success>
-        <TripOverviewContent v-if="!dayId && !sectionQuery" :plan="plan" :sections="sections" @edit="handleEditTrip" />
+        <TripOverviewContent
+          v-if="!dayId && !sectionQuery"
+          :plan="plan"
+          :sections="sections"
+          @edit="handleEditTrip"
+        />
 
         <template v-else-if="dayId && !sectionQuery">
           <DaysControls

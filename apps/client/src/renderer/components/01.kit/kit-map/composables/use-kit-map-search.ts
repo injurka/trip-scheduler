@@ -21,8 +21,10 @@ export function useKitMapSearch() {
       return null
 
     isSearching.value = true
+
     try {
       const result = await nominatimService.searchSingle(query)
+
       if (result) {
         return {
           lat: result.lat,
@@ -31,10 +33,12 @@ export function useKitMapSearch() {
           boundingbox: result.boundingbox,
         }
       }
+
       return null
     }
     catch (e) {
       console.error('[useKitMapSearch] Ошибка поиска:', e)
+
       return null
     }
     finally {

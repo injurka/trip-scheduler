@@ -21,43 +21,75 @@ const emit = defineEmits<{ (e: 'update:visible', value: boolean): void }>()
 const toast = useToast()
 const { share, isSupported: isShareSupported } = useShare()
 const { copy } = useClipboard()
+const debouncedCheckAvailability = useDebounceFn(checkAvailability, 350)
+
 const slug = ref('')
 const isChecking = ref(false)
 const isAvailable = ref<boolean | null>(null)
 const availabilityError = ref('')
 const checkSequence = ref(0)
-
 const slugPattern = /^(?![\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}$)[a-z0-9]+(?:-[a-z0-9]+)*$/i
+
 const isSlugValid = computed(() => slug.value.length >= 3 && slug.value.length <= 80 && slugPattern.test(slug.value))
 const saveRequestKey = computed(() => `trip-share:update:${props.trip.id}`)
+
 const isSaving = useRequestStatus(saveRequestKey)
 
 const activeSlug = computed(() => slug.value || props.initialSlug)
 const shareUrl = computed(() => getTripWebUrl(activeSlug.value))
 const deepLinkUrl = computed(() => getTripDeepLinkUrl(activeSlug.value))
+const inputError = computed(() => {
+  if (slug.value && !isSlugValid.value)
+    return 'От 3 до 80 символов: латиница в нижнем регистре, цифры и дефисы между словами.'
+
+  if (isAvailable.value === false)
+    return 'Этот адрес уже занят. Попробуйте другой.'
+
+  return availabilityError.value || null
+})
+
+watch(slug, (value) => {
+  const normalized = value.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '').replace(/-+/g, '-').replace(/^-|-$/g, '')
+
+  if (normalized !== value) {
+    slug.value = normalized
+
+    return
+  }
+
+  isAvailable.value = null
+  availabilityError.value = ''
+
+  if (isSlugValid.value) {
+    debouncedCheckAvailability(value)
+  }
+  else {
+    isChecking.value = false
+  }
+})
+watch(() => props.visible, (visible) => {
+  if (!visible) {
+    checkSequence.value++
+
+    return
+  }
+
+  slug.value = props.initialSlug
+})
 
 async function copyWebUrl() {
   await copy(shareUrl.value)
   toast.success('Ссылка на сайт скопирована')
 }
-
 async function copyDeepLinkUrl() {
   await copy(deepLinkUrl.value)
   toast.success('Deep link скопирован')
 }
-
-const inputError = computed(() => {
-  if (slug.value && !isSlugValid.value)
-    return 'От 3 до 80 символов: латиница в нижнем регистре, цифры и дефисы между словами.'
-  if (isAvailable.value === false)
-    return 'Этот адрес уже занят. Попробуйте другой.'
-  return availabilityError.value || null
-})
-
 async function checkAvailability(value: string) {
   if (!slugPattern.test(value) || value.length < 3 || value.length > 80) {
     isAvailable.value = null
     isChecking.value = false
+
     return
   }
 
@@ -80,52 +112,48 @@ async function checkAvailability(value: string) {
   isAvailable.value = typeof available === 'boolean' ? available : null
 }
 
-const debouncedCheckAvailability = useDebounceFn(checkAvailability, 350)
+async function persistShareSlugIfChanged(): Promise<boolean> {
+  if (!props.canEdit || slug.value === props.initialSlug)
+    return true
 
-watch(slug, (value) => {
-  const normalized = value.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '').replace(/-+/g, '-').replace(/^-|-$/g, '')
-  if (normalized !== value) {
-    slug.value = normalized
-    return
+  const savedTrip = await useRequest({
+    key: `trip-share:update:${props.trip.id}`,
+    fn: db => db.trips.update(props.trip.id, { shareSlug: slug.value }),
+    onError: ({ error }) => {
+      const message = (error as unknown as Error).message || 'Не удалось сохранить адрес ссылки.'
+      availabilityError.value = message
+      toast.error(message)
+    },
+  })
+
+  return Boolean(savedTrip)
+}
+
+async function shareOrCopyUrl(data: { title: string, text: string, url: string }): Promise<boolean> {
+  if (isShareSupported.value) {
+    try {
+      await share(data)
+
+      return true
+    }
+    catch (error) {
+      if ((error as Error)?.name === 'AbortError')
+        return false
+    }
   }
 
-  isAvailable.value = null
-  availabilityError.value = ''
-  if (isSlugValid.value) {
-    debouncedCheckAvailability(value)
-  }
-  else {
-    isChecking.value = false
-  }
-})
+  await copy(data.url)
+  toast.success('Ссылка скопирована в буфер обмена')
 
-watch(() => props.visible, (visible) => {
-  if (!visible) {
-    checkSequence.value++
-    return
-  }
-
-  slug.value = props.initialSlug
-})
+  return true
+}
 
 async function handleShare() {
   if (!isSlugValid.value || isAvailable.value !== true || isChecking.value)
     return
 
-  if (props.canEdit && slug.value !== props.initialSlug) {
-    const savedTrip = await useRequest({
-      key: `trip-share:update:${props.trip.id}`,
-      fn: db => db.trips.update(props.trip.id, { shareSlug: slug.value }),
-      onError: ({ error }) => {
-        const message = (error as unknown as Error).message || 'Не удалось сохранить адрес ссылки.'
-        availabilityError.value = message
-        toast.error(message)
-      },
-    })
-
-    if (!savedTrip)
-      return
-  }
+  if (!await persistShareSlugIfChanged())
+    return
 
   const data = {
     title: props.trip.title || 'Путешествие',
@@ -133,21 +161,8 @@ async function handleShare() {
     url: shareUrl.value,
   }
 
-  if (isShareSupported.value) {
-    try {
-      await share(data)
-    }
-    catch (error) {
-      if ((error as Error)?.name === 'AbortError')
-        return
-      await copy(data.url)
-      toast.success('Ссылка скопирована в буфер обмена')
-    }
-  }
-  else {
-    await copy(data.url)
-    toast.success('Ссылка скопирована в буфер обмена')
-  }
+  if (!await shareOrCopyUrl(data))
+    return
 
   emit('update:visible', false)
 }

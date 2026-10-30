@@ -23,6 +23,7 @@ export const authRefreshLink: TRPCLink<AppRouter> = () => {
             // Не перехватываем сам запрос refresh во избежание бесконечного цикла
             if (op.path === 'user.refresh' || !isUnauthorizedError(err)) {
               observer.error(err)
+
               return
             }
 
@@ -30,6 +31,7 @@ export const authRefreshLink: TRPCLink<AppRouter> = () => {
               .then((success) => {
                 if (!isSubscribed)
                   return
+
                 if (success) {
                   execute()
                 }
@@ -55,6 +57,7 @@ export const authRefreshLink: TRPCLink<AppRouter> = () => {
 
       return () => {
         isSubscribed = false
+
         if (activeSub) {
           activeSub.unsubscribe()
         }

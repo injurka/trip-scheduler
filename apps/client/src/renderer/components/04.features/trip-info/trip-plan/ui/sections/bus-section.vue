@@ -26,6 +26,7 @@ const sectionData = computed(() => {
     walk: ride.walk !== undefined ? ride.walk : null,
     links: ride.links || [],
   }))
+
   return {
     ...props.section,
     rides,
@@ -38,8 +39,7 @@ function updateSection(newSectionData: Partial<ActivitySectionBus>) {
 
 function updateRide(rideId: string, updatedRide: Partial<BusRide>) {
   const updatedRides = sectionData.value.rides.map(ride =>
-    ride.id === rideId ? { ...ride, ...updatedRide } : ride,
-  )
+    ride.id === rideId ? { ...ride, ...updatedRide } : ride)
   updateSection({ rides: updatedRides })
 }
 

@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import KitBtn from '~/components/01.kit/kit-btn/ui/kit-btn.vue'
 
-defineProps<{
+interface Props {
   message?: string
-}>()
+}
+
+defineProps<Props>()
 
 defineEmits<{
   retry: []

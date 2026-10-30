@@ -11,6 +11,7 @@ const SPINE_OFFSET_X = 54
 export function computeColumnLayout(items: IActivity[], options: CalculateLayoutOptions): LayoutResult {
   const sized = items.map((activity, index) => {
     const width = estimateColumnNodeWidth(activity)
+
     return {
       activity,
       index,
@@ -44,6 +45,7 @@ export function computeColumnLayout(items: IActivity[], options: CalculateLayout
       color: 'var(--fg-accent-color)',
     })
     cursorY += s.height + GAP_Y
+
     return node
   })
 
@@ -53,6 +55,7 @@ export function computeColumnLayout(items: IActivity[], options: CalculateLayout
     : ''
 
   const edges: LayoutEdge[] = []
+
   for (let i = 0; i < nodes.length - 1; i++) {
     const from = nodes[i]
     const to = nodes[i + 1]
@@ -77,5 +80,11 @@ export function computeColumnLayout(items: IActivity[], options: CalculateLayout
   const totalWidth = PADDING_X * 2 + maxLeftWidth + SPINE_OFFSET_X * 2 + maxRightWidth + 50
   const totalHeight = cursorY - GAP_Y + PADDING_Y + 50
 
-  return { nodes, edges, totalWidth, totalHeight, decorators: { spineHubs, spinePathD } }
+  return {
+    nodes,
+    edges,
+    totalWidth,
+    totalHeight,
+    decorators: { spineHubs, spinePathD },
+  }
 }

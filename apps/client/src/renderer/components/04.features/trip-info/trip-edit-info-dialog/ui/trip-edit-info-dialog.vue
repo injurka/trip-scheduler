@@ -20,33 +20,30 @@ import { useToast } from '~/shared/composables/use-toast'
 import { lazyComponent } from '~/shared/lib/lazy-component'
 import { TripMediaPlacement, TripStatus, TripVisibility } from '~/shared/types/models/trip'
 
-const props = defineProps<Props>()
-
-const emit = defineEmits<{
-  (e: 'update:visible', value: boolean): void
-  (e: 'save', value: UpdateTripInput): void
-}>()
-
-const KitInlineMdEditorWrapper = lazyComponent(
-  () => import('~/components/01.kit/kit-inline-md-editor/ui/kit-inline-md-editor-wrapper.vue'),
-  {
-    delay: 0,
-    loadingComponent: defineComponent({
-      setup: () => () => h('span', { class: 'md-editor-loading' }, 'Подготовка редактора…'),
-    }),
-  },
-)
-
 enum ETripEditInfoDialogKeys {
   FETCH_TAGS = 'trip-edit-dialog:fetch-tags',
   FETCH_IMAGES = 'trip-edit-dialog:fetch-images',
 }
-
 interface Props {
   visible: boolean
   trip: Trip | null
 }
 
+const props = defineProps<Props>()
+const emit = defineEmits<{
+  (e: 'update:visible', value: boolean): void
+  (e: 'save', value: UpdateTripInput): void
+}>()
+
+const isLoadingTags = useRequestStatus(ETripEditInfoDialogKeys.FETCH_TAGS)
+const isLoadingImages = useRequestStatus(`${ETripEditInfoDialogKeys.FETCH_IMAGES}:${props.trip?.id}`)
+
+const KitInlineMdEditorWrapper = lazyComponent(() => import('~/components/01.kit/kit-inline-md-editor/ui/kit-inline-md-editor-wrapper.vue'), {
+  delay: 0,
+  loadingComponent: defineComponent({
+    setup: () => () => h('span', { class: 'md-editor-loading' }, 'Подготовка редактора…'),
+  }),
+})
 const fieldsToCompare: (keyof UpdateTripInput)[] = [
   'title',
   'description',
@@ -61,13 +58,11 @@ const fieldsToCompare: (keyof UpdateTripInput)[] = [
   'visibility',
   'weatherByPlaceId',
 ]
-
 const statusOptions = [
   { value: TripStatus.PLANNED, label: 'Запланировано' },
   { value: TripStatus.COMPLETED, label: 'Завершено' },
   { value: TripStatus.DRAFT, label: 'Черновик' },
 ]
-
 // Обновленные опции видимости для нового компонента KitRadioGroup
 const visibilityOptions: KitRadioOption<TripVisibility>[] = [
   {
@@ -83,79 +78,15 @@ const visibilityOptions: KitRadioOption<TripVisibility>[] = [
     icon: 'mdi:earth',
   },
 ]
-
 const availableTags = ref<KitDropdownItem<string>[]>([])
 const coverImages = ref<TripMedia[]>([])
-
-const isLoadingTags = useRequestStatus(ETripEditInfoDialogKeys.FETCH_TAGS)
-const isLoadingImages = useRequestStatus(`${ETripEditInfoDialogKeys.FETCH_IMAGES}:${props.trip?.id}`)
-
 const isCoverDialogOpen = ref(false)
 const hasFetchedImages = ref(false)
-
-function formatTag(tag: string): string {
-  if (!tag)
-    return ''
-  return tag.charAt(0).toUpperCase() + tag.slice(1).toLowerCase()
-}
-
-async function fetchDialogData() {
-  if (!props.trip)
-    return
-
-  useRequest({
-    key: ETripEditInfoDialogKeys.FETCH_TAGS,
-    force: false,
-    fn: db => db.trips.getUniqueTags({}),
-    onSuccess: (tags) => {
-      availableTags.value = tags.map(tag => ({
-        value: tag.toLowerCase(),
-        label: formatTag(tag),
-      }))
-    },
-  })
-}
-
-function openCoverDialog() {
-  isCoverDialogOpen.value = true
-
-  if (!hasFetchedImages.value && props.trip) {
-    useRequest({
-      key: `${ETripEditInfoDialogKeys.FETCH_IMAGES}:${props.trip.id}`,
-      fn: db => db.files.listImageByTrip(props.trip!.id, TripMediaPlacement.ROUTE),
-      onSuccess: (images) => {
-        coverImages.value = images
-        hasFetchedImages.value = true
-      },
-    })
-  }
-}
-
-function selectCover(url: string | null) {
-  // eslint-disable-next-line ts/no-use-before-define
-  editableTrip.value.imageUrl = url
-  isCoverDialogOpen.value = false
-}
-
 const editableTrip = ref<Partial<UpdateTripInput & Pick<Trip, 'weatherByPlaceId'>>>({})
 const selectedCityRefs = ref<GeoPlaceRef[]>([])
 const hasCitiesChanged = ref(false)
-
-function markCitiesChanged() {
-  hasCitiesChanged.value = true
-}
-
-function onSelectedCityRefsChange(value: GeoPlaceRef | GeoPlaceRef[] | null) {
-  selectedCityRefs.value = Array.isArray(value) ? value : value ? [value] : []
-  markCitiesChanged()
-}
-
-function toYyyyMmDd(date: string | Date | undefined) {
-  if (!date)
-    return new Date().toISOString().split('T')[0]
-
-  return new Date(date).toISOString().split('T')[0]
-}
+const isFullDescriptionOpen = ref(false)
+const isGeneratingWeather = ref(false)
 
 const isChanged = computed(() => {
   if (!props.trip)
@@ -171,7 +102,6 @@ const isChanged = computed(() => {
 
   return false
 })
-
 const startDate = computed({
   get: () => parseDate(toYyyyMmDd(editableTrip.value.startDate)),
   set: (date: CalendarDate | null) => {
@@ -179,7 +109,6 @@ const startDate = computed({
       editableTrip.value.startDate = date.toDate('UTC').toISOString()
   },
 })
-
 const endDate = computed({
   get: () => parseDate(toYyyyMmDd(editableTrip.value.endDate)),
   set: (date: CalendarDate | null) => {
@@ -187,49 +116,29 @@ const endDate = computed({
       editableTrip.value.endDate = date.toDate('UTC').toISOString()
   },
 })
-
 const descriptionShortModel = computed({
   get: () => editableTrip.value.descriptionShort ?? '',
   set: (val: string) => {
     editableTrip.value.descriptionShort = val
   },
 })
-
 const descriptionModel = computed({
   get: () => editableTrip.value.description ?? '',
   set: (val: string) => {
     editableTrip.value.description = val
   },
 })
-
 const tagsModel = computed({
   get: () => editableTrip.value.tags ?? [],
   set: (val: string[]) => {
     editableTrip.value.tags = val.map(t => t.toLowerCase())
   },
 })
+const hasWeatherDataForAllCities = computed(() => {
+  const refs = selectedCityRefs.value
 
-function handleSave() {
-  const updatedFields: Partial<UpdateTripInput> = {}
-  if (!props.trip)
-    return
-
-  for (const fieldKey of fieldsToCompare) {
-    const originalValue = props.trip[fieldKey as keyof Trip]
-    const updatedValue = editableTrip.value[fieldKey]
-
-    if (JSON.stringify(originalValue) !== JSON.stringify(updatedValue))
-      (updatedFields as any)[fieldKey] = updatedValue
-  }
-
-  if (hasCitiesChanged.value)
-    updatedFields.cityIds = selectedCityRefs.value.map(place => place.id)
-
-  emit('save', updatedFields)
-  emit('update:visible', false)
-}
-
-const isFullDescriptionOpen = ref(false)
+  return refs.length > 0 && refs.every(place => !!editableTrip.value.weatherByPlaceId?.[place.id])
+})
 
 watch(() => props.visible, (isVisible) => {
   if (isVisible && props.trip) {
@@ -258,18 +167,85 @@ watch(() => props.visible, (isVisible) => {
   }
 }, { immediate: true })
 
-const isGeneratingWeather = ref(false)
+function formatTag(tag: string): string {
+  if (!tag)
+    return ''
 
-const hasWeatherDataForAllCities = computed(() => {
-  const refs = selectedCityRefs.value
-  return refs.length > 0 && refs.every(place => !!editableTrip.value.weatherByPlaceId?.[place.id])
-})
+  return tag.charAt(0).toUpperCase() + tag.slice(1).toLowerCase()
+}
+async function fetchDialogData() {
+  if (!props.trip)
+    return
 
+  useRequest({
+    key: ETripEditInfoDialogKeys.FETCH_TAGS,
+    force: false,
+    fn: db => db.trips.getUniqueTags({}),
+    onSuccess: (tags) => {
+      availableTags.value = tags.map(tag => ({
+        value: tag.toLowerCase(),
+        label: formatTag(tag),
+      }))
+    },
+  })
+}
+function openCoverDialog() {
+  isCoverDialogOpen.value = true
+
+  if (!hasFetchedImages.value && props.trip) {
+    useRequest({
+      key: `${ETripEditInfoDialogKeys.FETCH_IMAGES}:${props.trip.id}`,
+      fn: db => db.files.listImageByTrip(props.trip!.id, TripMediaPlacement.ROUTE),
+      onSuccess: (images) => {
+        coverImages.value = images
+        hasFetchedImages.value = true
+      },
+    })
+  }
+}
+function selectCover(url: string | null) {
+  editableTrip.value.imageUrl = url
+  isCoverDialogOpen.value = false
+}
+function markCitiesChanged() {
+  hasCitiesChanged.value = true
+}
+function onSelectedCityRefsChange(value: GeoPlaceRef | GeoPlaceRef[] | null) {
+  selectedCityRefs.value = Array.isArray(value) ? value : value ? [value] : []
+  markCitiesChanged()
+}
+function toYyyyMmDd(date: string | Date | undefined) {
+  if (!date)
+    return new Date().toISOString().split('T')[0]
+
+  return new Date(date).toISOString().split('T')[0]
+}
+function handleSave() {
+  const updatedFields: Partial<UpdateTripInput> = {}
+
+  if (!props.trip)
+    return
+
+  for (const fieldKey of fieldsToCompare) {
+    const originalValue = props.trip[fieldKey as keyof Trip]
+    const updatedValue = editableTrip.value[fieldKey]
+
+    if (JSON.stringify(originalValue) !== JSON.stringify(updatedValue))
+      (updatedFields as any)[fieldKey] = updatedValue
+  }
+
+  if (hasCitiesChanged.value)
+    updatedFields.cityIds = selectedCityRefs.value.map(place => place.id)
+
+  emit('save', updatedFields)
+  emit('update:visible', false)
+}
 async function handleGenerateWeatherInDialog() {
   if (!props.trip?.id || selectedCityRefs.value.length === 0)
     return
 
   isGeneratingWeather.value = true
+
   try {
     const res = await useRequest({
       key: `trip-edit:generate-weather:${props.trip.id}`,
@@ -279,6 +255,7 @@ async function handleGenerateWeatherInDialog() {
         forceRefresh: false,
       }),
     })
+
     if (res?.weatherByPlaceId) {
       editableTrip.value.weatherByPlaceId = res.weatherByPlaceId
       useToast().success('Климатический контекст подготовлен!')
@@ -437,7 +414,12 @@ async function handleGenerateWeatherInDialog() {
       </div>
 
       <div class="budget-fields">
-        <KitInput v-model.number="editableTrip.budget" type="number" label="Бюджет" placeholder="10000" />
+        <KitInput
+          v-model.number="editableTrip.budget"
+          type="number"
+          label="Бюджет"
+          placeholder="10000"
+        />
         <KitInput v-model="editableTrip.currency" label="Валюта" placeholder="RUB" />
       </div>
 
@@ -462,11 +444,22 @@ async function handleGenerateWeatherInDialog() {
             <span>Обложка не выбрана</span>
           </div>
           <div class="cover-actions">
-            <KitBtn variant="outlined" color="secondary" size="sm" @click="openCoverDialog">
+            <KitBtn
+              variant="outlined"
+              color="secondary"
+              size="sm"
+              @click="openCoverDialog"
+            >
               <Icon icon="mdi:image-edit-outline" />
               {{ editableTrip.imageUrl ? 'Изменить обложку' : 'Выбрать обложку' }}
             </KitBtn>
-            <KitBtn v-if="editableTrip.imageUrl" variant="text" color="secondary" size="sm" @click="editableTrip.imageUrl = null">
+            <KitBtn
+              v-if="editableTrip.imageUrl"
+              variant="text"
+              color="secondary"
+              size="sm"
+              @click="editableTrip.imageUrl = null"
+            >
               Удалить
             </KitBtn>
           </div>

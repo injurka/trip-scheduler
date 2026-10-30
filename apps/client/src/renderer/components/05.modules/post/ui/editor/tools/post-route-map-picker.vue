@@ -7,7 +7,6 @@ import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitDialogWithClose } from '~/components/01.kit/kit-dialog-with-close'
 import { KitTooltip } from '~/components/01.kit/kit-tooltip'
 import GeolocationMap from '~/components/03.domain/trip-info/geolocation-section/ui/geolocation-map.vue'
-
 import { nominatimService, routingService } from '~/shared/services/geo'
 
 export interface EditorRoutePoint {
@@ -16,7 +15,6 @@ export interface EditorRoutePoint {
   label?: string
   address?: string
 }
-
 interface Props {
   visible: boolean
   initialPoints?: EditorRoutePoint[]
@@ -39,12 +37,34 @@ const isSidebarVisible = ref(true)
 const mapCenter = computed<Coordinate>(() => {
   if (mapPoints.value.length > 0)
     return mapPoints.value[0].coordinates
+
   return [37.6173, 55.7558] // Москва
+})
+
+watch(() => props.visible, (isOpen) => {
+  if (isOpen) {
+    if (props.initialPoints && props.initialPoints.length > 0) {
+      mapPoints.value = props.initialPoints.map((p, idx) => ({
+        id: uuidv4(),
+        coordinates: [p.lng, p.lat] as Coordinate,
+        type: (idx === 0 ? 'start' : idx === props.initialPoints!.length - 1 ? 'end' : 'via') as PointType,
+        address: p.label || p.address || '',
+        comment: p.label || p.address || '',
+      }))
+      buildRoute()
+    }
+    else {
+      clearPoints()
+    }
+
+    isSidebarVisible.value = true
+  }
 })
 
 function onMapReady(ctrl: any) {
   const handleDragEnd = async (pointId: string, newCoords: Coordinate) => {
     const targetPoint = mapPoints.value.find(p => p.id === pointId)
+
     if (targetPoint) {
       isLoading.value = true
       targetPoint.coordinates = newCoords
@@ -61,12 +81,11 @@ function onMapReady(ctrl: any) {
     ctrl.onPointDragEnd(handleDragEnd)
   }
 }
-
 async function fetchAddress(lon: number, lat: number) {
   const res = await nominatimService.reverse([lon, lat])
+
   return res?.address || 'Точка на карте'
 }
-
 function updatePointTypes() {
   if (mapPoints.value.length === 1) {
     mapPoints.value[0].type = 'start'
@@ -81,16 +100,17 @@ function updatePointTypes() {
     })
   }
 }
-
 async function buildRoute() {
   if (mapPoints.value.length < 2) {
     mapRoutes.value = []
     routeGeometry.value = []
     distanceMeters.value = 0
+
     return
   }
 
   isLoading.value = true
+
   try {
     const route = await routingService.calculateRoute(mapPoints.value, props.transport)
     routeGeometry.value = route.geometry
@@ -113,7 +133,6 @@ async function buildRoute() {
     isLoading.value = false
   }
 }
-
 async function handleMapClick(coords: [number, number]) {
   isLoading.value = true
   const [lon, lat] = coords
@@ -131,23 +150,21 @@ async function handleMapClick(coords: [number, number]) {
   await buildRoute()
   isLoading.value = false
 }
-
 async function removePoint(index: number) {
   mapPoints.value = mapPoints.value.filter((_, i) => i !== index)
   updatePointTypes()
   await buildRoute()
 }
-
 function clearPoints() {
   mapPoints.value = []
   mapRoutes.value = []
   routeGeometry.value = []
   distanceMeters.value = 0
 }
-
 function handleConfirm() {
   if (mapPoints.value.length === 0) {
     emit('update:visible', false)
+
     return
   }
 
@@ -165,25 +182,6 @@ function handleConfirm() {
   })
   emit('update:visible', false)
 }
-
-watch(() => props.visible, (isOpen) => {
-  if (isOpen) {
-    if (props.initialPoints && props.initialPoints.length > 0) {
-      mapPoints.value = props.initialPoints.map((p, idx) => ({
-        id: uuidv4(),
-        coordinates: [p.lng, p.lat] as Coordinate,
-        type: (idx === 0 ? 'start' : idx === props.initialPoints!.length - 1 ? 'end' : 'via') as PointType,
-        address: p.label || p.address || '',
-        comment: p.label || p.address || '',
-      }))
-      buildRoute()
-    }
-    else {
-      clearPoints()
-    }
-    isSidebarVisible.value = true
-  }
-})
 </script>
 
 <template>

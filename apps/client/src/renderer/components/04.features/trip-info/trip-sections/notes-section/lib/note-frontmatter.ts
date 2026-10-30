@@ -107,6 +107,7 @@ interface RawEntry {
 export function splitNoteFrontmatter(content: string | null | undefined): { raw: string, body: string } {
   const source = content ?? ''
   const match = FRONTMATTER_PATTERN.exec(source)
+
   if (!match)
     return { raw: '', body: source }
 
@@ -120,6 +121,7 @@ export function composeNoteContent(raw: string, body: string): string {
 
 export function readNoteFrontmatter(content: string | null | undefined): NoteFrontmatter {
   const { raw, body } = splitNoteFrontmatter(content)
+
   return { raw, body, properties: raw ? parseNoteFrontmatter(raw) : [] }
 }
 
@@ -127,6 +129,7 @@ export function readNoteFrontmatter(content: string | null | undefined): NoteFro
 export function parseNoteFrontmatter(raw: string): NoteProperty[] {
   const match = FRONTMATTER_PATTERN.exec(raw)
   const yaml = match ? match[1] : raw
+
   if (!yaml)
     return []
 
@@ -139,12 +142,14 @@ export function parseNoteFrontmatter(raw: string): NoteProperty[] {
 export function isRemoteImageReference(value: string): boolean {
   if (/^https?:\/\//i.test(value) || /^\/(?!\/)/.test(value))
     return true
+
   return IMAGE_PATH_PREFIXES.some(prefix => value.toLowerCase().startsWith(prefix))
 }
 
 /** Имя файла без пути вольта — для компактного показа ссылки на изображение. */
 function fileNameOf(value: string): string {
   const segments = value.split(/[\\/]/)
+
   return segments[segments.length - 1] || value
 }
 
@@ -152,39 +157,65 @@ function fileNameOf(value: string): string {
 export function describeDateRange(properties: NoteProperty[]): string | null {
   const start = findDateProperty(properties, START_DATE_KEYS)
   const end = findDateProperty(properties, END_DATE_KEYS)
+
   if (start === null || end === null || end < start)
     return null
 
   const days = Math.round((end - start) / 86_400_000) + 1
   const nights = days - 1
-  const parts = [`${days} ${plural(days, 'день', 'дня', 'дней')}`]
-  if (nights > 0)
-    parts.push(`${nights} ${plural(nights, 'ночь', 'ночи', 'ночей')}`)
+  const parts = [`${days} ${plural(
+    days,
+    'день',
+    'дня',
+    'дней',
+  )}`]
+
+  if (nights > 0) {
+    parts.push(`${nights} ${plural(
+      nights,
+      'ночь',
+      'ночи',
+      'ночей',
+    )}`)
+  }
 
   return parts.join(' · ')
 }
 
 function findDateProperty(properties: NoteProperty[], keys: string[]): number | null {
   const property = properties.find(item => keys.includes(item.key.toLowerCase()))
+
   return property?.date ? toUtcTimestamp(property.date) : null
 }
 
 function toUtcTimestamp(value: string): number | null {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value)
+
   if (!match)
     return null
+
   return Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3]))
 }
 
-function plural(count: number, one: string, few: string, many: string): string {
+function plural(
+  count: number,
+  one: string,
+  few: string,
+  many: string,
+): string {
   const mod100 = count % 100
+
   if (mod100 >= 11 && mod100 <= 14)
     return many
+
   const mod10 = count % 10
+
   if (mod10 === 1)
     return one
+
   if (mod10 >= 2 && mod10 <= 4)
     return few
+
   return many
 }
 
@@ -196,6 +227,7 @@ function readEntries(yaml: string): RawEntry[] {
   while (index < lines.length) {
     const line = lines[index] ?? ''
     const entry = /^\S/.test(line) ? parsePropertyLine(line) : null
+
     if (!entry) {
       index += 1
       continue
@@ -203,6 +235,7 @@ function readEntries(yaml: string): RawEntry[] {
 
     const block: string[] = []
     let next = index + 1
+
     while (next < lines.length && isBlockLine(lines[next] ?? '')) {
       block.push(lines[next] ?? '')
       next += 1
@@ -218,10 +251,12 @@ function readEntries(yaml: string): RawEntry[] {
 /** Разбирает строку «ключ: значение» верхнего уровня; null для остального. */
 function parsePropertyLine(line: string): { key: string, value: string } | null {
   const colonIndex = line.indexOf(':')
+
   if (colonIndex <= 0)
     return null
 
   const key = line.slice(0, colonIndex)
+
   if (!KEY_START_PATTERN.test(key) || !KEY_BODY_PATTERN.test(key))
     return null
 
@@ -231,72 +266,156 @@ function parsePropertyLine(line: string): { key: string, value: string } | null 
 /** Строка продолжения свойства: отступ или элемент списка. */
 function isBlockLine(line: string): boolean {
   const trimmed = line.trim()
+
   if (!trimmed)
     return false
+
   return /^\s/.test(line) || trimmed.startsWith('-')
 }
 
 /** Значение элемента списка («- Тайбэй»), либо null. */
 function readListItem(line: string): string | null {
   const trimmed = line.trimStart()
+
   if (!trimmed.startsWith('-'))
     return null
 
   const rest = trimmed.slice(1)
+
   if (!rest.startsWith(' ') && !rest.startsWith('\t'))
     return null
 
   const item = rest.trim()
+
   return item.length > 0 ? item : null
 }
 
-function toProperty(entry: RawEntry): NoteProperty | null {
-  const key = entry.key
-  const label = labelFor(key)
-  const inline = cleanScalar(entry.inline)
-
+function propertyFromBlockScalar(entry: RawEntry, label: string): NoteProperty | null {
   if (BLOCK_SCALAR_PATTERN.test(entry.inline)) {
     const separator = entry.inline.startsWith('|') ? '\n' : ' '
-    return buildProperty(key, label, entry.block.map(line => line.trim()).join(separator))
+
+    return buildProperty(entry.key, label, entry.block.map(line => line.trim()).join(separator))
   }
 
+  return null
+}
+
+function propertyFromInlineArray(entry: RawEntry, label: string, inline: string): NoteProperty | null {
   if (inline.startsWith('[') && inline.endsWith(']')) {
     const items = parseInlineArray(inline)
-    if (items.length)
-      return buildProperty(key, label, items.join(', '), { display: 'chips', items })
+
+    if (items.length) {
+      return buildProperty(
+        entry.key,
+        label,
+        items.join(', '),
+        { display: 'chips', items },
+      )
+    }
   }
 
+  return null
+}
+
+function propertyFromBlockList(entry: RawEntry, label: string): NoteProperty | null {
   const listItems = entry.block
     .map(readListItem)
     .filter((item): item is string => item !== null)
     .map(cleanScalar)
     .filter(Boolean)
-  if (listItems.length)
-    return buildProperty(key, label, listItems.join(', '), { display: 'chips', items: listItems })
 
-  if (!inline) {
-    const nested = entry.block.map(line => line.trim()).filter(Boolean)
-    if (!nested.length)
-      return null
-    return buildProperty(key, label, nested.join('\n'), { display: 'code' })
+  if (listItems.length) {
+    return buildProperty(
+      entry.key,
+      label,
+      listItems.join(', '),
+      { display: 'chips', items: listItems },
+    )
   }
 
+  return null
+}
+
+function propertyFromNestedBlock(entry: RawEntry, label: string): NoteProperty | null {
+  const nested = entry.block.map(line => line.trim()).filter(Boolean)
+
+  if (!nested.length)
+    return null
+
+  return buildProperty(
+    entry.key,
+    label,
+    nested.join('\n'),
+    { display: 'code' },
+  )
+}
+
+function propertyFromScalar(entry: RawEntry, label: string, inline: string): NoteProperty {
   const flag = FLAG_VALUES[inline.toLowerCase()]
-  if (flag !== undefined)
-    return buildProperty(key, label, inline, { display: 'flag', flag })
 
-  const isImage = IMAGE_KEYS.has(key.toLowerCase())
-  if (isImage && isRemoteImageReference(inline))
-    return buildProperty(key, label, inline, { display: 'image' })
+  if (flag !== undefined) {
+    return buildProperty(
+      entry.key,
+      label,
+      inline,
+      { display: 'flag', flag },
+    )
+  }
 
-  // Путь картинки из вольта (`_/03/20260825143131.png`) наш API отдать не может:
-  // показываем имя файла, полное значение остаётся в подсказке.
-  if (isImage && IMAGE_FILE_PATTERN.test(inline))
-    return buildProperty(key, label, fileNameOf(inline), { display: 'file', hint: inline })
+  const isImage = IMAGE_KEYS.has(entry.key.toLowerCase())
 
-  return buildProperty(key, label, inline, {
-    date: DATE_PATTERN.test(inline) ? inline : null,
-  })
+  if (isImage && isRemoteImageReference(inline)) {
+    return buildProperty(
+      entry.key,
+      label,
+      inline,
+      { display: 'image' },
+    )
+  }
+
+  if (isImage && IMAGE_FILE_PATTERN.test(inline)) {
+    return buildProperty(
+      entry.key,
+      label,
+      fileNameOf(inline),
+      { display: 'file', hint: inline },
+    )
+  }
+
+  return buildProperty(
+    entry.key,
+    label,
+    inline,
+    {
+      date: DATE_PATTERN.test(inline) ? inline : null,
+    },
+  )
+}
+
+function toProperty(entry: RawEntry): NoteProperty | null {
+  const label = labelFor(entry.key)
+  const inline = cleanScalar(entry.inline)
+
+  const blockScalar = propertyFromBlockScalar(entry, label)
+
+  if (blockScalar)
+    return blockScalar
+
+  const inlineArray = propertyFromInlineArray(entry, label, inline)
+
+  if (inlineArray)
+    return inlineArray
+
+  const blockList = propertyFromBlockList(entry, label)
+
+  if (blockList)
+    return blockList
+
+  if (!inline) {
+    return propertyFromNestedBlock(entry, label)
+  }
+
+  return propertyFromScalar(entry, label, inline)
 }
 
 function buildProperty(
@@ -325,11 +444,15 @@ function labelFor(key: string): string {
 function cleanScalar(value: string): string {
   let result = value.trim()
   const wrapped = /^!?\[\[(.+?)\]\]$/.exec(result)
+
   if (wrapped)
     result = (wrapped[1] ?? '').split('|')[0]?.trim() ?? ''
+
   const quote = result[0]
+
   if ((quote === '"' || quote === '\'') && result.endsWith(quote) && result.length > 1)
     result = result.slice(1, -1).replace(/\\"/g, '"').replace(/''/g, '\'')
+
   return result.trim()
 }
 
@@ -351,6 +474,7 @@ function parseInlineArray(value: string): string[] {
       current += char
     }
   }
+
   items.push(cleanScalar(current))
 
   return items.map(item => item.trim()).filter(Boolean)

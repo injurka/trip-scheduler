@@ -20,11 +20,7 @@ import { KitTimeField } from '~/components/01.kit/kit-time-field'
 import { GeoPlacePicker } from '~/components/03.domain/geo-place-picker'
 import { useRequest } from '~/plugins/request'
 
-interface CountryDropdownItem extends KitDropdownItem<string> {
-  flagUrl: string | null
-}
-
-const props = defineProps<{
+interface Props {
   visible: boolean
   countries: Country[]
   mapPoints: DestinationMapPoint[]
@@ -32,29 +28,77 @@ const props = defineProps<{
   file: File | null
   isUploading: boolean
   isSubmitting: boolean
-}>()
+}
 
+interface CountryDropdownItem extends KitDropdownItem<string> {
+  flagUrl: string | null
+}
+
+const props = defineProps<Props>()
 const emit = defineEmits<{
   (e: 'update:visible', value: boolean): void
   (e: 'fileSelect', value: File | null): void
   (e: 'submit'): void
 }>()
 
+const selectedCityRef = ref<GeoPlaceRef | null>(null)
+let cityHydrationSequence = 0
+// --- Логика кастомного выбора Даты и Времени ---
+const datePickerWrapperRef = ref<HTMLElement | null>(null)
+const showDatePicker = ref(false)
+const calendarDate = shallowRef<CalendarDate | null>(null)
+const timeValue = shallowRef<Time | null>(null)
+let isInternalDateUpdate = false
+const isMapExpanded = ref(false)
+// -------------------------------------------------
+
+const mapCenter = ref<[number, number]>([20, 45])
+
 const visibleModel = computed({
   get: () => props.visible,
   set: value => emit('update:visible', value),
 })
-
 const countryOptions = computed<CountryDropdownItem[]>(() =>
   props.countries.map(country => ({
     value: country.id,
     label: country.name,
     flagUrl: country.flagUrl || null,
-  })),
-)
+  })))
+const formattedTakenAt = computed(() => {
+  if (!props.form.takenAt)
+    return ''
 
-const selectedCityRef = ref<GeoPlaceRef | null>(null)
-let cityHydrationSequence = 0
+  const d = new Date(props.form.takenAt)
+
+  if (Number.isNaN(d.getTime()))
+    return ''
+
+  return d.toLocaleString('ru-RU', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+})
+const hasCoordinates = computed(() => {
+  return props.form.latitude !== null && props.form.latitude !== undefined && props.form.latitude !== ''
+    && props.form.longitude !== null && props.form.longitude !== undefined && props.form.longitude !== ''
+})
+const mapMarkers = computed(() => {
+  const lat = Number(props.form.latitude)
+  const lon = Number(props.form.longitude)
+
+  if (!Number.isNaN(lat) && !Number.isNaN(lon) && props.form.latitude !== null && props.form.longitude !== null && props.form.latitude !== '' && props.form.longitude !== '') {
+    return [{ id: 'pin', coords: { lat, lon } }]
+  }
+
+  return []
+})
+const isSubmitDisabled = computed(() =>
+  !props.form.imageUrl
+  || !props.form.countryId
+  || !props.form.geoPlaceId)
 
 watch(() => props.form.countryId, (countryId) => {
   if (selectedCityRef.value && selectedCityRef.value.countryId !== countryId) {
@@ -63,12 +107,13 @@ watch(() => props.form.countryId, (countryId) => {
     props.form.city = ''
   }
 })
-
 watch(() => [props.visible, props.form.geoPlaceId] as const, async ([visible, geoPlaceId]) => {
   const sequence = ++cityHydrationSequence
+
   if (!visible || !geoPlaceId || selectedCityRef.value?.id === geoPlaceId) {
     if (!geoPlaceId)
       selectedCityRef.value = null
+
     return
   }
 
@@ -77,38 +122,22 @@ watch(() => [props.visible, props.form.geoPlaceId] as const, async ([visible, ge
     key: `highlight-create:city:${geoPlaceId}`,
     fn: db => db.geo.getPlacesByIds([geoPlaceId]),
   })
+
   if (sequence !== cityHydrationSequence)
     return
+
   selectedCityRef.value = places?.[0] ?? null
 }, { immediate: true })
-
-function selectCity(value: GeoPlaceRef | GeoPlaceRef[] | null) {
-  const place = Array.isArray(value) ? value[0] ?? null : value
-  selectedCityRef.value = place
-  props.form.geoPlaceId = place?.id ?? null
-  props.form.city = place?.name ?? ''
-  if (place?.countryId)
-    props.form.countryId = place.countryId
-}
-
-// --- Логика кастомного выбора Даты и Времени ---
-const datePickerWrapperRef = ref<HTMLElement | null>(null)
-const showDatePicker = ref(false)
-const calendarDate = shallowRef<CalendarDate | null>(null)
-const timeValue = shallowRef<Time | null>(null)
-let isInternalDateUpdate = false
-
-onClickOutside(datePickerWrapperRef, () => {
-  showDatePicker.value = false
-})
-
 watch(() => props.form.takenAt, (val) => {
   if (isInternalDateUpdate) {
     isInternalDateUpdate = false
+
     return
   }
+
   if (val) {
     const d = new Date(val)
+
     if (!Number.isNaN(d.getTime())) {
       calendarDate.value = new CalendarDate(d.getFullYear(), d.getMonth() + 1, d.getDate())
       timeValue.value = new Time(d.getHours(), d.getMinutes())
@@ -119,9 +148,9 @@ watch(() => props.form.takenAt, (val) => {
     timeValue.value = null
   }
 }, { immediate: true })
-
 watch([calendarDate, timeValue], ([newDate, newTime]) => {
   isInternalDateUpdate = true
+
   if (newDate) {
     const d = new Date(
       newDate.year,
@@ -136,58 +165,31 @@ watch([calendarDate, timeValue], ([newDate, newTime]) => {
     props.form.takenAt = null
   }
 }, { deep: true })
-
-const formattedTakenAt = computed(() => {
-  if (!props.form.takenAt)
-    return ''
-  const d = new Date(props.form.takenAt)
-  if (Number.isNaN(d.getTime()))
-    return ''
-  return d.toLocaleString('ru-RU', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
-})
-
-const isMapExpanded = ref(false)
-
-const hasCoordinates = computed(() => {
-  return props.form.latitude !== null && props.form.latitude !== undefined && props.form.latitude !== ''
-    && props.form.longitude !== null && props.form.longitude !== undefined && props.form.longitude !== ''
-})
-
 watch(visibleModel, (val) => {
   if (!val) {
     showDatePicker.value = false
     isMapExpanded.value = false
   }
 })
-// -------------------------------------------------
 
-const mapCenter = ref<[number, number]>([20, 45])
-const mapMarkers = computed(() => {
-  const lat = Number(props.form.latitude)
-  const lon = Number(props.form.longitude)
-  if (!Number.isNaN(lat) && !Number.isNaN(lon) && props.form.latitude !== null && props.form.longitude !== null && props.form.latitude !== '' && props.form.longitude !== '') {
-    return [{ id: 'pin', coords: { lat, lon } }]
-  }
-  return []
-})
+function selectCity(value: GeoPlaceRef | GeoPlaceRef[] | null) {
+  const place = Array.isArray(value) ? value[0] ?? null : value
+  selectedCityRef.value = place
+  props.form.geoPlaceId = place?.id ?? null
+  props.form.city = place?.name ?? ''
 
+  if (place?.countryId)
+    props.form.countryId = place.countryId
+}
 function handleMapClick(coords: [number, number]) {
   const [lon, lat] = coords
   props.form.longitude = Number(lon.toFixed(6))
   props.form.latitude = Number(lat.toFixed(6))
 }
 
-const isSubmitDisabled = computed(() =>
-  !props.form.imageUrl
-  || !props.form.countryId
-  || !props.form.geoPlaceId,
-)
+onClickOutside(datePickerWrapperRef, () => {
+  showDatePicker.value = false
+})
 </script>
 
 <template>
@@ -225,7 +227,12 @@ const isSubmitDisabled = computed(() =>
             placeholder="Выбери страну"
           >
             <template #item="{ item }">
-              <img v-if="(item as CountryDropdownItem).flagUrl" :src="(item as CountryDropdownItem).flagUrl as string" class="dropdown-flag" alt="">
+              <img
+                v-if="(item as CountryDropdownItem).flagUrl"
+                :src="(item as CountryDropdownItem).flagUrl as string"
+                class="dropdown-flag"
+                alt=""
+              >
               <span>{{ item.label }}</span>
             </template>
           </KitSelectWithSearch>

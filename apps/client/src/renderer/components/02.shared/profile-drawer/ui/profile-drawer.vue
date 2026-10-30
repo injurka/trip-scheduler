@@ -13,15 +13,14 @@ const open = defineModel<boolean>('open', { required: true })
 const router = useRouter()
 const store = useAppStore(['auth'])
 
-const user = computed(() => store.auth.user)
-
 const isStatusEditorOpen = ref(false)
 const isOfflineManagerOpen = ref(false)
-
 const menuItems = [
   { label: 'Указать статус', icon: 'mdi:emoticon-happy-outline', action: () => { isStatusEditorOpen.value = true } },
 ]
+const logoutItem = { label: 'Выйти', icon: 'mdi:logout', action: () => handleLogout() }
 
+const user = computed(() => store.auth.user)
 const mainMenuItems = computed(() => [
   {
     label: 'Мой профиль',
@@ -50,7 +49,6 @@ const mainMenuItems = computed(() => [
     },
   },
 ])
-
 const secondaryMenuItems = computed(() => [
   {
     label: 'Настройки',
@@ -87,8 +85,6 @@ async function handleLogout() {
   open.value = false
   await router.push({ path: AppRoutePaths.Auth.SignIn })
 }
-
-const logoutItem = { label: 'Выйти', icon: 'mdi:logout', action: () => handleLogout() }
 </script>
 
 <template>

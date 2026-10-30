@@ -29,12 +29,14 @@ const cityEntries = computed(() => [...(props.cityRefs ?? [])]
 const center = computed((): [number, number] => {
   const lon = selectedCityCoords.value?.lon ?? 37.61
   const lat = selectedCityCoords.value?.lat ?? 55.75
+
   return [lon, lat]
 })
 
 const markers = computed<MapMarker[]>(() => {
   if (!selectedCityCoords.value)
     return []
+
   return [
     {
       id: 'selected-city',

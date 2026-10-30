@@ -32,6 +32,7 @@ const textContent = ref<string | null>(null)
 const extension = computed(() => {
   if (!props.document)
     return ''
+
   return props.document.url.split('.').pop()?.toLowerCase().split('?')[0] || ''
 })
 
@@ -42,6 +43,7 @@ const fileTypeInfo = computed(() => {
 const absoluteUrl = computed(() => {
   if (!props.document)
     return ''
+
   return resolveApiUrl(props.document.url)
 })
 
@@ -70,43 +72,59 @@ const dropdownActions = computed<KitDropdownItem<string>[]>(() => {
 
 watch(() => props.document, async (doc) => {
   textContent.value = null
-  if (doc && isText.value) {
-    isTextLoading.value = true
+
+  if (doc && isText.value)
+    await loadDocumentText(doc)
+}, { immediate: true })
+
+async function findCachedResponse(url: string): Promise<Response | null> {
+  if (typeof caches === 'undefined')
+    return null
+
+  const urlWithoutToken = stripAuthTokenFromUrl(url)
+
+  try {
+    const cache = await caches.open('trip-scheduler-offline-media')
+
+    return await cache.match(url)
+      || (urlWithoutToken ? await cache.match(urlWithoutToken) : null)
+      || null
+  }
+  catch {
+    return null
+  }
+}
+
+async function loadTextContent(url: string): Promise<string | null> {
+  const cached = await findCachedResponse(url)
+
+  if (cached) {
     try {
-      const targetUrl = resolveApiUrl(doc.url)
-      const urlWithoutToken = stripAuthTokenFromUrl(targetUrl)
-      let loadedText: string | null = null
-
-      if (typeof caches !== 'undefined') {
-        try {
-          const cache = await caches.open('trip-scheduler-offline-media')
-          const match = await cache.match(targetUrl)
-            || (urlWithoutToken ? await cache.match(urlWithoutToken) : null)
-          if (match) {
-            loadedText = await match.text()
-          }
-        }
-        catch {
-          // ignore cache error
-        }
-      }
-
-      if (loadedText === null) {
-        const res = await fetch(targetUrl)
-        if (res.ok) {
-          loadedText = await res.text()
-        }
-      }
-      textContent.value = loadedText
+      return await cached.text()
     }
-    catch (e) {
-      console.warn('Failed to load text content:', e)
-    }
-    finally {
-      isTextLoading.value = false
+    catch {
+      // Ignore stale cache entries and fall back to the network.
     }
   }
-}, { immediate: true })
+
+  const response = await fetch(url)
+
+  return response.ok ? response.text() : null
+}
+
+async function loadDocumentText(doc: DocumentFile) {
+  isTextLoading.value = true
+
+  try {
+    textContent.value = await loadTextContent(resolveApiUrl(doc.url))
+  }
+  catch (error) {
+    console.warn('Failed to load text content:', error)
+  }
+  finally {
+    isTextLoading.value = false
+  }
+}
 
 function handleOpenExternal() {
   if (absoluteUrl.value) {
@@ -123,61 +141,18 @@ async function handleDownload() {
   try {
     const doc = props.document
     const url = resolveApiUrl(doc.url)
-    const urlWithoutToken = stripAuthTokenFromUrl(url)
-
-    let blob: Blob | null = null
-    if (typeof caches !== 'undefined') {
-      try {
-        const cache = await caches.open('trip-scheduler-offline-media')
-        const match = await cache.match(url)
-          || (urlWithoutToken ? await cache.match(urlWithoutToken) : null)
-        if (match) {
-          blob = await match.blob()
-        }
-      }
-      catch {
-        // ignore
-      }
-    }
-
-    if (!blob) {
-      try {
-        const res = await fetch(url)
-        if (res.ok)
-          blob = await res.blob()
-      }
-      catch {
-        // ignore
-      }
-    }
+    const blob = await loadDocumentBlob(url)
 
     if (blob) {
-      const objectUrl = URL.createObjectURL(blob)
-      const link = document.createElement('a')
-      link.href = objectUrl
-      link.download = doc.originalName || doc.title || 'document'
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-      URL.revokeObjectURL(objectUrl)
-      toast.success('Загрузка файла началась')
+      downloadBlob(blob, doc)
+
       return
     }
 
-    if (isTauri) {
-      await openExternalUrl(url)
-      toast.info('Загрузка файла передана системе...')
-      return
-    }
-
-    const link = document.createElement('a')
-    link.href = url
-    link.target = '_blank'
-    link.download = doc.originalName || doc.title || 'document'
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    toast.success('Загрузка файла началась')
+    if (isTauri)
+      await openSystemDownload(url)
+    else
+      openBrowserDownload(url, doc)
   }
   catch (error) {
     console.error('Ошибка при скачивании:', error)
@@ -185,9 +160,54 @@ async function handleDownload() {
   }
 }
 
+async function loadDocumentBlob(url: string): Promise<Blob | null> {
+  const cached = await findCachedResponse(url)
+
+  if (cached)
+    return cached.blob()
+
+  try {
+    const response = await fetch(url)
+
+    return response.ok ? response.blob() : null
+  }
+  catch {
+    return null
+  }
+}
+
+function downloadBlob(blob: Blob, doc: DocumentFile) {
+  const objectUrl = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = objectUrl
+  link.download = doc.originalName || doc.title || 'document'
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  URL.revokeObjectURL(objectUrl)
+  toast.success('Загрузка файла началась')
+}
+
+async function openSystemDownload(url: string) {
+  await openExternalUrl(url)
+  toast.info('Загрузка файла передана системе...')
+}
+
+function openBrowserDownload(url: string, doc: DocumentFile) {
+  const link = document.createElement('a')
+  link.href = url
+  link.target = '_blank'
+  link.download = doc.originalName || doc.title || 'document'
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  toast.success('Загрузка файла началась')
+}
+
 async function handleCopyLink() {
   if (!absoluteUrl.value)
     return
+
   try {
     await navigator.clipboard.writeText(absoluteUrl.value)
     toast.success('Ссылка на файл скопирована в буфер')

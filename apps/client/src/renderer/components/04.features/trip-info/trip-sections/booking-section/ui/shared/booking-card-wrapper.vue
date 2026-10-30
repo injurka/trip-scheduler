@@ -7,7 +7,6 @@ import { KitTooltip } from '~/components/01.kit/kit-tooltip'
 import { vRipple } from '~/shared/directives/ripple'
 
 type BookingIconTone = 'flight' | 'train' | 'hotel' | 'car' | 'attraction' | 'other'
-
 interface Props {
   icon: string
   iconTone?: BookingIconTone
@@ -23,17 +22,18 @@ const props = withDefaults(defineProps<Props>(), {
 })
 const emit = defineEmits<{ (e: 'delete'): void }>()
 const title = defineModel<string>('title', { required: true })
+
 const confirm = useConfirm()
+const detailsId = useId()
 
 const isDetailsVisible = ref(false)
-const detailsId = useId()
 
 const highlightClass = computed(() => {
   if (!props.highlightStatus)
     return ''
+
   return `highlight-${props.highlightStatus}`
 })
-
 const statusBadge = computed(() => {
   switch (props.highlightStatus) {
     case 'active': return { text: 'Сейчас', icon: 'mdi:play-circle-outline', color: 'var(--fg-success-color)' }
@@ -50,6 +50,7 @@ async function handleDelete() {
     confirmText: 'Удалить',
     type: 'danger',
   })
+
   if (isConfirmed) {
     emit('delete')
   }

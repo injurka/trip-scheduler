@@ -10,8 +10,10 @@ let refreshingPromise: Promise<boolean> | null = null
 export async function refreshTokensIfNeeded(): Promise<boolean> {
   const authStore = useAuthStore()
   const refreshToken = authStore.tokenPair?.refreshToken
+
   if (!refreshToken) {
     authStore.clearAuth()
+
     return false
   }
 
@@ -19,10 +21,12 @@ export async function refreshTokensIfNeeded(): Promise<boolean> {
     refreshingPromise = (async () => {
       try {
         await authStore.refresh()
+
         return true
       }
       catch {
         authStore.clearAuth()
+
         return false
       }
     })().finally(() => {
@@ -33,18 +37,31 @@ export async function refreshTokensIfNeeded(): Promise<boolean> {
   return refreshingPromise
 }
 
+function getErrorCode(err: any): string | undefined {
+  return err.data?.code || err.shape?.data?.code
+}
+
+function getErrorStatus(err: any): number | undefined {
+  return err.data?.httpStatus || err.shape?.data?.httpStatus || err.status || err.statusCode
+}
+
+function hasUnauthorizedMessage(message: string): boolean {
+  return message.includes('Not authenticated')
+    || message.includes('401')
+    || message.includes('UNAUTHORIZED')
+}
+
 export function isUnauthorizedError(err: any): boolean {
   if (!err)
     return false
-  const code = err.data?.code || err.shape?.data?.code
-  const httpStatus = err.data?.httpStatus || err.shape?.data?.httpStatus || err.status || err.statusCode
+
+  const code = getErrorCode(err)
+  const httpStatus = getErrorStatus(err)
   const message = typeof err.message === 'string' ? err.message : ''
 
   return (
     code === 'UNAUTHORIZED'
     || httpStatus === 401
-    || message.includes('Not authenticated')
-    || message.includes('401')
-    || message.includes('UNAUTHORIZED')
+    || hasUnauthorizedMessage(message)
   )
 }

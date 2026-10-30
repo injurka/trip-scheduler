@@ -20,37 +20,35 @@ const commentsStore = useTripCommentsStore()
 const authStore = useAuthStore()
 const route = useRoute()
 
-const comments = computed(() => commentsStore.getCommentsByParentId(props.parentId))
-const collection = computed(() => commentsStore.getCommentCollectionByParentId(props.parentId))
-const hasMore = computed(() => collection.value?.hasMore ?? false)
-
 const loadMoreTrigger = ref<HTMLElement | null>(null)
 const asyncWrapper = ref<HTMLElement | null>(null)
 
-useIntersectionObserver(
-  loadMoreTrigger,
-  ([{ isIntersecting }]) => {
-    if (isIntersecting && hasMore.value && !commentsStore.isLoadingMore) {
-      commentsStore.fetchMoreComments(props.parentId)
-    }
-  },
-)
-
-function handleAddComment(text: string) {
-  commentsStore.addComment(text, props.parentId, props.parentType)
-}
+const comments = computed(() => commentsStore.getCommentsByParentId(props.parentId))
+const collection = computed(() => commentsStore.getCommentCollectionByParentId(props.parentId))
+const hasMore = computed(() => collection.value?.hasMore ?? false)
 
 watch(comments, async (newComments, oldComments) => {
   if (asyncWrapper.value) {
     if (!oldComments || newComments.length > oldComments.length) {
       await nextTick()
       const el = (asyncWrapper.value as any)?.$el || asyncWrapper.value
+
       if (el) {
         el.scrollTop = el.scrollHeight
       }
     }
   }
 }, { deep: true })
+
+function handleAddComment(text: string) {
+  commentsStore.addComment(text, props.parentId, props.parentType)
+}
+
+useIntersectionObserver(loadMoreTrigger, ([{ isIntersecting }]) => {
+  if (isIntersecting && hasMore.value && !commentsStore.isLoadingMore) {
+    commentsStore.fetchMoreComments(props.parentId)
+  }
+})
 </script>
 
 <template>

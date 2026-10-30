@@ -10,6 +10,7 @@ interface Props {
   visible: boolean
   settings: FinancesSettings
 }
+
 const props = defineProps<Props>()
 const emit = defineEmits<{
   (e: 'update:visible', value: boolean): void
@@ -18,30 +19,34 @@ const emit = defineEmits<{
 
 const form = ref<FinancesSettings>({ ...props.settings })
 
-function addRate() {
-  form.value.exchangeRates[''] = 1
-}
-
-function removeRate(currency: string) {
-  delete form.value.exchangeRates[currency]
-}
-
-function updateRateKey(oldKey: string, newKey: string) {
-  if (oldKey === newKey || !newKey)
-    return
-  const value = form.value.exchangeRates[oldKey]
-  delete form.value.exchangeRates[oldKey]
-  form.value.exchangeRates[newKey] = value
-}
-
 watch(() => props.visible, (isVisible) => {
   if (isVisible)
     form.value = JSON.parse(JSON.stringify(props.settings))
 })
+
+function addRate() {
+  form.value.exchangeRates[''] = 1
+}
+function removeRate(currency: string) {
+  delete form.value.exchangeRates[currency]
+}
+function updateRateKey(oldKey: string, newKey: string) {
+  if (oldKey === newKey || !newKey)
+    return
+
+  const value = form.value.exchangeRates[oldKey]
+  delete form.value.exchangeRates[oldKey]
+  form.value.exchangeRates[newKey] = value
+}
 </script>
 
 <template>
-  <KitDialogWithClose :visible="visible" title="Настройки финансов и бюджета" icon="mdi:cog-outline" @update:visible="emit('update:visible', $event)">
+  <KitDialogWithClose
+    :visible="visible"
+    title="Настройки финансов и бюджета"
+    icon="mdi:cog-outline"
+    @update:visible="emit('update:visible', $event)"
+  >
     <div class="settings-form">
       <KitInput v-model="form.mainCurrency" label="Основная валюта" placeholder="RUB, USD..." />
 

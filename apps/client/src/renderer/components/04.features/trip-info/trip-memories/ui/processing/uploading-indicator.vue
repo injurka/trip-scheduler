@@ -8,57 +8,58 @@ interface Props {
 }
 
 const props = defineProps<Props>()
-
 const emit = defineEmits<{
   (e: 'cancel', tempId: string): void
   (e: 'retry', tempId: string): void
   (e: 'remove', tempId: string): void
 }>()
 
+const ITEM_MIN_WIDTH = 50
+const GAP = 8
+const queuedGridRef = ref<HTMLElement | null>(null)
+const gridColumns = ref(10)
+let ro: ResizeObserver | null = null
+
 const currentUpload = computed(() => props.processingMemories.find(m => m.status === 'uploading'))
 const queuedUploads = computed(() => props.processingMemories.filter(m => m.status === 'queued'))
 const failedUploads = computed(() => props.processingMemories.filter(m => m.status === 'error'))
-
-const ITEM_MIN_WIDTH = 50
-const GAP = 8
-
-const queuedGridRef = ref<HTMLElement | null>(null)
-const gridColumns = ref(10)
-
-function recalcColumns() {
-  if (!queuedGridRef.value)
-    return
-  const width = queuedGridRef.value.clientWidth
-  gridColumns.value = Math.max(1, Math.floor((width + GAP) / (ITEM_MIN_WIDTH + GAP)))
-}
-
-let ro: ResizeObserver | null = null
-
-watch(queuedGridRef, (el) => {
-  ro?.disconnect()
-  if (!el)
-    return
-  ro = new ResizeObserver(recalcColumns)
-  ro.observe(el)
-  recalcColumns()
-})
-
-onBeforeUnmount(() => ro?.disconnect())
-
 const visibleItems = computed(() => {
   const total = queuedUploads.value.length
+
   if (total <= gridColumns.value)
     return queuedUploads.value
 
   return queuedUploads.value.slice(0, gridColumns.value - 1)
 })
-
 const remainingCount = computed(() => {
   const total = queuedUploads.value.length
+
   if (total <= gridColumns.value)
     return 0
+
   return total - (gridColumns.value - 1)
 })
+
+watch(queuedGridRef, (el) => {
+  ro?.disconnect()
+
+  if (!el)
+    return
+
+  ro = new ResizeObserver(recalcColumns)
+  ro.observe(el)
+  recalcColumns()
+})
+
+function recalcColumns() {
+  if (!queuedGridRef.value)
+    return
+
+  const width = queuedGridRef.value.clientWidth
+  gridColumns.value = Math.max(1, Math.floor((width + GAP) / (ITEM_MIN_WIDTH + GAP)))
+}
+
+onBeforeUnmount(() => ro?.disconnect())
 </script>
 
 <template>
@@ -80,7 +81,12 @@ const remainingCount = computed(() => {
             :key="item.tempId"
             class="queued-item"
           >
-            <video v-if="item.file.type.startsWith('video/')" :src="item.previewUrl" muted playsinline />
+            <video
+              v-if="item.file.type.startsWith('video/')"
+              :src="item.previewUrl"
+              muted
+              playsinline
+            />
             <img v-else :src="item.previewUrl" alt="В очереди">
           </div>
           <div v-if="remainingCount > 0" class="queued-item more-items">

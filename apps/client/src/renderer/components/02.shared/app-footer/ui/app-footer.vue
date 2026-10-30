@@ -7,59 +7,60 @@ import { useAppUpdateStore } from '~/shared/store/app-update.store'
 
 const route = useRoute()
 const appUpdateStore = useAppUpdateStore()
+
 const isDownloading = ref(false)
 
 const appVersion = computed(() => appUpdateStore.latestVersion)
 const currentDeepLink = computed(() => {
   const path = route.fullPath.replace(/^\/+/, '')
+
   return `trip-scheduler://${path}`
 })
-
 const downloadButtonShortLabel = computed(() => {
   const versionStr = appVersion.value ? ` v${appVersion.value}` : ''
+
   if (appUpdateStore.targetPlatform === 'linux') {
     return `AppImage${versionStr}`
   }
+
   if (appUpdateStore.targetPlatform === 'windows') {
     return `Windows${versionStr}`
   }
+
   return `APK${versionStr}`
 })
-
 const downloadButtonIcon = computed(() => {
   if (isDownloading.value) {
     return 'mdi:loading'
   }
+
   if (appUpdateStore.targetPlatform === 'linux') {
     return 'mdi:linux'
   }
+
   if (appUpdateStore.targetPlatform === 'windows') {
     return 'mdi:microsoft-windows'
   }
+
   return 'mdi:android'
 })
-
 const bannerTitle = computed(() => {
   if (appUpdateStore.targetPlatform === 'linux') {
     return 'Десктопное приложение для Linux'
   }
+
   if (appUpdateStore.targetPlatform === 'windows') {
     return 'Десктопное приложение для Windows'
   }
+
   return 'Мобильное приложение TripScheduler'
 })
-
 const bannerDescription = computed(() => {
   if (appUpdateStore.targetPlatform === 'linux') {
     return 'Автономный режим, быстрый доступ и работа без браузера (AppImage)'
   }
-  return 'Оффлайн-режим, фоновый GPS-трекинг маршрутов и уведомления'
-})
 
-onMounted(() => {
-  if (!isTauri) {
-    appUpdateStore.fetchLatestReleaseInfo().catch(() => {})
-  }
+  return 'Оффлайн-режим, фоновый GPS-трекинг маршрутов и уведомления'
 })
 
 async function handleDownloadApk() {
@@ -71,6 +72,12 @@ async function handleDownloadApk() {
     isDownloading.value = false
   }
 }
+
+onMounted(() => {
+  if (!isTauri) {
+    appUpdateStore.fetchLatestReleaseInfo().catch(() => {})
+  }
+})
 </script>
 
 <template>

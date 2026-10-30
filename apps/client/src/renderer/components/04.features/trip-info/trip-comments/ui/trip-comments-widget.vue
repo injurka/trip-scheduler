@@ -20,6 +20,7 @@ const drawerTitle = computed(() => props.parentType === 'day' ? 'Обсужде�
 watch(isPanelOpen, (isOpen) => {
   if (isOpen) {
     const collection = commentsStore.getCommentCollectionByParentId(props.parentId)
+
     if (!collection || collection.comments.length === 0) {
       commentsStore.fetchComments(props.parentId)
     }

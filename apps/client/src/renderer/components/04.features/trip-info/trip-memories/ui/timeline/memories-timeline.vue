@@ -21,6 +21,7 @@ const props = withDefaults(defineProps<Props>(), {
 })
 
 const { ui, memories: memoriesStore } = useModuleStore(['ui', 'memories'])
+
 const { timelineGroupsForSelectedDay: timelineGroups } = storeToRefs(memoriesStore)
 
 const {
@@ -37,9 +38,10 @@ const {
   timelineGroups,
 })
 
+const commentEditorRef = ref(null)
+
 provide(SHARED_VIEWER_KEY, { openImageViewer })
 
-const commentEditorRef = ref(null)
 onClickOutside(commentEditorRef, saveViewerComment)
 </script>
 
@@ -97,7 +99,12 @@ onClickOutside(commentEditorRef, saveViewerComment)
             />
             <template v-else>
               <span>{{ formattedActiveViewerTime }}</span>
-              <Icon height="19" width="19" icon="mdi:clock-outline" class="time-icon" />
+              <Icon
+                height="19"
+                width="19"
+                icon="mdi:clock-outline"
+                class="time-icon"
+              />
             </template>
           </div>
         </div>

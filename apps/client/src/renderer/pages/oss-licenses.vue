@@ -2,10 +2,6 @@
 import { useHead } from '@vueuse/head'
 import { NavigationBack } from '~/components/02.shared/navigation-back'
 
-useHead({
-  title: 'Лицензии Open Source',
-})
-
 interface License {
   package: string
   license: string
@@ -15,26 +11,144 @@ interface License {
 }
 
 const licenses = ref<License[]>([
-  { package: '@internationalized/date', license: 'Apache-2.0', version: '3.10.0', author: 'Adobe Inc.', link: 'https://github.com/adobe/react-spectrum' },
-  { package: '@mapbox/polyline', license: 'BSD-3-Clause', version: '1.2.1', author: 'Mapbox', link: 'https://github.com/mapbox/polyline' },
-  { package: '@milkdown/crepe', license: 'MIT', version: '7.17.1', author: 'Mirone', link: 'https://github.com/Milkdown/milkdown' },
-  { package: '@milkdown/kit', license: 'MIT', version: '7.17.1', author: 'Mirone', link: 'https://github.com/Milkdown/milkdown' },
-  { package: '@milkdown/vue', license: 'MIT', version: '7.17.1', author: 'Mirone', link: 'https://github.com/Milkdown/milkdown' },
-  { package: '@trpc/client', license: 'MIT', version: '11.7.1', author: 'tRPC team', link: 'https://github.com/trpc/trpc' },
-  { package: '@vueuse/core', license: 'MIT', version: '14.0.0', author: 'Anthony Fu & VueUse contributors', link: 'https://github.com/vueuse/vueuse' },
-  { package: '@vueuse/head', license: 'MIT', version: '2.0.0', author: 'VueUse team', link: 'https://github.com/vueuse/head' },
-  { package: 'chart.js', license: 'MIT', version: '4.5.1', author: 'Chart.js contributors', link: 'https://github.com/chartjs/Chart.js' },
-  { package: 'maska', license: 'MIT', version: '3.2.0', author: 'be-hold', link: 'https://github.com/beholdr/maska' },
-  { package: 'ofetch', license: 'MIT', version: '1.5.1', author: 'Pooya Parsa', link: 'https://github.com/unjs/ofetch' },
-  { package: 'maplibre-gl', license: 'BSD-3-Clause', version: '6.7.0', author: 'MapLibre contributors', link: 'https://github.com/maplibre/maplibre-gl-js' },
-  { package: 'pinia', license: 'MIT', version: '3.0.4', author: 'Eduardo San Martin Morote', link: 'https://github.com/vuejs/pinia' },
-  { package: 'reka-ui', license: 'MIT', version: '2.6.0', author: 'Reka contributors', link: 'https://github.com/reka-ui/reka-ui' },
-  { package: 'uuid', license: 'MIT', version: '13.0.0', author: 'UUID contributors', link: 'https://github.com/uuidjs/uuid' },
-  { package: 'vue', license: 'MIT', version: '3.5.24', author: 'Evan You', link: 'https://github.com/vuejs/core' },
-  { package: 'vue-chartjs', license: 'MIT', version: '5.3.3', author: 'Chart.js contributors', link: 'https://github.com/react-chartjs-2/vue-chartjs' },
-  { package: 'vue-router', license: 'MIT', version: '4.6.3', author: 'Vue.js team', link: 'https://github.com/vuejs/router' },
-  { package: 'vuedraggable', license: 'MIT', version: '4.1.0', author: 'SortableJS', link: 'https://github.com/SortableJS/Vue.Draggable' },
+  {
+    package: '@internationalized/date',
+    license: 'Apache-2.0',
+    version: '3.10.0',
+    author: 'Adobe Inc.',
+    link: 'https://github.com/adobe/react-spectrum',
+  },
+  {
+    package: '@mapbox/polyline',
+    license: 'BSD-3-Clause',
+    version: '1.2.1',
+    author: 'Mapbox',
+    link: 'https://github.com/mapbox/polyline',
+  },
+  {
+    package: '@milkdown/crepe',
+    license: 'MIT',
+    version: '7.17.1',
+    author: 'Mirone',
+    link: 'https://github.com/Milkdown/milkdown',
+  },
+  {
+    package: '@milkdown/kit',
+    license: 'MIT',
+    version: '7.17.1',
+    author: 'Mirone',
+    link: 'https://github.com/Milkdown/milkdown',
+  },
+  {
+    package: '@milkdown/vue',
+    license: 'MIT',
+    version: '7.17.1',
+    author: 'Mirone',
+    link: 'https://github.com/Milkdown/milkdown',
+  },
+  {
+    package: '@trpc/client',
+    license: 'MIT',
+    version: '11.7.1',
+    author: 'tRPC team',
+    link: 'https://github.com/trpc/trpc',
+  },
+  {
+    package: '@vueuse/core',
+    license: 'MIT',
+    version: '14.0.0',
+    author: 'Anthony Fu & VueUse contributors',
+    link: 'https://github.com/vueuse/vueuse',
+  },
+  {
+    package: '@vueuse/head',
+    license: 'MIT',
+    version: '2.0.0',
+    author: 'VueUse team',
+    link: 'https://github.com/vueuse/head',
+  },
+  {
+    package: 'chart.js',
+    license: 'MIT',
+    version: '4.5.1',
+    author: 'Chart.js contributors',
+    link: 'https://github.com/chartjs/Chart.js',
+  },
+  {
+    package: 'maska',
+    license: 'MIT',
+    version: '3.2.0',
+    author: 'be-hold',
+    link: 'https://github.com/beholdr/maska',
+  },
+  {
+    package: 'ofetch',
+    license: 'MIT',
+    version: '1.5.1',
+    author: 'Pooya Parsa',
+    link: 'https://github.com/unjs/ofetch',
+  },
+  {
+    package: 'maplibre-gl',
+    license: 'BSD-3-Clause',
+    version: '6.7.0',
+    author: 'MapLibre contributors',
+    link: 'https://github.com/maplibre/maplibre-gl-js',
+  },
+  {
+    package: 'pinia',
+    license: 'MIT',
+    version: '3.0.4',
+    author: 'Eduardo San Martin Morote',
+    link: 'https://github.com/vuejs/pinia',
+  },
+  {
+    package: 'reka-ui',
+    license: 'MIT',
+    version: '2.6.0',
+    author: 'Reka contributors',
+    link: 'https://github.com/reka-ui/reka-ui',
+  },
+  {
+    package: 'uuid',
+    license: 'MIT',
+    version: '13.0.0',
+    author: 'UUID contributors',
+    link: 'https://github.com/uuidjs/uuid',
+  },
+  {
+    package: 'vue',
+    license: 'MIT',
+    version: '3.5.24',
+    author: 'Evan You',
+    link: 'https://github.com/vuejs/core',
+  },
+  {
+    package: 'vue-chartjs',
+    license: 'MIT',
+    version: '5.3.3',
+    author: 'Chart.js contributors',
+    link: 'https://github.com/react-chartjs-2/vue-chartjs',
+  },
+  {
+    package: 'vue-router',
+    license: 'MIT',
+    version: '4.6.3',
+    author: 'Vue.js team',
+    link: 'https://github.com/vuejs/router',
+  },
+  {
+    package: 'vuedraggable',
+    license: 'MIT',
+    version: '4.1.0',
+    author: 'SortableJS',
+    link: 'https://github.com/SortableJS/Vue.Draggable',
+  },
 ])
+
+useHead({
+  title: 'Лицензии Open Source',
+})
 </script>
 
 <template>

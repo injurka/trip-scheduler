@@ -28,12 +28,102 @@ interface PointItem {
   point: MapPoint
 }
 
+interface CoordinateBounds {
+  minLng: number
+  maxLng: number
+  minLat: number
+  maxLat: number
+}
+
 const STATIC_POINTS_SOURCE_ID = 'static-map-points'
 const STATIC_ROUTES_SOURCE_ID = 'static-map-routes'
 const STATIC_ROUTE_CASING_LAYER_ID = 'static-map-routes-casing'
 const STATIC_ROUTE_LINE_LAYER_ID = 'static-map-routes-line'
 const STATIC_ROUTE_HIT_LAYER_ID = 'static-map-routes-hit'
 const STATIC_POINTS_LAYER_ID = 'static-map-points-layer'
+
+function includeCoordinate(bounds: CoordinateBounds, coordinate?: Coordinate | null) {
+  if (!coordinate || !isValidCoordinate(coordinate))
+    return
+
+  const [longitude, latitude] = coordinate
+  bounds.minLng = Math.min(bounds.minLng, longitude)
+  bounds.maxLng = Math.max(bounds.maxLng, longitude)
+  bounds.minLat = Math.min(bounds.minLat, latitude)
+  bounds.maxLat = Math.max(bounds.maxLat, latitude)
+}
+
+function includeRouteCoordinates(bounds: CoordinateBounds, route: MapRoute) {
+  if (route.geometry?.length) {
+    route.geometry.forEach(coordinate => includeCoordinate(bounds, coordinate))
+
+    return
+  }
+
+  route.points.forEach(point => includeCoordinate(bounds, point.coordinates))
+}
+
+function getCoordinateBounds(points: MapPoint[], routes: MapRoute[]): CoordinateBounds | null {
+  const bounds: CoordinateBounds = {
+    minLng: Number.POSITIVE_INFINITY,
+    maxLng: Number.NEGATIVE_INFINITY,
+    minLat: Number.POSITIVE_INFINITY,
+    maxLat: Number.NEGATIVE_INFINITY,
+  }
+
+  points.forEach(point => includeCoordinate(bounds, point.coordinates))
+  routes.forEach(route => includeRouteCoordinates(bounds, route))
+
+  return bounds.minLng === Number.POSITIVE_INFINITY || bounds.minLat === Number.POSITIVE_INFINITY
+    ? null
+    : bounds
+}
+
+function isSingleCoordinate(bounds: CoordinateBounds): boolean {
+  return bounds.minLng === bounds.maxLng && bounds.minLat === bounds.maxLat
+}
+
+function getBoundsPadding(padding?: number | { top: number, right: number, bottom: number, left: number }) {
+  if (typeof padding === 'number')
+    return { top: padding, right: padding, bottom: padding, left: padding }
+
+  return padding ?? { top: 60, right: 60, bottom: 60, left: 60 }
+}
+
+function getPaddedBounds(bounds: CoordinateBounds): [Coordinate, Coordinate] {
+  const longitudeSpan = bounds.maxLng - bounds.minLng
+  const latitudeSpan = bounds.maxLat - bounds.minLat
+  const marginRatio = 0.10
+
+  return [
+    [bounds.minLng - longitudeSpan * marginRatio, Math.max(-85, bounds.minLat - latitudeSpan * marginRatio)],
+    [bounds.maxLng + longitudeSpan * marginRatio, Math.min(85, bounds.maxLat + latitudeSpan * marginRatio)],
+  ]
+}
+
+function getPointMarkerColor(point: MapPoint): string {
+  return point.style?.color || POINT_TYPE_COLORS[point.type] || '#3498db'
+}
+
+function getPointMarkerScale(point: MapPoint): number {
+  return point.style?.scale || 1.1
+}
+
+function getPointMarkerOpacity(point: MapPoint): number {
+  return point.style?.opacity ?? 1.0
+}
+
+function getPointMarkerZIndex(point: MapPoint, isConnect: boolean): number {
+  return point.style?.zIndex ?? (isConnect ? 15 : 20)
+}
+
+function getMapFitOptions(options?: { padding?: number | { top: number, right: number, bottom: number, left: number }, maxZoom?: number, duration?: number }) {
+  return {
+    padding: getBoundsPadding(options?.padding),
+    maxZoom: options?.maxZoom ?? 14.8,
+    duration: options?.duration !== undefined ? options.duration : 400,
+  }
+}
 
 export type PointDragEndCallback = (pointId: string, coords: Coordinate) => void
 
@@ -57,6 +147,7 @@ export function useGeolocationMap() {
 
   const onPointDragEnd = (cb: PointDragEndCallback) => {
     dragEndListeners.add(cb)
+
     return () => {
       dragEndListeners.delete(cb)
     }
@@ -66,8 +157,77 @@ export function useGeolocationMap() {
     dragEndListeners.forEach(cb => cb(pointId, coords))
   }
 
+  function updatePointPopupVisibility(
+    map: MapLibreMap,
+    item: PointItem,
+    id: string,
+    isZoomedIn: boolean,
+  ) {
+    const { popup, popupElement, point } = item
+
+    if (!popup || !popupElement)
+      return
+
+    if (point.type === 'connect') {
+      if (popup.isOpen())
+        popup.remove()
+
+      return
+    }
+
+    const isHovered = hoveredPointId.value === id
+    const isActive = activePointId.value === id
+    const shouldShow = shouldShowPointPopup(
+      point,
+      isZoomedIn,
+      isHovered,
+      isActive,
+    )
+
+    if (!shouldShow) {
+      if (popup.isOpen())
+        popup.remove()
+
+      return
+    }
+
+    if (!popup.isOpen())
+      popup.addTo(map)
+
+    updatePointPopupClasses(popupElement, isActive, isHovered)
+  }
+
+  function shouldShowPointPopup(
+    point: MapPoint,
+    isZoomedIn: boolean,
+    isHovered: boolean,
+    isActive: boolean,
+  ): boolean {
+    const hasDistinctComment = Boolean(point.comment && point.comment.trim() !== '' && point.comment.trim() !== point.address?.trim())
+    const isPoiWithComment = point.type === 'poi' && hasDistinctComment
+
+    return (isPoiWithComment && isZoomedIn) || isHovered || isActive
+  }
+
+  function updatePointPopupClasses(element: HTMLElement, isActive: boolean, isHovered: boolean) {
+    element.classList.remove('is-hidden-zoom')
+
+    if (isActive) {
+      element.classList.add('is-active')
+      element.classList.remove('is-hovered')
+    }
+    else if (isHovered) {
+      element.classList.add('is-hovered')
+      element.classList.remove('is-active')
+    }
+    else {
+      element.classList.remove('is-active', 'is-hovered')
+    }
+  }
+
   const updateOverlayVisibilities = () => {
     const map = baseMap.mapInstance.value
+
     if (!map)
       return
 
@@ -75,6 +235,7 @@ export function useGeolocationMap() {
     const isZoomedIn = zoom >= minZoomForComments
 
     const container = map.getContainer()
+
     if (container) {
       container.classList.toggle('map-zoom-micro', zoom < 9)
       container.classList.toggle('map-zoom-far', zoom >= 9 && zoom < 11.5)
@@ -82,48 +243,12 @@ export function useGeolocationMap() {
       container.classList.toggle('map-zoom-close', zoom >= 14)
     }
 
-    pointsMap.forEach((item, id) => {
-      const { popup, popupElement, point } = item
-      if (!popup || !popupElement)
-        return
-
-      // Connect waypoints never show popups
-      if (point.type === 'connect') {
-        if (popup.isOpen())
-          popup.remove()
-        return
-      }
-
-      const isHovered = hoveredPointId.value === id
-      const isActive = activePointId.value === id
-      // Only standalone POIs with distinct comments are shown automatically at high zoom
-      // Route points only show on hover or when active
-      const isPoiWithComment = point.type === 'poi' && Boolean(point.comment && point.comment.trim() !== '' && point.comment.trim() !== point.address?.trim())
-      const shouldShow = (isPoiWithComment && isZoomedIn) || isHovered || isActive
-
-      if (shouldShow) {
-        if (!popup.isOpen()) {
-          popup.addTo(map)
-        }
-        popupElement.classList.remove('is-hidden-zoom')
-        if (isActive) {
-          popupElement.classList.add('is-active')
-          popupElement.classList.remove('is-hovered')
-        }
-        else if (isHovered) {
-          popupElement.classList.add('is-hovered')
-          popupElement.classList.remove('is-active')
-        }
-        else {
-          popupElement.classList.remove('is-active', 'is-hovered')
-        }
-      }
-      else {
-        if (popup.isOpen()) {
-          popup.remove()
-        }
-      }
-    })
+    pointsMap.forEach((item, id) => updatePointPopupVisibility(
+      map,
+      item,
+      id,
+      isZoomedIn,
+    ))
   }
 
   const setActivePointId = (id: string | null) => {
@@ -144,6 +269,7 @@ export function useGeolocationMap() {
         ? route.geometry
         : route.points.map(point => point.coordinates)
       ).filter(isValidCoordinate)
+
       if (geometry.length < 2)
         return []
 
@@ -240,6 +366,7 @@ export function useGeolocationMap() {
   const setStaticMapData = (points: MapPoint[], routes: MapRoute[]) => {
     staticData = { points, routes }
     const map = baseMap.mapInstance.value
+
     if (map && baseMap.isMapReady.value)
       renderStaticData(map)
   }
@@ -268,16 +395,15 @@ export function useGeolocationMap() {
     }
 
     const existingSource = map.getSource(sourceId) as maplibregl.GeoJSONSource | undefined
+
     if (existingSource) {
       existingSource.setData(geojson)
+
       if (map.getLayer(lineLayerId)) {
         map.setPaintProperty(lineLayerId, 'line-color', route.color || '#4363D8')
-        map.setPaintProperty(
-          lineLayerId,
-          'line-dasharray',
-          route.isDirect ? [2, 2] : undefined,
-        )
+        map.setPaintProperty(lineLayerId, 'line-dasharray', route.isDirect ? [2, 2] : undefined)
       }
+
       return
     }
 
@@ -407,6 +533,7 @@ export function useGeolocationMap() {
 
     map.on('mouseenter', hitTargetLayerId, () => {
       map.getCanvas().style.cursor = 'pointer'
+
       if (map.getLayer(lineLayerId)) {
         map.setPaintProperty(lineLayerId, 'line-width', hoverLineWidth)
       }
@@ -414,6 +541,7 @@ export function useGeolocationMap() {
 
     map.on('mouseleave', hitTargetLayerId, () => {
       map.getCanvas().style.cursor = ''
+
       if (map.getLayer(lineLayerId)) {
         map.setPaintProperty(lineLayerId, 'line-width', normalLineWidth)
       }
@@ -423,14 +551,17 @@ export function useGeolocationMap() {
   const addOrUpdateRoute = (route: MapRoute) => {
     routesMap.set(route.id, route)
     const map = baseMap.mapInstance.value
+
     if (!map || !baseMap.isMapReady.value)
       return
+
     renderRoute(map, route)
   }
 
   const removeRoute = (routeId: string) => {
     routesMap.delete(routeId)
     const map = baseMap.mapInstance.value
+
     if (!map)
       return
 
@@ -442,12 +573,16 @@ export function useGeolocationMap() {
 
     if (map.getLayer(hitTargetLayerId))
       map.removeLayer(hitTargetLayerId)
+
     if (map.getLayer(lineLayerId))
       map.removeLayer(lineLayerId)
+
     if (map.getLayer(casingLayerId))
       map.removeLayer(casingLayerId)
+
     if (map.getLayer(shadowLayerId))
       map.removeLayer(shadowLayerId)
+
     if (map.getSource(sourceId))
       map.removeSource(sourceId)
   }
@@ -459,169 +594,179 @@ export function useGeolocationMap() {
 
   const addOrUpdatePoint = (point: MapPoint) => {
     const map = baseMap.mapInstance.value
-    if (!map)
+
+    if (!map || !point?.coordinates)
       return
 
-    if (!point || !point.coordinates)
+    if (!normalizePointCoordinates(point))
       return
-
-    let [lng, lat] = point.coordinates
-    if (Math.abs(lat) > 90 && Math.abs(lng) <= 90) {
-      const temp = lat
-      lat = lng
-      lng = temp
-      point.coordinates = [lng, lat]
-    }
-
-    if (!isValidCoordinate(point.coordinates)) {
-      console.warn(`[useGeolocationMap] Пропущена точка с невалидными координатами:`, point)
-      return
-    }
-
-    const color = point.style?.color || POINT_TYPE_COLORS[point.type] || '#3498db'
-    const isConnect = point.type === 'connect'
-    const hasDistinctComment = Boolean(point.comment && point.comment.trim() !== '' && point.comment.trim() !== point.address?.trim())
-    const labelText = hasDistinctComment
-      ? point.comment!
-      : (point.type !== 'connect' && point.address && point.address.trim() !== '' ? point.address : '')
 
     const existing = pointsMap.get(point.id)
 
-    if (existing) {
-      if (existing.point.type !== point.type || existing.point.style?.color !== point.style?.color
-        || existing.point.style?.opacity !== point.style?.opacity
-        || existing.point.style?.scale !== point.style?.scale
-        || existing.point.style?.zIndex !== point.style?.zIndex) {
-        if (existing.popup?.isOpen()) {
-          existing.popup.remove()
-        }
-        existing.marker.remove()
-        pointsMap.delete(point.id)
-      }
-      else {
-        existing.marker.setLngLat(point.coordinates)
-        existing.marker.setDraggable(isDraggableAllowed.value)
-        existing.point = point
+    if (existing && updateExistingPoint(existing, point))
+      return
 
-        if (labelText && !isConnect) {
-          if (!existing.popup) {
-            const popupElement = document.createElement('div')
-            popupElement.className = 'ol-popup-comment'
-            popupElement.textContent = labelText
+    createPointMarker(map, point, getPointLabel(point))
+  }
 
-            popupElement.onclick = (e) => {
-              e.stopPropagation()
-              setActivePointId(point.id)
-            }
+  function normalizePointCoordinates(point: MapPoint): boolean {
+    const [lng, lat] = point.coordinates
 
-            const popup = new maplibregl.Popup({
-              offset: 32,
-              closeButton: false,
-              closeOnClick: false,
-              closeOnMove: false,
-              className: 'maplibre-point-comment-wrapper',
-            }).setDOMContent(popupElement)
+    if (Math.abs(lat) > 90 && Math.abs(lng) <= 90)
+      point.coordinates = [lat, lng]
 
-            existing.marker.setPopup(popup)
-            existing.popup = popup
-            existing.popupElement = popupElement
-          }
-          else if (existing.popupElement) {
-            existing.popupElement.textContent = labelText
-          }
-        }
-        else if (existing.popup) {
-          existing.popup.remove()
-          existing.popup = undefined
-          existing.popupElement = undefined
-        }
+    if (isValidCoordinate(point.coordinates))
+      return true
 
-        updateOverlayVisibilities()
-        return
-      }
+    console.warn('[useGeolocationMap] Пропущена точка с невалидными координатами:', point)
+
+    return false
+  }
+
+  function getPointLabel(point: MapPoint): string {
+    const hasDistinctComment = Boolean(point.comment && point.comment.trim() !== '' && point.comment.trim() !== point.address?.trim())
+
+    if (hasDistinctComment)
+      return point.comment!
+
+    return point.type !== 'connect' && point.address?.trim() ? point.address : ''
+  }
+
+  function hasPointStyleChanged(existing: PointItem, point: MapPoint): boolean {
+    const existingStyle = existing.point.style || {}
+    const nextStyle = point.style || {}
+    const keys = ['color', 'opacity', 'scale', 'zIndex'] as const
+
+    return existing.point.type !== point.type
+      || keys.some(key => existingStyle[key] !== nextStyle[key])
+  }
+
+  function updateExistingPoint(existing: PointItem, point: MapPoint): boolean {
+    if (hasPointStyleChanged(existing, point)) {
+      removePointItem(existing, point.id)
+
+      return false
     }
 
-    const el = createMarkerElement({
-      color,
-      scale: point.style?.scale || 1.1,
-      opacity: point.style?.opacity ?? 1.0,
-      zIndex: point.style?.zIndex ?? (isConnect ? 15 : 20),
+    existing.marker.setLngLat(point.coordinates)
+    existing.marker.setDraggable(isDraggableAllowed.value)
+    existing.point = point
+    syncExistingPointPopup(existing, point, getPointLabel(point))
+    updateOverlayVisibilities()
+
+    return true
+  }
+
+  function removePointItem(item: PointItem, pointId: string) {
+    if (item.popup?.isOpen())
+      item.popup.remove()
+
+    item.marker.remove()
+    pointsMap.delete(pointId)
+  }
+
+  function syncExistingPointPopup(item: PointItem, point: MapPoint, labelText: string) {
+    if (labelText && point.type !== 'connect') {
+      if (!item.popup)
+        createPointPopup(item, point, labelText)
+      else if (item.popupElement)
+        item.popupElement.textContent = labelText
+
+      return
+    }
+
+    if (item.popup)
+      item.popup.remove()
+
+    item.popup = undefined
+    item.popupElement = undefined
+  }
+
+  function createPointPopup(item: PointItem, point: MapPoint, labelText: string) {
+    const popupElement = createPointPopupElement(point.id, labelText)
+    const popup = new maplibregl.Popup({
+      offset: 32,
+      closeButton: false,
+      closeOnClick: false,
+      closeOnMove: false,
+      className: 'maplibre-point-comment-wrapper',
+    }).setDOMContent(popupElement)
+
+    item.marker.setPopup(popup)
+    item.popup = popup
+    item.popupElement = popupElement
+  }
+
+  function createPointPopupElement(pointId: string, labelText: string): HTMLElement {
+    const popupElement = document.createElement('div')
+    popupElement.className = 'ol-popup-comment'
+    popupElement.textContent = labelText
+    popupElement.onclick = (event) => {
+      event.stopPropagation()
+      setActivePointId(pointId)
+    }
+
+    return popupElement
+  }
+
+  function createPointMarker(map: MapLibreMap, point: MapPoint, labelText: string) {
+    const isConnect = point.type === 'connect'
+    const element = createMarkerElement({
+      color: getPointMarkerColor(point),
+      scale: getPointMarkerScale(point),
+      opacity: getPointMarkerOpacity(point),
+      zIndex: getPointMarkerZIndex(point, isConnect),
       isConnect,
       pointType: point.type,
     })
-
     const marker = new maplibregl.Marker({
-      element: el,
+      element,
       anchor: isConnect ? 'center' : 'bottom',
       draggable: isDraggableAllowed.value,
-    })
-      .setLngLat(point.coordinates)
-      .addTo(map)
+    }).setLngLat(point.coordinates).addTo(map)
 
+    attachPointMarkerEvents(marker, element, point)
+    const item: PointItem = { marker, point }
+
+    if (labelText && !isConnect)
+      createPointPopup(item, point, labelText)
+
+    pointsMap.set(point.id, item)
+    updateOverlayVisibilities()
+  }
+
+  function attachPointMarkerEvents(marker: maplibregl.Marker, element: HTMLElement, point: MapPoint) {
     marker.on('dragend', () => {
       const lngLat = marker.getLngLat()
-      const newCoords: Coordinate = [lngLat.lng, lngLat.lat]
-      point.coordinates = newCoords
-      notifyPointDragEnd(point.id, newCoords)
+      const coordinates: Coordinate = [lngLat.lng, lngLat.lat]
+      point.coordinates = coordinates
+      notifyPointDragEnd(point.id, coordinates)
     })
 
-    el.addEventListener('mouseenter', () => {
+    element.addEventListener('mouseenter', () => {
       hoveredPointId.value = point.id
       updateOverlayVisibilities()
     })
-
-    el.addEventListener('mouseleave', () => {
+    element.addEventListener('mouseleave', () => {
       if (hoveredPointId.value === point.id) {
         hoveredPointId.value = null
         updateOverlayVisibilities()
       }
     })
-
-    el.addEventListener('click', (e) => {
-      e.stopPropagation()
+    element.addEventListener('click', (event) => {
+      event.stopPropagation()
       setActivePointId(point.id)
     })
-
-    let popup: maplibregl.Popup | undefined
-    let popupElement: HTMLElement | undefined
-
-    if (labelText && !isConnect) {
-      popupElement = document.createElement('div')
-      popupElement.className = 'ol-popup-comment'
-      popupElement.textContent = labelText
-
-      popupElement.onclick = (e) => {
-        e.stopPropagation()
-        setActivePointId(point.id)
-      }
-
-      popup = new maplibregl.Popup({
-        offset: 32,
-        closeButton: false,
-        closeOnClick: false,
-        closeOnMove: false,
-        className: 'maplibre-point-comment-wrapper',
-      }).setDOMContent(popupElement)
-
-      marker.setPopup(popup)
-    }
-
-    pointsMap.set(point.id, {
-      marker,
-      popup,
-      popupElement,
-      point,
-    })
-
-    updateOverlayVisibilities()
   }
 
   const removePoint = (pointId: string) => {
     const item = pointsMap.get(pointId)
+
     if (item) {
       if (item.popup?.isOpen()) {
         item.popup.remove()
       }
+
       item.marker.remove()
       pointsMap.delete(pointId)
     }
@@ -632,6 +777,7 @@ export function useGeolocationMap() {
       if (item.popup?.isOpen()) {
         item.popup.remove()
       }
+
       item.marker.remove()
     })
     pointsMap.clear()
@@ -639,21 +785,26 @@ export function useGeolocationMap() {
 
   const setSelectionMarker = (coords: Coordinate | null) => {
     const map = baseMap.mapInstance.value
+
     if (!coords || !map) {
       if (selectionMarker) {
         selectionMarker.remove()
         selectionMarker = null
       }
+
       return
     }
 
     let [lng, lat] = coords
+
     if (Math.abs(lat) > 90 && Math.abs(lng) <= 90) {
       const temp = lat
       lat = lng
       lng = temp
     }
+
     const safeCoords: [number, number] = [lng, lat]
+
     if (!isValidCoordinate(safeCoords))
       return
 
@@ -692,10 +843,12 @@ export function useGeolocationMap() {
 
   async function searchLocation(query: string): Promise<boolean> {
     clearSearchResult()
+
     if (!query.trim())
       return false
 
     const result = await nominatimService.searchSingle(query)
+
     if (!result)
       return false
 
@@ -703,6 +856,7 @@ export function useGeolocationMap() {
     flyToLocation(lon, lat, 14)
 
     const map = baseMap.mapInstance.value
+
     if (map) {
       const el = createMarkerElement({ color: '#E74C3C', scale: 1.3 })
       const popup = new maplibregl.Popup({
@@ -728,52 +882,48 @@ export function useGeolocationMap() {
   const showCurrentLocation = () => {
     if (!navigator.geolocation) {
       useToast().error('Геолокация не поддерживается вашим браузером.')
+
       return
     }
 
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const map = baseMap.mapInstance.value
-        if (!map)
-          return
+    navigator.geolocation.getCurrentPosition((position) => {
+      const map = baseMap.mapInstance.value
 
-        const { longitude, latitude } = position.coords
-        flyToLocation(longitude, latitude, 14)
+      if (!map)
+        return
 
-        if (!currentLocationMarker) {
-          const el = document.createElement('div')
-          el.className = 'maplibre-current-location-marker'
-          el.style.width = '16px'
-          el.style.height = '16px'
-          el.style.borderRadius = '50%'
-          el.style.backgroundColor = '#3498db'
-          el.style.border = '2.5px solid #ffffff'
-          el.style.boxShadow = '0 0 0 4px rgba(52, 152, 219, 0.35)'
+      const { longitude, latitude } = position.coords
+      flyToLocation(longitude, latitude, 14)
 
-          currentLocationMarker = new maplibregl.Marker({
-            element: el,
-            anchor: 'center',
-          })
-            .setLngLat([longitude, latitude])
-            .addTo(map)
-        }
-        else {
-          currentLocationMarker.setLngLat([longitude, latitude])
-        }
-      },
-      () => {
-        useToast().error('Не удалось определить местоположение.')
-      },
-      { enableHighAccuracy: true },
-    )
+      if (!currentLocationMarker) {
+        const el = document.createElement('div')
+        el.className = 'maplibre-current-location-marker'
+        el.style.width = '16px'
+        el.style.height = '16px'
+        el.style.borderRadius = '50%'
+        el.style.backgroundColor = '#3498db'
+        el.style.border = '2.5px solid #ffffff'
+        el.style.boxShadow = '0 0 0 4px rgba(52, 152, 219, 0.35)'
+
+        currentLocationMarker = new maplibregl.Marker({
+          element: el,
+          anchor: 'center',
+        })
+          .setLngLat([longitude, latitude])
+          .addTo(map)
+      }
+      else {
+        currentLocationMarker.setLngLat([longitude, latitude])
+      }
+    }, () => {
+      useToast().error('Не удалось определить местоположение.')
+    }, { enableHighAccuracy: true })
   }
 
-  const fetchRoute = async (
-    waypoints: MapPoint[],
-    transportMode: TransportMode = 'foot',
-  ): Promise<(Partial<MapRoute> & { isDirect?: boolean }) | null> => {
+  const fetchRoute = async (waypoints: MapPoint[], transportMode: TransportMode = 'foot'): Promise<(Partial<MapRoute> & { isDirect?: boolean }) | null> => {
     if (waypoints.length < 2)
       return null
+
     return routingService.calculateRoute(waypoints, transportMode)
   }
 
@@ -784,6 +934,7 @@ export function useGeolocationMap() {
   const initMap = async (options: GeolocationMapOptions) => {
     if (!options.container) {
       console.error('[useGeolocationMap] Map container is required')
+
       return
     }
 
@@ -810,6 +961,7 @@ export function useGeolocationMap() {
     })
 
     const map = baseMap.mapInstance.value
+
     if (map) {
       map.on('zoom', updateOverlayVisibilities)
 
@@ -822,12 +974,16 @@ export function useGeolocationMap() {
         pointsMap.forEach(({ marker }) => {
           marker.addTo(m)
         })
+
         if (selectionMarker)
           selectionMarker.addTo(m)
+
         if (searchResultMarker)
           searchResultMarker.addTo(m)
+
         if (currentLocationMarker)
           currentLocationMarker.addTo(m)
+
         updateOverlayVisibilities()
       })
     }
@@ -859,6 +1015,7 @@ export function useGeolocationMap() {
           })
         })
       }
+
       return () => { }
     },
   }
@@ -868,14 +1025,17 @@ export function useGeolocationMap() {
     clearPoints()
     clearRoutes()
     clearSearchResult()
+
     if (currentLocationMarker) {
       currentLocationMarker.remove()
       currentLocationMarker = null
     }
+
     if (selectionMarker) {
       selectionMarker.remove()
       selectionMarker = null
     }
+
     staticData = null
   })
 
@@ -884,87 +1044,42 @@ export function useGeolocationMap() {
     isDraggableAllowed.value = interactive
   }
 
-  const fitToContent = (
-    customPoints?: MapPoint[],
-    customRoutes?: MapRoute[],
-    options?: {
-      padding?: number | { top: number, right: number, bottom: number, left: number }
-      maxZoom?: number
-      duration?: number
-    },
-  ): boolean => {
+  const fitToContent = (customPoints?: MapPoint[], customRoutes?: MapRoute[], options?: {
+    padding?: number | { top: number, right: number, bottom: number, left: number }
+    maxZoom?: number
+    duration?: number
+  }): boolean => {
     const pts = customPoints ?? Array.from(pointsMap.values()).map(item => item.point)
     const rts = customRoutes ?? Array.from(routesMap.values())
 
-    let minLng = Number.POSITIVE_INFINITY
-    let maxLng = Number.NEGATIVE_INFINITY
-    let minLat = Number.POSITIVE_INFINITY
-    let maxLat = Number.NEGATIVE_INFINITY
+    const bounds = getCoordinateBounds(pts, rts)
 
-    const consider = (coord?: Coordinate | null) => {
-      if (!coord || !isValidCoordinate(coord))
-        return
-      const [lng, lat] = coord
-      if (lng < minLng)
-        minLng = lng
-      if (lng > maxLng)
-        maxLng = lng
-      if (lat < minLat)
-        minLat = lat
-      if (lat > maxLat)
-        maxLat = lat
-    }
-
-    pts.forEach(p => consider(p.coordinates))
-    rts.forEach((r) => {
-      if (r.geometry && r.geometry.length > 0) {
-        r.geometry.forEach(c => consider(c))
-      }
-      else if (r.points && r.points.length > 0) {
-        r.points.forEach(p => consider(p.coordinates))
-      }
-    })
-
-    if (minLng === Number.POSITIVE_INFINITY || minLat === Number.POSITIVE_INFINITY)
+    if (!bounds)
       return false
 
     const map = baseMap.mapInstance.value
+
     if (!map)
       return false
 
-    if (minLng === maxLng && minLat === maxLat) {
-      map.flyTo({
-        center: [minLng, minLat],
-        zoom: Math.min(options?.maxZoom ?? 13.5, 13.5),
-        duration: options?.duration !== undefined ? options.duration : 400,
-      })
-      return true
+    if (isSingleCoordinate(bounds)) {
+      return flyToSingleCoordinate(map, bounds, options)
     }
 
-    const dLng = maxLng - minLng
-    const dLat = maxLat - minLat
-    const marginRatio = 0.10
-    const paddedMinLng = minLng - dLng * marginRatio
-    const paddedMaxLng = maxLng + dLng * marginRatio
-    const paddedMinLat = Math.max(-85, minLat - dLat * marginRatio)
-    const paddedMaxLat = Math.min(85, maxLat + dLat * marginRatio)
+    const paddedBounds = getPaddedBounds(bounds)
 
-    const padding
-      = typeof options?.padding === 'number'
-        ? { top: options.padding, right: options.padding, bottom: options.padding, left: options.padding }
-        : (options?.padding ?? { top: 60, right: 60, bottom: 60, left: 60 })
+    baseMap.fitBounds(paddedBounds, getMapFitOptions(options))
 
-    baseMap.fitBounds(
-      [
-        [paddedMinLng, paddedMinLat],
-        [paddedMaxLng, paddedMaxLat],
-      ],
-      {
-        padding,
-        maxZoom: options?.maxZoom ?? 14.8,
-        duration: options?.duration !== undefined ? options.duration : 400,
-      },
-    )
+    return true
+  }
+
+  function flyToSingleCoordinate(map: MapLibreMap, bounds: CoordinateBounds, options?: { maxZoom?: number, duration?: number }): boolean {
+    map.flyTo({
+      center: [bounds.minLng, bounds.minLat],
+      zoom: Math.min(options?.maxZoom ?? 13.5, 13.5),
+      duration: options?.duration !== undefined ? options.duration : 400,
+    })
+
     return true
   }
 

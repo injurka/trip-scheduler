@@ -23,7 +23,6 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {
   isEditMode: false,
 })
-
 const emit = defineEmits<{
   (e: 'selectActivity', activityId: string): void
   (e: 'editActivity', activity: IActivity): void
@@ -32,20 +31,25 @@ const emit = defineEmits<{
   (e: 'addActivity', payload?: { startTime?: string, endTime?: string }): void
   (e: 'changeLayout', mode: TransitLayoutMode): void
 }>()
+defineExpose({
+  fitToView,
+  resetZoom,
+  zoomIn,
+  zoomOut,
+  setLayoutMode: handleSelectMode,
+})
+
+const rawLayoutMode = useStorage<string>('transit_canvas_layout_mode', props.initialLayoutMode || 'phases')
+// Desktop Hover Tooltip State
+const isDesktop = useMediaQuery('(min-width: 768px)')
+const isHoverable = useMediaQuery('(hover: hover)')
 
 const viewportRef = ref<HTMLElement | null>(null)
+
 const { width: viewportWidth, height: viewportHeight } = useElementSize(viewportRef)
 
 const validModes: TransitLayoutMode[] = ['phases', 'column', 'radial']
-const rawLayoutMode = useStorage<string>(
-  'transit_canvas_layout_mode',
-  props.initialLayoutMode || 'phases',
-)
-if (!validModes.includes(rawLayoutMode.value as TransitLayoutMode)) {
-  rawLayoutMode.value = 'phases'
-}
 const layoutMode = rawLayoutMode as Ref<TransitLayoutMode>
-
 // Pan & Zoom state
 const scale = ref(1)
 const translateX = ref(40)
@@ -53,7 +57,6 @@ const translateY = ref(40)
 const isDragging = ref(false)
 const isWheeling = ref(false)
 let wheelStopTimer: ReturnType<typeof setTimeout> | null = null
-
 // Multi-touch & Pointer gesture tracking
 const activePointers = new Map<number, { clientX: number, clientY: number }>()
 let pinchStartDistance = 0
@@ -61,46 +64,39 @@ let pinchStartScale = 1
 let pinchStartContentPoint = { x: 0, y: 0 }
 let singleDragStart = { x: 0, y: 0 }
 let singleDragStartTranslate = { x: 0, y: 0 }
-
 // Selected Node / Dialog State
 const selectedActivityId = ref<string | null>(null)
 const selectedActivity = ref<IActivity | null>(null)
 const isActivityPreviewVisible = ref(false)
-
 // Edge Dialog State
 const isEdgeDialogVisible = ref(false)
 const selectedEdgeInfo = ref<ITransitEdgeInfo | null>(null)
-
-// Desktop Hover Tooltip State
-const isDesktop = useMediaQuery('(min-width: 768px)')
-const isHoverable = useMediaQuery('(hover: hover)')
-const isDesktopHover = computed(() => isDesktop.value && isHoverable.value)
-
 const hoveredActivity = ref<IActivity | null>(null)
 const hoveredDescriptionModel = ref('')
 const hoverReferenceRef = ref<HTMLElement | null>(null)
 const hoverFloatingRef = ref<HTMLElement | null>(null)
+
+const { x: tooltipX, y: tooltipY, strategy: tooltipStrategy } = useFloating(hoverReferenceRef, hoverFloatingRef, {
+  placement: 'top',
+  whileElementsMounted: autoUpdate,
+  middleware: [
+    offset(10),
+    flip({ fallbackPlacements: ['bottom', 'right', 'left'] }),
+    shift({ padding: 12 }),
+  ],
+  // NOTE: no `open` flag — with open:false floating-ui nulls x/y and the
+  // inline `visibility:hidden` then hides the tooltip instantly, killing
+  // the leave transition. Coordinates must stay live while the fade-out runs.
+})
+
 const isHoverTooltipVisible = ref(false)
+let hoverShowTimer: ReturnType<typeof setTimeout> | null = null
+let hoverHideTimer: ReturnType<typeof setTimeout> | null = null
 
-const { x: tooltipX, y: tooltipY, strategy: tooltipStrategy } = useFloating(
-  hoverReferenceRef,
-  hoverFloatingRef,
-  {
-    placement: 'top',
-    whileElementsMounted: autoUpdate,
-    middleware: [
-      offset(10),
-      flip({ fallbackPlacements: ['bottom', 'right', 'left'] }),
-      shift({ padding: 12 }),
-    ],
-    // NOTE: no `open` flag — with open:false floating-ui nulls x/y and the
-    // inline `visibility:hidden` then hides the tooltip instantly, killing
-    // the leave transition. Coordinates must stay live while the fade-out runs.
-  },
-)
-
+const isDesktopHover = computed(() => isDesktop.value && isHoverable.value)
 const hoverFloatingStyle = computed(() => {
   const isPos = tooltipX.value != null && tooltipY.value != null
+
   return {
     position: tooltipStrategy.value,
     top: isPos ? `${tooltipY.value}px` : '0',
@@ -108,9 +104,21 @@ const hoverFloatingStyle = computed(() => {
     visibility: isPos ? 'visible' as const : 'hidden' as const,
   }
 })
+// Master Layout computation
+const computedLayout = computed(() => {
+  return calculateTransitLayout(layoutMode.value, props.activities, { isEditMode: props.isEditMode })
+})
 
-let hoverShowTimer: ReturnType<typeof setTimeout> | null = null
-let hoverHideTimer: ReturnType<typeof setTimeout> | null = null
+watch([viewportWidth, viewportHeight], ([w, h]) => {
+  if (w > 0 && h > 0 && props.activities.length > 0) {
+    fitToView()
+  }
+}, { immediate: true })
+watch(() => props.activities.length, () => {
+  nextTick(() => {
+    fitToView()
+  })
+})
 
 function handleNodeMouseEnter(activity: IActivity, el: HTMLElement) {
   if (!isDesktopHover.value || isDragging.value || isActivityPreviewVisible.value)
@@ -124,31 +132,29 @@ function handleNodeMouseEnter(activity: IActivity, el: HTMLElement) {
   hoverReferenceRef.value = el
   hoveredActivity.value = activity
 
-  const descSection = activity.sections?.find(
-    s => s.type === EActivitySectionType.DESCRIPTION,
-  ) as { text?: string } | undefined
+  const descSection = activity.sections?.find(s => s.type === EActivitySectionType.DESCRIPTION) as { text?: string } | undefined
   hoveredDescriptionModel.value = descSection?.text || activity.explanation || ''
 
   if (hoverShowTimer) {
     clearTimeout(hoverShowTimer)
   }
+
   hoverShowTimer = setTimeout(() => {
     if (!isDragging.value && !isActivityPreviewVisible.value) {
       isHoverTooltipVisible.value = true
     }
   }, 220)
 }
-
 function handleNodeMouseLeave() {
   if (hoverShowTimer) {
     clearTimeout(hoverShowTimer)
     hoverShowTimer = null
   }
+
   hoverHideTimer = setTimeout(() => {
     isHoverTooltipVisible.value = false
   }, 120)
 }
-
 function handleTooltipAfterLeave() {
   if (!isHoverTooltipVisible.value) {
     hoveredActivity.value = null
@@ -156,35 +162,31 @@ function handleTooltipAfterLeave() {
     hoverReferenceRef.value = null
   }
 }
-
 function clearHideTimer() {
   if (hoverHideTimer) {
     clearTimeout(hoverHideTimer)
     hoverHideTimer = null
   }
 }
-
 function handleTooltipMouseLeave() {
   handleNodeMouseLeave()
 }
-
 function getActivityMetroRides(activity: IActivity): ActivitySectionMetro['rides'] {
-  const metroSection = activity.sections?.find(
-    s => s.type === EActivitySectionType.METRO,
-  ) as ActivitySectionMetro | undefined
+  const metroSection = activity.sections?.find(s => s.type === EActivitySectionType.METRO) as ActivitySectionMetro | undefined
+
   return metroSection?.rides || []
 }
-
 function handleSelectActivityCard(activity: IActivity) {
   isHoverTooltipVisible.value = false
+
   if (hoverShowTimer) {
     clearTimeout(hoverShowTimer)
   }
+
   selectedActivityId.value = activity.id
   selectedActivity.value = activity
   isActivityPreviewVisible.value = true
 }
-
 /** Нативный тултип ребра: без пустых скобок, когда длительность переезда неизвестна. */
 function getEdgeTooltip(edge: LayoutEdge): string {
   if (edge.metroRide)
@@ -192,11 +194,9 @@ function getEdgeTooltip(edge: LayoutEdge): string {
 
   return edge.durationText ? `Переход: ${edge.durationText}` : 'Переход'
 }
-
 function getEdgeBadgeWidth(text: string): number {
   return Math.max(50, Math.ceil(text.length * 6 + 16))
 }
-
 function handleEdgeClick(edge: LayoutEdge) {
   selectedEdgeInfo.value = {
     id: edge.id,
@@ -210,11 +210,9 @@ function handleEdgeClick(edge: LayoutEdge) {
   }
   isEdgeDialogVisible.value = true
 }
-
 function handleInsertFromEdge(payload: { startTime: string, endTime: string }) {
   emit('addActivity', payload)
 }
-
 function handleSelectMode(mode: TransitLayoutMode) {
   if (layoutMode.value === mode)
     return
@@ -226,12 +224,6 @@ function handleSelectMode(mode: TransitLayoutMode) {
     fitToView()
   })
 }
-
-// Master Layout computation
-const computedLayout = computed(() => {
-  return calculateTransitLayout(layoutMode.value, props.activities, { isEditMode: props.isEditMode })
-})
-
 // Fit To View: automatically centers & scales the content taking floating UI tabs into account
 function fitToView() {
   const { totalWidth, totalHeight } = computedLayout.value
@@ -256,7 +248,6 @@ function fitToView() {
   translateX.value = (vWidth - totalWidth * targetScale) / 2
   translateY.value = topOffset + (availableHeight - totalHeight * targetScale) / 2
 }
-
 function resetZoom() {
   scale.value = 1
   const vWidth = viewportWidth.value || 800
@@ -270,15 +261,12 @@ function resetZoom() {
   translateX.value = (vWidth - totalWidth) / 2
   translateY.value = topOffset + (availableHeight - totalHeight) / 2
 }
-
 function zoomIn() {
   zoomAtCenter(1.2)
 }
-
 function zoomOut() {
   zoomAtCenter(0.833)
 }
-
 function zoomAtCenter(factor: number) {
   const newScale = Math.min(Math.max(scale.value * factor, 0.2), 2.5)
   const vWidth = viewportWidth.value || 800
@@ -290,14 +278,27 @@ function zoomAtCenter(factor: number) {
   translateY.value = centerY - (centerY - translateY.value) * (newScale / scale.value)
   scale.value = newScale
 }
-
 // Unified Pointer & Multi-Touch Gesture Handling
 function handlePointerDown(e: PointerEvent) {
-  if (e.pointerType === 'mouse' && e.button !== 0)
+  if (shouldIgnorePointerDown(e))
     return
+
+  activePointers.set(e.pointerId, { clientX: e.clientX, clientY: e.clientY })
+  capturePointer(e)
+
+  if (activePointers.size === 1)
+    startSinglePointerDrag(e)
+  else if (activePointers.size === 2)
+    startPinchGesture()
+}
+
+function shouldIgnorePointerDown(e: PointerEvent): boolean {
+  if (e.pointerType === 'mouse' && e.button !== 0)
+    return true
 
   if (isHoverTooltipVisible.value) {
     isHoverTooltipVisible.value = false
+
     if (hoverShowTimer) {
       clearTimeout(hoverShowTimer)
       hoverShowTimer = null
@@ -305,14 +306,13 @@ function handlePointerDown(e: PointerEvent) {
   }
 
   const target = e.target as HTMLElement
+
   // Треки (базовые линии рёбер) кликабельны — не начинаем панораму и не забираем pointer capture,
   // иначе клик не долетает до @click.stop на треке и диалог перехода не открывается.
-  if (target.closest('button, input, textarea, .action-btn, .transit-node-card, .canvas-floating-tabs, .canvas-floating-controls, .edge-badge-group, .track-path-base')) {
-    return
-  }
+  return Boolean(target.closest('button, input, textarea, .action-btn, .transit-node-card, .canvas-floating-tabs, .canvas-floating-controls, .edge-badge-group, .track-path-base'))
+}
 
-  activePointers.set(e.pointerId, { clientX: e.clientX, clientY: e.clientY })
-
+function capturePointer(e: PointerEvent) {
   if (viewportRef.value) {
     try {
       viewportRef.value.setPointerCapture(e.pointerId)
@@ -321,29 +321,29 @@ function handlePointerDown(e: PointerEvent) {
       // ignore
     }
   }
-
-  if (activePointers.size === 1) {
-    isDragging.value = true
-    singleDragStart = { x: e.clientX, y: e.clientY }
-    singleDragStartTranslate = { x: translateX.value, y: translateY.value }
-  }
-  else if (activePointers.size === 2) {
-    isDragging.value = true
-    const [p1, p2] = Array.from(activePointers.values())
-    pinchStartDistance = Math.hypot(p2.clientX - p1.clientX, p2.clientY - p1.clientY)
-    pinchStartScale = scale.value
-
-    const rect = viewportRef.value?.getBoundingClientRect() || { left: 0, top: 0 }
-    const midX = (p1.clientX + p2.clientX) / 2 - rect.left
-    const midY = (p1.clientY + p2.clientY) / 2 - rect.top
-
-    pinchStartContentPoint = {
-      x: (midX - translateX.value) / pinchStartScale,
-      y: (midY - translateY.value) / pinchStartScale,
-    }
-  }
 }
 
+function startSinglePointerDrag(e: PointerEvent) {
+  isDragging.value = true
+  singleDragStart = { x: e.clientX, y: e.clientY }
+  singleDragStartTranslate = { x: translateX.value, y: translateY.value }
+}
+
+function startPinchGesture() {
+  isDragging.value = true
+  const [p1, p2] = Array.from(activePointers.values())
+  pinchStartDistance = Math.hypot(p2.clientX - p1.clientX, p2.clientY - p1.clientY)
+  pinchStartScale = scale.value
+
+  const rect = viewportRef.value?.getBoundingClientRect() || { left: 0, top: 0 }
+  const midX = (p1.clientX + p2.clientX) / 2 - rect.left
+  const midY = (p1.clientY + p2.clientY) / 2 - rect.top
+
+  pinchStartContentPoint = {
+    x: (midX - translateX.value) / pinchStartScale,
+    y: (midY - translateY.value) / pinchStartScale,
+  }
+}
 function handlePointerMove(e: PointerEvent) {
   if (!activePointers.has(e.pointerId))
     return
@@ -372,10 +372,10 @@ function handlePointerMove(e: PointerEvent) {
     translateY.value = currentMidY - pinchStartContentPoint.y * newScale
   }
 }
-
 function handlePointerUp(e: PointerEvent) {
   if (activePointers.has(e.pointerId)) {
     activePointers.delete(e.pointerId)
+
     try {
       if (viewportRef.value?.hasPointerCapture(e.pointerId)) {
         viewportRef.value.releasePointerCapture(e.pointerId)
@@ -396,17 +396,19 @@ function handlePointerUp(e: PointerEvent) {
     pinchStartDistance = 0
   }
 }
-
 // Wheel Zoom towards cursor
 function handleWheel(e: WheelEvent) {
   e.preventDefault()
   isWheeling.value = true
+
   if (wheelStopTimer) {
     clearTimeout(wheelStopTimer)
   }
+
   wheelStopTimer = setTimeout(() => {
     isWheeling.value = false
   }, 180)
+
   if (!viewportRef.value)
     return
 
@@ -422,36 +424,19 @@ function handleWheel(e: WheelEvent) {
   scale.value = newScale
 }
 
-watch([viewportWidth, viewportHeight], ([w, h]) => {
-  if (w > 0 && h > 0 && props.activities.length > 0) {
-    fitToView()
-  }
-}, { immediate: true })
-
-watch(() => props.activities.length, () => {
-  nextTick(() => {
-    fitToView()
-  })
-})
+if (!validModes.includes(rawLayoutMode.value as TransitLayoutMode)) {
+  rawLayoutMode.value = 'phases'
+}
 
 onMounted(() => {
   nextTick(() => {
     fitToView()
   })
 })
-
 onUnmounted(() => {
   if (wheelStopTimer) {
     clearTimeout(wheelStopTimer)
   }
-})
-
-defineExpose({
-  fitToView,
-  resetZoom,
-  zoomIn,
-  zoomOut,
-  setLayoutMode: handleSelectMode,
 })
 </script>
 

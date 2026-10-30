@@ -42,6 +42,7 @@ const localNodes = computed({
   set: (newNodes) => {
     if (props.sortMode !== 'manual')
       return
+
     emit('updateList', props.parentId ?? null, newNodes)
   },
 })
@@ -65,8 +66,10 @@ function handleNodeClick(node: NoteTreeNode): void {
 function getIcon(node: NoteTreeNode): string {
   if (node.type === 'folder')
     return isFolderExpanded(node.id) ? 'mdi:folder-open-outline' : 'mdi:folder-outline'
+
   if (node.type === 'excalidraw')
     return 'mdi:draw'
+
   return 'mdi:file-document-outline'
 }
 
@@ -76,6 +79,7 @@ function startRename(node: NoteTreeNode): void {
   renameTitle.value = node.title
   nextTick(() => {
     const el = document.getElementById(`rename-input-${node.id}`)
+
     if (el instanceof HTMLInputElement) {
       el.focus()
       el.select()
@@ -85,9 +89,11 @@ function startRename(node: NoteTreeNode): void {
 
 function commitRename(id: string): void {
   const trimmed = renameTitle.value.trim()
+
   if (trimmed && trimmed !== props.nodes.find(n => n.id === id)?.title) {
     emit('rename', id, trimmed)
   }
+
   renamingId.value = null
 }
 

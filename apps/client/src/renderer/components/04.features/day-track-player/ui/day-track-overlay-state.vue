@@ -2,11 +2,13 @@
 import { Icon } from '@iconify/vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 
-defineProps<{
+interface Props {
   isLoading: boolean
   loadError: string | null
   selectedDay: string
-}>()
+}
+
+defineProps<Props>()
 
 const emit = defineEmits<{
   (e: 'retry', day: string): void

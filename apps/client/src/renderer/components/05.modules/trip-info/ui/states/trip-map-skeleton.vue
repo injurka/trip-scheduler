@@ -7,8 +7,20 @@ import { KitSkeleton } from '~/components/01.kit/kit-skeleton'
     <KitSkeleton width="100%" height="100%" border-radius="var(--r-m)" />
 
     <div class="floating-sidebar-skeleton">
-      <KitSkeleton width="100%" height="32px" border-radius="6px" style="margin-bottom: 16px;" />
-      <KitSkeleton v-for="i in 4" :key="i" width="100%" height="40px" border-radius="6px" style="margin-bottom: 8px;" />
+      <KitSkeleton
+        width="100%"
+        height="32px"
+        border-radius="6px"
+        style="margin-bottom: 16px;"
+      />
+      <KitSkeleton
+        v-for="i in 4"
+        :key="i"
+        width="100%"
+        height="40px"
+        border-radius="6px"
+        style="margin-bottom: 8px;"
+      />
     </div>
   </div>
 </template>

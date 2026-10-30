@@ -50,6 +50,7 @@ class AssetAnalyzer {
     }
 
     this.cache.set(url, type)
+
     return type
   }
 }
@@ -139,10 +140,12 @@ function createMonitoringPlugin(cacheName: string): WorkboxPlugin {
       if (cachedResponse) {
         ServiceWorkerMonitor.trackCacheHit(cacheName, request.url)
       }
+
       return cachedResponse
     },
     fetchDidSucceed: async ({ request, response }) => {
       ServiceWorkerMonitor.trackCacheMiss(cacheName, request.url)
+
       return response
     },
   }
@@ -153,41 +156,39 @@ async function getCacheInfo(): Promise<CacheInfo[]> {
     const cacheNames = await caches.keys()
     const info: CacheInfo[] = []
 
-    await Promise.all(
-      cacheNames.map(async (name) => {
-        try {
-          const cache = await caches.open(name)
-          const keys = await cache.keys()
+    await Promise.all(cacheNames.map(async (name) => {
+      try {
+        const cache = await caches.open(name)
+        const keys = await cache.keys()
 
-          let totalSize = 0
-          if (import.meta.env.DEV) {
-            const responses = await Promise.all(
-              keys.slice(0, 10).map(req => cache.match(req)),
-            )
-            totalSize = responses.reduce((sum, response) => {
-              return sum + (response?.headers.get('content-length')
-                ? Number.parseInt(response.headers.get('content-length')!)
-                : 0)
-            }, 0)
-          }
+        let totalSize = 0
 
-          info.push({
-            name,
-            size: keys.length,
-            urls: keys.slice(0, 5).map(req => req.url),
-            totalSize,
-          })
+        if (import.meta.env.DEV) {
+          const responses = await Promise.all(keys.slice(0, 10).map(req => cache.match(req)))
+          totalSize = responses.reduce((sum, response) => {
+            return sum + (response?.headers.get('content-length')
+              ? Number.parseInt(response.headers.get('content-length')!)
+              : 0)
+          }, 0)
         }
-        catch (error) {
-          console.warn(`Ошибка получения информации о кеше ${name}:`, error)
-        }
-      }),
-    )
+
+        info.push({
+          name,
+          size: keys.length,
+          urls: keys.slice(0, 5).map(req => req.url),
+          totalSize,
+        })
+      }
+      catch (error) {
+        console.warn(`Ошибка получения информации о кеше ${name}:`, error)
+      }
+    }))
 
     return info
   }
   catch (error) {
     console.error('Ошибка получения информации о кешах:', error)
+
     return []
   }
 }

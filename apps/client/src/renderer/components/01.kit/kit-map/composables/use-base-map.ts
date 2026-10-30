@@ -31,6 +31,232 @@ export interface BaseMapOptions {
 
 export type StyleLoadCallback = (map: MapLibreMap) => void
 
+function setInteractionHandlerState(handler: { enable: () => void, disable: () => void } | undefined, enabled: boolean) {
+  if (!handler)
+    return
+
+  if (enabled)
+    handler.enable()
+  else
+    handler.disable()
+}
+
+function normalizeBounds(bounds: LngLatBoundsLike | [number, number, number, number]): LngLatBoundsLike {
+  const isNumericExtent = Array.isArray(bounds)
+    && bounds.length === 4
+    && bounds.every(value => typeof value === 'number')
+
+  if (isNumericExtent) {
+    const [west, south, east, north] = bounds as [number, number, number, number]
+
+    return [[west, south], [east, north]]
+  }
+
+  return bounds as LngLatBoundsLike
+}
+
+function getFitExtentPadding(padding?: number[] | number) {
+  if (typeof padding === 'number')
+    return padding
+
+  if (Array.isArray(padding)) {
+    return {
+      top: padding[0] ?? 50,
+      right: padding[1] ?? 50,
+      bottom: padding[2] ?? 50,
+      left: padding[3] ?? 50,
+    }
+  }
+
+  return 50
+}
+
+function normalizeCenter(center: [number, number]): [number, number] {
+  let [lng, lat] = center
+
+  if (Math.abs(lat) > 90 && Math.abs(lng) <= 90)
+    [lng, lat] = [lat, lng]
+
+  return isValidCoordinate([lng, lat]) ? [lng, lat] : [37.6173, 55.7558]
+}
+
+function createMapOptions(
+  container: HTMLElement,
+  options: BaseMapOptions,
+  style: string | StyleSpecification,
+  zoom: number,
+): maplibregl.MapOptions {
+  return {
+    container,
+    style,
+    center: normalizeCenter(options.center),
+    zoom,
+    minZoom: options.minZoom ?? 2,
+    maxZoom: options.maxZoom ?? 22,
+    pitch: options.pitch ?? 0,
+    maxPitch: options.maxPitch ?? 60,
+    bearing: options.bearing ?? 0,
+    interactive: true,
+    dragRotate: true,
+    pitchWithRotate: true,
+    aroundCenter: false,
+    rotateSpeed: 0.8 * (options.rotateSensitivity ?? 0.4),
+    pitchSpeed: -0.5 * (options.pitchSensitivity ?? 0.4),
+    attributionControl: options.showAttribution === false ? false : undefined,
+    ...getOptionalMapOptions(options),
+  }
+}
+
+function getOptionalMapOptions(options: BaseMapOptions): Partial<maplibregl.MapOptions> {
+  const transformRequest = getMaplibreTransformRequest()
+  const mapOptions: Partial<maplibregl.MapOptions> = {}
+
+  if (transformRequest)
+    mapOptions.transformRequest = transformRequest
+
+  if (options.bounds) {
+    mapOptions.bounds = options.bounds
+    mapOptions.fitBoundsOptions = options.fitBoundsOptions ?? { padding: 60, maxZoom: 14.8 }
+  }
+
+  return mapOptions
+}
+
+function resolveMissingImage(map: maplibregl.Map, id: string) {
+  if (!id || map.hasImage(id))
+    return
+
+  try {
+    map.addImage(id, { width: 1, height: 1, data: new Uint8Array(4) }, { sdf: true })
+  }
+  catch {
+    // Игнорируем гонку параллельных запросов на одну и ту же иконку.
+  }
+}
+
+function registerMissingImageHandlers(map: maplibregl.Map) {
+  if (typeof (map as any).setMissingStyleImageResolver === 'function') {
+    ; (map as any).setMissingStyleImageResolver((id: string) => resolveMissingImage(map, id))
+  }
+
+  map.on('styleimagemissing', (event: any) => {
+    if (event?.id)
+      resolveMissingImage(map, event.id)
+  })
+}
+
+function sanitizeSliceExpression(expression: any): any {
+  if (!Array.isArray(expression))
+    return expression
+
+  if (expression[0] === 'slice' && Array.isArray(expression[1]) && expression[1][0] === 'get') {
+    return ['slice', ['coalesce', expression[1], ''], ...expression.slice(2).map(sanitizeSliceExpression)]
+  }
+
+  return expression.map(sanitizeSliceExpression)
+}
+
+function sanitizeRoadShieldColors(map: maplibregl.Map) {
+  try {
+    if (!map.getLayer('Road shields'))
+      return
+
+    const colorProperties = ['icon-color', 'icon-halo-color'] as const
+
+    colorProperties.forEach((property) => {
+      const expression = map.getPaintProperty('Road shields', property)
+
+      if (expression)
+        map.setPaintProperty('Road shields', property, sanitizeSliceExpression(expression))
+    })
+  }
+  catch {
+    // Игнорируем ошибки при отсутствии слоя в кастомных стилях.
+  }
+}
+
+function registerStyleLoadHandler(map: maplibregl.Map, callbacks: Set<StyleLoadCallback>, onReady: () => void) {
+  map.on('style.load', () => {
+    applyTerrain(map)
+    sanitizeRoadShieldColors(map)
+    callbacks.forEach((callback) => {
+      try {
+        callback(map)
+      }
+      catch (error) {
+        console.error('[useBaseMap] Ошибка в style.load колбэке:', error)
+      }
+    })
+    onReady()
+  })
+}
+
+function updateZoomClasses(map: maplibregl.Map, fallbackContainer: HTMLElement, zoom: number) {
+  const container = map.getContainer() || fallbackContainer
+
+  if (!container.classList)
+    return
+
+  container.classList.toggle('map-zoom-micro', zoom < 9.5)
+  container.classList.toggle('map-zoom-far', zoom >= 9.5 && zoom < 11.5)
+  container.classList.toggle('map-zoom-mid', zoom >= 11.5 && zoom < 14)
+  container.classList.toggle('map-zoom-close', zoom >= 14)
+}
+
+function isStyleLoadError(event: any): boolean {
+  const errorStatus = event?.error?.status
+
+  return event?.dataType === 'style' || [401, 403, 404].includes(errorStatus)
+}
+
+function shouldUseOsmFallback(
+  event: any,
+  map: maplibregl.Map,
+  isReady: boolean,
+  initialStyle: string | StyleSpecification,
+  alreadyRetried: boolean,
+): boolean {
+  return isStyleLoadError(event)
+    && !isReady
+    && !map.isStyleLoaded()
+    && !alreadyRetried
+    && initialStyle !== OSM_STYLE
+}
+
+function registerMapErrorHandler(
+  map: maplibregl.Map,
+  initialStyle: string | StyleSpecification,
+  isReady: () => boolean,
+  onReady: () => void,
+) {
+  let hasRetriedWithOsm = false
+
+  map.on('error', (event: any) => {
+    console.warn('[useBaseMap] Ошибка MapLibre:', event?.error?.message || event)
+
+    if (!shouldUseOsmFallback(
+      event,
+      map,
+      isReady(),
+      initialStyle,
+      hasRetriedWithOsm,
+    )) {
+      return
+    }
+
+    hasRetriedWithOsm = true
+    console.warn('[useBaseMap] Ошибка загрузки базового стиля, переключаемся на OpenStreetMap fallback')
+
+    try {
+      map.setStyle(OSM_STYLE, { diff: false })
+    }
+    catch (error) {
+      console.error('[useBaseMap] Не удалось применить OSM fallback:', error)
+      onReady()
+    }
+  })
+}
+
 export function useBaseMap() {
   const mapInstance: Ref<MapLibreMap | null> = shallowRef(null)
   const isMapReady = ref(false)
@@ -40,11 +266,21 @@ export function useBaseMap() {
   let loadTimeoutTimer: ReturnType<typeof setTimeout> | null = null
   const styleLoadCallbacks = new Set<StyleLoadCallback>()
 
+  const clearLoadTimeout = () => {
+    if (!loadTimeoutTimer)
+      return
+
+    clearTimeout(loadTimeoutTimer)
+    loadTimeoutTimer = null
+  }
+
   const onStyleLoad = (cb: StyleLoadCallback) => {
     styleLoadCallbacks.add(cb)
+
     if (isMapReady.value && mapInstance.value) {
       cb(mapInstance.value)
     }
+
     return () => {
       styleLoadCallbacks.delete(cb)
     }
@@ -61,29 +297,12 @@ export function useBaseMap() {
 
   const setInteractive = (interactive: boolean) => {
     const map = mapInstance.value
+
     if (!map)
       return
 
-    if (interactive) {
-      map.dragPan?.enable()
-      map.dragRotate?.enable()
-      map.scrollZoom?.enable()
-      map.boxZoom?.enable()
-      map.keyboard?.enable()
-      map.doubleClickZoom?.enable()
-      map.touchZoomRotate?.enable()
-      map.touchPitch?.enable?.()
-    }
-    else {
-      map.dragPan?.disable()
-      map.dragRotate?.disable()
-      map.scrollZoom?.disable()
-      map.boxZoom?.disable()
-      map.keyboard?.disable()
-      map.doubleClickZoom?.disable()
-      map.touchZoomRotate?.disable()
-      map.touchPitch?.disable?.()
-    }
+    const handlers = [map.dragPan, map.dragRotate, map.scrollZoom, map.boxZoom, map.keyboard, map.doubleClickZoom, map.touchZoomRotate, map.touchPitch]
+    handlers.forEach(handler => setInteractionHandlerState(handler, interactive))
   }
 
   const zoomIn = (delta = 1, duration = 250) => {
@@ -98,13 +317,19 @@ export function useBaseMap() {
     }
   }
 
-  const flyTo = (lon: number, lat: number, zoom = 14, duration = 700) => {
+  const flyTo = (
+    lon: number,
+    lat: number,
+    zoom = 14,
+    duration = 700,
+  ) => {
     if (mapInstance.value) {
       if (Math.abs(lat) > 90 && Math.abs(lon) <= 90) {
         const temp = lat
         lat = lon
         lon = temp
       }
+
       if (!isValidCoordinate([lon, lat]))
         return
 
@@ -116,30 +341,11 @@ export function useBaseMap() {
     }
   }
 
-  const fitBounds = (
-    bounds: LngLatBoundsLike | [number, number, number, number],
-    options?: FitBoundsOptions,
-  ) => {
+  const fitBounds = (bounds: LngLatBoundsLike | [number, number, number, number], options?: FitBoundsOptions) => {
     if (!mapInstance.value || !bounds)
       return
 
-    let targetBounds: LngLatBoundsLike
-    if (
-      Array.isArray(bounds)
-      && bounds.length === 4
-      && typeof bounds[0] === 'number'
-      && typeof bounds[1] === 'number'
-      && typeof bounds[2] === 'number'
-      && typeof bounds[3] === 'number'
-    ) {
-      targetBounds = [
-        [bounds[0], bounds[1]],
-        [bounds[2], bounds[3]],
-      ]
-    }
-    else {
-      targetBounds = bounds as LngLatBoundsLike
-    }
+    const targetBounds = normalizeBounds(bounds)
 
     try {
       mapInstance.value.fitBounds(targetBounds, {
@@ -153,24 +359,11 @@ export function useBaseMap() {
     }
   }
 
-  const fitExtent = (
-    extent?: [number, number, number, number] | null,
-    options?: { padding?: number[] | number, duration?: number, maxZoom?: number },
-  ) => {
+  const fitExtent = (extent?: [number, number, number, number] | null, options?: { padding?: number[] | number, duration?: number, maxZoom?: number }) => {
     if (!extent)
       return
 
-    const padding
-      = typeof options?.padding === 'number'
-        ? options.padding
-        : Array.isArray(options?.padding)
-          ? {
-              top: options.padding[0] ?? 50,
-              right: options.padding[1] ?? 50,
-              bottom: options.padding[2] ?? 50,
-              left: options.padding[3] ?? 50,
-            }
-          : 50
+    const padding = getFitExtentPadding(options?.padding)
 
     fitBounds(extent, {
       padding,
@@ -192,10 +385,12 @@ export function useBaseMap() {
       resizeObserver.disconnect()
       resizeObserver = null
     }
+
     if (loadTimeoutTimer) {
       clearTimeout(loadTimeoutTimer)
       loadTimeoutTimer = null
     }
+
     styleLoadCallbacks.clear()
 
     if (mapInstance.value) {
@@ -216,6 +411,7 @@ export function useBaseMap() {
       if (!targetElement) {
         console.error('[useBaseMap] Контейнер карты не найден:', options.container)
         resolve()
+
         return
       }
 
@@ -224,181 +420,51 @@ export function useBaseMap() {
           const initialStyle = options.style || getMapStyle('maptilerStreets')
           const initialZoom = options.zoom ?? 12
           currentZoom.value = initialZoom
-
-          let safeCenter = options.center
-          if (Array.isArray(safeCenter) && safeCenter.length >= 2) {
-            let [lng, lat] = safeCenter
-            if (Math.abs(lat) > 90 && Math.abs(lng) <= 90) {
-              const temp = lat
-              lat = lng
-              lng = temp
-            }
-            if (isValidCoordinate([lng, lat])) {
-              safeCenter = [lng, lat]
-            }
-            else {
-              safeCenter = [37.6173, 55.7558]
-            }
-          }
-          else {
-            safeCenter = [37.6173, 55.7558]
-          }
-
-          const transformRequest = getMaplibreTransformRequest()
-
-          const map = new maplibregl.Map({
-            container: targetElement,
-            style: initialStyle,
-            center: safeCenter,
-            zoom: initialZoom,
-            minZoom: options.minZoom ?? 2,
-            maxZoom: options.maxZoom ?? 22,
-            pitch: options.pitch ?? 0,
-            maxPitch: options.maxPitch ?? 60,
-            bearing: options.bearing ?? 0,
-            interactive: true,
-            dragRotate: true,
-            pitchWithRotate: true,
-            aroundCenter: false,
-            rotateSpeed: 0.8 * (options.rotateSensitivity ?? 0.4),
-            pitchSpeed: -0.5 * (options.pitchSensitivity ?? 0.4),
-            attributionControl: options.showAttribution === false ? false : undefined,
-            ...(transformRequest ? { transformRequest } : {}),
-            ...(options.bounds ? { bounds: options.bounds, fitBoundsOptions: options.fitBoundsOptions ?? { padding: 60, maxZoom: 14.8 } } : {}),
-          })
-
-          // Регистрация прозрачной SDF-заглушки для предотвращения ошибок спрайтов
-          const emptyImage = { width: 1, height: 1, data: new Uint8Array(4) }
-          const resolveMissingImage = (id: string) => {
-            if (!id || map.hasImage(id))
-              return
-            try {
-              // { sdf: true } предотвращает ошибку "Cannot mix SDF and non-SDF icons in one buffer"
-              map.addImage(id, emptyImage, { sdf: true })
-            }
-            catch {
-              // Игнорируем гонку параллельных запросов на одну и ту же иконку
-            }
-          }
-
-          if (typeof (map as any).setMissingStyleImageResolver === 'function') {
-            ; (map as any).setMissingStyleImageResolver((id: string) => {
-              resolveMissingImage(id)
-            })
-          }
-
-          map.on('styleimagemissing', (e: any) => {
-            if (e?.id) {
-              resolveMissingImage(e.id)
-            }
-          })
+          const map = new maplibregl.Map(createMapOptions(
+            targetElement,
+            options,
+            initialStyle,
+            initialZoom,
+          ))
+          registerMissingImageHandlers(map)
 
           targetElement.addEventListener('contextmenu', (e) => {
             const el = e.target as HTMLElement | null
-            if (el?.tagName === 'INPUT' || el?.tagName === 'TEXTAREA') {
+
+            if (el?.tagName === 'INPUT' || el?.tagName === 'TEXTAREA')
               return
-            }
+
             e.preventDefault()
           })
 
           let isResolved = false
           const markReady = () => {
-            if (!isResolved) {
-              isResolved = true
-              if (loadTimeoutTimer) {
-                clearTimeout(loadTimeoutTimer)
-                loadTimeoutTimer = null
-              }
-              isMapReady.value = true
-              map.resize()
-              resolve()
-            }
+            if (isResolved)
+              return
+
+            isResolved = true
+            clearLoadTimeout()
+            isMapReady.value = true
+            map.resize()
+            resolve()
           }
 
-          map.on('style.load', () => {
-            applyTerrain(map)
-
-            // Санитизация выражений MapTiler для слоя "Road shields" во избежание предупреждений slice(null)
-            try {
-              if (map.getLayer('Road shields')) {
-                const sanitizeSliceExpr = (expr: any): any => {
-                  if (!Array.isArray(expr))
-                    return expr
-                  if (expr[0] === 'slice' && Array.isArray(expr[1]) && expr[1][0] === 'get') {
-                    return ['slice', ['coalesce', expr[1], ''], ...expr.slice(2).map(sanitizeSliceExpr)]
-                  }
-                  return expr.map(sanitizeSliceExpr)
-                }
-
-                const iconColor = map.getPaintProperty('Road shields', 'icon-color')
-                if (iconColor) {
-                  map.setPaintProperty('Road shields', 'icon-color', sanitizeSliceExpr(iconColor))
-                }
-                const haloColor = map.getPaintProperty('Road shields', 'icon-halo-color')
-                if (haloColor) {
-                  map.setPaintProperty('Road shields', 'icon-halo-color', sanitizeSliceExpr(haloColor))
-                }
-              }
-            }
-            catch {
-              // Игнорируем ошибки при отсутствии слоя в кастомных стилях
-            }
-
-            styleLoadCallbacks.forEach((cb) => {
-              try {
-                cb(map)
-              }
-              catch (e) {
-                console.error('[useBaseMap] Ошибка в style.load колбэке:', e)
-              }
-            })
-            markReady()
-          })
-
-          const updateContainerZoomClasses = (z: number) => {
-            const container = map.getContainer() || targetElement
-            if (container && container.classList) {
-              container.classList.toggle('map-zoom-micro', z < 9.5)
-              container.classList.toggle('map-zoom-far', z >= 9.5 && z < 11.5)
-              container.classList.toggle('map-zoom-mid', z >= 11.5 && z < 14)
-              container.classList.toggle('map-zoom-close', z >= 14)
-            }
-          }
-
-          updateContainerZoomClasses(initialZoom)
+          registerStyleLoadHandler(map, styleLoadCallbacks, markReady)
+          updateZoomClasses(map, targetElement, initialZoom)
 
           map.on('zoom', () => {
             const z = map.getZoom()
             currentZoom.value = Math.round(z)
-            updateContainerZoomClasses(z)
+            updateZoomClasses(map, targetElement, z)
           })
 
           map.once('load', markReady)
-
-          let hasRetriedWithOsm = false
-          map.on('error', (e: any) => {
-            console.warn('[useBaseMap] Ошибка MapLibre:', e?.error?.message || e)
-            const isStyleLoadError
-              = e?.dataType === 'style'
-                || (e?.error && (e.error.status === 401 || e.error.status === 403 || e.error.status === 404))
-            if (
-              isStyleLoadError
-              && !isMapReady.value
-              && !map.isStyleLoaded()
-              && !hasRetriedWithOsm
-              && initialStyle !== OSM_STYLE
-            ) {
-              hasRetriedWithOsm = true
-              console.warn('[useBaseMap] Ошибка загрузки базового стиля, переключаемся на OpenStreetMap fallback')
-              try {
-                map.setStyle(OSM_STYLE, { diff: false })
-              }
-              catch (err) {
-                console.error('[useBaseMap] Не удалось применить OSM fallback:', err)
-                markReady()
-              }
-            }
-          })
+          registerMapErrorHandler(
+            map,
+            initialStyle,
+            () => isMapReady.value,
+            markReady,
+          )
 
           loadTimeoutTimer = setTimeout(() => {
             if (!isMapReady.value) {
@@ -415,10 +481,12 @@ export function useBaseMap() {
         }
         catch (err) {
           console.error('[useBaseMap] Ошибка инициализации MapLibre:', err)
+
           if (loadTimeoutTimer) {
             clearTimeout(loadTimeoutTimer)
             loadTimeoutTimer = null
           }
+
           resolve()
         }
       }

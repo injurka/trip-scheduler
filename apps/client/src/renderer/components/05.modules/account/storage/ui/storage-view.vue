@@ -24,7 +24,6 @@ import StorageChart from './storage-chart.vue'
 
 const authStore = useAuthStore()
 const confirm = useConfirm()
-
 const {
   files,
   filteredAndSortedFiles,
@@ -47,20 +46,19 @@ const {
   itemsPerPage,
   paginatedFiles,
 } = useStorageModule()
+// Просмотрщик изображений
+const imageViewer = useImageViewer({ enableKeyboard: true })
 
 const isFiltersOpen = ref(false)
 const isChartVisible = ref(false)
-
 const viewModeItems: ViewSwitcherItem[] = [
   { id: 'grid', label: '', icon: 'mdi:view-grid-outline' },
   { id: 'list', label: '', icon: 'mdi:view-list-outline' },
 ]
-
 const chartViewItems: ViewSwitcherItem<'byTrip' | 'byPlacement'>[] = [
   { id: 'byTrip', label: 'По путешествиям' },
   { id: 'byPlacement', label: 'По секциям' },
 ]
-
 const sortOptions = [
   { value: 'createdAt-desc', label: 'Сначала новые', icon: 'mdi:clock-outline' },
   { value: 'createdAt-asc', label: 'Сначала старые', icon: 'mdi:clock-time-four-outline' },
@@ -68,6 +66,11 @@ const sortOptions = [
   { value: 'sizeBytes-asc', label: 'Сначала маленькие', icon: 'mdi:sort-numeric-ascending' },
   { value: 'originalName-asc', label: 'По имени (А-Я)', icon: 'mdi:sort-alphabetical-ascending' },
   { value: 'originalName-desc', label: 'По имени (Я-А)', icon: 'mdi:sort-alphabetical-descending' },
+]
+const itemsPerPageOptions = [
+  { value: 24, label: '24 на странице' },
+  { value: 48, label: '48 на странице' },
+  { value: 96, label: '96 на странице' },
 ]
 
 const currentSort = computed({
@@ -78,51 +81,36 @@ const currentSort = computed({
     sortBy.order = o as any
   },
 })
-
-const itemsPerPageOptions = [
-  { value: 24, label: '24 на странице' },
-  { value: 48, label: '48 на странице' },
-  { value: 96, label: '96 на странице' },
-]
-
 // Квота хранилища
 const maxStorageBytes = computed(() => authStore.user?.plan?.maxStorageBytes || 0)
 const storagePercentage = computed(() => {
   if (!maxStorageBytes.value || maxStorageBytes.value === 0)
     return 0
+
   return Math.min(100, Math.round((totalStorageUsed.value / maxStorageBytes.value) * 100))
 })
-
 const memoriesFilesCount = computed(() => files.value.filter(f => f.placement === 'memories').length)
 const routeFilesCount = computed(() => files.value.filter(f => f.placement === 'route').length)
-
 const activeFiltersCount = computed(() => {
   let count = 0
+
   if (filters.tripId)
     count++
+
   if (filters.extension)
     count++
+
   if (filters.placement)
     count++
+
   if (filters.sizeMin !== null && filters.sizeMin !== undefined && filters.sizeMin !== ('' as any))
     count++
+
   if (filters.sizeMax !== null && filters.sizeMax !== undefined && filters.sizeMax !== ('' as any))
     count++
+
   return count
 })
-
-function clearAllFilters() {
-  filters.search = ''
-  filters.tripId = ''
-  filters.extension = ''
-  filters.placement = ''
-  filters.sizeMin = null
-  filters.sizeMax = null
-}
-
-// Просмотрщик изображений
-const imageViewer = useImageViewer({ enableKeyboard: true })
-
 const viewerImages = computed<ImageViewerImage[]>(() => {
   return filteredAndSortedFiles.value.map(file => ({
     url: file.url,
@@ -138,13 +126,21 @@ const viewerImages = computed<ImageViewerImage[]>(() => {
   }))
 })
 
+function clearAllFilters() {
+  filters.search = ''
+  filters.tripId = ''
+  filters.extension = ''
+  filters.placement = ''
+  filters.sizeMin = null
+  filters.sizeMax = null
+}
 function openViewer(fileId: string) {
   const index = filteredAndSortedFiles.value.findIndex(f => f.id === fileId)
+
   if (index !== -1) {
     imageViewer.open(viewerImages.value, index)
   }
 }
-
 function formatPlacement(placement: TripImagePlacement) {
   const map = {
     route: 'Маршрут',
@@ -153,17 +149,17 @@ function formatPlacement(placement: TripImagePlacement) {
 
   return map[placement] || placement
 }
-
 function formatBytes(bytes: number, decimals = 2) {
   if (bytes === 0)
     return '0 Байт'
+
   const k = 1024
   const dm = decimals < 0 ? 0 : decimals
   const sizes = ['Байт', 'КБ', 'МБ', 'ГБ', 'ТБ']
   const i = Math.floor(Math.log(bytes) / Math.log(k))
+
   return `${Number.parseFloat((bytes / k ** i).toFixed(dm))} ${sizes[i]}`
 }
-
 async function handleDeleteFile(fileId: string, fileName: string) {
   const isConfirmed = await confirm({
     title: `Удалить файл "${fileName}"?`,
@@ -171,6 +167,7 @@ async function handleDeleteFile(fileId: string, fileName: string) {
     type: 'danger',
     confirmText: 'Удалить',
   })
+
   if (isConfirmed) {
     deleteFile(fileId)
   }
@@ -206,7 +203,12 @@ onMounted(() => {
           <div class="stat-info">
             <span class="stat-label">Использовано хранилища</span>
             <div class="stat-value-group">
-              <KitSkeleton v-if="isLoading" width="120px" height="32px" border-radius="6px" />
+              <KitSkeleton
+                v-if="isLoading"
+                width="120px"
+                height="32px"
+                border-radius="6px"
+              />
               <span v-else class="stat-value">{{ formatBytes(totalStorageUsed) }}</span>
               <span v-if="maxStorageBytes > 0" class="stat-limit">
                 из {{ formatBytes(maxStorageBytes) }} ({{ storagePercentage }}%)
@@ -324,7 +326,12 @@ onMounted(() => {
           <!-- Сортировка -->
           <KitDropdown v-model="currentSort" :items="sortOptions" align="end">
             <template #trigger>
-              <KitBtn variant="outlined" color="secondary" size="md" icon="mdi:sort">
+              <KitBtn
+                variant="outlined"
+                color="secondary"
+                size="md"
+                icon="mdi:sort"
+              >
                 <span class="desktop-only">Сортировка</span>
               </KitBtn>
             </template>
@@ -378,9 +385,19 @@ onMounted(() => {
             <div class="filter-col size-col">
               <label class="filter-field-label">Размер (МБ)</label>
               <div class="size-inputs-group">
-                <KitInput v-model.number="filters.sizeMin" type="number" placeholder="От" size="sm" />
+                <KitInput
+                  v-model.number="filters.sizeMin"
+                  type="number"
+                  placeholder="От"
+                  size="sm"
+                />
                 <span class="size-dash">—</span>
-                <KitInput v-model.number="filters.sizeMax" type="number" placeholder="До" size="sm" />
+                <KitInput
+                  v-model.number="filters.sizeMax"
+                  type="number"
+                  placeholder="До"
+                  size="sm"
+                />
               </div>
             </div>
           </div>

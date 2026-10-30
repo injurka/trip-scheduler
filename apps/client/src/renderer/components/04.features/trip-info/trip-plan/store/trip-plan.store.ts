@@ -38,15 +38,34 @@ export interface ITripPlanState {
   isPreviewMode: boolean
 }
 
+function copyAcceptedActivityFields(target: IActivity, source: IActivity, fields: string[]) {
+  if (fields.includes('title'))
+    target.title = source.title
+
+  if (fields.includes('time')) {
+    target.startTime = source.startTime
+    target.endTime = source.endTime
+  }
+
+  if (fields.includes('tag'))
+    target.tag = source.tag
+
+  if (fields.includes('sections'))
+    target.sections = source.sections ? JSON.parse(JSON.stringify(source.sections)) : []
+}
+
 export function sortDaysList(days: IDay[]): IDay[] {
   return [...days].sort((a, b) => {
     if (a.date && b.date) {
       return new Date(a.date).getTime() - new Date(b.date).getTime()
     }
+
     if (a.date && !b.date)
       return -1
+
     if (!a.date && b.date)
       return 1
+
     return 0
   })
 }
@@ -73,6 +92,7 @@ export const useTripPlanStore = defineStore('tripPlan', {
       // If trip data was loaded (e.g., from offline store), don't block UI with error placeholder
       if (state.trip && state.days.length > 0)
         return null
+
       return useRequestError(ETripPlanKeys.FETCH_TRIP_DETAILS).value
     },
     isLoadingUpdateDay: () => useRequestStatusByPrefix(ETripPlanKeys.UPDATE_DAY).value,
@@ -106,15 +126,19 @@ export const useTripPlanStore = defineStore('tripPlan', {
 
     getActivitiesForSelectedDay(state): IActivity[] {
       const day = this.getSelectedDay
+
       if (!day)
         return []
+
       let activities = day.activities.slice()
+
       if (state.isPreviewMode) {
         activities = activities.map(a => state.activityDrafts.get(a.id) ?? a)
       }
       else {
         activities = activities.filter(a => !a.id.startsWith('new-ai-'))
       }
+
       return activities.sort((a, b) => timeToMinutes(a.startTime) - timeToMinutes(b.startTime))
     },
 
@@ -122,9 +146,12 @@ export const useTripPlanStore = defineStore('tripPlan', {
     hasDraftForDay(state): boolean {
       if (!state.currentDayId)
         return false
+
       const day = state.days.find(d => d.id === state.currentDayId)
+
       if (!day)
         return false
+
       return day.activities.some(a => state.activityDrafts.has(a.id))
     },
 
@@ -136,33 +163,40 @@ export const useTripPlanStore = defineStore('tripPlan', {
     currentDayIndex(state): number {
       if (!state.currentDayId || !state.days)
         return -1
+
       return state.days.findIndex(day => day.id === state.currentDayId)
     },
 
     currentCalendarDayIndex(state): number {
       const selectedDay = state.days.find(d => d.id === state.currentDayId)
+
       if (!selectedDay || !selectedDay.date)
         return -1
+
       const calDays = state.days
         .filter(d => !!d.date)
         .sort((a, b) => new Date(a.date!).getTime() - new Date(b.date!).getTime())
+
       return calDays.findIndex(day => day.id === state.currentDayId)
     },
 
     isCurrentDayDraft(state): boolean {
       const selectedDay = state.days.find(d => d.id === state.currentDayId)
+
       return !!selectedDay && !selectedDay.date
     },
 
     getPreviousDayId(): string | null {
       if (this.currentDayIndex > 0)
         return this.days[this.currentDayIndex - 1].id
+
       return null
     },
 
     getNextDayId(): string | null {
       if (this.currentDayIndex !== -1 && this.currentDayIndex < this.days.length - 1)
         return this.days[this.currentDayIndex + 1].id
+
       return null
     },
 
@@ -187,13 +221,18 @@ export const useTripPlanStore = defineStore('tripPlan', {
     /** Принять черновик активности — применить к реальным данным */
     acceptActivityDraft(dayId: string, activityId: string) {
       const rawDraft = this.activityDrafts.get(activityId)
+
       if (!rawDraft)
         return
+
       const draft = sanitizeActivity(rawDraft)
       const day = this.days.find(d => d.id === dayId)
+
       if (!day)
         return
+
       const idx = day.activities.findIndex(a => a.id === activityId)
+
       if (idx !== -1) {
         day.activities[idx] = draft
         this.updateActivity(dayId, draft)
@@ -202,10 +241,13 @@ export const useTripPlanStore = defineStore('tripPlan', {
         // Accept a new AI activity
         // We need to call the actual addActivity method, but removing the 'new-ai-' temp ID.
         const newActIndex = day.activities.findIndex(a => a.id === activityId)
+
         if (newActIndex !== -1)
           day.activities.splice(newActIndex, 1)
+
         this.addActivity(dayId, { ...draft, id: undefined } as any)
       }
+
       this.activityDrafts.delete(activityId)
       this.isPreviewMode = false
     },
@@ -216,11 +258,13 @@ export const useTripPlanStore = defineStore('tripPlan', {
         // If it was a new AI activity, remove it from the day array
         for (const day of this.days) {
           const idx = day.activities.findIndex(a => a.id === activityId)
+
           if (idx !== -1) {
             day.activities.splice(idx, 1)
           }
         }
       }
+
       this.activityDrafts.delete(activityId)
       this.isPreviewMode = false
     },
@@ -228,6 +272,7 @@ export const useTripPlanStore = defineStore('tripPlan', {
     /** Принять все черновики дня */
     acceptAllDraftsForDay(dayId: string) {
       const day = this.days.find(d => d.id === dayId)
+
       if (!day)
         return
 
@@ -235,6 +280,7 @@ export const useTripPlanStore = defineStore('tripPlan', {
 
       // Build a fresh activities array: apply drafts for existing, drop new-ai- temp entries
       const nextActivities: IActivity[] = []
+
       for (const activity of day.activities) {
         const rawDraft = this.activityDrafts.get(activity.id)
         const draft = rawDraft ? sanitizeActivity(rawDraft) : undefined
@@ -248,9 +294,11 @@ export const useTripPlanStore = defineStore('tripPlan', {
           // Existing activity: use draft if present, otherwise keep original
           const finalAct = sanitizeActivity(draft ?? activity)
           nextActivities.push(finalAct)
+
           if (draft)
             this.updateActivity(dayId, finalAct)
         }
+
         this.activityDrafts.delete(activity.id)
       }
 
@@ -261,43 +309,53 @@ export const useTripPlanStore = defineStore('tripPlan', {
       for (const draft of newActivitiesToAdd) {
         this.addActivity(dayId, { ...draft, id: undefined } as any)
       }
+
       this.isPreviewMode = false
     },
 
     /** Отклонить все черновики дня */
     discardAllDraftsForDay(dayId: string) {
       const day = this.days.find(d => d.id === dayId)
+
       if (!day)
         return
 
       // Save to cache for undo
       const cache = new Map<string, IActivity>()
+
       for (const [key, draft] of this.activityDrafts.entries()) {
         const originalAct = day.activities.find(a => a.id === key)
+
         if (originalAct || key.startsWith('new-ai-')) {
           cache.set(key, draft)
         }
       }
+
       this.deletedDraftsCache.set(dayId, cache)
 
       day.activities = day.activities.filter(a => !a.id.startsWith('new-ai-'))
+
       for (const activity of day.activities) {
         this.activityDrafts.delete(activity.id)
       }
+
       // Also delete any remaining new-ai drafts that might be orphaned
       for (const key of Array.from(this.activityDrafts.keys())) {
         if (key.startsWith('new-ai-'))
           this.activityDrafts.delete(key)
       }
+
       this.isPreviewMode = false
     },
 
     undoDiscardAllDraftsForDay(dayId: string) {
       const cache = this.deletedDraftsCache.get(dayId)
+
       if (!cache)
         return
 
       const day = this.days.find(d => d.id === dayId)
+
       if (!day)
         return
 
@@ -308,6 +366,7 @@ export const useTripPlanStore = defineStore('tripPlan', {
             day.activities.push(draft)
           }
         }
+
         this.activityDrafts.set(key, draft)
       }
 
@@ -362,9 +421,11 @@ export const useTripPlanStore = defineStore('tripPlan', {
         onSuccess: (result) => {
           if (!result) {
             const savedTrip = offlineStore.getSavedTrip(tripId)
+
             if (savedTrip) {
               applyTripData(savedTrip)
               useToast().info('Отображается сохраненная офлайн-версия путешествия.')
+
               return
             }
 
@@ -381,9 +442,11 @@ export const useTripPlanStore = defineStore('tripPlan', {
         },
         onError: ({ error }) => {
           const savedTrip = offlineStore.getSavedTrip(tripId)
+
           if (savedTrip) {
             applyTripData(savedTrip)
             useToast().info('Нет подключения к сети. Загружена офлайн-версия.')
+
             return
           }
 
@@ -411,6 +474,7 @@ export const useTripPlanStore = defineStore('tripPlan', {
         onSuccess: (updatedTripFromServer) => {
           if (this.trip)
             this.trip = { ...this.trip, ...updatedTripFromServer }
+
           useToast().success('Информация о путешествии обновлена.')
         },
         onError: createApiErrorHandler({
@@ -451,6 +515,7 @@ export const useTripPlanStore = defineStore('tripPlan', {
           if (this.trip) {
             this.trip.weatherByPlaceId = result.weatherByPlaceId
           }
+
           if (result.fromCache) {
             useToast().success('Климатический контекст получен из базы данных!')
           }
@@ -466,11 +531,14 @@ export const useTripPlanStore = defineStore('tripPlan', {
 
     updateDayDetails(dayId: string, details: Partial<Pick<IDay, 'title' | 'description' | 'date' | 'meta' | 'note'>>) {
       const dayIndex = this.days.findIndex(d => d.id === dayId)
+
       if (dayIndex === -1) {
         console.error('Не удалось найти день для обновления:', dayId)
         useToast().error(`Не удалось найти день для обновления`)
+
         return
       }
+
       const originalDay = { ...this.days[dayIndex] }
 
       Object.assign(this.days[dayIndex], details)
@@ -483,11 +551,13 @@ export const useTripPlanStore = defineStore('tripPlan', {
         fn: db => db.days.updateDayDetails(dayId, details),
         onSuccess: (updatedDayFromServer) => {
           const finalDayIndex = this.days.findIndex(d => d.id === dayId)
+
           if (finalDayIndex !== -1)
             this.days[finalDayIndex] = { ...this.days[finalDayIndex], ...updatedDayFromServer }
         },
         onError: ({ error }) => {
           const dayToRevertIndex = this.days.findIndex(d => d.id === dayId)
+
           if (dayToRevertIndex !== -1)
             this.days[dayToRevertIndex] = originalDay
 
@@ -502,9 +572,11 @@ export const useTripPlanStore = defineStore('tripPlan', {
 
     addActivity(dayId: string, activityData: Omit<IActivity, 'id'>) {
       const day = this.days.find(d => d.id === dayId)
+
       if (!day) {
         console.error('Не удалось найти день для добавления активности:', dayId)
         useToast().error(`Не удалось найти день для добавления активности`)
+
         return
       }
 
@@ -522,13 +594,16 @@ export const useTripPlanStore = defineStore('tripPlan', {
         fn: db => db.activities.create(sanitizedData),
         onSuccess: (createdActivityFromServer) => {
           const tempActivity = day.activities.find(a => a.id === tempId)
+
           if (tempActivity) {
             Object.assign(tempActivity, createdActivityFromServer)
           }
+
           console.log(`Активность ${createdActivityFromServer.id} успешно создана.`)
         },
         onError: ({ error }) => {
           const activityIndex = day.activities.findIndex(a => a.id === tempId)
+
           if (activityIndex !== -1) {
             day.activities.splice(activityIndex, 1)
           }
@@ -541,16 +616,20 @@ export const useTripPlanStore = defineStore('tripPlan', {
 
     removeActivity(dayId: string, activityId: string) {
       const day = this.days.find(d => d.id === dayId)
+
       if (!day) {
         console.error('Не удалось найти день для удаления активности:', dayId)
         useToast().error(`Не удалось найти день для удаления активности.`)
+
         return
       }
 
       const activityIndex = day.activities.findIndex(a => a.id === activityId)
+
       if (activityIndex === -1) {
         console.error('Не удалось найти активность для удаления:', activityId)
         useToast().error(`Не удалось найти активность для удаления.`)
+
         return
       }
 
@@ -575,10 +654,12 @@ export const useTripPlanStore = defineStore('tripPlan', {
 
     updateActivity(dayId: string, updatedActivity: IActivity) {
       const day = this.days.find(d => d.id === dayId)
+
       if (!day)
         return
 
       const activityIndex = day.activities.findIndex(a => a.id === updatedActivity.id)
+
       if (activityIndex === -1)
         return
 
@@ -588,6 +669,7 @@ export const useTripPlanStore = defineStore('tripPlan', {
 
       if (sanitizedActivity.id.startsWith('new-ai-')) {
         this.setActivityDraft(sanitizedActivity.id, sanitizedActivity)
+
         return
       }
 
@@ -602,6 +684,7 @@ export const useTripPlanStore = defineStore('tripPlan', {
         },
         onError: ({ error }) => {
           const revertIndex = day.activities.findIndex(a => a.id === sanitizedActivity.id)
+
           if (revertIndex !== -1)
             day.activities[revertIndex] = originalActivity
 
@@ -615,6 +698,7 @@ export const useTripPlanStore = defineStore('tripPlan', {
       if (!this.currentTripId) {
         console.error('Невозможно добавить день: ID путешествия не установлен.')
         useToast().error(`Невозможно добавить день: ID путешествия не установлен.`)
+
         return
       }
 
@@ -645,14 +729,17 @@ export const useTripPlanStore = defineStore('tripPlan', {
         fn: db => db.days.createNewDay(newDayData as any),
         onSuccess: (createdDay) => {
           const tempDayIndex = this.days.findIndex(d => d.id === tempId)
+
           if (tempDayIndex !== -1) {
             this.days[tempDayIndex] = { ...this.days[tempDayIndex], ...createdDay } as IDay
+
             if (this.currentDayId === tempId)
               this.currentDayId = createdDay.id
           }
         },
         onError: ({ error }) => {
           const tempDayIndex = this.days.findIndex(d => d.id === tempId)
+
           if (tempDayIndex !== -1)
             this.days.splice(tempDayIndex, 1)
 
@@ -669,6 +756,7 @@ export const useTripPlanStore = defineStore('tripPlan', {
       if (!this.currentTripId) {
         console.error('Невозможно добавить черновик: ID путешествия не установлен.')
         useToast().error(`Невозможно добавить черновик: ID путешествия не установлен.`)
+
         return
       }
 
@@ -693,15 +781,19 @@ export const useTripPlanStore = defineStore('tripPlan', {
         fn: db => db.days.createNewDay(newDayData as any),
         onSuccess: (createdDay) => {
           const tempDayIndex = this.days.findIndex(d => d.id === tempId)
+
           if (tempDayIndex !== -1) {
             this.days[tempDayIndex] = { ...this.days[tempDayIndex], ...createdDay } as IDay
+
             if (this.currentDayId === tempId)
               this.currentDayId = createdDay.id
           }
+
           useToast().success('Черновик дня создан')
         },
         onError: ({ error }) => {
           const tempDayIndex = this.days.findIndex(d => d.id === tempId)
+
           if (tempDayIndex !== -1)
             this.days.splice(tempDayIndex, 1)
 
@@ -718,14 +810,17 @@ export const useTripPlanStore = defineStore('tripPlan', {
       if (!this.currentDayId) {
         console.error('Невозможно удалить день: день не выбран.')
         useToast().error(`Невозможно удалить день: день не выбран.`)
+
         return
       }
 
       const dayIdToDelete = this.currentDayId
       const dayIndex = this.days.findIndex(d => d.id === dayIdToDelete)
+
       if (dayIndex === -1) {
         console.error('Не удалось найти день для удаления:', dayIdToDelete)
         useToast().error(`Не удалось найти день для удаления.`)
+
         return
       }
 
@@ -771,9 +866,11 @@ export const useTripPlanStore = defineStore('tripPlan', {
         onSuccess: () => {
           useToast().success('Путешествие успешно удалено.')
           const offlineStore = useOfflineStore()
+
           if (offlineStore.isTripCached(tripId)) {
             offlineStore.removeOfflineTrip(tripId)
           }
+
           router.push(AppRoutePaths.Trip.List)
         },
         onError: ({ error }) => {
@@ -784,11 +881,13 @@ export const useTripPlanStore = defineStore('tripPlan', {
 
     reorderActivities(newOrder: IActivity[]) {
       const day = this.days.find(d => d.id === this.currentDayId)
+
       if (!day)
         return
 
       if (newOrder.length === 0) {
         day.activities = []
+
         return
       }
 
@@ -851,54 +950,38 @@ export const useTripPlanStore = defineStore('tripPlan', {
     acceptActivityDraftFields(dayId: string, activityId: string, fields: string[]) {
       if (activityId.startsWith('new-ai-')) {
         this.acceptActivityDraft(dayId, activityId)
+
         return
       }
 
       const day = this.days.find(d => d.id === dayId)
+
       if (!day)
         return
 
       const originalActivity = day.activities.find(a => a.id === activityId)
+
       if (!originalActivity)
         return
 
       const rawDraft = this.activityDrafts.get(activityId)
+
       if (!rawDraft)
         return
 
       const draft = sanitizeActivity(rawDraft)
       const updatedActivity = { ...originalActivity }
-
-      if (fields.includes('title'))
-        updatedActivity.title = draft.title
-      if (fields.includes('time')) {
-        updatedActivity.startTime = draft.startTime
-        updatedActivity.endTime = draft.endTime
-      }
-      if (fields.includes('tag'))
-        updatedActivity.tag = draft.tag
-      if (fields.includes('sections')) {
-        updatedActivity.sections = draft.sections ? JSON.parse(JSON.stringify(draft.sections)) : []
-      }
+      copyAcceptedActivityFields(updatedActivity, draft, fields)
 
       const finalSanitized = sanitizeActivity(updatedActivity)
       this.updateActivity(dayId, finalSanitized)
 
       const updatedDraft = { ...draft }
-      if (fields.includes('title'))
-        updatedDraft.title = finalSanitized.title
-      if (fields.includes('time')) {
-        updatedDraft.startTime = finalSanitized.startTime
-        updatedDraft.endTime = finalSanitized.endTime
-      }
-      if (fields.includes('tag'))
-        updatedDraft.tag = finalSanitized.tag
-      if (fields.includes('sections')) {
-        updatedDraft.sections = finalSanitized.sections ? JSON.parse(JSON.stringify(finalSanitized.sections)) : []
-      }
+      copyAcceptedActivityFields(updatedDraft, finalSanitized, fields)
 
       // Recalculate remaining diff
       const diff = useActivityDiff(finalSanitized, updatedDraft)
+
       if (!diff.hasChanges) {
         this.activityDrafts.delete(activityId)
       }

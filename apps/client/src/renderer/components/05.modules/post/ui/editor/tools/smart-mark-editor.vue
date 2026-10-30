@@ -24,22 +24,30 @@ const imageContainerRef = ref<HTMLElement | null>(null)
 const activeMarkId = ref<string | null>(null)
 const markLabelInput = ref('')
 
-const resolvedImageUrl = computed(() => {
-  const media = currentMedia.value
-  const variants = getPostMediaVariants(media)
+const resolvedImageUrl = computed(() => resolveMediaImageUrl(currentMedia.value))
 
-  if (media.type === 'video') {
-    return resolveApiUrl(variants?.poster || variants?.small || media.url)
+watch(() => props.visible, (isOpen) => {
+  if (isOpen) {
+    currentMedia.value = JSON.parse(JSON.stringify(props.media))
   }
-
-  const optimizedVariant = variants?.medium || variants?.small
-  if (optimizedVariant) {
-    return resolveApiUrl(optimizedVariant)
-  }
-
-  return getImageUrl(media.url, { w: 1280, fmt: 'webp', q: 75 }) || ''
 })
 
+function firstAvailableVariant(...urls: Array<string | null | undefined>): string {
+  return urls.find(Boolean) || ''
+}
+function resolveMediaImageUrl(media: PostMedia): string {
+  const variants = getPostMediaVariants(media)
+
+  if (media.type === 'video')
+    return resolveApiUrl(firstAvailableVariant(variants?.poster, variants?.small, media.url))
+
+  const optimizedVariant = firstAvailableVariant(variants?.medium, variants?.small)
+
+  if (optimizedVariant)
+    return resolveApiUrl(optimizedVariant)
+
+  return getImageUrl(media.url, { w: 1280, fmt: 'webp', q: 75 }) || ''
+}
 function handleImageClick(event: MouseEvent) {
   if (!imageContainerRef.value)
     return
@@ -62,18 +70,17 @@ function handleImageClick(event: MouseEvent) {
   currentMedia.value.marks.push(newMark)
   startEditingMark(newMark.id)
 }
-
 function startEditingMark(id: string) {
   activeMarkId.value = id
   const mark = currentMedia.value.marks?.find(m => m.id === id)
   markLabelInput.value = mark?.label || ''
 }
-
 function saveActiveMark() {
   if (!activeMarkId.value)
     return
 
   const mark = currentMedia.value.marks?.find(m => m.id === activeMarkId.value)
+
   if (mark) {
     if (!markLabelInput.value.trim()) {
       removeMark(activeMarkId.value)
@@ -82,29 +89,23 @@ function saveActiveMark() {
       mark.label = markLabelInput.value
     }
   }
+
   activeMarkId.value = null
 }
-
 function removeMark(id: string) {
   if (currentMedia.value.marks) {
     currentMedia.value.marks = currentMedia.value.marks.filter(m => m.id !== id)
   }
+
   if (activeMarkId.value === id) {
     activeMarkId.value = null
   }
 }
-
 function handleSave() {
   saveActiveMark()
   emit('save', currentMedia.value)
   emit('update:visible', false)
 }
-
-watch(() => props.visible, (isOpen) => {
-  if (isOpen) {
-    currentMedia.value = JSON.parse(JSON.stringify(props.media))
-  }
-})
 </script>
 
 <template>

@@ -21,71 +21,77 @@ import EditSectionDialog from './dialogs/edit-section-dialog.vue'
 const layout = useTripInfoLayout()
 const route = useRoute()
 const router = useRouter()
-
-// @ts-expect-error используются в template
-const { mainNavigationRef, navigationWrapperRef } = layout
-const { plan, ui, routeGallery, memories, sections } = useModuleStore(['plan', 'ui', 'routeGallery', 'memories', 'sections'])
+const {
+  plan,
+  ui,
+  routeGallery,
+  memories,
+  sections,
+} = useModuleStore(['plan', 'ui', 'routeGallery', 'memories', 'sections'])
 const { canEdit, isOwner } = useTripPermissions()
 const { mdAndDown } = useDisplay()
 const toast = useToast()
 
-function handleReadOnlyClick() {
-  toast.info('Вы не можете редактировать, так как это не ваше путешествие')
+// @ts-expect-error используются в template
+const { mainNavigationRef, navigationWrapperRef } = layout
+const { isLoading: isTripLoading, fetchError } = storeToRefs(plan)
+const { isDaysPanelPinned, activeView, isParallelPlanView } = storeToRefs(ui)
+
+const sectionThemeColors: Partial<Record<TripSectionType, string>> = {
+  [TripSectionType.BOOKINGS]: '#8b5cf6',
+  [TripSectionType.FINANCES]: '#22c55e',
+  [TripSectionType.CHECKLIST]: '#f97316',
+  [TripSectionType.MEMORIES]: '#ec4899',
+  [TripSectionType.NOTES]: '#06b6d4',
+  [TripSectionType.DOCUMENTS]: '#6366f1',
+  [TripSectionType.MAP]: '#10b981',
+}
+
+const directSectionThemeColors: Record<string, string> = {
+  'overview': '#3b82f6',
+  'trip-map': '#10b981',
+  'daily-route': '#f59e0b',
 }
 
 const dayId = computed(() => route.query.day as string)
 const isMapView = computed(() => route.query.section === 'map')
 const isNotesView = computed(() => {
   const q = route.query.section as string
+
   if (!q)
     return false
+
   if (q === 'notes')
     return true
+
   const section = sections.sections.find(s => s.id === q || SECTION_TYPE_MAP[s.type] === q)
+
   return section?.type === TripSectionType.NOTES
 })
 
-const { isLoading: isTripLoading, fetchError } = storeToRefs(plan)
-const { isDaysPanelPinned, activeView, isParallelPlanView } = storeToRefs(ui)
-
+function handleReadOnlyClick() {
+  toast.info('Вы не можете редактировать, так как это не ваше путешествие')
+}
 function toggleMode() {
   const newMode = ui.isViewMode ? 'edit' : 'view'
+
   if (newMode === 'edit')
     ui.clearCollapsedState()
 
   ui.setInteractionMode(newMode)
 }
-
 function getSectionThemeColor(id: string): string {
-  if (id === 'overview')
-    return '#3b82f6' // Синий (дашборд / обзор)
-  if (id === 'trip-map')
-    return '#10b981' // Изумрудный (карта / навигация)
-  if (id === 'daily-route')
-    return '#f59e0b' // Янтарный (дни / календарь)
+  const directColor = directSectionThemeColors[id]
+
+  if (directColor)
+    return directColor
 
   const section = sections.sections.find(s => s.id === id)
+
   if (!section)
     return 'var(--fg-accent-color)'
 
-  switch (section.type) {
-    case TripSectionType.BOOKINGS:
-      return '#8b5cf6' // Фиолетовый (билеты, отели)
-    case TripSectionType.FINANCES:
-      return '#22c55e' // Зеленый (деньги, бюджет)
-    case TripSectionType.CHECKLIST:
-      return '#f97316' // Оранжевый (чек-листы, задачи)
-    case TripSectionType.MEMORIES:
-      return '#ec4899' // Розовый (фото, воспоминания)
-    case TripSectionType.NOTES:
-      return '#06b6d4' // Циан / бирюзовый (заметки, тексты)
-    case TripSectionType.DOCUMENTS:
-      return '#6366f1' // Индиго (важные документы)
-    case TripSectionType.MAP:
-      return '#10b981'
-    default:
-      return 'var(--fg-accent-color)'
-  }
+  return sectionThemeColors[section.type] ?? 'var(--fg-accent-color)'
 }
 
 onBeforeUnmount(() => {

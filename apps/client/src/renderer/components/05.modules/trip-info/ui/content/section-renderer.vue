@@ -7,28 +7,26 @@ import { useModuleStore } from '~/components/05.modules/trip-info/composables/us
 import { lazyComponent } from '~/shared/lib/lazy-component'
 import { TripSectionType } from '~/shared/types/models/trip'
 
-const props = defineProps<{
+interface Props {
   sectionId: string
   days: IDay[]
-}>()
+}
+
+const props = defineProps<Props>()
 
 const { sections: sectionsStore, ui: uiStore } = useModuleStore(['sections', 'ui'])
 
-const section = computed(() => sectionsStore.sections.find(s => s.id === props.sectionId))
-
 const TripMapSection = lazyComponent(() => import('~/components/04.features/trip-info/trip-sections/map-section/ui/trip-map-section.vue'), { showLoader: true })
-
 const componentsMap: Partial<Record<TripSectionType, Component>> = {
   [TripSectionType.CHECKLIST]: lazyComponent(() => import('~/components/04.features/trip-info/trip-sections/checklist-section/ui/checklist-section.vue'), { showLoader: true }),
   [TripSectionType.BOOKINGS]: lazyComponent(() => import('~/components/04.features/trip-info/trip-sections/booking-section/ui/booking-section.vue'), { showLoader: true }),
   [TripSectionType.FINANCES]: lazyComponent(() => import('~/components/04.features/trip-info/trip-sections/finances-section/ui/finances-section.vue'), { showLoader: true }),
-  [TripSectionType.DOCUMENTS]: lazyComponent(
-    () => import('~/components/04.features/trip-info/trip-sections/documents-section/ui/documents-section.vue'),
-    { loadingComponent: DocumentsSkeleton, delay: 0 },
-  ),
+  [TripSectionType.DOCUMENTS]: lazyComponent(() => import('~/components/04.features/trip-info/trip-sections/documents-section/ui/documents-section.vue'), { loadingComponent: DocumentsSkeleton, delay: 0 }),
   [TripSectionType.MEMORIES]: lazyComponent(() => import('~/components/04.features/trip-info/trip-sections/memories-section/ui/memories-section.vue'), { showLoader: true }),
   [TripSectionType.NOTES]: lazyComponent(() => import('~/components/04.features/trip-info/trip-sections/notes-section/ui/notes-section.vue'), { showLoader: true }),
 }
+
+const section = computed(() => sectionsStore.sections.find(s => s.id === props.sectionId))
 
 function handleSectionUpdate(updatedSectionData: TripSection) {
   sectionsStore.updateSection(updatedSectionData)

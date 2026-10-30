@@ -18,7 +18,6 @@ const props = withDefaults(defineProps<Props>(), {
   type: 'date',
   showYear: false,
 })
-
 const modelValue = defineModel<string | undefined>()
 
 const mask = computed(() => {
@@ -27,63 +26,22 @@ const mask = computed(() => {
 
   return '##.##.####'
 })
-
 const effectivePlaceholder = computed(() => {
   if (props.placeholder !== '...')
     return props.placeholder
+
   if (props.type === 'datetime')
     return 'ДД.ММ.ГГГГ ЧЧ:ММ'
 
   return 'ДД.ММ.ГГГГ'
 })
-
-function formatDateToDisplay(date: Date, type: 'date' | 'datetime'): string {
-  const day = String(date.getDate()).padStart(2, '0')
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const year = date.getFullYear()
-
-  if (type === 'datetime') {
-    const hours = String(date.getHours()).padStart(2, '0')
-    const minutes = String(date.getMinutes()).padStart(2, '0')
-    return `${day}.${month}.${year} ${hours}:${minutes}`
-  }
-  return `${day}.${month}.${year}`
-}
-
-function parseDisplayDate(dateString: string, type: 'date' | 'datetime'): Date | null {
-  if (!dateString)
-    return null
-
-  if (type === 'datetime') {
-    const parts = dateString.match(/^(\d{2})\.(\d{2})\.(\d{4})\s(\d{2}):(\d{2})$/)
-    if (!parts)
-      return null
-    const [, day, month, year, hours, minutes] = parts
-    const date = new Date(Number(year), Number(month) - 1, Number(day), Number(hours), Number(minutes))
-
-    if (date.getFullYear() !== Number(year) || date.getMonth() !== Number(month) - 1 || date.getDate() !== Number(day))
-      return null
-
-    return date
-  }
-  else {
-    const parts = dateString.match(/^(\d{2})\.(\d{2})\.(\d{4})$/)
-    if (!parts)
-      return null
-    const [, day, month, year] = parts
-    const date = new Date(Number(year), Number(month) - 1, Number(day))
-    if (date.getFullYear() !== Number(year) || date.getMonth() !== Number(month) - 1 || date.getDate() !== Number(day))
-      return null
-
-    return date
-  }
-}
-
 const displayValue = computed({
   get() {
     if (!modelValue.value)
       return ''
+
     const date = new Date(modelValue.value)
+
     if (Number.isNaN(date.getTime()))
       return ''
 
@@ -91,12 +49,14 @@ const displayValue = computed({
   },
   set(newValue) {
     const parsedDate = parseDisplayDate(newValue, props.type)
+
     if (parsedDate) {
       const year = parsedDate.getFullYear()
       const month = String(parsedDate.getMonth() + 1).padStart(2, '0')
       const day = String(parsedDate.getDate()).padStart(2, '0')
 
       let isoString = `${year}-${month}-${day}`
+
       if (props.type === 'datetime') {
         const hours = String(parsedDate.getHours()).padStart(2, '0')
         const minutes = String(parsedDate.getMinutes()).padStart(2, '0')
@@ -105,6 +65,7 @@ const displayValue = computed({
       else {
         isoString += `T00:00:00`
       }
+
       modelValue.value = isoString
     }
     else if (!newValue) {
@@ -112,7 +73,6 @@ const displayValue = computed({
     }
   },
 })
-
 const formattedValue = computed(() => {
   if (!modelValue.value)
     return props.placeholder
@@ -137,6 +97,81 @@ const formattedValue = computed(() => {
 
   return new Intl.DateTimeFormat('ru-RU', options).format(date)
 })
+
+function formatDateToDisplay(date: Date, type: 'date' | 'datetime'): string {
+  const day = String(date.getDate()).padStart(2, '0')
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const year = date.getFullYear()
+
+  if (type === 'datetime') {
+    const hours = String(date.getHours()).padStart(2, '0')
+    const minutes = String(date.getMinutes()).padStart(2, '0')
+
+    return `${day}.${month}.${year} ${hours}:${minutes}`
+  }
+
+  return `${day}.${month}.${year}`
+}
+function parseDisplayDate(dateString: string, type: 'date' | 'datetime'): Date | null {
+  if (!dateString)
+    return null
+
+  return type === 'datetime' ? parseDisplayDateTime(dateString) : parseDisplayDay(dateString)
+}
+
+function parseDisplayDateTime(value: string): Date | null {
+  const parts = value.match(/^(\d{2})\.(\d{2})\.(\d{4})\s(\d{2}):(\d{2})$/)
+
+  if (!parts)
+    return null
+
+  const [, day, month, year, hours, minutes] = parts
+
+  return createValidDate(
+    year,
+    month,
+    day,
+    hours,
+    minutes,
+  )
+}
+
+function parseDisplayDay(value: string): Date | null {
+  const parts = value.match(/^(\d{2})\.(\d{2})\.(\d{4})$/)
+
+  if (!parts)
+    return null
+
+  const [, day, month, year] = parts
+
+  return createValidDate(year, month, day)
+}
+
+function createValidDate(
+  year: string,
+  month: string,
+  day: string,
+  hours = '0',
+  minutes = '0',
+): Date | null {
+  const numericYear = Number(year)
+  const numericMonth = Number(month) - 1
+  const numericDay = Number(day)
+  const numericHours = Number(hours)
+  const numericMinutes = Number(minutes)
+  const date = new Date(
+    numericYear,
+    numericMonth,
+    numericDay,
+    numericHours,
+    numericMinutes,
+  )
+
+  if (date.getFullYear() !== numericYear || date.getMonth() !== numericMonth || date.getDate() !== numericDay)
+    return null
+
+  return date
+}
 </script>
 
 <template>

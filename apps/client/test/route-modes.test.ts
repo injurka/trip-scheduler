@@ -18,11 +18,19 @@ describe('route mode changes', () => {
     const urls: string[] = []
     globalThis.fetch = mock(async (url: any) => {
       urls.push(String(url))
+
       return response(600)
     }) as any
     const state = useGeolocationRoutes(ref(undefined))
     const legacyPoints = points.map(p => ({ ...p, coordinates: [p.coordinates[0] + 0.02, p.coordinates[1]] }))
-    await state.setInitialRoutes([{ id: 'legacy', title: 'A → B', points: legacyPoints, transportMode: 'transit', geometry: [[121, 25], [122, 26]], isVisible: true }] as any)
+    await state.setInitialRoutes([{
+      id: 'legacy',
+      title: 'A → B',
+      points: legacyPoints,
+      transportMode: 'transit',
+      geometry: [[121, 25], [122, 26]],
+      isVisible: true,
+    }] as any)
     expect(state.routes.value[0]).toMatchObject({ transportMode: 'car', duration: 600 })
     expect(urls[0]).toContain('routed-car')
   })
@@ -31,10 +39,17 @@ describe('route mode changes', () => {
     const urls: string[] = []
     globalThis.fetch = mock(async (url: any) => {
       urls.push(String(url))
+
       return response(600)
     }) as any
     const state = useGeolocationRoutes(ref(undefined))
-    await state.setInitialRoutes([{ id: 'mode-switch', title: 'A → B', points, transportMode: 'foot', isVisible: true }] as any)
+    await state.setInitialRoutes([{
+      id: 'mode-switch',
+      title: 'A → B',
+      points,
+      transportMode: 'foot',
+      isVisible: true,
+    }] as any)
     const pending = state.setRouteTransportMode('mode-switch', 'car')
     expect(state.routes.value[0].transportMode).toBe('car')
     await pending
@@ -59,7 +74,13 @@ describe('route mode changes', () => {
     const pending: Array<(value: Response) => void> = []
     globalThis.fetch = mock(() => new Promise<Response>(resolve => pending.push(resolve))) as any
     const state = useGeolocationRoutes(ref(undefined))
-    state.routes.value = [{ id: 'race', title: 'A → B', points: points.map(p => ({ ...p, coordinates: [p.coordinates[0] + 0.01, p.coordinates[1]] })), transportMode: 'foot', isVisible: true }] as any
+    state.routes.value = [{
+      id: 'race',
+      title: 'A → B',
+      points: points.map(p => ({ ...p, coordinates: [p.coordinates[0] + 0.01, p.coordinates[1]] })),
+      transportMode: 'foot',
+      isVisible: true,
+    }] as any
     const car = state.setRouteTransportMode('race', 'car')
     const bike = state.setRouteTransportMode('race', 'bike')
     pending[1](response(200))

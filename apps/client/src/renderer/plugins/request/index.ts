@@ -9,9 +9,7 @@ export * from './store'
 export const requestPlugin = {
   install(_: App, options: RequestPluginOptions) {
     if (!options || !options.databaseService) {
-      throw new Error(
-        'Failed to install requestPlugin: `databaseService` option is required.',
-      )
+      throw new Error('Failed to install requestPlugin: `databaseService` option is required.')
     }
 
     setDatabaseService(options.databaseService)

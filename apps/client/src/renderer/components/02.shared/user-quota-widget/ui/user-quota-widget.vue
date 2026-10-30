@@ -14,12 +14,35 @@ interface Props {
 const props = defineProps<Props>()
 
 const componentType = computed(() => (props.to ? 'router-link' : 'div'))
+const formattedCurrent = computed(() => {
+  if (props.unit === 'bytes')
+    return formatBytes(props.current)
+
+  if (props.unit === 'tokens')
+    return formatCompactNumber(props.current)
+
+  return formatNumber(props.current)
+})
+const formattedLimit = computed(() => {
+  if (props.unit === 'bytes')
+    return formatBytes(props.limit)
+
+  if (props.unit === 'tokens')
+    return formatCompactNumber(props.limit)
+
+  return formatNumber(props.limit)
+})
+const percentage = computed(() => {
+  if (props.limit === 0)
+    return 0
+
+  return Math.min(100, (props.current / props.limit) * 100)
+})
 
 // Обычное форматирование с пробелами (например: 5 000)
 function formatNumber(num: number): string {
   return new Intl.NumberFormat('ru-RU', { useGrouping: true }).format(num)
 }
-
 // Компактное форматирование для больших чисел (например: 5 млн, 1,5 тыс.)
 function formatCompactNumber(num: number): string {
   return new Intl.NumberFormat('ru-RU', {
@@ -28,31 +51,6 @@ function formatCompactNumber(num: number): string {
     maximumFractionDigits: 1, // Оставит 1 знак после запятой (1,5 млн)
   }).format(num)
 }
-
-const formattedCurrent = computed(() => {
-  if (props.unit === 'bytes')
-    return formatBytes(props.current)
-  if (props.unit === 'tokens')
-    return formatCompactNumber(props.current)
-
-  return formatNumber(props.current)
-})
-
-const formattedLimit = computed(() => {
-  if (props.unit === 'bytes')
-    return formatBytes(props.limit)
-  if (props.unit === 'tokens')
-    return formatCompactNumber(props.limit)
-
-  return formatNumber(props.limit)
-})
-
-const percentage = computed(() => {
-  if (props.limit === 0)
-    return 0
-  return Math.min(100, (props.current / props.limit) * 100)
-})
-
 function formatBytes(bytes: number, decimals = 2) {
   if (bytes === 0)
     return '0 Байт'
@@ -61,6 +59,7 @@ function formatBytes(bytes: number, decimals = 2) {
   const dm = decimals < 0 ? 0 : decimals
   const sizes = ['Байт', 'КБ', 'МБ', 'ГБ', 'ТБ']
   const i = Math.floor(Math.log(bytes) / Math.log(k))
+
   return `${Number.parseFloat((bytes / k ** i).toFixed(dm))} ${sizes[i]}`
 }
 </script>

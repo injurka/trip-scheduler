@@ -20,22 +20,18 @@ export function useTripMemoriesVault() {
     vaultStore.init()
   })
 
-  watch(
-    [() => tripData.currentTripId, () => getSelectedDay.value, () => memories.memories],
-    async ([tId, day, mems]) => {
-      if (tId && day && mems && mems.length > 0 && vaultStore.isConfigured) {
-        const imageItems = mems
-          .filter((m: any) => m.imageId && m.image)
-          .map((m: any) => ({
-            imageId: m.image!.id,
-            dayId: day.id,
-          }))
+  watch([() => tripData.currentTripId, () => getSelectedDay.value, () => memories.memories], async ([tId, day, mems]) => {
+    if (tId && day && mems && mems.length > 0 && vaultStore.isConfigured) {
+      const imageItems = mems
+        .filter((m: any) => m.imageId && m.image)
+        .map((m: any) => ({
+          imageId: m.image!.id,
+          dayId: day.id,
+        }))
 
-        await vaultStore.checkFilesAvailability(tId as string, imageItems)
-      }
-    },
-    { deep: true, immediate: true },
-  )
+      await vaultStore.checkFilesAvailability(tId as string, imageItems)
+    }
+  }, { deep: true, immediate: true })
 
   async function ensureVaultConfigured(description: string): Promise<boolean> {
     if (vaultStore.isConfigured)
@@ -43,6 +39,7 @@ export function useTripMemoriesVault() {
 
     if (isMobileApp) {
       await vaultStore.selectFolder()
+
       if (vaultStore.isConfigured) {
         return true
       }
@@ -58,15 +55,14 @@ export function useTripMemoriesVault() {
     if (isConfirmed && authStore.user) {
       router.push(AppRoutePaths.User.Settings(authStore.user.id))
     }
+
     return false
   }
 
   async function handleToggleLocalMode() {
-    const isConfigured = await ensureVaultConfigured(
-      isMobileApp
-        ? 'Включить локальный режим невозможно: хранилище не инициализировано.'
-        : 'Включить локальный режим невозможно, пока не выбрана папка хранилища.',
-    )
+    const isConfigured = await ensureVaultConfigured(isMobileApp
+      ? 'Включить локальный режим невозможно: хранилище не инициализировано.'
+      : 'Включить локальный режим невозможно, пока не выбрана папка хранилища.')
 
     if (isConfigured) {
       vaultStore.isLocalMode = !vaultStore.isLocalMode
@@ -77,11 +73,9 @@ export function useTripMemoriesVault() {
     if (!tripData.currentTripId || !getSelectedDay.value)
       return
 
-    const isConfigured = await ensureVaultConfigured(
-      isMobileApp
-        ? 'Требуется инициализировать хранилище устройства для сохранения медиа.'
-        : 'Выберите папку на компьютере для сохранения медиа, чтобы просматривать их оффлайн.',
-    )
+    const isConfigured = await ensureVaultConfigured(isMobileApp
+      ? 'Требуется инициализировать хранилище устройства для сохранения медиа.'
+      : 'Выберите папку на компьютере для сохранения медиа, чтобы просматривать их оффлайн.')
 
     if (!isConfigured)
       return
@@ -100,6 +94,7 @@ export function useTripMemoriesVault() {
     if (imagesToSync.length === 0) {
       const toast = useToast()
       toast.info('Нет медиа для скачивания в этом дне')
+
       return
     }
 

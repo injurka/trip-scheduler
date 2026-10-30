@@ -38,8 +38,18 @@ import { KitSkeleton } from '~/components/01.kit/kit-skeleton'
 
           <div class="avatars-skeleton">
             <KitSkeleton width="34px" height="34px" border-radius="50%" />
-            <KitSkeleton width="34px" height="34px" border-radius="50%" class="avatar-overlap" />
-            <KitSkeleton width="34px" height="34px" border-radius="50%" class="avatar-overlap" />
+            <KitSkeleton
+              width="34px"
+              height="34px"
+              border-radius="50%"
+              class="avatar-overlap"
+            />
+            <KitSkeleton
+              width="34px"
+              height="34px"
+              border-radius="50%"
+              class="avatar-overlap"
+            />
           </div>
         </div>
       </div>
@@ -63,7 +73,12 @@ import { KitSkeleton } from '~/components/01.kit/kit-skeleton'
 
       <div class="widget-card">
         <KitSkeleton width="150px" height="1.2rem" class="mb-3" />
-        <KitSkeleton width="100%" height="36px" border-radius="var(--r-m)" class="mb-3" />
+        <KitSkeleton
+          width="100%"
+          height="36px"
+          border-radius="var(--r-m)"
+          class="mb-3"
+        />
         <KitSkeleton width="100%" height="190px" border-radius="var(--r-m)" />
       </div>
     </div>

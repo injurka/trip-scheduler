@@ -35,17 +35,6 @@ const emit = defineEmits<{
   (e: 'mapPinnedChange', pinned: boolean): void
 }>()
 
-const getDraftKey = (id?: string) => id ? `trip_scheduler_post_draft_${id}` : 'trip_scheduler_post_draft_new'
-
-function clearNewDraftAlias(postId: string) {
-  try {
-    const cached = JSON.parse(localStorage.getItem(getDraftKey()) || 'null')
-    if (cached?.createdServerId === postId || cached?.post?.id === postId)
-      localStorage.removeItem(getDraftKey())
-  }
-  catch { /* Ignore a corrupt cache; the post editor will load from the server. */ }
-}
-
 const store = usePostDraftStore()
 const postStore = usePostStore()
 const router = useRouter()
@@ -54,7 +43,6 @@ const toast = useToast()
 const confirm = useConfirm()
 
 const { post, isDirty } = storeToRefs(store)
-const isGenerating = computed(() => postStore.isGenerating)
 const isPreviewMode = ref(false)
 const isPreviewMapPinned = ref(false)
 const activeSection = ref<'about' | 'story' | 'publish'>('about')
@@ -66,67 +54,25 @@ const editorSections = [
 const isAiDialogOpen = ref(false)
 const isMediaTimelineOpen = ref(false)
 const isManualTimeline = ref(false)
-const hasTimelineContent = computed(() => (post.value.stages || []).some(stage => stage.blocks.length > 0 || stage.title !== 'Начало'))
-const stageCount = computed(() => hasTimelineContent.value || isManualTimeline.value ? post.value.stages?.length || 0 : 0)
-const coverMedia = computed(() => post.value.media[0])
-const coverUrl = computed(() => {
-  const media = coverMedia.value
-  if (!media)
-    return ''
-  const variants = getPostMediaVariants(media)
-  return media.type === 'video' ? variants.poster || variants.small || '' : variants.medium || variants.small || media.url
-})
-const publishIssues = computed(() => [!post.value.title.trim() && 'Название поста', !post.value.country && 'Страна путешествия'].filter((issue): issue is string => Boolean(issue)))
-
-function handlePreviewMapPinnedChange(pinned: boolean) {
-  isPreviewMapPinned.value = pinned
-  emit('mapPinnedChange', pinned)
-}
-
-watch(isPreviewMode, (isPreview) => {
-  if (!isPreview)
-    handlePreviewMapPinnedChange(false)
-})
-
-function startManualTimeline() {
-  isManualTimeline.value = true
-  if (!post.value.stages?.length)
-    store.addStage()
-}
-function nextSection() {
-  activeSection.value = activeSection.value === 'about' ? 'story' : 'publish'
-}
-
 const isPublishing = ref(false)
 const isEditMode = ref(false)
 const isLoading = ref(true)
-
 let isLeavingIntentionally = false
-
 const aiPrompt = ref('')
 const isImportingMedia = ref(false)
 const mediaTimeline = ref<InstanceType<typeof MediaTimelineImport>>()
-async function handleMediaTimelineSelection(media: PostMedia[]) {
-  activeSection.value = 'story'
-  isMediaTimelineOpen.value = true
-  await nextTick()
-  await mediaTimeline.value?.selectMedia(media)
-}
-
-const isMediaBusy = computed(() => isImportingMedia.value || store.activeUploads > 0)
-const isDraft = computed(() => !isEditMode.value || post.value.status === 'draft')
-
 const isMediaLibraryOpen = ref(false)
 const isMapPickerOpen = ref(false)
-
 const userSearchQuery = ref('')
 const searchUserResults = ref<WhitelistUser[]>([])
 const isSearchingUsers = ref(false)
 
 const performUserSearch = useDebounceFn(() => {
   const q = userSearchQuery.value.trim()
+
   if (q.length < 2) {
     searchUserResults.value = []
+
     return
   }
 
@@ -145,112 +91,39 @@ const performUserSearch = useDebounceFn(() => {
   })
 }, 300)
 
-function handleAddWhitelistUser(user: WhitelistUser) {
-  store.addWhitelistUser(user)
-  userSearchQuery.value = ''
-  searchUserResults.value = []
-}
-
-function handleRemoveWhitelistUser(userId: string) {
-  store.removeWhitelistUser(userId)
-}
-
 const durationType = ref<'hours' | 'days'>('hours')
 const durationValue = ref<number | null>(null)
-
 const tempTag = ref('')
 const suggestedTags = ref<string[]>([])
 const tagsWrapperRef = ref<HTMLElement | null>(null)
 const isTagInputFocused = ref(false)
 
+const isGenerating = computed(() => postStore.isGenerating)
+const hasTimelineContent = computed(() => (post.value.stages || []).some(stage => stage.blocks.length > 0 || stage.title !== 'Начало'))
+const stageCount = computed(() => hasTimelineContent.value || isManualTimeline.value ? post.value.stages?.length || 0 : 0)
+const coverMedia = computed(() => post.value.media[0])
+const coverUrl = computed(() => {
+  const media = coverMedia.value
+
+  if (!media)
+    return ''
+
+  const variants = getPostMediaVariants(media)
+
+  return media.type === 'video' ? variants.poster || variants.small || '' : variants.medium || variants.small || media.url
+})
+const publishIssues = computed(() => [!post.value.title.trim() && 'Название поста', !post.value.country && 'Страна путешествия'].filter((issue): issue is string => Boolean(issue)))
+const isMediaBusy = computed(() => isImportingMedia.value || store.activeUploads > 0)
+const isDraft = computed(() => !isEditMode.value || post.value.status === 'draft')
 const stagesModel = computed({
   get: () => post.value.stages || [],
   set: val => store.reorderStages(val),
 })
-
-// Защита от случайного закрытия вкладки
-onBeforeRouteLeave(async (_to, _from, next) => {
-  if (isLoading.value) {
-    toast.error('Дождитесь завершения загрузки редактора.')
-    next(false)
-    return
-  }
-  if (isMediaBusy.value) {
-    toast.error('Дождитесь завершения загрузки медиа.')
-    next(false)
-    return
-  }
-  if (isLeavingIntentionally || isPublishing.value || !isDirty.value) {
-    next()
-    return
-  }
-
-  if (isDraft.value) {
-    try {
-      await store.savePost(store.isNewPost, 'draft')
-      next()
-    }
-    catch {
-      toast.error('Не удалось сохранить черновик. Повторите попытку перед выходом.')
-      next(false)
-    }
-    return
-  }
-  const isConfirmed = await confirm({
-    title: 'Закрыть редактор?',
-    description: 'Текстовые правки сохранены на этом устройстве. Загруженные файлы уже привязаны к посту на сервере.',
-    type: 'danger',
-    confirmText: 'Покинуть',
-  })
-
-  if (isConfirmed) {
-    isLeavingIntentionally = true
-    next()
-  }
-  else {
-    next(false)
-  }
-})
-
-async function handleCancelBtn() {
-  if (isMediaBusy.value)
-    return
-  const accepted = await confirm({
-    title: isDraft.value ? 'Удалить черновик и все его медиа?' : 'Отменить текстовые правки?',
-    description: isDraft.value ? 'Черновик и его медиатека будут удалены. Это действие необратимо.' : 'Правки текста и настроек будут отменены. Загрузки и удаления медиа уже сохранены на сервере.',
-    type: 'danger',
-    confirmText: isDraft.value ? 'Удалить черновик' : 'Отменить правки',
-  })
-  if (!accepted)
-    return
-  if (isDraft.value && !await store.discardDraft())
-    return
-  localStorage.removeItem(getDraftKey(route.params.id as string))
-  isLeavingIntentionally = true
-  store.isDirty = false
-  await router.push(AppRoutePaths.Post.List)
-}
-
-async function handleSaveDraft() {
-  if (isMediaBusy.value)
-    return
-  isPublishing.value = true
-  try {
-    await store.savePost(store.isNewPost, 'draft')
-    postStore.setTab('drafts')
-    isLeavingIntentionally = true
-    await router.push(AppRoutePaths.Post.List)
-  }
-  catch {
-    toast.error('Не удалось сохранить черновик.')
-  }
-  finally { isPublishing.value = false }
-}
-
 const calendarDateModel = computed({
   get: () => {
     if (!post.value?.startDate)
       return null
+
     try {
       return parseDate(post.value.startDate)
     }
@@ -265,59 +138,30 @@ const calendarDateModel = computed({
     }
   },
 })
-
 const formattedStartDate = computed(() => {
   if (!post.value?.startDate)
     return ''
 
   const d = new Date(post.value.startDate)
+
   return d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric' })
 })
+const countryOptions = computed(() => MOCK_COUNTRY_DATA.map(c => ({ value: c.name.rus, label: c.name.rus, flag: c.flag })))
+const previewData = computed(() => ({
+  ...post.value,
+  user: { id: 'me', name: 'Автор (Вы)', avatarUrl: '' },
+  stats: post.value?.stats || { likes: 0, saves: 0, isLiked: false, isSaved: false },
+}))
 
-function openLibraryManage() {
-  isMediaLibraryOpen.value = true
-}
-
-function handleMapConfirm(coords: { lat: number, lng: number }) {
-  if (post.value) {
-    post.value.latitude = coords.lat
-    post.value.longitude = coords.lng
-    store.isDirty = true
-  }
-}
-
-async function fetchTags(query: string) {
-  await useRequest<string[]>({
-    key: EPostRequestKeys.UNIQUE_TAGS,
-    fn: db => db.posts.getUniqueTags({ query }),
-    onSuccess: (res) => {
-      suggestedTags.value = res || []
-    },
-  })
-}
-
+watch(isPreviewMode, (isPreview) => {
+  if (!isPreview)
+    handlePreviewMapPinnedChange(false)
+})
 watch(tempTag, (val) => {
   if (val && isTagInputFocused.value)
     fetchTags(val)
   else suggestedTags.value = []
 })
-
-onClickOutside(tagsWrapperRef, () => {
-  isTagInputFocused.value = false
-})
-
-function addTag(val?: string) {
-  const tagToAdd = (val || tempTag.value).trim().toLowerCase()
-  if (tagToAdd && post.value) {
-    if (post.value.tags.includes(tagToAdd))
-      toast.warn(`Тег "${tagToAdd}" уже добавлен`)
-    else store.addTag(tagToAdd)
-
-    tempTag.value = ''
-    suggestedTags.value = []
-  }
-}
-
 watch(() => post.value?.statsDetail?.duration, (val) => {
   if (val && !durationValue.value) {
     if (val >= 24 && val % 24 === 0) {
@@ -330,7 +174,117 @@ watch(() => post.value?.statsDetail?.duration, (val) => {
     }
   }
 }, { immediate: true })
+watch(() => [post.value?.title, post.value?.insight, post.value?.description], () => {
+  store.isDirty = true
+}, { deep: true })
 
+const getDraftKey = (id?: string) => id ? `trip_scheduler_post_draft_${id}` : 'trip_scheduler_post_draft_new'
+function clearNewDraftAlias(postId: string) {
+  try {
+    const cached = JSON.parse(localStorage.getItem(getDraftKey()) || 'null')
+
+    if (cached?.createdServerId === postId || cached?.post?.id === postId)
+      localStorage.removeItem(getDraftKey())
+  }
+  catch { /* Ignore a corrupt cache; the post editor will load from the server. */ }
+}
+function handlePreviewMapPinnedChange(pinned: boolean) {
+  isPreviewMapPinned.value = pinned
+  emit('mapPinnedChange', pinned)
+}
+function startManualTimeline() {
+  isManualTimeline.value = true
+
+  if (!post.value.stages?.length)
+    store.addStage()
+}
+function nextSection() {
+  activeSection.value = activeSection.value === 'about' ? 'story' : 'publish'
+}
+async function handleMediaTimelineSelection(media: PostMedia[]) {
+  activeSection.value = 'story'
+  isMediaTimelineOpen.value = true
+  await nextTick()
+  await mediaTimeline.value?.selectMedia(media)
+}
+function handleAddWhitelistUser(user: WhitelistUser) {
+  store.addWhitelistUser(user)
+  userSearchQuery.value = ''
+  searchUserResults.value = []
+}
+function handleRemoveWhitelistUser(userId: string) {
+  store.removeWhitelistUser(userId)
+}
+async function handleCancelBtn() {
+  if (isMediaBusy.value)
+    return
+
+  const accepted = await confirm({
+    title: isDraft.value ? 'Удалить черновик и все его медиа?' : 'Отменить текстовые правки?',
+    description: isDraft.value ? 'Черновик и его медиатека будут удалены. Это действие необратимо.' : 'Правки текста и настроек будут отменены. Загрузки и удаления медиа уже сохранены на сервере.',
+    type: 'danger',
+    confirmText: isDraft.value ? 'Удалить черновик' : 'Отменить правки',
+  })
+
+  if (!accepted)
+    return
+
+  if (isDraft.value && !await store.discardDraft())
+    return
+
+  localStorage.removeItem(getDraftKey(route.params.id as string))
+  isLeavingIntentionally = true
+  store.isDirty = false
+  await router.push(AppRoutePaths.Post.List)
+}
+async function handleSaveDraft() {
+  if (isMediaBusy.value)
+    return
+
+  isPublishing.value = true
+
+  try {
+    await store.savePost(store.isNewPost, 'draft')
+    postStore.setTab('drafts')
+    isLeavingIntentionally = true
+    await router.push(AppRoutePaths.Post.List)
+  }
+  catch {
+    toast.error('Не удалось сохранить черновик.')
+  }
+  finally { isPublishing.value = false }
+}
+function openLibraryManage() {
+  isMediaLibraryOpen.value = true
+}
+function handleMapConfirm(coords: { lat: number, lng: number }) {
+  if (post.value) {
+    post.value.latitude = coords.lat
+    post.value.longitude = coords.lng
+    store.isDirty = true
+  }
+}
+async function fetchTags(query: string) {
+  await useRequest<string[]>({
+    key: EPostRequestKeys.UNIQUE_TAGS,
+    fn: db => db.posts.getUniqueTags({ query }),
+    onSuccess: (res) => {
+      suggestedTags.value = res || []
+    },
+  })
+}
+function addTag(val?: string) {
+  const tagToAdd = (val || tempTag.value).trim().toLowerCase()
+
+  if (tagToAdd && post.value) {
+    if (post.value.tags.includes(tagToAdd))
+      toast.warn(`Тег "${tagToAdd}" уже добавлен`)
+    else store.addTag(tagToAdd)
+
+    tempTag.value = ''
+    suggestedTags.value = []
+  }
+}
 function updateDuration() {
   nextTick(() => {
     if (!post.value)
@@ -344,12 +298,10 @@ function updateDuration() {
     store.isDirty = true
   })
 }
-
-const countryOptions = computed(() => MOCK_COUNTRY_DATA.map(c => ({ value: c.name.rus, label: c.name.rus, flag: c.flag })))
-
 async function handleGenerate() {
   if (!aiPrompt.value.trim() || aiPrompt.value.length < 10) {
     toast.warn('Опишите ваше путешествие подробнее (минимум 10 символов)')
+
     return
   }
 
@@ -361,29 +313,35 @@ async function handleGenerate() {
 
   if (!isConfirmed)
     return
+
   const generated = await store.generateWithAi(aiPrompt.value)
+
   if (generated) {
     aiPrompt.value = ''
     isAiDialogOpen.value = false
     activeSection.value = 'story'
   }
 }
-
 async function handlePublish() {
   if (!post.value)
     return
+
   if (!post.value.title) {
     activeSection.value = 'about'
     toast.error('Пожалуйста, укажите заголовок')
+
     return
   }
+
   if (!post.value.country) {
     activeSection.value = 'about'
     toast.error('Пожалуйста, выберите страну')
+
     return
   }
 
   isPublishing.value = true
+
   try {
     const postId = await store.savePost(!isEditMode.value, 'completed')
     toast.success(isEditMode.value ? 'Пост обновлен!' : 'Пост успешно опубликован!')
@@ -402,77 +360,126 @@ async function handlePublish() {
     isPublishing.value = false
   }
 }
+function restoreCachedDraft(draftString: string, isNew: boolean): boolean {
+  try {
+    const parsed = JSON.parse(draftString)
+    store.initDraft(parsed.post, isNew)
+    store.createdServerId = parsed.createdServerId
 
-const previewData = computed(() => ({
-  ...post.value,
-  user: { id: 'me', name: 'Автор (Вы)', avatarUrl: '' },
-  stats: post.value?.stats || { likes: 0, saves: 0, isLiked: false, isSaved: false },
-}))
+    return true
+  }
+  catch {
+    return false
+  }
+}
+async function loadServerPost(id: string) {
+  const fullPost = await postStore.fetchPostById(id)
+
+  if (fullPost) {
+    store.initDraft(fullPost, false)
+
+    return
+  }
+
+  toast.error('Пост не найден')
+  router.replace(AppRoutePaths.Post.List)
+}
+async function initializeExistingPost(id: string, draftKey: string) {
+  isEditMode.value = true
+  clearNewDraftAlias(id)
+
+  const draftString = localStorage.getItem(draftKey)
+
+  if (draftString && restoreCachedDraft(draftString, false))
+    return
+
+  await loadServerPost(id)
+}
+function initializeNewPost(draftKey: string) {
+  isEditMode.value = false
+  const draftString = localStorage.getItem(draftKey)
+
+  if (!draftString || !restoreCachedDraft(draftString, true))
+    store.initDraft(undefined, true)
+}
+async function persistNewPostId(draftKey: string) {
+  const createdPostId = await store.ensurePostCreated()
+
+  if (createdPostId) {
+    localStorage.setItem(draftKey, JSON.stringify({
+      post: store.post,
+      createdServerId: createdPostId,
+    }))
+  }
+}
+
+// Защита от случайного закрытия вкладки
+onBeforeRouteLeave(async (_to, _from, next) => {
+  if (isLoading.value) {
+    toast.error('Дождитесь завершения загрузки редактора.')
+    next(false)
+
+    return
+  }
+
+  if (isMediaBusy.value) {
+    toast.error('Дождитесь завершения загрузки медиа.')
+    next(false)
+
+    return
+  }
+
+  if (isLeavingIntentionally || isPublishing.value || !isDirty.value) {
+    next()
+
+    return
+  }
+
+  if (isDraft.value) {
+    try {
+      await store.savePost(store.isNewPost, 'draft')
+      next()
+    }
+    catch {
+      toast.error('Не удалось сохранить черновик. Повторите попытку перед выходом.')
+      next(false)
+    }
+
+    return
+  }
+
+  const isConfirmed = await confirm({
+    title: 'Закрыть редактор?',
+    description: 'Текстовые правки сохранены на этом устройстве. Загруженные файлы уже привязаны к посту на сервере.',
+    type: 'danger',
+    confirmText: 'Покинуть',
+  })
+
+  if (isConfirmed) {
+    isLeavingIntentionally = true
+    next()
+  }
+  else {
+    next(false)
+  }
+})
+onClickOutside(tagsWrapperRef, () => {
+  isTagInputFocused.value = false
+})
 
 onMounted(async () => {
   isLoading.value = true
   const id = route.params.id as string
   const draftKey = getDraftKey(id)
 
-  if (id) {
-    isEditMode.value = true
-    clearNewDraftAlias(id)
-    const draftStr = localStorage.getItem(draftKey)
+  if (id)
+    await initializeExistingPost(id, draftKey)
+  else
+    initializeNewPost(draftKey)
 
-    if (draftStr) {
-      try {
-        const parsed = JSON.parse(draftStr)
-        store.initDraft(parsed.post, false)
-        store.createdServerId = parsed.createdServerId
-      }
-      catch {
-        const fullPost = await postStore.fetchPostById(id)
-        if (fullPost) {
-          store.initDraft(fullPost, false)
-        }
-        else {
-          toast.error('Пост не найден')
-          router.replace(AppRoutePaths.Post.List)
-        }
-      }
-    }
-    else {
-      const fullPost = await postStore.fetchPostById(id)
-      if (fullPost) {
-        store.initDraft(fullPost, false)
-      }
-      else {
-        toast.error('Пост не найден')
-        router.replace(AppRoutePaths.Post.List)
-      }
-    }
-  }
-  else {
-    isEditMode.value = false
-    const draftStr = localStorage.getItem(draftKey)
-    if (draftStr) {
-      try {
-        const parsed = JSON.parse(draftStr)
-        store.initDraft(parsed.post, true)
-        store.createdServerId = parsed.createdServerId
-      }
-      catch {
-        store.initDraft(undefined, true)
-      }
-    }
-    else {
-      store.initDraft(undefined, true)
-    }
-  }
-  if (!id && store.isNewPost) {
-    const createdPostId = await store.ensurePostCreated()
-    if (createdPostId) {
-      localStorage.setItem(draftKey, JSON.stringify({
-        post: store.post,
-        createdServerId: createdPostId,
-      }))
-    }
-  }
+  if (!id && store.isNewPost)
+    await persistNewPostId(draftKey)
+
   await store.refreshMedia()
   isLoading.value = false
 
@@ -485,10 +492,6 @@ onMounted(async () => {
     }
   }, { flush: 'sync' })
 })
-
-watch(() => [post.value?.title, post.value?.insight, post.value?.description], () => {
-  store.isDirty = true
-}, { deep: true })
 </script>
 
 <template>
@@ -509,7 +512,12 @@ watch(() => [post.value?.title, post.value?.insight, post.value?.description], (
           <span class="post-status">{{ isDraft ? 'Черновик · виден только вам' : 'Опубликованный пост' }}</span>
         </div>
       </div>
-      <KitBtn variant="text" :icon="isPreviewMode ? 'mdi:pencil-outline' : 'mdi:eye-outline'" :disabled="isMediaBusy" @click="isPreviewMode = !isPreviewMode">
+      <KitBtn
+        variant="text"
+        :icon="isPreviewMode ? 'mdi:pencil-outline' : 'mdi:eye-outline'"
+        :disabled="isMediaBusy"
+        @click="isPreviewMode = !isPreviewMode"
+      >
         {{ isPreviewMode ? 'К редактору' : 'Предпросмотр' }}
       </KitBtn>
     </header>
@@ -530,10 +538,21 @@ watch(() => [post.value?.title, post.value?.insight, post.value?.description], (
         <section class="meta-section">
           <div class="main-inputs">
             <KitInput v-model="post.title" label="Название поста" placeholder="Например, выходные в горах" />
-            <KitInput v-model="post.description" label="Вступление" placeholder="Пара слов о путешествии…" type="textarea" :rows="3" />
+            <KitInput
+              v-model="post.description"
+              label="Вступление"
+              placeholder="Пара слов о путешествии…"
+              type="textarea"
+              :rows="3"
+            />
           </div>
           <button class="cover-area" type="button" @click="openLibraryManage">
-            <KitImage v-if="coverUrl" :src="coverUrl" object-fit="cover" class="cover-image" />
+            <KitImage
+              v-if="coverUrl"
+              :src="coverUrl"
+              object-fit="cover"
+              class="cover-image"
+            />
             <span v-else class="cover-placeholder"><Icon icon="mdi:image-plus-outline" /><span>{{ coverMedia ? 'Видео в медиатеке' : 'Добавить обложку' }}</span></span>
             <span class="cover-caption"><Icon icon="mdi:image-multiple-outline" />{{ post.media.length ? `Медиатека · ${post.media.length}` : 'Фото и видео' }}</span>
           </button>
@@ -550,18 +569,34 @@ watch(() => [post.value?.title, post.value?.insight, post.value?.description], (
                   @update:model-value="val => { if (post) { post.country = val as string; store.isDirty = true; } }"
                 >
                   <template #item="{ item }">
-                    <img v-if="(item as any).flag" :src="(item as any).flag" class="option-flag" alt="">
+                    <img
+                      v-if="(item as any).flag"
+                      :src="(item as any).flag"
+                      class="option-flag"
+                      alt=""
+                    >
                     <span>{{ item.label }}</span>
                   </template>
                 </KitSelectWithSearch>
-              </div><KitBtn variant="tonal" class="map-picker-btn" icon="mdi:map-marker-outline" aria-label="Указать место на карте" @click="isMapPickerOpen = true" />
+              </div><KitBtn
+                variant="tonal"
+                class="map-picker-btn"
+                icon="mdi:map-marker-outline"
+                aria-label="Указать место на карте"
+                @click="isMapPickerOpen = true"
+              />
             </div>
           </div>
           <div class="field-group">
             <label>Дата начала</label>
             <KitDropdown align="start" :side-offset="4" content-class="post-date-dropdown">
               <template #trigger>
-                <button type="button" class="date-trigger-wrapper" :class="{ 'is-empty': !post.startDate }" aria-label="Дата начала">
+                <button
+                  type="button"
+                  class="date-trigger-wrapper"
+                  :class="{ 'is-empty': !post.startDate }"
+                  aria-label="Дата начала"
+                >
                   <Icon icon="mdi:calendar" class="input-icon-prefix" />
                   <div class="trigger-text">
                     {{ formattedStartDate || 'Выберите дату...' }}
@@ -577,11 +612,24 @@ watch(() => [post.value?.title, post.value?.insight, post.value?.description], (
         <details class="optional-section">
           <summary><span class="disclosure-icon"><Icon icon="mdi:tune-variant" /></span><span class="disclosure-copy"><span class="disclosure-title">Дополнительно</span><span class="summary-hint">Совет читателям, длительность и теги</span></span><Icon icon="mdi:chevron-down" /></summary>
           <div class="optional-content">
-            <KitInput v-model="post.insight" label="Совет читателям" placeholder="Что стоит знать перед поездкой?" type="textarea" :rows="2" />
+            <KitInput
+              v-model="post.insight"
+              label="Совет читателям"
+              placeholder="Что стоит знать перед поездкой?"
+              type="textarea"
+              :rows="2"
+            />
             <div class="field-group">
               <label>Длительность путешествия</label>
               <div class="duration-editor">
-                <KitInput v-model.number="durationValue" type="number" placeholder="0" size="sm" class="duration-val-input" @input="updateDuration" />
+                <KitInput
+                  v-model.number="durationValue"
+                  type="number"
+                  placeholder="0"
+                  size="sm"
+                  class="duration-val-input"
+                  @input="updateDuration"
+                />
                 <KitSelectWithSearch
                   v-model="durationType"
                   :items="[{ value: 'hours', label: 'Часов' }, { value: 'days', label: 'Дней' }]"
@@ -599,12 +647,23 @@ watch(() => [post.value?.title, post.value?.insight, post.value?.description], (
                   <div v-for="tag in post.tags" :key="tag" class="tag-chip">
                     #{{ tag }} <span class="remove" @click="store.removeTag(tag)">×</span>
                   </div>
-                  <input v-model="tempTag" placeholder="+ Добавить" class="tag-input" @keydown.enter="addTag()" @focus="isTagInputFocused = true; fetchTags('')">
+                  <input
+                    v-model="tempTag"
+                    placeholder="+ Добавить"
+                    class="tag-input"
+                    @keydown.enter="addTag()"
+                    @focus="isTagInputFocused = true; fetchTags('')"
+                  >
                 </div>
 
                 <div v-if="suggestedTags.length > 0 && isTagInputFocused" class="tags-dropdown">
                   <div class="suggested-tags-wrapper">
-                    <button v-for="tag in suggestedTags" :key="tag" class="suggested-tag-btn" @click.stop="addTag(tag)">
+                    <button
+                      v-for="tag in suggestedTags"
+                      :key="tag"
+                      class="suggested-tag-btn"
+                      @click.stop="addTag(tag)"
+                    >
                       #{{ tag }}
                     </button>
                   </div>
@@ -622,10 +681,20 @@ watch(() => [post.value?.title, post.value?.insight, post.value?.description], (
           <KitBtn variant="tonal" icon="mdi:plus" @click="startManualTimeline">
             Вручную
           </KitBtn>
-          <KitBtn variant="tonal" icon="mdi:image-multiple-outline" :disabled="isMediaBusy" @click="openLibraryManage">
+          <KitBtn
+            variant="tonal"
+            icon="mdi:image-multiple-outline"
+            :disabled="isMediaBusy"
+            @click="openLibraryManage"
+          >
             Из фото и видео
           </KitBtn>
-          <KitBtn variant="text" icon="mdi:creation" :disabled="isMediaBusy" @click="isAiDialogOpen = true">
+          <KitBtn
+            variant="text"
+            icon="mdi:creation"
+            :disabled="isMediaBusy"
+            @click="isAiDialogOpen = true"
+          >
             Из текста с ИИ
           </KitBtn>
         </div>
@@ -646,7 +715,12 @@ watch(() => [post.value?.title, post.value?.insight, post.value?.description], (
             </template>
           </draggable>
 
-          <KitBtn variant="tonal" icon="mdi:plus-circle-outline" class="add-stage-btn" @click="store.addStage">
+          <KitBtn
+            variant="tonal"
+            icon="mdi:plus-circle-outline"
+            class="add-stage-btn"
+            @click="store.addStage"
+          >
             Добавить этап
           </KitBtn>
         </section>
@@ -657,7 +731,12 @@ watch(() => [post.value?.title, post.value?.insight, post.value?.description], (
         </div>
         <div class="publication-summary">
           <div class="publication-identity">
-            <KitImage v-if="coverUrl" :src="coverUrl" class="publication-cover" object-fit="cover" />
+            <KitImage
+              v-if="coverUrl"
+              :src="coverUrl"
+              class="publication-cover"
+              object-fit="cover"
+            />
             <span v-else class="publication-symbol"><Icon icon="mdi:text-box-outline" /></span>
             <div class="publication-copy">
               <h3>{{ post.title || 'Пока без названия' }}</h3><p>{{ post.country || 'Страна не указана' }}<span v-if="formattedStartDate"> · {{ formattedStartDate }}</span></p><div class="post-counts">
@@ -671,7 +750,13 @@ watch(() => [post.value?.title, post.value?.insight, post.value?.description], (
         </div>
         <div v-if="publishIssues.length" class="publication-checklist">
           <h3>Осталось заполнить</h3>
-          <KitBtn v-for="issue in publishIssues" :key="issue" variant="text" class="checklist-item" @click="activeSection = 'about'">
+          <KitBtn
+            v-for="issue in publishIssues"
+            :key="issue"
+            variant="text"
+            class="checklist-item"
+            @click="activeSection = 'about'"
+          >
             <span>{{ issue }}</span><span class="checklist-action">Добавить <Icon icon="mdi:arrow-right" /></span>
           </KitBtn>
         </div>
@@ -733,7 +818,13 @@ watch(() => [post.value?.title, post.value?.insight, post.value?.description], (
           </div>
         </details>
         <div class="danger-action">
-          <KitBtn variant="text" color="secondary" icon="mdi:trash-can-outline" :disabled="isMediaBusy" @click="handleCancelBtn">
+          <KitBtn
+            variant="text"
+            color="secondary"
+            icon="mdi:trash-can-outline"
+            :disabled="isMediaBusy"
+            @click="handleCancelBtn"
+          >
             {{ isDraft ? 'Удалить черновик и медиа' : 'Отменить правки' }}
           </KitBtn>
         </div>
@@ -741,34 +832,79 @@ watch(() => [post.value?.title, post.value?.insight, post.value?.description], (
       <footer class="editor-submit">
         <span class="footer-status">{{ isMediaBusy ? 'Обрабатываем медиа…' : isDirty ? 'Есть изменения' : 'Можно продолжить позже' }}</span>
         <div class="submit-actions">
-          <KitBtn v-if="isDraft" variant="outlined" :disabled="isMediaBusy || isPublishing" @click="handleSaveDraft">
+          <KitBtn
+            v-if="isDraft"
+            variant="outlined"
+            :disabled="isMediaBusy || isPublishing"
+            @click="handleSaveDraft"
+          >
             Сохранить черновик
           </KitBtn>
-          <KitBtn v-if="activeSection !== 'publish'" icon="mdi:arrow-right" :disabled="isMediaBusy" @click="nextSection">
+          <KitBtn
+            v-if="activeSection !== 'publish'"
+            icon="mdi:arrow-right"
+            :disabled="isMediaBusy"
+            @click="nextSection"
+          >
             Далее
           </KitBtn>
-          <KitBtn v-else icon="mdi:check" :disabled="isMediaBusy || isPublishing" @click="handlePublish">
+          <KitBtn
+            v-else
+            icon="mdi:check"
+            :disabled="isMediaBusy || isPublishing"
+            @click="handlePublish"
+          >
             {{ isDraft ? 'Опубликовать' : 'Сохранить изменения' }}
           </KitBtn>
         </div>
       </footer>
     </div>
-    <MediaLibraryPicker v-model:visible="isMediaLibraryOpen" mode="manage" allow-timeline @timeline="handleMediaTimelineSelection" @confirm="isMediaLibraryOpen = false" />
+    <MediaLibraryPicker
+      v-model:visible="isMediaLibraryOpen"
+      mode="manage"
+      allow-timeline
+      @timeline="handleMediaTimelineSelection"
+      @confirm="isMediaLibraryOpen = false"
+    />
     <KitDialogWithClose
       v-model:visible="isMediaTimelineOpen"
       title="Таймлайн из медиа"
       :max-width="780"
       :persistent="true"
     >
-      <MediaTimelineImport ref="mediaTimeline" :disabled="isGenerating" @busy="isImportingMedia = $event" @applied="isMediaTimelineOpen = false" />
+      <MediaTimelineImport
+        ref="mediaTimeline"
+        :disabled="isGenerating"
+        @busy="isImportingMedia = $event"
+        @applied="isMediaTimelineOpen = false"
+      />
     </KitDialogWithClose>
-    <KitDialogWithClose v-model:visible="isAiDialogOpen" title="Магия ИИ" :max-width="600" :persistent="isGenerating">
+    <KitDialogWithClose
+      v-model:visible="isAiDialogOpen"
+      title="Магия ИИ"
+      :max-width="600"
+      :persistent="isGenerating"
+    >
       <div class="ai-generation-section">
         <p class="field-hint">
           Опишите поездку. ИИ предложит название и последовательность активностей.
         </p>
-        <KitInput v-model="aiPrompt" type="textarea" :rows="4" :disabled="isGenerating || isMediaBusy" placeholder="Например: Вчера мы прилетели в Париж. Утром пошли к Эйфелевой башне..." />
-        <KitBtn icon="mdi:creation" variant="subtle" color="primary" :loading="isGenerating" :disabled="isMediaBusy" class="ai-btn" @click="handleGenerate">
+        <KitInput
+          v-model="aiPrompt"
+          type="textarea"
+          :rows="4"
+          :disabled="isGenerating || isMediaBusy"
+          placeholder="Например: Вчера мы прилетели в Париж. Утром пошли к Эйфелевой башне..."
+        />
+        <KitBtn
+          icon="mdi:creation"
+          variant="subtle"
+          color="primary"
+          :loading="isGenerating"
+          :disabled="isMediaBusy"
+          class="ai-btn"
+          @click="handleGenerate"
+        >
           Сгенерировать пост
         </KitBtn>
       </div>

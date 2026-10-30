@@ -19,8 +19,6 @@ import 'vue-advanced-cropper/dist/style.css'
 const route = useRoute()
 const router = useRouter()
 const appSettingsStore = useAppSettingsStore()
-const isCustomTileModalOpen = ref(false)
-
 const {
   user,
   profileForm,
@@ -62,6 +60,7 @@ const {
   unlinkProvider,
 } = useProfileSettings()
 
+const isCustomTileModalOpen = ref(false)
 const avatarInput = ref<HTMLInputElement | null>(null)
 const coverInput = ref<HTMLInputElement | null>(null)
 const cropperRef = ref<InstanceType<typeof Cropper> | null>(null)
@@ -72,7 +71,6 @@ const activeTab = computed({
     router.replace({ query: { ...route.query, tab: val } })
   },
 })
-
 const tabItems = computed<TabItem[]>(() => {
   const items: TabItem[] = [
     {
@@ -108,10 +106,10 @@ const tabItems = computed<TabItem[]>(() => {
 
   return items
 })
-
 // Генерируем стиль для интерактивного превью обложки
 const previewHeaderStyle = computed(() => {
   const targetCoverUrl = coverPreviewUrl.value || resolveApiUrl((user.value as any)?.coverUrl)
+
   if (targetCoverUrl) {
     return {
       backgroundImage: `linear-gradient(to top, rgba(0, 0, 0, 0.6) 0%, rgba(0, 0, 0, 0.2) 60%, rgba(0, 0, 0, 0.4) 100%), url(${targetCoverUrl})`,
@@ -119,6 +117,7 @@ const previewHeaderStyle = computed(() => {
       backgroundPosition: 'center',
     }
   }
+
   return {
     backgroundImage: `linear-gradient(135deg, var(--bg-tertiary-color) 0%, var(--bg-secondary-color) 100%)`,
   }
@@ -127,6 +126,7 @@ const previewHeaderStyle = computed(() => {
 function applyCrop() {
   if (cropperRef.value) {
     const { canvas } = cropperRef.value.getResult()
+
     if (canvas) {
       saveCroppedImage(canvas)
     }
@@ -167,7 +167,13 @@ function applyCrop() {
             <!-- Интерактивная витрина профиля (обложка + аватар) -->
             <div class="profile-banner-showcase">
               <div class="cover-canvas" :style="previewHeaderStyle">
-                <input ref="coverInput" type="file" accept="image/*" hidden @change="handleCoverSelect">
+                <input
+                  ref="coverInput"
+                  type="file"
+                  accept="image/*"
+                  hidden
+                  @change="handleCoverSelect"
+                >
                 <button
                   type="button"
                   class="cover-action-badge"
@@ -186,7 +192,13 @@ function applyCrop() {
                     :size="96"
                     class="banner-avatar"
                   />
-                  <input ref="avatarInput" type="file" accept="image/*" hidden @change="handleAvatarUpload">
+                  <input
+                    ref="avatarInput"
+                    type="file"
+                    accept="image/*"
+                    hidden
+                    @change="handleAvatarUpload"
+                  >
                   <button
                     type="button"
                     class="avatar-action-btn"

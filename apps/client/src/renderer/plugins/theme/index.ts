@@ -6,8 +6,10 @@ import { setupThemeColorMetaTagUpdater } from './meta-updater'
 export const themePlugin = {
   install(app: App) {
     const pinia = app.config.globalProperties.$pinia
+
     if (!pinia) {
       console.error('Theme plugin requires Pinia to be installed first.')
+
       return
     }
 

@@ -4,7 +4,7 @@ import { Icon } from '@iconify/vue'
 import { onClickOutside, useElementBounding, useWindowSize } from '@vueuse/core'
 import { KitInput } from '~/components/01.kit/kit-input'
 
-const props = withDefaults(defineProps<{
+export interface Props<T extends string | number | object> {
   modelValue: T | T[] | null
   items: KitDropdownItem<T>[]
   label?: string
@@ -16,7 +16,9 @@ const props = withDefaults(defineProps<{
   creatable?: boolean
   icon?: string
   size?: 'sm' | 'md' | 'lg'
-}>(), {
+}
+
+const props = withDefaults(defineProps<Props<T>>(), {
   label: '',
   placeholder: 'Выберите значение...',
   disabled: false,
@@ -27,20 +29,49 @@ const props = withDefaults(defineProps<{
   icon: undefined,
   size: 'md',
 })
-
 const emit = defineEmits<{
   (e: 'update:modelValue', value: T | T[] | null): void
 }>()
 
+const { height: windowHeight } = useWindowSize()
+
 const wrapperRef = ref<HTMLElement | null>(null)
+
+const { bottom: wrapperBottom, top: wrapperTop } = useElementBounding(wrapperRef)
+
 const searchInputRef = ref<InstanceType<typeof KitInput> | null>(null)
 const isOpen = ref(false)
 const searchQuery = ref('')
-
 const openDirection = ref<'down' | 'up'>('down')
 const DROPDOWN_MIN_HEIGHT = 250
-const { height: windowHeight } = useWindowSize()
-const { bottom: wrapperBottom, top: wrapperTop } = useElementBounding(wrapperRef)
+
+const selectedItems = computed(() => {
+  if (!props.modelValue)
+    return []
+
+  const modelValues = (Array.isArray(props.modelValue) ? props.modelValue : [props.modelValue]) as any[]
+
+  return modelValues
+    .map((value) => {
+      const existingItem = props.items.find(item => item.value === value)
+
+      return existingItem || { value, label: String(value) }
+    })
+    .filter(item => item.label)
+})
+const singleSelectedItemLabel = computed(() => {
+  if (props.multiple || !props.modelValue)
+    return ''
+
+  return props.items.find(item => item.value === props.modelValue)?.label || ''
+})
+const filteredItems = computed(() => {
+  if (!searchQuery.value)
+    return props.items
+
+  return props.items.filter(item =>
+    item.label.toLowerCase().includes(searchQuery.value.toLowerCase()))
+})
 
 watch(isOpen, (isNowOpen) => {
   if (isNowOpen) {
@@ -57,41 +88,10 @@ watch(isOpen, (isNowOpen) => {
     })
   }
 })
-
-const selectedItems = computed(() => {
-  if (!props.modelValue)
-    return []
-
-  const modelValues = (Array.isArray(props.modelValue) ? props.modelValue : [props.modelValue]) as any[]
-
-  return modelValues
-    .map((value) => {
-      const existingItem = props.items.find(item => item.value === value)
-      return existingItem || { value, label: String(value) }
-    })
-    .filter(item => item.label)
-})
-
-const singleSelectedItemLabel = computed(() => {
-  if (props.multiple || !props.modelValue)
-    return ''
-
-  return props.items.find(item => item.value === props.modelValue)?.label || ''
-})
-
 watch(singleSelectedItemLabel, (newLabel) => {
   if (!isOpen.value)
     searchQuery.value = newLabel
 }, { immediate: true })
-
-const filteredItems = computed(() => {
-  if (!searchQuery.value)
-    return props.items
-
-  return props.items.filter(item =>
-    item.label.toLowerCase().includes(searchQuery.value.toLowerCase()),
-  )
-})
 
 function handleOpen() {
   if (props.disabled || isOpen.value)
@@ -106,7 +106,6 @@ function handleOpen() {
     ;(searchInputRef.value?.$el as HTMLInputElement)?.focus()
   })
 }
-
 function handleClose() {
   if (!isOpen.value)
     return
@@ -118,18 +117,17 @@ function handleClose() {
   else
     searchQuery.value = ''
 }
-
 function toggleDropdown() {
   if (isOpen.value)
     handleClose()
   else
     handleOpen()
 }
-
 function selectItem(item: KitDropdownItem<T>) {
   if (props.multiple) {
     const model = Array.isArray(props.modelValue) ? [...props.modelValue] : []
     const index = model.findIndex(v => v === item.value)
+
     if (index === -1)
       model.push(item.value)
     else
@@ -143,30 +141,28 @@ function selectItem(item: KitDropdownItem<T>) {
       emit('update:modelValue', null)
     else
       emit('update:modelValue', item.value)
+
     handleClose()
   }
 }
-
 function removeItem(itemValue: T) {
   if (!props.multiple || !Array.isArray(props.modelValue))
     return
+
   const model = props.modelValue.filter(v => v !== itemValue)
   emit('update:modelValue', model)
 }
-
 function clearSelection() {
   emit('update:modelValue', props.multiple ? [] : null)
   searchQuery.value = ''
   handleOpen()
 }
-
 function isSelected(item: KitDropdownItem<T>): boolean {
   if (props.multiple)
     return Array.isArray(props.modelValue) && props.modelValue.includes(item.value)
 
   return props.modelValue === item.value
 }
-
 function handleAddNewItem() {
   if (!props.creatable || !props.multiple || !searchQuery.value.trim())
     return
@@ -178,6 +174,7 @@ function handleAddNewItem() {
     model.push(newValue)
     emit('update:modelValue', model as any)
   }
+
   searchQuery.value = ''
 }
 

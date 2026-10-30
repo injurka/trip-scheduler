@@ -16,49 +16,65 @@ export enum EPostRequestKeys {
   GENERATE = 'post:generate',
 }
 
+function getRouteStart(route: PostElement['content'][number]['route']): string {
+  return route.from || route.points?.[0]?.label || 'Начало'
+}
+
+function getRouteEnd(route: PostElement['content'][number]['route']): string {
+  return route.to || route.points?.[route.points.length - 1]?.label || 'Конец'
+}
+
+function transformRouteBlock(contentBlock: Extract<PostElement['content'][number], { type: 'route' }>): TimelineBlock {
+  const route = contentBlock.route
+
+  return {
+    id: contentBlock.id,
+    type: 'route',
+    from: getRouteStart(route),
+    to: getRouteEnd(route),
+    distance: route.distance || '',
+    duration: route.duration || '',
+    distanceMeters: (route as any).distanceMeters || 0,
+    transport: route.transport || 'walk',
+    points: route.points || [],
+    geometry: route.geometry || [],
+  } as any
+}
+
+function transformContentBlock(contentBlock: PostElement['content'][number], allMedia: PostMedia[]): TimelineBlock {
+  switch (contentBlock.type) {
+    case 'markdown':
+      return { id: contentBlock.id, type: 'text', content: contentBlock.text }
+    case 'gallery':
+      return {
+        id: contentBlock.id,
+        type: 'gallery',
+        images: allMedia.filter(media => contentBlock.imageIds.includes(media.id)),
+        comment: '',
+        displayType: contentBlock.displayType,
+      }
+    case 'location':
+      return {
+        id: contentBlock.id,
+        type: 'location',
+        coords: { lat: contentBlock.location.lat, lng: contentBlock.location.lng },
+        name: contentBlock.location.label || '',
+        address: contentBlock.location.address || '',
+      }
+    case 'route':
+      return transformRouteBlock(contentBlock)
+    default:
+      return {
+        id: 'id' in contentBlock ? String(contentBlock.id) : uuidv4(),
+        type: 'text',
+        content: '[Неподдерживаемый тип блока]',
+      }
+  }
+}
+
 function transformElementsToStages(elements: PostElement[], allMedia: PostMedia[]): TimelineStage[] {
   return elements.map((element): TimelineStage => {
-    const blocks: TimelineBlock[] = element.content.map((contentBlock): TimelineBlock => {
-      switch (contentBlock.type) {
-        case 'markdown':
-          return { id: contentBlock.id, type: 'text', content: contentBlock.text }
-        case 'gallery':
-          return {
-            id: contentBlock.id,
-            type: 'gallery',
-            images: allMedia.filter(media => contentBlock.imageIds.includes(media.id)),
-            comment: '',
-            displayType: contentBlock.displayType,
-          }
-        case 'location':
-          return {
-            id: contentBlock.id,
-            type: 'location',
-            coords: { lat: contentBlock.location.lat, lng: contentBlock.location.lng },
-            name: contentBlock.location.label || '',
-            address: contentBlock.location.address || '',
-          }
-        case 'route':
-          return {
-            id: contentBlock.id,
-            type: 'route',
-            from: contentBlock.route.from || contentBlock.route.points?.[0]?.label || 'Начало',
-            to: contentBlock.route.to || contentBlock.route.points?.[contentBlock.route.points.length - 1]?.label || 'Конец',
-            distance: contentBlock.route.distance || '',
-            duration: contentBlock.route.duration || '',
-            distanceMeters: (contentBlock.route as any).distanceMeters || 0,
-            transport: contentBlock.route.transport || 'walk',
-            points: contentBlock.route.points || [],
-            geometry: contentBlock.route.geometry || [],
-          } as any
-        default:
-          return {
-            id: 'id' in contentBlock ? String(contentBlock.id) : uuidv4(),
-            type: 'text',
-            content: '[Неподдерживаемый тип блока]',
-          }
-      }
-    })
+    const blocks: TimelineBlock[] = element.content.map(contentBlock => transformContentBlock(contentBlock, allMedia))
 
     return {
       id: element.id,
@@ -96,6 +112,7 @@ export const usePostStore = defineStore('post-main', {
       const cursor = reload ? undefined : this.nextCursor
       const requestedTab = this.filters.tab
       const requestedSearch = this.filters.search
+
       if (reload && requestedTab === 'drafts') {
         this.posts = []
         this.nextCursor = undefined
@@ -115,9 +132,11 @@ export const usePostStore = defineStore('post-main', {
         onSuccess: (data) => {
           if (!data || requestedTab !== this.filters.tab || requestedSearch !== this.filters.search)
             return
+
           const visibleItems = requestedTab === 'drafts'
             ? data.items.filter(post => post.status === 'draft')
             : data.items
+
           if (reload)
             this.posts = visibleItems
           else
@@ -139,13 +158,16 @@ export const usePostStore = defineStore('post-main', {
             data.stages = transformElementsToStages(data.elements, data.media)
 
             const existingIndex = this.posts.findIndex(p => p.id === id)
+
             if (existingIndex !== -1) {
               this.posts.splice(existingIndex, 1, data)
             }
+
             post = data
           }
         },
       })
+
       return post
     },
 
@@ -156,8 +178,10 @@ export const usePostStore = defineStore('post-main', {
         onSuccess: () => {
           this.posts = this.posts.filter(p => p.id !== id)
           localStorage.removeItem(`trip_scheduler_post_draft_${id}`)
+
           try {
             const draft = JSON.parse(localStorage.getItem('trip_scheduler_post_draft_new') || 'null')
+
             if (draft?.createdServerId === id || draft?.post?.id === id)
               localStorage.removeItem('trip_scheduler_post_draft_new')
           }
@@ -168,6 +192,7 @@ export const usePostStore = defineStore('post-main', {
 
     async toggleSave(id: string) {
       const post = this.posts.find(p => p.id === id)
+
       if (post)
         post.stats.isSaved = !post.stats.isSaved
 
@@ -181,6 +206,7 @@ export const usePostStore = defineStore('post-main', {
         onError: ({ error }) => {
           if (post)
             post.stats.isSaved = !post.stats.isSaved
+
           useToast().error(error.customMessage || 'Не удалось сохранить пост.')
         },
       })
@@ -188,6 +214,7 @@ export const usePostStore = defineStore('post-main', {
 
     async toggleLike(id: string) {
       const post = this.posts.find(p => p.id === id)
+
       if (!post)
         return
 
@@ -206,6 +233,7 @@ export const usePostStore = defineStore('post-main', {
             post.stats.isLiked = !post.stats.isLiked
             post.stats.likes += post.stats.isLiked ? 1 : -1
           }
+
           useToast().error(error.customMessage || 'Не удалось поставить лайк.')
         },
       })
@@ -221,6 +249,7 @@ export const usePostStore = defineStore('post-main', {
     setTab(tab: 'explore' | 'saved' | 'drafts') {
       if (this.filters.tab === tab)
         return
+
       this.filters.tab = tab
       this.posts = []
       this.nextCursor = undefined

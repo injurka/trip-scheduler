@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import KitBtn from '~/components/01.kit/kit-btn/ui/kit-btn.vue'
 
-defineProps<{
+interface Props {
   showList: boolean
   isFullscreen: boolean
   hasCities: boolean
   showReset?: boolean
-}>()
+}
+
+defineProps<Props>()
 
 defineEmits<{
   toggleList: []

@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { Icon } from '@iconify/vue'
 
-defineProps<{ isOwner: boolean }>()
+interface Props { isOwner: boolean }
+
+defineProps<Props>()
 </script>
 
 <template>

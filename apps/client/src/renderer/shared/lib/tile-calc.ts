@@ -15,10 +15,9 @@ export interface BoundingBox {
 export function lngLatToTile(lng: number, lat: number, zoom: number): { x: number, y: number } {
   const x = Math.floor(((lng + 180) / 360) * 2 ** zoom)
   const latRad = (lat * Math.PI) / 180
-  const y = Math.floor(
-    ((1 - Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) / 2) * 2 ** zoom,
-  )
+  const y = Math.floor(((1 - Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) / 2) * 2 ** zoom)
   const maxTile = 2 ** zoom - 1
+
   return {
     x: Math.max(0, Math.min(maxTile, x)),
     y: Math.max(0, Math.min(maxTile, y)),
@@ -38,6 +37,7 @@ export function calculateTripBoundingBox(trip: any): BoundingBox | null {
   const addPoint = (lng: number, lat: number) => {
     if (typeof lng !== 'number' || typeof lat !== 'number' || Number.isNaN(lng) || Number.isNaN(lat))
       return
+
     // Валидация координат
     if (lat < -90 || lat > 90 || lng < -180 || lng > 180)
       return
@@ -52,6 +52,7 @@ export function calculateTripBoundingBox(trip: any): BoundingBox | null {
   const checkSection = (sec: any) => {
     if (!sec)
       return
+
     const target = sec.content || sec
 
     if (Array.isArray(target.points)) {
@@ -71,6 +72,7 @@ export function calculateTripBoundingBox(trip: any): BoundingBox | null {
             }
           })
         }
+
         if (Array.isArray(r.geometry)) {
           r.geometry.forEach((coord: any) => {
             if (Array.isArray(coord) && coord.length >= 2) {
@@ -101,6 +103,7 @@ export function calculateTripBoundingBox(trip: any): BoundingBox | null {
 
   // Небольшой отступ (padding) 0.02 градуса (~2 км вокруг точек)
   const padding = 0.02
+
   return {
     minLng: Math.max(-180, minLng - padding),
     minLat: Math.max(-85, minLat - padding),
@@ -133,6 +136,7 @@ export function getTilesForBBox(
     for (let x = startX; x <= endX; x++) {
       for (let y = startY; y <= endY; y++) {
         tiles.push({ z, x, y })
+
         if (tiles.length >= maxTiles) {
           return tiles
         }

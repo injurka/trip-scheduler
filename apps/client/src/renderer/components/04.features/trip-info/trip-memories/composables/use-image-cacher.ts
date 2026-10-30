@@ -34,11 +34,13 @@ export function useImageCacher() {
   async function processQueue() {
     if (cacheQueue.value.length === 0) {
       isCaching.value = false
+
       return
     }
 
     isCaching.value = true
     const url = cacheQueue.value.shift()
+
     if (url) {
       await preloadImage(url)
       cachedCount.value++
@@ -55,6 +57,7 @@ export function useImageCacher() {
     const urlsToCache = images.map((img) => {
       if (quality === 'original')
         return img.url
+
       return img.variants?.[quality] || img.url
     })
 

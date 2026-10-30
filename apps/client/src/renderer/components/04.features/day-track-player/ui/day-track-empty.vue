@@ -2,11 +2,13 @@
 import { Icon } from '@iconify/vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 
-withDefaults(defineProps<{
+interface Props {
   selectedDay: string
   todayUtc: string
   showTodayButton?: boolean
-}>(), {
+}
+
+withDefaults(defineProps<Props>(), {
   showTodayButton: true,
 })
 

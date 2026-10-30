@@ -40,31 +40,31 @@ const durationMinutes = computed(() => {
 
 const formattedDuration = computed(() => {
   const dur = durationMinutes.value
+
   if (dur < 60)
     return `${dur}м`
+
   const hours = Math.floor(dur / 60)
   const mins = dur % 60
+
   return mins > 0 ? `${hours}ч ${mins}м` : `${hours}ч`
 })
 
 const metroRides = computed(() => {
-  const metroSection = props.activity.sections?.find(
-    s => s.type === EActivitySectionType.METRO,
-  ) as ActivitySectionMetro | undefined
+  const metroSection = props.activity.sections?.find(s => s.type === EActivitySectionType.METRO) as ActivitySectionMetro | undefined
+
   return metroSection?.rides || []
 })
 
 const busRides = computed(() => {
-  const busSection = props.activity.sections?.find(
-    s => s.type === EActivitySectionType.BUS,
-  ) as ActivitySectionBus | undefined
+  const busSection = props.activity.sections?.find(s => s.type === EActivitySectionType.BUS) as ActivitySectionBus | undefined
+
   return busSection?.rides || []
 })
 
 const hasGeolocation = computed(() => {
-  const geoSection = props.activity.sections?.find(
-    s => s.type === EActivitySectionType.GEOLOCATION,
-  ) as ActivitySectionGeolocation | undefined
+  const geoSection = props.activity.sections?.find(s => s.type === EActivitySectionType.GEOLOCATION) as ActivitySectionGeolocation | undefined
+
   return !!(geoSection && (geoSection.points?.length || geoSection.routes?.length))
 })
 
@@ -102,7 +102,12 @@ function handleNodeClick() {
     @click="handleNodeClick"
   >
     <!-- Edit handle for Drag & Drop -->
-    <div v-if="isEditMode" class="node-drag-handle drag-handle" title="Перетащите для изменения порядка" @click.stop>
+    <div
+      v-if="isEditMode"
+      class="node-drag-handle drag-handle"
+      title="Перетащите для изменения порядка"
+      @click.stop
+    >
       <Icon icon="mdi:drag" />
     </div>
 
@@ -186,10 +191,20 @@ function handleNodeClick() {
         <button class="node-action-btn edit" title="Быстрое редактирование" @click.stop="emit('edit', activity)">
           <Icon icon="mdi:pencil" />
         </button>
-        <button class="node-action-btn move" :disabled="isFirst" title="Сдвинуть влево/вверх" @click.stop="emit('moveUp')">
+        <button
+          class="node-action-btn move"
+          :disabled="isFirst"
+          title="Сдвинуть влево/вверх"
+          @click.stop="emit('moveUp')"
+        >
           <Icon :icon="orientation === 'horizontal' ? 'mdi:chevron-left' : 'mdi:chevron-up'" />
         </button>
-        <button class="node-action-btn move" :disabled="isLast" title="Сдвинуть вправо/вниз" @click.stop="emit('moveDown')">
+        <button
+          class="node-action-btn move"
+          :disabled="isLast"
+          title="Сдвинуть вправо/вниз"
+          @click.stop="emit('moveDown')"
+        >
           <Icon :icon="orientation === 'horizontal' ? 'mdi:chevron-right' : 'mdi:chevron-down'" />
         </button>
         <button class="node-action-btn delete" title="Удалить активность" @click.stop="emit('delete', activity.id)">

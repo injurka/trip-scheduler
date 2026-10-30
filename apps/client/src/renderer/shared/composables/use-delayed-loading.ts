@@ -10,25 +10,21 @@ export function useDelayedLoading(isLoading: Ref<boolean> | (() => boolean), del
   const isDelayedLoading = ref(false)
   let timer: ReturnType<typeof setTimeout> | null = null
 
-  const stopWatch = watch(
-    isLoading,
-    (loading) => {
-      if (timer) {
-        clearTimeout(timer)
-        timer = null
-      }
+  const stopWatch = watch(isLoading, (loading) => {
+    if (timer) {
+      clearTimeout(timer)
+      timer = null
+    }
 
-      if (loading) {
-        timer = setTimeout(() => {
-          isDelayedLoading.value = true
-        }, delayMs)
-      }
-      else {
-        isDelayedLoading.value = false
-      }
-    },
-    { immediate: true },
-  )
+    if (loading) {
+      timer = setTimeout(() => {
+        isDelayedLoading.value = true
+      }, delayMs)
+    }
+    else {
+      isDelayedLoading.value = false
+    }
+  }, { immediate: true })
 
   onUnmounted(() => {
     if (timer) {

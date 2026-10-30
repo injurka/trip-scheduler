@@ -12,7 +12,7 @@ import {
   SPEED_MULTIPLIERS,
 } from '../models/types'
 
-const props = withDefaults(defineProps<{
+interface Props {
   timeLabel: string
   timezoneMode: TimezoneMode
   deviceTimezone: string
@@ -36,7 +36,18 @@ const props = withDefaults(defineProps<{
   dayEndFormatted?: string
   renderSegments?: RenderSegment[]
   photoMarkers?: Array<{ id: string, tsUtc: number, percent: number, photo: TrackPhoto }>
-}>(), {
+}
+
+// ─── 2. Визуальные сегменты таймлайна активности ────────────────────────────────
+interface VisualSegment {
+  leftPercent: number
+  widthPercent: number
+  color: string
+  label: string
+  timeStr: string
+}
+
+const props = withDefaults(defineProps<Props>(), {
   trackTimezone: undefined,
   currentSegment: undefined,
   speedKmh: null,
@@ -48,7 +59,6 @@ const props = withDefaults(defineProps<{
   renderSegments: () => [],
   photoMarkers: () => [],
 })
-
 const emit = defineEmits<{
   (e: 'update:t', val: number): void
   (e: 'update:isPlaying', val: boolean): void
@@ -63,111 +73,6 @@ const emit = defineEmits<{
   (e: 'seekPhoto', tsUtc: number): void
 }>()
 
-const currentT = computed({
-  get: () => props.t,
-  set: (val: number) => emit('update:t', val),
-})
-
-// ─── 1. Форматирование времени границ дня ───────────────────────────────────────
-const formattedStart = computed(() => {
-  if (props.dayStartFormatted)
-    return props.dayStartFormatted
-  if (props.dayStart <= 0)
-    return '--:--'
-  const tz = props.timezoneMode === 'track' ? props.trackTimezone : undefined
-  return new Date(props.dayStart).toLocaleTimeString('ru-RU', {
-    hour: '2-digit',
-    minute: '2-digit',
-    ...(tz ? { timeZone: tz } : {}),
-  })
-})
-
-const formattedEnd = computed(() => {
-  if (props.dayEndFormatted)
-    return props.dayEndFormatted
-  if (props.dayEnd <= 0)
-    return '--:--'
-  const tz = props.timezoneMode === 'track' ? props.trackTimezone : undefined
-  return new Date(props.dayEnd).toLocaleTimeString('ru-RU', {
-    hour: '2-digit',
-    minute: '2-digit',
-    ...(tz ? { timeZone: tz } : {}),
-  })
-})
-
-// Название часового пояса для компактного чипа
-const timezoneChipLabel = computed(() => {
-  if (props.timezoneMode === 'device')
-    return 'Локальное'
-  if (props.trackTimezone) {
-    const city = props.trackTimezone.split('/').pop()?.replace(/_/g, ' ')
-    return city || 'Местное'
-  }
-  return 'Местное'
-})
-
-// ─── 2. Визуальные сегменты таймлайна активности ────────────────────────────────
-interface VisualSegment {
-  leftPercent: number
-  widthPercent: number
-  color: string
-  label: string
-  timeStr: string
-}
-
-function formatTimeShort(ms: number): string {
-  if (ms <= 0)
-    return '--:--'
-  const tz = props.timezoneMode === 'track' ? props.trackTimezone : undefined
-  return new Date(ms).toLocaleTimeString('ru-RU', {
-    hour: '2-digit',
-    minute: '2-digit',
-    ...(tz ? { timeZone: tz } : {}),
-  })
-}
-
-function formatTimelineHoverTime(ms: number): string {
-  if (ms <= 0)
-    return '--:--'
-  const tz = props.timezoneMode === 'track' ? props.trackTimezone : undefined
-  return new Date(ms).toLocaleTimeString('ru-RU', {
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    ...(tz ? { timeZone: tz } : {}),
-  })
-}
-
-const timelineSegments = computed<VisualSegment[]>(() => {
-  if (!props.renderSegments || props.renderSegments.length === 0 || props.dayEnd <= props.dayStart)
-    return []
-
-  const total = props.dayEnd - props.dayStart
-  if (total <= 0)
-    return []
-
-  return props.renderSegments.map((s) => {
-    const leftPercent = Math.max(0, Math.min(100, ((s.t0 - props.dayStart) / total) * 100))
-    const widthPercent = Math.max(0.4, Math.min(100 - leftPercent, ((s.t1 - s.t0) / total) * 100))
-    const label = ACTIVITY_LABELS[s.activity] || 'Движение'
-    const timeStr = `${formatTimeShort(s.t0)} – ${formatTimeShort(s.t1)}`
-    return {
-      leftPercent,
-      widthPercent,
-      color: ACTIVITY_COLORS[s.activity] || '#2196f3',
-      label,
-      timeStr,
-    }
-  })
-})
-
-const progressPercent = computed(() => {
-  if (props.dayEnd <= props.dayStart)
-    return 0
-  const p = ((props.t - props.dayStart) / (props.dayEnd - props.dayStart)) * 100
-  return Math.max(0, Math.min(100, p))
-})
-
 // ─── 3. Hover Preview на таймлайне (Scrubber tooltip) ───────────────────────────
 const timelineBarRef = ref<HTMLElement | null>(null)
 const hoverPreview = ref<{
@@ -177,11 +82,124 @@ const hoverPreview = ref<{
   activityColor?: string
 } | null>(null)
 
+const currentT = computed({
+  get: () => props.t,
+  set: (val: number) => emit('update:t', val),
+})
+// ─── 1. Форматирование времени границ дня ───────────────────────────────────────
+const formattedStart = computed(() => {
+  if (props.dayStartFormatted)
+    return props.dayStartFormatted
+
+  if (props.dayStart <= 0)
+    return '--:--'
+
+  const tz = props.timezoneMode === 'track' ? props.trackTimezone : undefined
+
+  return new Date(props.dayStart).toLocaleTimeString('ru-RU', {
+    hour: '2-digit',
+    minute: '2-digit',
+    ...(tz ? { timeZone: tz } : {}),
+  })
+})
+const formattedEnd = computed(() => {
+  if (props.dayEndFormatted)
+    return props.dayEndFormatted
+
+  if (props.dayEnd <= 0)
+    return '--:--'
+
+  const tz = props.timezoneMode === 'track' ? props.trackTimezone : undefined
+
+  return new Date(props.dayEnd).toLocaleTimeString('ru-RU', {
+    hour: '2-digit',
+    minute: '2-digit',
+    ...(tz ? { timeZone: tz } : {}),
+  })
+})
+// Название часового пояса для компактного чипа
+const timezoneChipLabel = computed(() => {
+  if (props.timezoneMode === 'device')
+    return 'Локальное'
+
+  if (props.trackTimezone) {
+    const city = props.trackTimezone.split('/').pop()?.replace(/_/g, ' ')
+
+    return city || 'Местное'
+  }
+
+  return 'Местное'
+})
+const timelineSegments = computed<VisualSegment[]>(() => {
+  if (!props.renderSegments || props.renderSegments.length === 0 || props.dayEnd <= props.dayStart)
+    return []
+
+  const total = props.dayEnd - props.dayStart
+
+  if (total <= 0)
+    return []
+
+  return props.renderSegments.map((s) => {
+    const leftPercent = Math.max(0, Math.min(100, ((s.t0 - props.dayStart) / total) * 100))
+    const widthPercent = Math.max(0.4, Math.min(100 - leftPercent, ((s.t1 - s.t0) / total) * 100))
+    const label = ACTIVITY_LABELS[s.activity] || 'Движение'
+    const timeStr = `${formatTimeShort(s.t0)} – ${formatTimeShort(s.t1)}`
+
+    return {
+      leftPercent,
+      widthPercent,
+      color: ACTIVITY_COLORS[s.activity] || '#2196f3',
+      label,
+      timeStr,
+    }
+  })
+})
+const progressPercent = computed(() => {
+  if (props.dayEnd <= props.dayStart)
+    return 0
+
+  const p = ((props.t - props.dayStart) / (props.dayEnd - props.dayStart)) * 100
+
+  return Math.max(0, Math.min(100, p))
+})
+// ─── 4. Селектор скорости (KitDropdown) ─────────────────────────────────────────
+const speedDropdownItems = computed<KitDropdownItem<number>[]>(() =>
+  SPEED_MULTIPLIERS.map(s => ({
+    value: s,
+    label: `${s}x скорость`,
+  })))
+
+function formatTimeShort(ms: number): string {
+  if (ms <= 0)
+    return '--:--'
+
+  const tz = props.timezoneMode === 'track' ? props.trackTimezone : undefined
+
+  return new Date(ms).toLocaleTimeString('ru-RU', {
+    hour: '2-digit',
+    minute: '2-digit',
+    ...(tz ? { timeZone: tz } : {}),
+  })
+}
+function formatTimelineHoverTime(ms: number): string {
+  if (ms <= 0)
+    return '--:--'
+
+  const tz = props.timezoneMode === 'track' ? props.trackTimezone : undefined
+
+  return new Date(ms).toLocaleTimeString('ru-RU', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    ...(tz ? { timeZone: tz } : {}),
+  })
+}
 function handleTimelineMouseMove(e: MouseEvent) {
   if (!timelineBarRef.value || props.dayEnd <= props.dayStart)
     return
 
   const rect = timelineBarRef.value.getBoundingClientRect()
+
   if (rect.width <= 0)
     return
 
@@ -196,6 +214,7 @@ function handleTimelineMouseMove(e: MouseEvent) {
 
   if (props.renderSegments && props.renderSegments.length > 0) {
     const seg = props.renderSegments.find(s => hoverT >= s.t0 && hoverT <= s.t1)
+
     if (seg) {
       activityLabel = ACTIVITY_LABELS[seg.activity]
       activityColor = ACTIVITY_COLORS[seg.activity]
@@ -209,55 +228,48 @@ function handleTimelineMouseMove(e: MouseEvent) {
     activityColor,
   }
 }
-
 function handleTimelineMouseLeave() {
   hoverPreview.value = null
 }
-
 function formatPhotoTime(tsUtc: number): string {
   const tz = props.timezoneMode === 'track' ? props.trackTimezone : undefined
+
   return new Date(tsUtc).toLocaleTimeString('ru-RU', {
     hour: '2-digit',
     minute: '2-digit',
     ...(tz ? { timeZone: tz } : {}),
   })
 }
-
 function handlePhotoDotClick(tsUtc: number) {
   emit('update:t', tsUtc)
   emit('seekPhoto', tsUtc)
 }
 
-// ─── 4. Селектор скорости (KitDropdown) ─────────────────────────────────────────
-const speedDropdownItems = computed<KitDropdownItem<number>[]>(() =>
-  SPEED_MULTIPLIERS.map(s => ({
-    value: s,
-    label: `${s}x скорость`,
-  })),
-)
-
 // ─── 5. Горячие клавиши (Keyboard shortcuts) ───────────────────────────────────
-useEventListener(typeof window !== 'undefined' ? window : null, 'keydown', (e: KeyboardEvent) => {
-  const target = e.target as HTMLElement | null
-  if (target) {
-    const isInteractive = (
-      target.tagName === 'BUTTON'
-      || target.tagName === 'SELECT'
-      || target.tagName === 'TEXTAREA'
-      || target.isContentEditable
-      || (target.tagName === 'INPUT' && target.getAttribute('type') !== 'range')
-      || Boolean(target.closest('button, [role="button"], [role="menuitem"], [role="option"], [role="combobox"], [role="listbox"], .kit-dropdown, a[href]'))
-    )
-    if (isInteractive)
-      return
-  }
+function isInteractiveTarget(target: HTMLElement | null): boolean {
+  if (!target)
+    return false
 
+  const interactiveTags = ['BUTTON', 'SELECT', 'TEXTAREA']
+
+  return interactiveTags.includes(target.tagName)
+    || target.isContentEditable
+    || isNonRangeInput(target)
+    || Boolean(target.closest('button, [role="button"], [role="menuitem"], [role="option"], [role="combobox"], [role="listbox"], .kit-dropdown, a[href]'))
+}
+
+function isNonRangeInput(target: HTMLElement): boolean {
+  return target.tagName === 'INPUT' && target.getAttribute('type') !== 'range'
+}
+
+function handleTimelineShortcut(e: KeyboardEvent) {
   if (e.code === 'Space') {
     e.preventDefault()
     emit('update:isPlaying', !props.isPlaying)
   }
   else if (e.code === 'ArrowLeft') {
     e.preventDefault()
+
     if (e.shiftKey)
       emit('skipToPrevMovement')
     else
@@ -265,6 +277,7 @@ useEventListener(typeof window !== 'undefined' ? window : null, 'keydown', (e: K
   }
   else if (e.code === 'ArrowRight') {
     e.preventDefault()
+
     if (e.shiftKey)
       emit('skipToNextMovement')
     else
@@ -273,6 +286,13 @@ useEventListener(typeof window !== 'undefined' ? window : null, 'keydown', (e: K
   else if (e.code === 'KeyC' && !e.ctrlKey && !e.metaKey && !e.altKey) {
     emit('update:isFollowCamera', !props.isFollowCamera)
   }
+}
+
+useEventListener(typeof window !== 'undefined' ? window : null, 'keydown', (e: KeyboardEvent) => {
+  if (isInteractiveTarget(e.target as HTMLElement | null))
+    return
+
+  handleTimelineShortcut(e)
 })
 </script>
 

@@ -7,6 +7,10 @@ import { KitTooltip } from '~/components/01.kit/kit-tooltip'
 import { routingService } from '~/shared/services/geo'
 import PostRouteMapPicker from '../tools/post-route-map-picker.vue'
 
+interface Props {
+  block: RouteBlock
+}
+
 export interface EditorRoutePoint {
   lat: number
   lng: number
@@ -14,9 +18,7 @@ export interface EditorRoutePoint {
   address?: string
 }
 
-const props = defineProps<{
-  block: RouteBlock
-}>()
+const props = defineProps<Props>()
 
 const emit = defineEmits<{
   (e: 'update', payload: Partial<RouteBlock> & { points?: EditorRoutePoint[], geometry?: [number, number][], distanceMeters?: number }): void
@@ -40,11 +42,13 @@ function calculateTimeAndDist(distMeters: number, transport: string) {
   const mins = Math.round((distMeters / speed) * 60)
 
   let distStr = ''
+
   if (distMeters > 1000)
     distStr = `${(distMeters / 1000).toFixed(1)} км`
   else distStr = `${Math.round(distMeters)} м`
 
   let durStr = ''
+
   if (mins < 60) {
     durStr = `${mins} мин`
   }
@@ -95,6 +99,7 @@ async function toggleTransport() {
 
 function updatePointLabel(index: number, newLabel: string) {
   const currentPts = [...blockPoints.value]
+
   if (currentPts[index]) {
     currentPts[index].label = newLabel
     emit('update', { points: currentPts })

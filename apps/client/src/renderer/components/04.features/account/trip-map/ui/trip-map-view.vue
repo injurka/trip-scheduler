@@ -15,13 +15,14 @@ import TripMapPanel from './trip-map-panel.vue'
 import TripMapToolbar from './trip-map-toolbar.vue'
 
 const route = useRoute()
-const userId = computed(() => route.params.id as string)
-const { cities, isLoading, fetchCities } = useTripMap(userId.value)
-
-const { dotPathLow, dotPathHigh, baseProj, isBuilding, load: loadGeo, build: buildDots } = useWorldDots()
-const canvasRef = ref<HTMLCanvasElement | null>(null)
-const { draw, cancelPending } = useMapRenderer(canvasRef, cities)
-
+const {
+  dotPathLow,
+  dotPathHigh,
+  baseProj,
+  isBuilding,
+  load: loadGeo,
+  build: buildDots,
+} = useWorldDots()
 const {
   isFullscreen,
   mapT,
@@ -41,19 +42,18 @@ const {
   endTouch,
 } = useMapFullscreen()
 
+const canvasRef = ref<HTMLCanvasElement | null>(null)
 const containerRef = ref<HTMLDivElement | null>(null)
 const scrollRef = ref<HTMLDivElement | null>(null)
-const showCityList = ref(false)
-const panelRef = ref<InstanceType<typeof TripMapPanel> | null>(null)
-const geoError = ref(false)
-const isGeoLoading = ref(true)
-const isNativeFullscreen = ref(false)
 
-const hoveredCity = ref<MapCity | null>(null)
-const selectedCity = ref<MapCity | null>(null)
-let dragStartCoords = { x: 0, y: 0 }
-
-const { cssW, cssH, apply: applySize, centerScroll, observe, disconnect } = useMapSize(
+const {
+  cssW,
+  cssH,
+  apply: applySize,
+  centerScroll,
+  observe,
+  disconnect,
+} = useMapSize(
   scrollRef,
   canvasRef,
   isFullscreen,
@@ -63,43 +63,68 @@ const { cssW, cssH, apply: applySize, centerScroll, observe, disconnect } = useM
   },
 )
 
+const showCityList = ref(false)
+const panelRef = ref<InstanceType<typeof TripMapPanel> | null>(null)
+const geoError = ref(false)
+const isGeoLoading = ref(true)
+const isNativeFullscreen = ref(false)
+const hoveredCity = ref<MapCity | null>(null)
+const selectedCity = ref<MapCity | null>(null)
+let dragStartCoords = { x: 0, y: 0 }
+
+const userId = computed(() => route.params.id as string)
+
+const { cities, isLoading, fetchCities } = useTripMap(userId.value)
+const { draw, cancelPending } = useMapRenderer(canvasRef, cities)
+
 const grouped = computed(() => {
   const m = new Map<string, typeof cities.value>()
+
   for (const c of cities.value) {
     const k = c.country || 'Неизвестно'
+
     if (!m.has(k))
       m.set(k, [])
+
     m.get(k)!.push(c)
   }
+
   return [...m.entries()].sort(([a], [b]) => a.localeCompare(b, 'ru'))
 })
-
 // O(1) Hit-Test оптимизация.
 const cityBaseCoords = computed(() => {
   const map = new Map<string, [number, number]>()
+
   if (!baseProj.value)
     return map
 
   for (const city of cities.value) {
     const base = baseProj.value([city.lon, city.lat])
+
     if (base)
       map.set(city.id, [base[0], base[1]])
   }
+
   return map
 })
-
 const isMapDirty = computed(() => {
   return Math.abs(mapT.scale - 1) > 0.01 || Math.abs(mapT.tx) > 0.5 || Math.abs(mapT.ty) > 0.5
 })
+const hoverStyle = computed(() => getCityScreenCoords(hoveredCity.value))
+const popoverStyle = computed(() => getCityScreenCoords(selectedCity.value))
+
+watch(cities, redraw)
+watch(dotPathLow, redraw)
 
 function pluralize(n: number): string {
   if (n % 10 === 1 && n % 100 !== 11)
     return 'место'
+
   if (n % 10 >= 2 && n % 10 <= 4 && !(n % 100 >= 11 && n % 100 <= 14))
     return 'места'
+
   return 'мест'
 }
-
 function redraw(): void {
   draw(
     cssW.value,
@@ -114,83 +139,82 @@ function redraw(): void {
     selectedCity.value?.id,
   )
 }
-
 function handleWheel(e: WheelEvent): void {
   const target = e.target as Element
+
   if (target.closest('.trip-map-toolbar'))
     return
+
   e.preventDefault()
+
   if (canvasRef.value) {
-    applyWheel(e, canvasRef.value, cssW.value, cssH.value)
+    applyWheel(
+      e,
+      canvasRef.value,
+      cssW.value,
+      cssH.value,
+    )
     redraw()
   }
 }
-
 function handleMouseDown(e: MouseEvent): void {
   dragStartCoords = { x: e.clientX, y: e.clientY }
   startDrag(e, panelRef.value?.rootRef ?? null)
 }
-
 function handleGlobalMouseMove(e: MouseEvent): void {
   if (applyDrag(e, cssW.value, cssH.value)) {
     redraw()
   }
 }
-
 function handleGlobalMouseUp(): void {
   endDrag()
 }
-
 function handleTouchStart(e: TouchEvent): void {
   startTouch(e, panelRef.value?.rootRef ?? null)
 }
-
 function handleTouchMove(e: TouchEvent): void {
   if (isDragging.value) {
     e.preventDefault()
-    if (canvasRef.value && applyTouch(e, canvasRef.value, cssW.value, cssH.value)) {
+
+    if (canvasRef.value && applyTouch(
+      e,
+      canvasRef.value,
+      cssW.value,
+      cssH.value,
+    )) {
       redraw()
     }
   }
 }
-
 function handleTouchEnd(e: TouchEvent): void {
   endTouch(e)
 }
-
 function handleFsChange(): void {
   isNativeFullscreen.value = document.fullscreenElement === containerRef.value
   onFsChange(() => nextTick(applySize))
 }
-
 function handleWindowResize(): void {
   if (isFullscreen.value)
     applySize()
 }
-
 function handleToggleFullscreen(): void {
   fsToggle(containerRef.value!, () => nextTick(applySize))
 }
-
 function handleFsKeyDown(e: KeyboardEvent): void {
   if (e.key === 'Escape' && isFullscreen.value && !document.fullscreenElement) {
     fsToggle(containerRef.value!, () => nextTick(applySize))
   }
 }
-
 function resetMap() {
   selectedCity.value = null
   animateReset(cssW.value, cssH.value, redraw)
 }
-
 function handleZoomIn() {
   zoomIn(cssW.value, cssH.value, redraw)
 }
-
 function handleZoomOut() {
   zoomOut(cssW.value, cssH.value, redraw)
 }
-
 function getCityAt(x: number, y: number): MapCity | null {
   if (!baseProj.value)
     return null
@@ -204,6 +228,7 @@ function getCityAt(x: number, y: number): MapCity | null {
 
   for (const city of cities.value) {
     const base = cityBaseCoords.value.get(city.id)
+
     if (!base)
       continue
 
@@ -219,12 +244,13 @@ function getCityAt(x: number, y: number): MapCity | null {
       bestCity = city
     }
   }
+
   return bestCity
 }
-
 function handleCanvasMouseMove(e: MouseEvent) {
   if (isDragging.value || !canvasRef.value)
     return
+
   const rect = canvasRef.value.getBoundingClientRect()
   const x = e.clientX - rect.left
   const y = e.clientY - rect.top
@@ -235,17 +261,16 @@ function handleCanvasMouseMove(e: MouseEvent) {
     redraw()
   }
 }
-
 function handleCanvasMouseLeave() {
   if (hoveredCity.value) {
     hoveredCity.value = null
     redraw()
   }
 }
-
 function handleCanvasClick(e: MouseEvent) {
   const dx = e.clientX - dragStartCoords.x
   const dy = e.clientY - dragStartCoords.y
+
   if (dx * dx + dy * dy > 25)
     return // Был drag
 
@@ -265,11 +290,11 @@ function handleCanvasClick(e: MouseEvent) {
     redraw()
   }
 }
-
 function focusCity(city: MapCity) {
   selectedCity.value = city
 
   const base = cityBaseCoords.value.get(city.id)
+
   if (!base)
     return
 
@@ -281,13 +306,21 @@ function focusCity(city: MapCity) {
   const targetTy = (h / 2 - base[1]) * targetScale
 
   // Плавный полет до точки!
-  flyTo(targetScale, targetTx, targetTy, w, h, redraw)
+  flyTo(
+    targetScale,
+    targetTx,
+    targetTy,
+    w,
+    h,
+    redraw,
+  )
 }
-
 function getCityScreenCoords(city: MapCity | null) {
   if (!city)
     return { display: 'none' }
+
   const base = cityBaseCoords.value.get(city.id)
+
   if (!base)
     return { display: 'none' }
 
@@ -302,13 +335,10 @@ function getCityScreenCoords(city: MapCity | null) {
     marginTop: '-12px',
   }
 }
-
-const hoverStyle = computed(() => getCityScreenCoords(hoveredCity.value))
-const popoverStyle = computed(() => getCityScreenCoords(selectedCity.value))
-
 async function loadGeoJson(): Promise<void> {
   geoError.value = false
   isGeoLoading.value = true
+
   try {
     await loadGeo()
   }
@@ -320,7 +350,6 @@ async function loadGeoJson(): Promise<void> {
     isGeoLoading.value = false
   }
 }
-
 async function handleRetryGeo(): Promise<void> {
   await loadGeoJson()
   await nextTick()
@@ -349,16 +378,16 @@ onMounted(async () => {
   applySize()
   centerScroll()
 })
-
 onActivated(() => {
   nextTick(() => {
     applySize()
+
     if (!isMapDirty.value)
       centerScroll()
+
     redraw()
   })
 })
-
 onUnmounted(() => {
   cancelPending()
   disconnect()
@@ -375,9 +404,6 @@ onUnmounted(() => {
   window.removeEventListener('mousemove', handleGlobalMouseMove)
   window.removeEventListener('mouseup', handleGlobalMouseUp)
 })
-
-watch(cities, redraw)
-watch(dotPathLow, redraw)
 </script>
 
 <template>
@@ -418,7 +444,12 @@ watch(dotPathLow, redraw)
                 {{ hoveredCity.name }}
               </div>
 
-              <div v-if="selectedCity" class="trip-map-popover" :style="popoverStyle" @click.stop>
+              <div
+                v-if="selectedCity"
+                class="trip-map-popover"
+                :style="popoverStyle"
+                @click.stop
+              >
                 <div class="popover-header">
                   <span class="popover-title">{{ selectedCity.name }}</span>
                   <button class="popover-close" @click.stop="selectedCity = null; redraw()">

@@ -1,7 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/vue3'
-import { ref } from 'vue'
-
-import { KitDialogWithClose } from '../../src/renderer/components/01.kit/kit-dialog-with-close'
+import { ref } from 'vue'import { KitDialogWithClose } from '../../src/renderer/components/01.kit/kit-dialog-with-close'
 
 /**
  * `DialogWithClose` is a modal component based on `reka-ui`. It provides a consistent
@@ -41,6 +39,7 @@ function createRender(slotContent: string) {
     components: { KitDialogWithClose },
     setup() {
       const visible = ref(false)
+
       return { args, visible, slotContent }
     },
     template: `
@@ -60,10 +59,8 @@ function createRender(slotContent: string) {
 }
 
 export const Default: Story = {
-  render: createRender(
-    `<p>This is the main content of the dialog. You can place any components or text here.</p>
-     <p>Click the 'X' button or the overlay to close it.</p>`,
-  ),
+  render: createRender(`<p>This is the main content of the dialog. You can place any components or text here.</p>
+     <p>Click the 'X' button or the overlay to close it.</p>`),
   // @ts-expect-error Visible in createRender
   args: {
     title: 'Default Dialog',
@@ -72,9 +69,7 @@ export const Default: Story = {
 }
 
 export const CustomWidth: Story = {
-  render: createRender(
-    `<p>This dialog has a maximum width of 400px, making it suitable for smaller forms or notifications.</p>`,
-  ),
+  render: createRender(`<p>This dialog has a maximum width of 400px, making it suitable for smaller forms or notifications.</p>`),
   // @ts-expect-error Visible in createRender
   args: {
     title: 'Narrow Dialog',
@@ -83,8 +78,7 @@ export const CustomWidth: Story = {
 }
 
 export const WithLongContent: Story = {
-  render: createRender(
-    `
+  render: createRender(`
     <p>This example demonstrates how the dialog handles content that exceeds its height. The body of the dialog should become scrollable.</p>
     <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.</p>
     <p>Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.</p>
@@ -109,8 +103,7 @@ export const WithLongContent: Story = {
     <p>Here is some more content to ensure scrolling is triggered.</p>
     <p>And another line, just in case.</p>
     <p>Final line. You should be able to scroll now.</p>
-    `,
-  ),
+    `),
   // @ts-expect-error Visible in createRender
   args: {
     title: 'Scrolling Content',
@@ -119,9 +112,7 @@ export const WithLongContent: Story = {
 }
 
 export const WithoutTitle: Story = {
-  render: createRender(
-    `<p>This dialog was rendered without a title prop. The header still correctly aligns the close button.</p>`,
-  ),
+  render: createRender(`<p>This dialog was rendered without a title prop. The header still correctly aligns the close button.</p>`),
   // @ts-expect-error Visible in createRender
   args: {
 

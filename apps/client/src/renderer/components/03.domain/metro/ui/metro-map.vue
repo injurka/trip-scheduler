@@ -1,30 +1,56 @@
 <script setup lang="ts">
-import type { MetroSystemDetails } from '../../lib/metro-route'
+import type { MetroSystemDetails } from '../lib/metro-route'
 import type { MetroRide } from '~/shared/types/models/activity'
 import { Icon } from '@iconify/vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
-import { KitDialogWithClose } from '~/components/01.kit/kit-dialog-with-close'
 import { KitMap } from '~/components/01.kit/kit-map'
 import { KitViewSwitcher } from '~/components/01.kit/kit-view-switcher'
-import { getMetroGeometry, getMetroRidePath } from '../../lib/metro-route'
+import { getMetroGeometry, getMetroRidePath } from '../lib/metro-route'
 
-const props = defineProps<{ system: MetroSystemDetails | null, rides: MetroRide[] }>()
-const visible = defineModel<boolean>('visible', { required: true })
+interface Props {
+  system: MetroSystemDetails | null
+  rides: MetroRide[]
+  active?: boolean
+}
+
+const props = defineProps<Props>()
 const scope = ref<'network' | 'rides'>('network')
 const showStationNames = ref(false)
 const mappedLines = computed(() => (props.system?.lines || []).flatMap((line) => {
   if (scope.value === 'network') {
     const geometry = getMetroGeometry(line.isCircular ? [...line.stations, line.stations[0]!] : line.stations)
-    return geometry ? [{ id: line.id, title: line.name, lineNumber: line.lineNumber, color: line.color, geometry, stations: line.stations }] : []
+
+    return geometry
+      ? [{
+          id: line.id,
+          title: line.name,
+          lineNumber: line.lineNumber,
+          color: line.color,
+          geometry,
+          stations: line.stations,
+        }]
+      : []
   }
+
   return props.rides.filter(ride => ride.lineId === line.id).flatMap((ride) => {
     const path = getMetroRidePath(line, ride.startStationId, ride.endStationId)
     const geometry = path && getMetroGeometry(path.stations)
-    return path && geometry ? [{ id: ride.id, title: line.name, lineNumber: line.lineNumber, color: line.color, geometry, stations: path.stations }] : []
+
+    return path && geometry
+      ? [{
+          id: ride.id,
+          title: line.name,
+          lineNumber: line.lineNumber,
+          color: line.color,
+          geometry,
+          stations: path.stations,
+        }]
+      : []
   })
 }))
 const mapCenter = computed<[number, number]>(() => {
   const station = mappedLines.value[0]?.stations[0]
+
   return station ? [station.longitude!, station.latitude!] : [0, 0]
 })
 const markers = computed(() => [...new Map(mappedLines.value.flatMap(line => line.stations.map(station => [station.id, {
@@ -40,61 +66,73 @@ const markers = computed(() => [...new Map(mappedLines.value.flatMap(line => lin
 const legend = computed(() => [...new Map(mappedLines.value.map((mapped) => {
   const groupKey = `${mapped.lineNumber || mapped.title}|${mapped.color}`
   const base = props.system?.lines.find(line => line.lineNumber === mapped.lineNumber && line.color === mapped.color && !/branch|·/i.test(line.name))
+
   return [groupKey, { key: groupKey, number: mapped.lineNumber, name: base?.name || mapped.title.split(' · ')[0], color: mapped.color }]
 })).values()])
 const incomplete = computed(() => scope.value === 'rides' && mappedLines.value.length !== props.rides.length)
-watch(visible, (open) => {
-  if (open) {
+watch(() => [props.active, props.system], () => {
+  if (props.active !== false) {
     scope.value = props.rides.some(ride => getMetroRidePath(props.system?.lines.find(line => line.id === ride.lineId), ride.startStationId, ride.endStationId)) ? 'rides' : 'network'
     showStationNames.value = false
   }
-})
+}, { immediate: true })
 </script>
 
 <template>
-  <KitDialogWithClose v-model:visible="visible" :title="`Метро · ${system?.city || ''}`" :max-width="1040" content-class="metro-map-dialog">
-    <div class="metro-map">
-      <div class="toolbar">
-        <KitViewSwitcher
-          v-model="scope"
-          class="scope-switcher"
-          :items="[
-            { id: 'network', label: 'Вся сеть', icon: 'mdi:transit-connection-variant' },
-            { id: 'rides', label: 'Мой маршрут', icon: 'mdi:map-marker-path' },
-          ]"
-        />
-        <KitBtn
-          class="labels-toggle"
-          variant="text"
-          color="secondary"
-          size="sm"
-          role="switch"
-          :aria-checked="showStationNames"
-          @click="showStationNames = !showStationNames"
-        >
-          <span class="toggle-label">Названия станций</span>
-          <span class="toggle-track" aria-hidden="true"><span class="toggle-thumb" /></span>
-        </KitBtn>
-      </div>
-      <p v-if="incomplete" class="map-notice" role="status">
-        <Icon icon="mdi:information-outline" /> Выберите линию и станции для всех отрезков маршрута.
-      </p>
-      <div class="map-canvas">
-        <KitMap v-if="markers.length" :center="mapCenter" :markers="markers" :routes="mappedLines" height="min(56dvh, 580px)" />
-        <div v-else class="empty-state">
-          <Icon icon="mdi:map-marker-path" />
-          <span>Выберите станции, чтобы увидеть маршрут</span>
-        </div>
-      </div>
-      <ul v-if="legend.length" class="legend" aria-label="Линии метро">
-        <li v-for="line in legend" :key="line.key" class="line-item" :title="line.name">
-          <Icon icon="mdi:circle" :color="line.color" class="line-swatch" />
-          <span v-if="line.number" class="line-code">{{ line.number }}</span>
-          <span class="line-name">{{ line.name }}</span>
-        </li>
-      </ul>
+  <div class="metro-map">
+    <div class="toolbar">
+      <KitViewSwitcher
+        v-if="rides.length"
+        v-model="scope"
+        class="scope-switcher"
+        :items="[
+          { id: 'network', label: 'Вся сеть', icon: 'mdi:transit-connection-variant' },
+          { id: 'rides', label: 'Мой маршрут', icon: 'mdi:map-marker-path' },
+        ]"
+      />
+      <KitBtn
+        class="labels-toggle"
+        variant="text"
+        color="secondary"
+        size="sm"
+        role="switch"
+        :aria-checked="showStationNames"
+        @click="showStationNames = !showStationNames"
+      >
+        <span class="toggle-label">Названия станций</span>
+        <span class="toggle-track" aria-hidden="true"><span class="toggle-thumb" /></span>
+      </KitBtn>
     </div>
-  </KitDialogWithClose>
+    <p v-if="incomplete" class="map-notice" role="status">
+      <Icon icon="mdi:information-outline" /> Выберите линию и станции для всех отрезков маршрута.
+    </p>
+    <div class="map-canvas">
+      <KitMap
+        v-if="markers.length"
+        :key="system?.id"
+        :center="mapCenter"
+        :markers="markers"
+        :routes="mappedLines"
+        height="min(56dvh, 580px)"
+      />
+      <div v-else class="empty-state">
+        <Icon icon="mdi:map-marker-path" />
+        <span>Для этой сети пока нет координат станций</span>
+      </div>
+    </div>
+    <ul v-if="legend.length" class="legend" aria-label="Линии метро">
+      <li
+        v-for="line in legend"
+        :key="line.key"
+        class="line-item"
+        :title="line.name"
+      >
+        <Icon icon="mdi:circle" :color="line.color" class="line-swatch" />
+        <span v-if="line.number" class="line-code">{{ line.number }}</span>
+        <span class="line-name">{{ line.name }}</span>
+      </li>
+    </ul>
+  </div>
 </template>
 
 <style scoped lang="scss">

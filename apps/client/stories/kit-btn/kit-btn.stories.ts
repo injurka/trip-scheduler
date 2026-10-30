@@ -1,6 +1,4 @@
-import type { Meta, StoryObj } from '@storybook/vue3'
-
-import { KitBtn } from '../../src/renderer/components/01.kit/kit-btn'
+import type { Meta, StoryObj } from '@storybook/vue3'import { KitBtn } from '../../src/renderer/components/01.kit/kit-btn'
 
 const meta = {
   title: 'Kit/Button',

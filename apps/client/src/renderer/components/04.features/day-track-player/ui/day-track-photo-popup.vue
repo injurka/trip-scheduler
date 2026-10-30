@@ -3,12 +3,14 @@ import type { TimezoneMode, TrackPhoto } from '../models/types'
 import { Icon } from '@iconify/vue'
 import { computed } from 'vue'
 
-const props = withDefaults(defineProps<{
+interface Props {
   photo?: TrackPhoto | null
   clusterPhotos?: TrackPhoto[]
   timezoneMode?: TimezoneMode
   trackTimezone?: string
-}>(), {
+}
+
+const props = withDefaults(defineProps<Props>(), {
   photo: null,
   clusterPhotos: () => [],
   timezoneMode: 'track',
@@ -27,7 +29,9 @@ const primaryPhoto = computed(() => activePhotos.value[0] || null)
 function formatTime(tsUtc: number): string {
   if (!tsUtc)
     return ''
+
   const tz = props.timezoneMode === 'track' ? props.trackTimezone : undefined
+
   return new Date(tsUtc).toLocaleTimeString('ru-RU', {
     hour: '2-digit',
     minute: '2-digit',
@@ -135,7 +139,12 @@ function getSourceBadge(source: TrackPhoto['source']) {
           :title="`Открыть фото (${formatTime(p.tsUtc)})`"
           @click="emit('openViewer', p)"
         >
-          <img :src="p.thumbnailUrl" alt="Превью" class="thumb-img" loading="lazy">
+          <img
+            :src="p.thumbnailUrl"
+            alt="Превью"
+            class="thumb-img"
+            loading="lazy"
+          >
           <span class="thumb-time">{{ formatTime(p.tsUtc) }}</span>
         </div>
       </div>

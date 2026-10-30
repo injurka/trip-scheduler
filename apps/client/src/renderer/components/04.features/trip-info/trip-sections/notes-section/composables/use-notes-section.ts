@@ -24,6 +24,7 @@ export const NOTES_KEYS = {
 function parseImageIds(content: string | null): string[] {
   if (!content)
     return []
+
   const pattern = /id=([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/gi
   const ids = new Set<string>()
   let match: RegExpExecArray | null
@@ -33,6 +34,7 @@ function parseImageIds(content: string | null): string[] {
     if (match[1])
       ids.add(match[1].toLowerCase())
   }
+
   return [...ids]
 }
 
@@ -51,13 +53,13 @@ export function useNotesSection(tripIdRef: Ref<string> | string, readonlyRef: Re
   const isUpdating = useRequestStatusByPrefix(NOTES_KEYS.UPDATE_NOTE)
 
   const activeNote = computed((): TripNote | null =>
-    notes.value.find(n => n.id === activeNoteId.value) ?? null,
-  )
+    notes.value.find(n => n.id === activeNoteId.value) ?? null)
 
   const flatFiles = computed(() => notes.value.filter(n => n.type !== 'folder'))
 
   const notesTree = computed((): NoteTreeNode[] => {
     const map = new Map<string, NoteTreeNode>()
+
     for (const note of notes.value) {
       map.set(note.id, { ...note, children: [] })
     }
@@ -77,23 +79,28 @@ export function useNotesSection(tripIdRef: Ref<string> | string, readonlyRef: Re
       nodes.sort((a, b) => {
         if (a.type === 'folder' && b.type !== 'folder')
           return -1
+
         if (a.type !== 'folder' && b.type === 'folder')
           return 1
 
         if (sortMode.value === 'name')
           return a.title.localeCompare(b.title)
+
         if (sortMode.value === 'date') {
           const dateA = new Date(a.updatedAt || a.createdAt).getTime()
           const dateB = new Date(b.updatedAt || b.createdAt).getTime()
+
           return dateB - dateA
         }
 
         return a.order - b.order
       })
+
       for (const node of nodes) sortNodes(node.children)
     }
 
     sortNodes(roots)
+
     return roots
   })
 
@@ -105,20 +112,26 @@ export function useNotesSection(tripIdRef: Ref<string> | string, readonlyRef: Re
       onSuccess: (data) => {
         if (!data || data.length === 0) {
           const cachedNotes = offlineStore.getSavedTripNotes(tripId.value)
+
           if (cachedNotes && cachedNotes.length > 0) {
             notes.value = cachedNotes
+
             return
           }
         }
+
         notes.value = data ?? []
       },
       onError: ({ error }) => {
         const cachedNotes = offlineStore.getSavedTripNotes(tripId.value)
+
         if (cachedNotes && cachedNotes.length > 0) {
           notes.value = cachedNotes
           useToast().info('Нет подключения к сети. Загружены офлайн-заметки.')
+
           return
         }
+
         useToast().error(`Не удалось загрузить заметки: ${error.customMessage}`)
       },
     })
@@ -146,7 +159,9 @@ export function useNotesSection(tripIdRef: Ref<string> | string, readonlyRef: Re
       onSuccess: (newNote) => {
         if (!newNote)
           return
+
         notes.value.push(newNote)
+
         if (newNote.type !== 'folder') {
           activeNoteId.value = newNote.id
         }
@@ -155,14 +170,12 @@ export function useNotesSection(tripIdRef: Ref<string> | string, readonlyRef: Re
     })
   }
 
-  async function updateNote(
-    id: string,
-    data: { title?: string, content?: string | null, parentId?: string | null, color?: string | null },
-  ): Promise<void> {
+  async function updateNote(id: string, data: { title?: string, content?: string | null, parentId?: string | null, color?: string | null }): Promise<void> {
     if (readonly.value)
       return
 
     const index = notes.value.findIndex(n => n.id === id)
+
     if (index === -1)
       return
 
@@ -178,6 +191,7 @@ export function useNotesSection(tripIdRef: Ref<string> | string, readonlyRef: Re
       onSuccess: (updated) => {
         if (updated) {
           const currentNote = notes.value.find(n => n.id === id)
+
           if (currentNote) {
             // НЕ перезатираем контент с сервера (пользователь мог продолжить набор текста)
             notes.value[notes.value.indexOf(currentNote)] = {
@@ -187,6 +201,7 @@ export function useNotesSection(tripIdRef: Ref<string> | string, readonlyRef: Re
             }
           }
         }
+
         saveStatus.value = 'saved'
       },
       onError: ({ error }) => {
@@ -200,6 +215,7 @@ export function useNotesSection(tripIdRef: Ref<string> | string, readonlyRef: Re
 
   function saveContent(id: string, content: string | null): void {
     const noteIndex = notes.value.findIndex(n => n.id === id)
+
     if (noteIndex !== -1) {
       notes.value[noteIndex].content = content
     }
@@ -207,6 +223,7 @@ export function useNotesSection(tripIdRef: Ref<string> | string, readonlyRef: Re
     saveStatus.value = 'pending'
 
     const existing = pendingSaves.get(id)
+
     if (existing?.timer)
       clearTimeout(existing.timer)
 
@@ -225,6 +242,7 @@ export function useNotesSection(tripIdRef: Ref<string> | string, readonlyRef: Re
       saveStatus.value = 'saving'
       updateNote(id, { content: pending.content })
     }
+
     pendingSaves.clear()
   }
 
@@ -237,6 +255,7 @@ export function useNotesSection(tripIdRef: Ref<string> | string, readonlyRef: Re
       description: 'Файл или папка со всем содержимым будет удалена навсегда.',
       type: 'danger',
     })
+
     if (!isConfirmed)
       return
 
@@ -276,11 +295,13 @@ export function useNotesSection(tripIdRef: Ref<string> | string, readonlyRef: Re
   function applyListUpdate(parentId: string | null, newNodes: NoteTreeNode[]): void {
     if (readonly.value)
       return
+
     const updates: ReorderNoteUpdate[] = []
 
     // 1. Применяем изменения к локальному стейту мгновенно (Optimistic UI)
     newNodes.forEach((node, index) => {
       const target = notes.value.find(n => n.id === node.id)
+
       if (target) {
         if (target.parentId !== parentId || target.order !== index) {
           target.parentId = parentId
@@ -295,9 +316,11 @@ export function useNotesSection(tripIdRef: Ref<string> | string, readonlyRef: Re
     if (updates.length > 0) {
       if (reorderTimer)
         clearTimeout(reorderTimer)
+
       reorderTimer = setTimeout(() => {
         const toSend = [...pendingReorders.values()]
         pendingReorders.clear()
+
         if (toSend.length > 0)
           executeReorder(toSend)
       }, 500)

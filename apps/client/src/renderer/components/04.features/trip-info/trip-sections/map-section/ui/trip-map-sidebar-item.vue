@@ -13,6 +13,7 @@ const props = defineProps<Props>()
 const itemIcon = computed(() => {
   if (props.type === 'point') {
     const point = props.item as MapPoint
+
     switch (point.type) {
       case 'start':
         return 'mdi:flag-variant-outline'
@@ -34,19 +35,23 @@ const itemIcon = computed(() => {
 const itemText = computed(() => {
   if (props.type === 'point') {
     const point = props.item as MapPoint
+
     return point.comment || point.address || 'Точка на карте'
   }
+
   return (props.item as MapRoute).title || 'Маршрут'
 })
 
 const itemSubtitle = computed(() => {
   if (props.type === 'point') {
     const point = props.item as MapPoint
+
     if (point.comment)
       return point.address
 
     return null
   }
+
   if ('points' in props.item && props.item.points)
     return `${props.item.points.length} тчк.`
 

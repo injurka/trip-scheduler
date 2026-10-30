@@ -2,6 +2,65 @@ import type { Pinia } from 'pinia'
 import { isNetworkOrServerError } from '~/shared/lib/error'
 import { useAuthStore } from '~/shared/store/auth.store'
 
+function restoreOfflineSessionIfAvailable(authStore: ReturnType<typeof useAuthStore>): boolean {
+  if (typeof navigator === 'undefined' || navigator.onLine)
+    return false
+
+  if (authStore.tokenPair?.accessToken && authStore.user) {
+    console.warn('Приложение оффлайн. Восстановлена кэшированная сессия.')
+
+    return true
+  }
+
+  return false
+}
+
+async function restoreUserFromAvailableToken(authStore: ReturnType<typeof useAuthStore>): Promise<void> {
+  if (authStore.tokenPair?.accessToken) {
+    await authStore.me()
+
+    return
+  }
+
+  if (authStore.tokenPair?.refreshToken) {
+    await authStore.refresh()
+    await authStore.me()
+  }
+}
+
+async function retryWithRefreshToken(authStore: ReturnType<typeof useAuthStore>): Promise<void> {
+  console.warn('Первоначальная попытка восстановления сессии не удалась, пробую обновить токен.')
+  await authStore.refresh()
+  await authStore.me()
+}
+
+async function recoverSessionAfterError(authStore: ReturnType<typeof useAuthStore>, error: unknown): Promise<void> {
+  if (isNetworkOrServerError(error)) {
+    console.warn('Сетевая ошибка при восстановлении сессии. Используем локальные данные.')
+
+    return
+  }
+
+  if (!authStore.tokenPair?.refreshToken) {
+    authStore.clearAuth()
+
+    return
+  }
+
+  try {
+    await retryWithRefreshToken(authStore)
+  }
+  catch (refreshError) {
+    if (isNetworkOrServerError(refreshError)) {
+      console.warn('Сетевая ошибка при обновлении токена. Используем локальные данные.')
+    }
+    else {
+      console.error('Не удалось восстановить сессию даже после обновления токена:', refreshError)
+      authStore.clearAuth()
+    }
+  }
+}
+
 /**
  * Плагин восстановления сессии.
  * Выполняется один раз при загрузке приложения.
@@ -15,52 +74,13 @@ export async function restoreSession(pinia: Pinia): Promise<void> {
   }
 
   try {
-    if (typeof navigator !== 'undefined' && !navigator.onLine) {
-      if (authStore.tokenPair?.accessToken && authStore.user) {
-        console.warn('Приложение оффлайн. Восстановлена кэшированная сессия.')
-        return
-      }
-    }
+    if (restoreOfflineSessionIfAvailable(authStore))
+      return
 
-    // Если есть access-токен, пытаемся получить пользователя
-    if (authStore.tokenPair?.accessToken) {
-      await authStore.me()
-    }
-    // Если access-токена нет, но есть refresh-токен, сразу обновляем
-    else if (authStore.tokenPair?.refreshToken) {
-      await authStore.refresh()
-      await authStore.me()
-    }
+    await restoreUserFromAvailableToken(authStore)
   }
   catch (error) {
-    if (isNetworkOrServerError(error)) {
-      console.warn('Сетевая ошибка при восстановлении сессии. Используем локальные данные.')
-      return
-    }
-
-    // Если первая попытка не удалась (например, access-токен истек)
-    // и у нас все еще есть refresh-токен (т.к. me() его больше не удаляет).
-    if (authStore.tokenPair?.refreshToken) {
-      try {
-        console.warn('Первоначальная попытка восстановления сессии не удалась, пробую обновить токен.')
-        await authStore.refresh()
-        await authStore.me()
-      }
-      catch (refreshError) {
-        if (isNetworkOrServerError(refreshError)) {
-          console.warn('Сетевая ошибка при обновлении токена. Используем локальные данные.')
-        }
-        else {
-          // Если и обновление не помогло, то все очищаем
-          console.error('Не удалось восстановить сессию даже после обновления токена:', refreshError)
-          authStore.clearAuth()
-        }
-      }
-    }
-    else {
-      // Если refresh-токена нет, то просто очищаем
-      authStore.clearAuth()
-    }
+    await recoverSessionAfterError(authStore, error)
   }
   finally {
     authStore.isInitialized = true

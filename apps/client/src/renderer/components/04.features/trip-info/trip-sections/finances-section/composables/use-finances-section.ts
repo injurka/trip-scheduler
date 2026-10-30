@@ -27,10 +27,7 @@ interface UseFinancesSectionProps {
   readonly: boolean
 }
 
-export function useFinancesSection(
-  props: UseFinancesSectionProps,
-  emit: (event: 'updateSection', payload: any) => void,
-) {
+export function useFinancesSection(props: UseFinancesSectionProps, emit: (event: 'updateSection', payload: any) => void) {
   const confirm = useConfirm()
   const content = computed(() => props.section.content)
 
@@ -63,6 +60,7 @@ export function useFinancesSection(
   function openTransactionForm(tx: Transaction | null = null) {
     if (props.readonly)
       return
+
     transactionToEdit.value = tx ? { ...tx } : null
     isTransactionFormOpen.value = true
   }
@@ -70,6 +68,7 @@ export function useFinancesSection(
   function saveTransaction(tx: Partial<Transaction>) {
     if (transactionToEdit.value) {
       const index = transactions.value.findIndex(t => t.id === tx.id)
+
       if (index !== -1)
         transactions.value.splice(index, 1, tx as Transaction)
     }
@@ -82,18 +81,23 @@ export function useFinancesSection(
         source: tx.source || 'manual',
       } as Transaction)
     }
+
     isTransactionFormOpen.value = false
   }
 
   function toggleTransactionStatus(id: string) {
     if (props.readonly)
       return
+
     const tx = transactions.value.find(t => t.id === id)
+
     if (tx) {
       tx.status = tx.status === 'planned' ? 'paid' : 'planned'
+
       if (tx.status === 'paid' && !tx.date) {
         tx.date = new Date().toISOString().split('T')[0]
       }
+
       useToast().success(tx.status === 'paid' ? 'Трата отмечена как оплаченная.' : 'Трата перенесена в планы.')
     }
   }
@@ -114,12 +118,14 @@ export function useFinancesSection(
 
   async function deleteTransaction(id: string) {
     const isConfirmed = await confirm({ title: 'Удалить транзакцию?', description: 'Это действие нельзя отменить.' })
+
     if (isConfirmed)
       transactions.value = transactions.value.filter(t => t.id !== id)
   }
 
   function saveCategory(cat: Partial<Category>) {
     const index = categories.value.findIndex(c => c.id === cat.id)
+
     if (index !== -1) {
       categories.value[index] = { ...categories.value[index], ...cat } as Category
     }
@@ -130,10 +136,13 @@ export function useFinancesSection(
 
   function deleteCategory(id: string) {
     const isUsed = transactions.value.some(t => t.categoryId === id)
+
     if (isUsed) {
       confirm({ title: 'Категория используется', description: 'Нельзя удалить категорию, которая присвоена одной или нескольким транзакциям.' })
+
       return
     }
+
     categories.value = categories.value.filter(c => c.id !== id)
   }
 
@@ -145,7 +154,9 @@ export function useFinancesSection(
   const convertToMainCurrency = (amount: number, currency: string): number | null => {
     if (currency === settings.value.mainCurrency)
       return amount
+
     const rate = settings.value.exchangeRates[currency]
+
     return rate && rate > 0 ? amount * rate : null
   }
 
@@ -159,10 +170,13 @@ export function useFinancesSection(
     return [...transactions.value].sort((a, b) => {
       if (!a.date && b.date)
         return -1
+
       if (a.date && !b.date)
         return 1
+
       if (!a.date && !b.date)
         return 0
+
       return new Date(b.date!).getTime() - new Date(a.date!).getTime()
     })
   })
@@ -172,13 +186,16 @@ export function useFinancesSection(
     let result = sortedTransactions.value
 
     const { start, end } = dateFilter.value
+
     if (start || end) {
       result = result.filter((tx) => {
         if (!tx.date)
           return false
+
         const txDate = tx.date.split('T')[0]
         const isAfterStart = start ? txDate >= start : true
         const isBeforeEnd = end ? txDate <= end : true
+
         return isAfterStart && isBeforeEnd
       })
     }
@@ -186,6 +203,7 @@ export function useFinancesSection(
     if (selectedCategoryFilters.value.length > 0) {
       result = result.filter((tx) => {
         const effectiveCategoryId = tx.categoryId || 'cat-other'
+
         return selectedCategoryFilters.value.includes(effectiveCategoryId)
       })
     }
@@ -247,8 +265,10 @@ export function useFinancesSection(
   const overallBudget = computed(() => {
     if (settings.value.totalBudget && settings.value.totalBudget > 0)
       return settings.value.totalBudget
+
     if (categoryBudgetsTotal.value > 0)
       return categoryBudgetsTotal.value
+
     return tripPaidTotal.value + tripPlannedTotal.value
   })
 
@@ -284,6 +304,7 @@ export function useFinancesSection(
     filteredTransactions.value.forEach((tx) => {
       const categoryId = tx.categoryId || 'cat-other'
       const amountInMain = convertToMainCurrency(tx.amount, tx.currency)
+
       if (amountInMain === null)
         return
 
@@ -304,6 +325,7 @@ export function useFinancesSection(
 
       const item = spendingMap.get(categoryId)!
       item.amount += amountInMain
+
       if (tx.status === 'planned') {
         item.plannedAmount += amountInMain
       }
@@ -317,14 +339,17 @@ export function useFinancesSection(
         if (selectedCategoryFilters.value.length > 0) {
           return selectedCategoryFilters.value.includes(cat.id)
         }
+
         if (statusFilter.value !== 'all' || typeFilter.value !== 'all') {
           return cat.amount > 0
         }
+
         return cat.amount > 0 || (cat.budgetLimit && cat.budgetLimit > 0)
       })
       .sort((a, b) => {
         const aVal = Math.max(a.paidAmount, a.amount, a.budgetLimit || 0)
         const bVal = Math.max(b.paidAmount, b.amount, b.budgetLimit || 0)
+
         return bVal - aVal
       })
   })
@@ -337,6 +362,7 @@ export function useFinancesSection(
       .forEach((tx) => {
         const date = tx.date!.split('T')[0]
         const amountInMain = convertToMainCurrency(tx.amount, tx.currency)
+
         if (amountInMain === null)
           return
 
@@ -360,10 +386,12 @@ export function useFinancesSection(
   function toggleCategoryFilter(categoryId: string | null) {
     if (categoryId === null) {
       selectedCategoryFilters.value = []
+
       return
     }
 
     const index = selectedCategoryFilters.value.indexOf(categoryId)
+
     if (index > -1) {
       selectedCategoryFilters.value.splice(index, 1)
     }

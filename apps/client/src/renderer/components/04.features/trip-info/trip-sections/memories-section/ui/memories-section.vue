@@ -10,10 +10,14 @@ import MemoriesFilters from './memories-filters.vue'
 import MemoriesGroup from './memories-group.vue'
 
 const store = useModuleStore(['memories', 'plan'])
-const { memories, isLoadingMemories } = storeToRefs(store.memories)
-const { days } = storeToRefs(store.plan)
 const route = useRoute()
 const router = useRouter()
+const imageViewer = useImageViewer()
+const isBodyScrollLocked = useScrollLock(typeof document !== 'undefined' ? document.body : null)
+const isHtmlScrollLocked = useScrollLock(typeof document !== 'undefined' ? document.documentElement : null)
+
+const { memories, isLoadingMemories } = storeToRefs(store.memories)
+const { days } = storeToRefs(store.plan)
 
 const {
   gridSize,
@@ -29,45 +33,30 @@ const {
   loadMore,
 } = useMemoriesView(memories, days)
 
-const imageViewer = useImageViewer()
 const isFullscreen = ref(false)
-
-const isBodyScrollLocked = useScrollLock(typeof document !== 'undefined' ? document.body : null)
-const isHtmlScrollLocked = useScrollLock(typeof document !== 'undefined' ? document.documentElement : null)
+const loadMoreTrigger = ref<HTMLElement | null>(null)
 
 watch(isFullscreen, (val) => {
   isBodyScrollLocked.value = val
   isHtmlScrollLocked.value = val
 })
 
-onKeyStroke('Escape', (event) => {
-  if (!event.defaultPrevented && !imageViewer.isOpen.value && isFullscreen.value) {
-    isFullscreen.value = false
-  }
-})
-
-onBeforeUnmount(() => {
-  isBodyScrollLocked.value = false
-  isHtmlScrollLocked.value = false
-})
-
 function openViewer(memoryId: string) {
   const index = allFilteredMemories.value.findIndex(m => m.id === memoryId)
+
   if (index !== -1) {
     imageViewer.open(viewerImages.value, index)
   }
 }
-
 function getMatchedDay(date: string) {
   if (!date || date === 'no-date')
     return undefined
+
   return days.value.find(day => day.date?.slice(0, 10) === date)
 }
-
 function handleToggleFilterDay(date: string) {
   filterDay.value = filterDay.value === date ? 'all' : date
 }
-
 function handleGoToDayPlan(dayId: string) {
   isFullscreen.value = false
   const query = { ...route.query }
@@ -76,20 +65,23 @@ function handleGoToDayPlan(dayId: string) {
   router.push({ query })
 }
 
-const loadMoreTrigger = ref<HTMLElement | null>(null)
+onKeyStroke('Escape', (event) => {
+  if (!event.defaultPrevented && !imageViewer.isOpen.value && isFullscreen.value) {
+    isFullscreen.value = false
+  }
+})
+useIntersectionObserver(loadMoreTrigger, ([{ isIntersecting }]) => {
+  if (isIntersecting && hasMore.value) {
+    loadMore()
+  }
+}, {
+  rootMargin: '200px',
+})
 
-useIntersectionObserver(
-  loadMoreTrigger,
-  ([{ isIntersecting }]) => {
-    if (isIntersecting && hasMore.value) {
-      loadMore()
-    }
-  },
-  {
-    rootMargin: '200px',
-  },
-)
-
+onBeforeUnmount(() => {
+  isBodyScrollLocked.value = false
+  isHtmlScrollLocked.value = false
+})
 onMounted(() => {
   if (store.plan.currentTripId) {
     store.memories.fetchMemories(store.plan.currentTripId)

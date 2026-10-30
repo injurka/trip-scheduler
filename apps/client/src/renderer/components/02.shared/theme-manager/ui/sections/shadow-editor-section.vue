@@ -3,15 +3,16 @@ import { useThemeStore } from '~/shared/store/theme.store'
 import { shadowPresets } from '../../constants/shadow-presets'
 
 const themeStore = useThemeStore()
-const { customThemeShadowColor } = storeToRefs(themeStore)
 
-function applyPreset(color: string) {
-  themeStore.applyCustomShadowColor(color)
-}
+const { customThemeShadowColor } = storeToRefs(themeStore)
 
 watch(customThemeShadowColor, (newColor) => {
   themeStore.applyCustomShadowColor(newColor)
 })
+
+function applyPreset(color: string) {
+  themeStore.applyCustomShadowColor(color)
+}
 </script>
 
 <template>

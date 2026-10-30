@@ -4,11 +4,12 @@ import { Icon } from '@iconify/vue'
 import { computed, nextTick, ref, watch } from 'vue'
 import { KitDialogWithClose } from '~/components/01.kit/kit-dialog-with-close'
 
-const props = defineProps<{
+interface Props {
   visible: boolean
   files: TripNote[]
-}>()
+}
 
+const props = defineProps<Props>()
 const emit = defineEmits<{
   'update:visible': [value: boolean]
   'select': [id: string]
@@ -17,6 +18,15 @@ const emit = defineEmits<{
 const searchQuery = ref('')
 const selectedIndex = ref(0)
 const inputRef = ref<HTMLInputElement | null>(null)
+
+const filteredFiles = computed(() => {
+  const q = searchQuery.value.toLowerCase().trim()
+
+  if (!q)
+    return props.files
+
+  return props.files.filter(f => f.title.toLowerCase().includes(q))
+})
 
 watch(() => props.visible, (v) => {
   if (v) {
@@ -27,14 +37,6 @@ watch(() => props.visible, (v) => {
     })
   }
 })
-
-const filteredFiles = computed(() => {
-  const q = searchQuery.value.toLowerCase().trim()
-  if (!q)
-    return props.files
-  return props.files.filter(f => f.title.toLowerCase().includes(q))
-})
-
 watch(filteredFiles, () => {
   selectedIndex.value = 0
 })
@@ -42,12 +44,14 @@ watch(filteredFiles, () => {
 function handleKeydown(e: KeyboardEvent) {
   if (e.key === 'ArrowDown') {
     e.preventDefault()
+
     if (selectedIndex.value < filteredFiles.value.length - 1) {
       selectedIndex.value++
     }
   }
   else if (e.key === 'ArrowUp') {
     e.preventDefault()
+
     if (selectedIndex.value > 0) {
       selectedIndex.value--
     }
@@ -57,15 +61,14 @@ function handleKeydown(e: KeyboardEvent) {
     selectCurrent()
   }
 }
-
 function selectCurrent() {
   const file = filteredFiles.value[selectedIndex.value]
+
   if (file) {
     emit('select', file.id)
     emit('update:visible', false)
   }
 }
-
 function selectFile(id: string) {
   emit('select', id)
   emit('update:visible', false)

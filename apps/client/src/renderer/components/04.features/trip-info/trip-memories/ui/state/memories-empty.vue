@@ -12,7 +12,6 @@ interface Props {
 withDefaults(defineProps<Props>(), {
   importOptions: () => [],
 })
-
 const emit = defineEmits<{
   (e: 'upload'): void
   (e: 'addNote'): void
@@ -20,8 +19,9 @@ const emit = defineEmits<{
   (e: 'import', activity: Activity): void
 }>()
 
-const showImportSheet = ref(false)
 const { smAndDown: isMobile } = useDisplay()
+
+const showImportSheet = ref(false)
 
 function handleImportSelect(activity: Activity) {
   emit('import', activity)

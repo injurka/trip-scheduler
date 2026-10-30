@@ -8,13 +8,17 @@ import { useThemeStore } from '~/shared/store/theme.store'
 export function normalizeHexColor(hexColor: string): string | null {
   if (!hexColor)
     return null
+
   let clean = hexColor.trim().replace(/^#/, '')
+
   if (clean.length === 3) {
     clean = clean.split('').map(c => c + c).join('')
   }
+
   if (clean.length >= 6) {
     return `#${clean.substring(0, 6)}`
   }
+
   return null
 }
 
@@ -23,14 +27,17 @@ export function normalizeHexColor(hexColor: string): string | null {
  */
 function isColorDark(hexColor: string): boolean {
   const normalized = normalizeHexColor(hexColor)
+
   if (!normalized)
     return false
+
   const clean = normalized.slice(1)
   const r = Number.parseInt(clean.substring(0, 2), 16)
   const g = Number.parseInt(clean.substring(2, 4), 16)
   const b = Number.parseInt(clean.substring(4, 6), 16)
   // Формула перцептивной яркости HSP
   const brightness = Math.sqrt(0.299 * (r * r) + 0.587 * (g * g) + 0.114 * (b * b))
+
   return brightness < 128
 }
 
@@ -59,8 +66,10 @@ export function setupThemeColorMetaTagUpdater() {
   const isDarkTheme = computed(() => {
     if (themeStore.activeThemeName === 'dark')
       return true
+
     if (themeStore.activeThemeName === 'light')
       return false
+
     return isColorDark(themeColor.value)
   })
 

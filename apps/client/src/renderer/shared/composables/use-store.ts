@@ -1,6 +1,4 @@
-import { createStoreHook } from '~/shared/lib/create-store-hook'
-
-import { useThemeStore } from '~/shared/store/theme.store'
+import { createStoreHook } from '~/shared/lib/create-store-hook'import { useThemeStore } from '~/shared/store/theme.store'
 import { useAppUpdateStore } from '../store/app-update.store'
 import { useAuthStore } from '../store/auth.store'
 import { useConfirmDialogStore } from '../store/confirm-dialog.store'

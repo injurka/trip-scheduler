@@ -9,7 +9,7 @@ import {
   DropdownMenuTrigger,
 } from 'reka-ui'
 
-const props = withDefaults(defineProps<{
+export interface Props<T extends string | number | symbol | object> {
   items?: KitDropdownItem<T>[]
   modelValue?: T | null
   sideOffset?: number
@@ -18,7 +18,9 @@ const props = withDefaults(defineProps<{
   portalTarget?: HTMLElement
   modal?: boolean
   contentClass?: string
-}>(), {
+}
+
+const props = withDefaults(defineProps<Props<T>>(), {
   items: () => [],
   modelValue: null,
   sideOffset: 8,

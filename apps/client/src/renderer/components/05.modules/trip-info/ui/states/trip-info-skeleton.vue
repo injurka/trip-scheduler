@@ -18,11 +18,26 @@ const sectionQuery = computed(() => route.query.section as string)
   <div v-if="dayQuery" class="trip-info-day-skeleton">
     <div class="controls-skeleton">
       <div class="left-controls-skeleton">
-        <KitSkeleton width="36px" height="36px" border-radius="8px" type="wave" />
+        <KitSkeleton
+          width="36px"
+          height="36px"
+          border-radius="8px"
+          type="wave"
+        />
 
         <div class="day-info-skeleton">
-          <KitSkeleton width="100px" height="20px" border-radius="6px" type="wave" />
-          <KitSkeleton width="80px" height="18px" border-radius="6px" type="wave" />
+          <KitSkeleton
+            width="100px"
+            height="20px"
+            border-radius="6px"
+            type="wave"
+          />
+          <KitSkeleton
+            width="80px"
+            height="18px"
+            border-radius="6px"
+            type="wave"
+          />
         </div>
       </div>
 
@@ -39,37 +54,83 @@ const sectionQuery = computed(() => route.query.section as string)
     </div>
 
     <div class="divider-skeleton">
-      <KitSkeleton width="80px" height="12px" border-radius="4px" type="wave" />
+      <KitSkeleton
+        width="80px"
+        height="12px"
+        border-radius="4px"
+        type="wave"
+      />
     </div>
 
     <div class="day-header-skeleton">
-      <KitSkeleton width="60%" height="32px" border-radius="6px" type="wave" style="margin-bottom: 16px;" />
-      <KitSkeleton width="85%" height="18px" border-radius="6px" type="wave" />
+      <KitSkeleton
+        width="60%"
+        height="32px"
+        border-radius="6px"
+        type="wave"
+        style="margin-bottom: 16px;"
+      />
+      <KitSkeleton
+        width="85%"
+        height="18px"
+        border-radius="6px"
+        type="wave"
+      />
     </div>
 
     <div class="divider-skeleton">
-      <KitSkeleton width="120px" height="12px" border-radius="4px" type="wave" />
+      <KitSkeleton
+        width="120px"
+        height="12px"
+        border-radius="4px"
+        type="wave"
+      />
     </div>
 
     <div class="activities-list-skeleton">
       <div v-for="i in 4" :key="i" class="activity-item-skeleton">
         <div class="activity-header-skeleton">
-          <KitSkeleton width="40%" height="20px" border-radius="4px" type="wave" />
+          <KitSkeleton
+            width="40%"
+            height="20px"
+            border-radius="4px"
+            type="wave"
+          />
         </div>
         <div class="activity-body-skeleton">
-          <KitSkeleton width="65%" height="24px" border-radius="6px" type="wave" />
+          <KitSkeleton
+            width="65%"
+            height="24px"
+            border-radius="6px"
+            type="wave"
+          />
           <div v-if="i === 3" class="description-block-skeleton">
-            <KitSkeleton width="90%" height="18px" border-radius="4px" type="wave" />
+            <KitSkeleton
+              width="90%"
+              height="18px"
+              border-radius="4px"
+              type="wave"
+            />
           </div>
           <div class="add-block-skeleton-wrapper">
-            <KitSkeleton width="120px" height="17px" border-radius="4px" type="wave" />
+            <KitSkeleton
+              width="120px"
+              height="17px"
+              border-radius="4px"
+              type="wave"
+            />
           </div>
         </div>
       </div>
     </div>
 
     <div class="add-activity-skeleton">
-      <KitSkeleton width="180px" height="20px" border-radius="4px" type="wave" />
+      <KitSkeleton
+        width="180px"
+        height="20px"
+        border-radius="4px"
+        type="wave"
+      />
     </div>
   </div>
 

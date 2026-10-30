@@ -61,7 +61,13 @@ const currentSortLabel = computed(() => {
           >
             <Icon :icon="opt.icon" width="16" height="16" />
             <span>{{ opt.label }}</span>
-            <Icon v-if="sortOption === opt.id" icon="mdi:check" width="14" height="14" class="check-mark" />
+            <Icon
+              v-if="sortOption === opt.id"
+              icon="mdi:check"
+              width="14"
+              height="14"
+              class="check-mark"
+            />
           </button>
         </div>
       </KitDropdown>

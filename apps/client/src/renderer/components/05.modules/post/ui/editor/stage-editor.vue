@@ -14,7 +14,9 @@ import GalleryEditor from './blocks/gallery-editor.vue'
 import LocationEditor from './blocks/location-editor.vue'
 import RouteEditor from './blocks/route-editor.vue'
 
-const props = defineProps<{ stage: TimelineStage & { day?: number }, index: number }>()
+interface Props { stage: TimelineStage & { day?: number }, index: number }
+
+const props = defineProps<Props>()
 const store = usePostDraftStore()
 
 // VueDraggable мутирует напрямую то что ему передано в v-model,
@@ -30,6 +32,7 @@ const stageTimeModel = computed({
   get: () => {
     if (!props.stage.time)
       return null
+
     try {
       return parseTime(props.stage.time.length === 5 ? `${props.stage.time}:00` : props.stage.time)
     }

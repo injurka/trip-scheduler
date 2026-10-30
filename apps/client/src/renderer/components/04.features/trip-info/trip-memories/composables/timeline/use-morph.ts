@@ -29,6 +29,7 @@ export function useMorph(targetRef: Ref<HTMLElement | null>): UseMorphReturn {
 
   const enterMorph = async () => {
     const el = targetRef.value
+
     if (!el || isMorphed.value || isMorphing.value)
       return
 
@@ -98,6 +99,7 @@ export function useMorph(targetRef: Ref<HTMLElement | null>): UseMorphReturn {
   const leaveMorph = () => {
     if (!initialRect) {
       reset()
+
       return
     }
 

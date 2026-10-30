@@ -30,6 +30,7 @@ export const usePwaStore = defineStore('pwa', {
       if (this.updateServiceWorker) {
         await this.updateServiceWorker(true)
       }
+
       this.needRefresh = false
     },
 

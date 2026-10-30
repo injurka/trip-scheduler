@@ -36,9 +36,11 @@ const searchQuery = ref('')
 // Currency symbol (e.g. ₽, $, €)
 const currencySymbol = computed(() => {
   const curr = props.mainCurrency || 'RUB'
+
   try {
     const parts = new Intl.NumberFormat('ru-RU', { style: 'currency', currency: curr }).formatToParts(0)
     const currencyPart = parts.find(p => p.type === 'currency')
+
     return currencyPart ? currencyPart.value : curr
   }
   catch {
@@ -58,53 +60,65 @@ const totalLimitsFormatted = computed(() => {
 const totalBudgetFormatted = computed(() => {
   if (!props.totalBudget)
     return null
+
   return formatCurrency(props.totalBudget, props.mainCurrency || 'RUB')
 })
 
 const budgetAllocationPercent = computed(() => {
   if (!props.totalBudget || props.totalBudget <= 0)
     return 0
+
   return Math.min(Math.round((totalLimits.value / props.totalBudget) * 100), 100)
 })
 
 const isBudgetExceeded = computed(() => {
   if (!props.totalBudget)
     return false
+
   return totalLimits.value > props.totalBudget
 })
 
 const budgetDiffFormatted = computed(() => {
   if (!props.totalBudget)
     return null
+
   const diff = Math.abs(props.totalBudget - totalLimits.value)
+
   return formatCurrency(diff, props.mainCurrency || 'RUB')
 })
 
 // Filtered categories
 const filteredCategories = computed(() => {
   const q = searchQuery.value.trim().toLowerCase()
+
   if (!q)
     return props.categories
+
   return props.categories.filter(c => c.name.toLowerCase().includes(q))
 })
 
 // Handlers
 function updateCategoryName(cat: Category, newName: string) {
   const trimmed = newName.trim()
+
   if (!trimmed || trimmed === cat.name)
     return
+
   emit('save', { ...cat, name: trimmed })
 }
 
 function updateCategoryLimit(cat: Category, value: string) {
   const num = value.trim() ? Number(value) : undefined
+
   if (cat.budgetLimit === num)
     return
+
   emit('save', { ...cat, budgetLimit: num && num > 0 ? num : undefined })
 }
 
 function handleAddCategory() {
   const name = newCategoryName.value.trim()
+
   if (!name)
     return
 

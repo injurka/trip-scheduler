@@ -67,15 +67,21 @@ export class GeotrackUnavailableError extends Error {
 function readStoredPoints(): TrackPoint[] {
   try {
     const raw = localStorage.getItem(STORAGE_POINTS_KEY)
+
     if (!raw)
       return []
+
     const parsed = JSON.parse(raw)
+
     if (!Array.isArray(parsed))
       return []
+
     const valid = parsed.map(parseTrackPoint).filter((p): p is TrackPoint => p !== null)
+
     if (valid.length !== parsed.length) {
       writeStoredPoints(valid)
     }
+
     return valid
   }
   catch {
@@ -110,9 +116,12 @@ export interface StoredSession {
 export function readStoredSession(): StoredSession | null {
   try {
     const raw = localStorage.getItem(STORAGE_SESSION_KEY)
+
     if (!raw)
       return null
+
     const parsed = JSON.parse(raw)
+
     if (parsed && typeof parsed.sessionId === 'string' && typeof parsed.startedAt === 'number') {
       return {
         sessionId: parsed.sessionId,
@@ -122,6 +131,7 @@ export function readStoredSession(): StoredSession | null {
         isRunning: Boolean(parsed.isRunning),
       }
     }
+
     return null
   }
   catch {
@@ -146,23 +156,40 @@ export function writeStoredSession(session: StoredSession | null): void {
 /** Проверка: была ли активна сессия до закрытия приложения / перезагрузки */
 export function hasActiveStoredSession(): boolean {
   const session = readStoredSession()
+
   return Boolean(session?.isRunning)
 }
 
 function detectNetwork(): 'wifi' | 'cellular' | 'offline' | 'other' {
   if (typeof navigator === 'undefined')
     return 'other'
+
   if (!navigator.onLine)
     return 'offline'
 
   const conn = (navigator as unknown as { connection?: { type?: string } }).connection
+
   if (conn?.type) {
     if (conn.type === 'wifi' || conn.type === 'ethernet')
       return 'wifi'
+
     if (conn.type === 'cellular')
       return 'cellular'
   }
+
   return 'other'
+}
+
+function getTelemetrySpeedKmh(fix: TrackPoint | null): number | null {
+  return fix?.activity === 'still' ? 0 : fix?.speed != null ? Math.round(fix.speed * 3.6) : null
+}
+
+function getTelemetryPosition(fix: TrackPoint | null): Pick<TrackingTelemetry, 'activity' | 'lat' | 'lng'> {
+  return {
+    activity: fix?.activity || 'still',
+    lat: fix?.lat ?? null,
+    lng: fix?.lng ?? null,
+  }
 }
 
 const LIVE_FIXES_WINDOW_MS = 45_000
@@ -182,6 +209,113 @@ interface DeviceActivitySample {
   tsUtc: number
 }
 
+interface NativeTrackingPosition {
+  latitude: number
+  longitude: number
+  accuracy?: number | null
+  altitude?: number | null
+  speed?: number | null
+  heading?: number | null
+  timestamp?: number
+  activity?: string | null
+  activityConfidence?: number | null
+}
+
+interface PositionUpdate {
+  coords: {
+    latitude: number
+    longitude: number
+    accuracy?: number | null
+    altitude?: number | null
+    heading?: number | null
+    speed?: number | null
+  }
+  timestamp?: number
+  activity?: string | null
+  activityConfidence?: number | null
+}
+
+interface NormalizedFix {
+  ts: number
+  lat: number
+  lng: number
+  altitude: number | null
+  accuracy: number | null
+  speed: number | null
+  bearing: number | null
+}
+
+interface ResolvedFixActivity {
+  activity: ActivityType
+  confidence: number
+  speedMs: number
+  deviceActivity: ActivityType | null
+  deviceActivityConfidence: number | null
+}
+
+function getFiniteNumber(value: number | null | undefined): number | null {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null
+}
+
+function getNonNegativeNumber(value: number | null | undefined): number | null {
+  const number = getFiniteNumber(value)
+
+  return number !== null && number >= 0 ? number : null
+}
+
+function hasValidCoordinates(lat: number, lng: number): boolean {
+  return Number.isFinite(lat)
+    && Number.isFinite(lng)
+    && Math.abs(lat) <= 90
+    && Math.abs(lng) <= 180
+}
+
+function hasAcceptableAccuracy(accuracy: number | null): boolean {
+  return accuracy === null || (accuracy >= 0 && accuracy <= MAX_ACCURACY_M)
+}
+
+function normalizePositionUpdate(position: PositionUpdate, lastPoint: TrackPoint | null): NormalizedFix | null {
+  const ts = position.timestamp && position.timestamp > 0 ? position.timestamp : Date.now()
+  const { latitude: lat, longitude: lng } = position.coords
+
+  if ((lastPoint && ts <= lastPoint.tsUtc) || !hasValidCoordinates(lat, lng))
+    return null
+
+  const accuracy = getFiniteNumber(position.coords.accuracy)
+
+  if (!hasAcceptableAccuracy(accuracy))
+    return null
+
+  return {
+    ts,
+    lat,
+    lng,
+    altitude: getFiniteNumber(position.coords.altitude),
+    accuracy,
+    speed: getNonNegativeNumber(position.coords.speed),
+    bearing: getNonNegativeNumber(position.coords.heading),
+  }
+}
+
+function toPositionUpdate(position: NativeTrackingPosition): PositionUpdate | null {
+  if (typeof position.latitude !== 'number' || typeof position.longitude !== 'number')
+    return null
+
+  return {
+    coords: {
+      latitude: position.latitude,
+      longitude: position.longitude,
+      accuracy: position.accuracy,
+      altitude: position.altitude,
+      speed: position.speed,
+      heading: position.heading,
+    },
+    timestamp: position.timestamp || Date.now(),
+    activity: position.activity,
+    activityConfidence: position.activityConfidence,
+  }
+}
+
 /**
  * Разбор сырого значения активности из Android Activity Recognition.
  * Возвращает null для неизвестных/служебных типов (Google отдаёт ещё TILTING, UNKNOWN,
@@ -190,6 +324,7 @@ interface DeviceActivitySample {
 function normalizeDeviceActivity(raw: unknown, confidence: unknown): DeviceActivitySample | null {
   if (typeof raw !== 'string')
     return null
+
   const map: Record<string, ActivityType> = {
     still: 'still',
     walk: 'walk',
@@ -201,25 +336,33 @@ function normalizeDeviceActivity(raw: unknown, confidence: unknown): DeviceActiv
     in_vehicle: 'vehicle',
   }
   const activity = map[raw.toLowerCase()]
+
   if (!activity)
     return null
+
   const conf = typeof confidence === 'number' && Number.isFinite(confidence) ? confidence : 0
   // Дополнительно принимаем шкалу 0..1, если плагин прислал её в долях
   const normalizedConf = conf > 0 && conf <= 1 ? Math.round(conf * 100) : Math.round(Math.min(100, Math.max(0, conf)))
+
   return { activity, confidence: normalizedConf, tsUtc: 0 }
 }
 
 /** Активность по скорости из окна фиксов: границы согласованы с пакетом @limiteddissolve/track-processing. */
 function estimateActivity(speedMs: number): ActivityType {
   const kmh = speedMs * 3.6
+
   if (kmh < 2.5)
     return 'still'
+
   if (kmh < 8)
     return 'walk' // 2.5-8 км/ч
+
   if (kmh < 30)
     return 'bike' // 8-30 км/ч
+
   if (kmh < 130)
     return 'vehicle' // 30-130 км/ч
+
   return 'rail' // свыше 130 км/ч
 }
 
@@ -229,12 +372,10 @@ function estimateActivity(speedMs: number): ActivityType {
  * погрешность GPS), скорость равна нулю: устройство может писать «еду 25 км/ч»,
  * но стоящий телефон с дрожащими фиксами так и остаётся стоящим.
  */
-function trustedSpeedMs(
-  evidence: ReturnType<typeof movementEvidence>,
-  deviceSpeedMs: number | null,
-): number {
+function trustedSpeedMs(evidence: ReturnType<typeof movementEvidence>, deviceSpeedMs: number | null): number {
   if (!evidence.credible)
     return 0
+
   // Заявленная скорость не может вдвое превышать подтверждённую геометрией окна.
   return Math.min(Math.max(deviceSpeedMs ?? 0, evidence.speedMs), evidence.speedMs * 2)
 }
@@ -325,6 +466,7 @@ class BackgroundAudioKeepalive {
       }
 
       const promise = this.audio.play()
+
       if (promise !== undefined) {
         promise
           .then(() => {
@@ -353,6 +495,7 @@ class BackgroundAudioKeepalive {
   private startWebAudio(): void {
     try {
       const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext
+
       if (!AudioContextClass)
         return
 
@@ -364,38 +507,52 @@ class BackgroundAudioKeepalive {
         void this.audioContext.resume().catch(() => {})
       }
 
-      // Создаем непрерывный буфер тишины на 1 секунду и зацикливаем его
-      const sampleRate = this.audioContext.sampleRate || 44100
-      const buffer = this.audioContext.createBuffer(1, sampleRate, sampleRate)
-      const channelData = buffer.getChannelData(0)
-      for (let i = 0; i < channelData.length; i++) {
-        channelData[i] = 0
-      }
-
-      if (this.bufferSource) {
-        try {
-          this.bufferSource.stop()
-          this.bufferSource.disconnect()
-        }
-        catch {}
-      }
+      this.stopBufferSource()
 
       this.bufferSource = this.audioContext.createBufferSource()
-      this.bufferSource.buffer = buffer
+      this.bufferSource.buffer = this.createSilenceBuffer(this.audioContext)
       this.bufferSource.loop = true
-
-      if (!this.gainNode) {
-        this.gainNode = this.audioContext.createGain()
-        this.gainNode.gain.value = 0.001
-        this.gainNode.connect(this.audioContext.destination)
-      }
-
-      this.bufferSource.connect(this.gainNode)
+      const gainNode = this.ensureGainNode(this.audioContext)
+      this.bufferSource.connect(gainNode)
       this.bufferSource.start(0)
     }
     catch (e) {
       console.warn('[Tracking] Ошибка Web Audio keepalive:', e)
     }
+  }
+
+  private createSilenceBuffer(context: AudioContext): AudioBuffer {
+    const sampleRate = context.sampleRate || 44100
+    const buffer = context.createBuffer(1, sampleRate, sampleRate)
+    const channelData = buffer.getChannelData(0)
+
+    for (let i = 0; i < channelData.length; i++)
+      channelData[i] = 0
+
+    return buffer
+  }
+
+  private stopBufferSource() {
+    if (!this.bufferSource)
+      return
+
+    try {
+      this.bufferSource.stop()
+      this.bufferSource.disconnect()
+    }
+    catch {}
+  }
+
+  private ensureGainNode(context: AudioContext): GainNode {
+    if (this.gainNode)
+      return this.gainNode
+
+    const gainNode = context.createGain()
+    gainNode.gain.value = 0.001
+    gainNode.connect(context.destination)
+    this.gainNode = gainNode
+
+    return gainNode
   }
 
   private setupMediaSession(): void {
@@ -430,6 +587,7 @@ class BackgroundAudioKeepalive {
 
   public updateNotification(title: string, subtitle?: string): void {
     this.lastTitle = title
+
     if (subtitle)
       this.lastSubtitle = subtitle
 
@@ -438,6 +596,7 @@ class BackgroundAudioKeepalive {
 
     this.updateThrottleTimer = setTimeout(() => {
       this.updateThrottleTimer = null
+
       if (typeof navigator !== 'undefined' && 'mediaSession' in navigator && this.isPlaying) {
         try {
           navigator.mediaSession.metadata = new MediaMetadata({
@@ -467,6 +626,7 @@ class BackgroundAudioKeepalive {
       document.addEventListener('freeze', this.boundResumeHandler)
       document.addEventListener('resume', this.boundResumeHandler)
     }
+
     if (typeof window !== 'undefined') {
       window.addEventListener('pageshow', this.boundResumeHandler)
       window.addEventListener('focus', this.boundResumeHandler)
@@ -476,41 +636,47 @@ class BackgroundAudioKeepalive {
 
   public stop(): void {
     this.isPlaying = false
+    this.stopHtmlAudio()
+    this.stopWebAudio()
+    this.resetMediaSession()
+  }
 
-    if (this.audio) {
-      try {
-        this.audio.pause()
-        this.audio.currentTime = 0
-      }
-      catch {}
-    }
+  private stopHtmlAudio() {
+    if (!this.audio)
+      return
 
-    if (this.bufferSource) {
-      try {
-        this.bufferSource.stop()
-        this.bufferSource.disconnect()
-      }
-      catch {}
-      this.bufferSource = null
+    try {
+      this.audio.pause()
+      this.audio.currentTime = 0
     }
+    catch {}
+  }
 
-    if (this.audioContext && this.audioContext.state !== 'closed') {
-      try {
-        void this.audioContext.suspend().catch(() => {})
-      }
-      catch {}
-    }
+  private stopWebAudio() {
+    this.stopBufferSource()
+    this.bufferSource = null
 
-    if (typeof navigator !== 'undefined' && 'mediaSession' in navigator) {
-      try {
-        navigator.mediaSession.playbackState = 'none'
-        navigator.mediaSession.metadata = null
-        navigator.mediaSession.setActionHandler('play', null)
-        navigator.mediaSession.setActionHandler('pause', null)
-        navigator.mediaSession.setActionHandler('stop', null)
-      }
-      catch {}
+    if (!this.audioContext || this.audioContext.state === 'closed')
+      return
+
+    try {
+      void this.audioContext.suspend().catch(() => {})
     }
+    catch {}
+  }
+
+  private resetMediaSession() {
+    if (typeof navigator === 'undefined' || !('mediaSession' in navigator))
+      return
+
+    try {
+      navigator.mediaSession.playbackState = 'none'
+      navigator.mediaSession.metadata = null
+      navigator.mediaSession.setActionHandler('play', null)
+      navigator.mediaSession.setActionHandler('pause', null)
+      navigator.mediaSession.setActionHandler('stop', null)
+    }
+    catch {}
   }
 }
 
@@ -557,12 +723,14 @@ class WebGeolocationTracker {
     this.setupLifecycleListeners()
 
     const saved = readStoredSession()
+
     if (saved) {
       this.currentSessionId = saved.sessionId
       this.sessionStartedAt = saved.startedAt
       this.sessionDistanceM = saved.distanceM
       this.lastFixPoint = saved.lastPoint
       this.sessionEndedAt = saved.lastPoint?.tsUtc || saved.startedAt
+
       if (saved.isRunning) {
         this.isRunning = true
         // Автоматически возобновляем отслеживание в фоне
@@ -574,29 +742,40 @@ class WebGeolocationTracker {
   public isSupported(): boolean {
     if (isMobileApp)
       return true
+
     return typeof navigator !== 'undefined' && 'geolocation' in navigator
+  }
+
+  private getTelemetry(now: number): TrackingTelemetry | undefined {
+    if (!this.isRunning && !this.lastFixPoint)
+      return undefined
+
+    const fix = this.displayFix ?? this.lastFixPoint
+    const position = getTelemetryPosition(fix)
+
+    return {
+      speedKmh: getTelemetrySpeedKmh(fix),
+      accuracyM: this.getTelemetryAccuracy(),
+      distanceM: Math.round(this.sessionDistanceM),
+      durationMs: this.getTelemetryDuration(now),
+      ...position,
+    }
+  }
+
+  private getTelemetryAccuracy(): number | null {
+    const accuracy = this.lastFixPoint?.accuracy
+
+    return accuracy != null ? Math.round(accuracy) : null
+  }
+
+  private getTelemetryDuration(now: number): number {
+    const endTs = this.isRunning ? now : (this.sessionEndedAt || this.lastFixPoint?.tsUtc || now)
+
+    return this.sessionStartedAt > 0 ? Math.max(0, endTs - this.sessionStartedAt) : 0
   }
 
   public getStatus(): TrackingStatus {
     const unsent = readStoredPoints()
-    const now = Date.now()
-
-    let telemetry: TrackingTelemetry | undefined
-    if (this.isRunning || this.lastFixPoint) {
-      const fix = this.displayFix ?? this.lastFixPoint
-      const speedKmh = fix?.activity === 'still' ? 0 : fix?.speed != null ? Math.round(fix.speed * 3.6) : null
-      // После остановки длительность фиксируется на моменте stop() или последней точке, а не «сейчас»
-      const endTs = this.isRunning ? now : (this.sessionEndedAt || this.lastFixPoint?.tsUtc || now)
-      telemetry = {
-        speedKmh,
-        accuracyM: this.lastFixPoint?.accuracy != null ? Math.round(this.lastFixPoint.accuracy) : null,
-        distanceM: Math.round(this.sessionDistanceM),
-        durationMs: this.sessionStartedAt > 0 ? Math.max(0, endTs - this.sessionStartedAt) : 0,
-        activity: fix?.activity || 'still',
-        lat: fix?.lat ?? null,
-        lng: fix?.lng ?? null,
-      }
-    }
 
     return {
       running: this.isRunning,
@@ -604,7 +783,7 @@ class WebGeolocationTracker {
       network: detectNetwork(),
       lastFixTsUtc: this.lastFixPoint?.tsUtc ?? null,
       batteryIgnored: this.batteryOptimizationsIgnored,
-      telemetry,
+      telemetry: this.getTelemetry(Date.now()),
       error: this.lastError,
     }
   }
@@ -687,76 +866,98 @@ class WebGeolocationTracker {
     }
   }
 
-  private async acquireWakeLock(generation?: number): Promise<void> {
+  private canAcquireWakeLock(generation?: number): boolean {
     if (typeof navigator === 'undefined' || !('wakeLock' in navigator))
-      return
+      return false
 
     if (!this.isRunning || (generation !== undefined && generation !== this.sessionGeneration))
-      return
+      return false
 
     if (this.wakeLockSentinel && !this.wakeLockSentinel.released)
-      return
+      return false
 
-    if (this.wakeLockAcquiring)
+    return !this.wakeLockAcquiring
+  }
+
+  private isCurrentWakeLockRequest(timedOut: boolean, generation: number, requestId: number): boolean {
+    return !timedOut
+      && this.isRunning
+      && this.sessionGeneration === generation
+      && this.wakeLockRequestId === requestId
+  }
+
+  private async requestWakeLock(generation: number, requestId: number): Promise<any | null> {
+    let timedOut = false
+    let timeoutTimer: ReturnType<typeof setTimeout> | undefined
+
+    const rawPromise: Promise<any> = (navigator as any).wakeLock.request('screen')
+    const safePromise = rawPromise
+      .then((sentinel: any) => {
+        if (this.isCurrentWakeLockRequest(timedOut, generation, requestId))
+          return sentinel
+
+        void sentinel.release().catch(() => {})
+
+        return null
+      })
+      .catch(() => null)
+
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      timeoutTimer = setTimeout(() => {
+        timedOut = true
+        reject(new Error('WakeLock timeout'))
+      }, 2000)
+    })
+
+    try {
+      return await Promise.race([safePromise, timeoutPromise])
+    }
+    finally {
+      clearTimeout(timeoutTimer)
+    }
+  }
+
+  private shouldResumeWakeLock(generation: number): boolean {
+    return this.isRunning
+      && this.sessionGeneration === generation
+      && typeof document !== 'undefined'
+      && document.visibilityState === 'visible'
+  }
+
+  private registerWakeLock(sentinel: any, generation: number) {
+    if (this.wakeLockSentinel && this.wakeLockSentinel !== sentinel && !this.wakeLockSentinel.released)
+      void this.wakeLockSentinel.release().catch(() => {})
+
+    this.wakeLockSentinel = sentinel
+    sentinel.addEventListener('release', () => {
+      if (this.wakeLockSentinel === sentinel)
+        this.wakeLockSentinel = null
+
+      if (this.shouldResumeWakeLock(generation))
+        void this.acquireWakeLock(generation)
+    })
+  }
+
+  private async acquireWakeLock(generation?: number): Promise<void> {
+    if (!this.canAcquireWakeLock(generation))
       return
 
     this.wakeLockAcquiring = true
     const currentRequestId = ++this.wakeLockRequestId
     const currentGen = generation ?? this.sessionGeneration
-    let timedOut = false
-    let timeoutTimer: any
 
     try {
-      const rawPromise: Promise<any> = (navigator as any).wakeLock.request('screen')
+      const sentinel = await this.requestWakeLock(currentGen, currentRequestId)
 
-      // Обрабатываем промис напрямую через .then: если он разрешится позже (после таймаута,
-      // stop() или смены поколения сессии), мы гарантированно освободим sentinel и не оставим экран включенным.
-      const safeReqPromise = rawPromise
-        .then((sentinel: any) => {
-          if (
-            timedOut
-            || !this.isRunning
-            || this.sessionGeneration !== currentGen
-            || this.wakeLockRequestId !== currentRequestId
-          ) {
-            void sentinel.release().catch(() => {})
-            return null
-          }
-          return sentinel
-        })
-        .catch(() => null)
-
-      const timeoutPromise = new Promise<never>((_, reject) => {
-        timeoutTimer = setTimeout(() => {
-          timedOut = true
-          reject(new Error('WakeLock timeout'))
-        }, 2000)
-      })
-
-      const sentinel = await Promise.race([safeReqPromise, timeoutPromise])
       if (!sentinel)
         return
 
-      if (this.wakeLockSentinel && this.wakeLockSentinel !== sentinel && !this.wakeLockSentinel.released) {
-        void this.wakeLockSentinel.release().catch(() => {})
-      }
-
-      this.wakeLockSentinel = sentinel
-
-      sentinel.addEventListener('release', () => {
-        if (this.wakeLockSentinel === sentinel) {
-          this.wakeLockSentinel = null
-        }
-        if (this.isRunning && this.sessionGeneration === currentGen && typeof document !== 'undefined' && document.visibilityState === 'visible') {
-          void this.acquireWakeLock(currentGen)
-        }
-      })
+      this.registerWakeLock(sentinel, currentGen)
     }
     catch {
       // Игнорируем отказ или таймаут в wake lock (не критично для трекинга)
     }
     finally {
-      clearTimeout(timeoutTimer)
       this.wakeLockAcquiring = false
     }
   }
@@ -768,6 +969,7 @@ class WebGeolocationTracker {
     if (this.wakeLockSentinel) {
       const sentinel = this.wakeLockSentinel
       this.wakeLockSentinel = null
+
       try {
         let timeoutTimer: any
         const relPromise = sentinel.release()
@@ -835,6 +1037,7 @@ class WebGeolocationTracker {
       if (Array.isArray(buffered) && buffered.length > 0) {
         // Сортируем точки по времени, чтобы они воспроизводились строго в хронологическом порядке
         const sorted = [...buffered].sort((a, b) => a.timestamp - b.timestamp)
+
         for (const pos of sorted) {
           this.handlePositionUpdate({
             coords: {
@@ -850,6 +1053,7 @@ class WebGeolocationTracker {
             activityConfidence: pos.activityConfidence,
           })
         }
+
         // Запускаем фоновый синк накопившихся точек на сервер
         void import('./track-sync').then(m => m.runSync()).catch(() => {})
       }
@@ -865,15 +1069,11 @@ class WebGeolocationTracker {
     // 1. Web Geolocation Watcher (работает внутри Chromium WebView при активном аудио-кипаливе)
     if (typeof navigator !== 'undefined' && 'geolocation' in navigator) {
       try {
-        this.watchId = navigator.geolocation.watchPosition(
-          pos => this.handlePositionUpdate(pos),
-          err => this.handlePositionError(err),
-          {
-            enableHighAccuracy: true,
-            maximumAge: 3000,
-            timeout: 15000,
-          },
-        )
+        this.watchId = navigator.geolocation.watchPosition(pos => this.handlePositionUpdate(pos), err => this.handlePositionError(err), {
+          enableHighAccuracy: true,
+          maximumAge: 3000,
+          timeout: 15000,
+        })
       }
       catch (e) {
         console.warn('[Tracking] Web watchPosition failed:', e)
@@ -887,130 +1087,131 @@ class WebGeolocationTracker {
     }
   }
 
-  private async startNativeWatchers(generation: number): Promise<void> {
-    const isCurrent = () => this.isRunning && this.sessionGeneration === generation
-
-    // Проверяем и запрашиваем базовые права локации
+  private async ensureBaseLocationPermission(isCurrent: () => boolean): Promise<boolean> {
     let status = await tauriCheckPermissions()
+
     if (!isCurrent())
-      return
+      return false
 
     if (status.location === 'prompt' || status.location === 'prompt-with-rationale') {
       status = await tauriRequestPermissions(['location', 'coarseLocation'])
+
       if (!isCurrent())
-        return
-    }
-    if (status.location === 'denied' && status.coarseLocation === 'denied') {
-      throw new Error('Доступ к геолокации запрещён в настройках Android. Разрешите доступ в настройках приложения.')
+        return false
     }
 
-    // Проверяем специфичные Android права для непрерывной работы в фоне
+    if (status.location === 'denied' && status.coarseLocation === 'denied')
+      throw new Error('Доступ к геолокации запрещён в настройках Android. Разрешите доступ в настройках приложения.')
+
+    return true
+  }
+
+  private async requestAndroidPermissionIfNeeded(needed: boolean, command: string, isCurrent: () => boolean): Promise<boolean> {
+    if (needed)
+      await invoke(command).catch(() => {})
+
+    return isCurrent()
+  }
+
+  private async requestAdditionalAndroidPermissions(isCurrent: () => boolean): Promise<boolean> {
     try {
-      const perm = await invoke<{
+      const permissions = await invoke<{
         location: boolean
         notifications: boolean
         batteryOptimizationsIgnored: boolean
         activityRecognition: boolean
       }>('tracking_check_permissions')
+
+      if (!isCurrent())
+        return false
+
+      if (!permissions)
+        return true
+
+      this.batteryOptimizationsIgnored = permissions.batteryOptimizationsIgnored
+
+      const requests: Array<[boolean, string]> = [
+        [!permissions.notifications, 'tracking_request_notification_permission'],
+        [permissions.activityRecognition === false, 'tracking_request_activity_permission'],
+        [!permissions.batteryOptimizationsIgnored, 'tracking_request_ignore_battery_optimizations'],
+      ]
+
+      for (const [needed, command] of requests) {
+        if (!await this.requestAndroidPermissionIfNeeded(needed, command, isCurrent))
+          return false
+      }
+
+      return true
+    }
+    catch (error) {
+      console.warn('[Tracking] Ошибка проверки расширенных прав трекинга:', error)
+
+      return isCurrent()
+    }
+  }
+
+  private async listenNativeLocations(isCurrent: () => boolean): Promise<boolean> {
+    const listener = await addPluginListener<NativeTrackingPosition>('tracking', 'locationUpdate', (position) => {
       if (!isCurrent())
         return
 
-      if (perm) {
-        this.batteryOptimizationsIgnored = perm.batteryOptimizationsIgnored
+      const update = toPositionUpdate(position)
 
-        // На Android 13+ уведомление обязательно для Foreground Service
-        if (!perm.notifications) {
-          await invoke('tracking_request_notification_permission').catch(() => {})
-          if (!isCurrent())
-            return
-        }
+      if (update)
+        this.handlePositionUpdate(update)
+    })
 
-        // Activity Recognition (Android 10+) — независимый от GPS источник активности
-        if (perm.activityRecognition === false) {
-          await invoke('tracking_request_activity_permission').catch(() => {})
-          if (!isCurrent())
-            return
-        }
+    if (!isCurrent()) {
+      void listener.unregister().catch(() => {})
+      void invoke('tracking_stop').catch(() => {})
 
-        // Предлагаем отключить Doze Mode оптимизацию батареи
-        if (!perm.batteryOptimizationsIgnored) {
-          await invoke('tracking_request_ignore_battery_optimizations').catch(() => {})
-          if (!isCurrent())
-            return
-        }
-      }
+      return false
     }
-    catch (e) {
-      console.warn('[Tracking] Ошибка проверки расширенных прав трекинга:', e)
+
+    this.trackingPluginListener = listener
+    void this.drainNativeBufferedPoints()
+
+    return true
+  }
+
+  private async startNativeForegroundService(isCurrent: () => boolean): Promise<void> {
+    await invoke('tracking_start')
+
+    if (!isCurrent()) {
+      void invoke('tracking_stop').catch(() => {})
+
+      return
     }
+
+    const stateListener = await addPluginListener<{ running: boolean }>('tracking', 'trackingStateChanged', (state) => {
+      if (state && !state.running && isCurrent())
+        void this.stop()
+    })
+
+    if (!isCurrent()) {
+      void stateListener.unregister().catch(() => {})
+      void invoke('tracking_stop').catch(() => {})
+
+      return
+    }
+
+    this.trackingStateListener = stateListener
+    await this.listenNativeLocations(isCurrent)
+  }
+
+  private async startNativeWatchers(generation: number): Promise<void> {
+    const isCurrent = () => this.isRunning && this.sessionGeneration === generation
+
+    if (!await this.ensureBaseLocationPermission(isCurrent))
+      return
+
+    if (!await this.requestAdditionalAndroidPermissions(isCurrent))
+      return
 
     if (!isCurrent())
       return
 
-    // Запускаем системный Android Foreground Service с CPU PARTIAL_WAKE_LOCK и постоянным уведомлением
-    await invoke('tracking_start')
-    if (!isCurrent()) {
-      // Если сессия была остановлена или сменилась — немедленно глушим запущенный сервис!
-      void invoke('tracking_stop').catch(() => {})
-      return
-    }
-
-    // Слушатель изменения состояния сервиса (например, нажали «Остановить» в уведомлении)
-    const stateListener = await addPluginListener<{ running: boolean }>(
-      'tracking',
-      'trackingStateChanged',
-      (state) => {
-        if (state && !state.running && this.isRunning && this.sessionGeneration === generation) {
-          void this.stop()
-        }
-      },
-    )
-    if (!isCurrent()) {
-      void stateListener.unregister().catch(() => {})
-      void invoke('tracking_stop').catch(() => {})
-      return
-    }
-    this.trackingStateListener = stateListener
-
-    // Подписываемся на непрерывный поток координат из Android сервиса
-    const pluginListener = await addPluginListener<{
-      latitude: number
-      longitude: number
-      accuracy?: number | null
-      altitude?: number | null
-      speed?: number | null
-      heading?: number | null
-      timestamp?: number
-      activity?: string | null
-      activityConfidence?: number | null
-    }>('tracking', 'locationUpdate', (pos) => {
-      if (!isCurrent())
-        return
-      if (pos && typeof pos.latitude === 'number' && typeof pos.longitude === 'number') {
-        this.handlePositionUpdate({
-          coords: {
-            latitude: pos.latitude,
-            longitude: pos.longitude,
-            accuracy: pos.accuracy,
-            altitude: pos.altitude,
-            speed: pos.speed,
-            heading: pos.heading,
-          },
-          timestamp: pos.timestamp || Date.now(),
-          activity: pos.activity,
-          activityConfidence: pos.activityConfidence,
-        })
-      }
-    })
-    if (!isCurrent()) {
-      void pluginListener.unregister().catch(() => {})
-      void invoke('tracking_stop').catch(() => {})
-      return
-    }
-    this.trackingPluginListener = pluginListener
-
-    // Выгружаем накопленные за время выключения точки
-    void this.drainNativeBufferedPoints()
+    await this.startNativeForegroundService(isCurrent)
   }
 
   private stopWatchers(): void {
@@ -1021,6 +1222,7 @@ class WebGeolocationTracker {
       catch {
         // игнорируем
       }
+
       this.watchId = null
     }
 
@@ -1046,6 +1248,7 @@ class WebGeolocationTracker {
     this.watchdogTimer = setInterval(() => {
       if (!this.isRunning) {
         this.stopWatchdog()
+
         return
       }
 
@@ -1074,11 +1277,7 @@ class WebGeolocationTracker {
   private requestImmediateFix(): void {
     // 1. Web Geolocation fix
     if (typeof navigator !== 'undefined' && 'geolocation' in navigator) {
-      navigator.geolocation.getCurrentPosition(
-        pos => this.handlePositionUpdate(pos),
-        err => console.warn('[Tracking] Ошибка web immediate fix:', err?.message || err),
-        { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 },
-      )
+      navigator.geolocation.getCurrentPosition(pos => this.handlePositionUpdate(pos), err => console.warn('[Tracking] Ошибка web immediate fix:', err?.message || err), { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 })
     }
 
     // 2. Tauri native FusedLocationProviderClient fix
@@ -1118,44 +1317,50 @@ class WebGeolocationTracker {
     }
 
     writeStoredSession(null)
+
     return this.getStatus()
   }
 
-  public async requestPermission(): Promise<boolean> {
-    if (isMobileApp) {
-      try {
-        let status = await tauriCheckPermissions()
-        if (status.location !== 'granted' && status.coarseLocation !== 'granted') {
-          status = await tauriRequestPermissions(['location', 'coarseLocation'])
-        }
+  private async requestMobilePermission(): Promise<boolean> {
+    try {
+      let status = await tauriCheckPermissions()
 
-        const isGranted = status.location === 'granted' || status.coarseLocation === 'granted'
-        if (!isGranted) {
-          this.lastError = 'Доступ к геолокации запрещён. Для непрерывной записи при выключенном экране выберите «Разрешить в любом режиме» (Allow all the time) в настройках приложения Android.'
-          return false
-        }
+      if (status.location !== 'granted' && status.coarseLocation !== 'granted')
+        status = await tauriRequestPermissions(['location', 'coarseLocation'])
+
+      const isGranted = status.location === 'granted' || status.coarseLocation === 'granted'
+
+      if (isGranted)
         return true
-      }
-      catch (e: any) {
-        const msg = e?.message || String(e)
-        this.lastError = `Ошибка запроса прав геолокации: ${msg}`
-        console.warn('[Tracking] Ошибка запроса прав в Tauri:', e)
-        return false
-      }
-    }
 
-    if (typeof navigator !== 'undefined' && 'geolocation' in navigator) {
-      return new Promise((resolve) => {
-        navigator.geolocation.getCurrentPosition(
-          () => resolve(true),
-          (err) => {
-            this.handlePositionError(err)
-            resolve(false)
-          },
-          { timeout: 10000, enableHighAccuracy: true },
-        )
-      })
+      this.lastError = 'Доступ к геолокации запрещён. Для непрерывной записи при выключенном экране выберите «Разрешить в любом режиме» (Allow all the time) в настройках приложения Android.'
+
+      return false
     }
+    catch (error: any) {
+      const message = error?.message || String(error)
+      this.lastError = `Ошибка запроса прав геолокации: ${message}`
+      console.warn('[Tracking] Ошибка запроса прав в Tauri:', error)
+
+      return false
+    }
+  }
+
+  private requestBrowserPermission(): Promise<boolean> {
+    return new Promise((resolve) => {
+      navigator.geolocation.getCurrentPosition(() => resolve(true), (error) => {
+        this.handlePositionError(error)
+        resolve(false)
+      }, { timeout: 10000, enableHighAccuracy: true })
+    })
+  }
+
+  public async requestPermission(): Promise<boolean> {
+    if (isMobileApp)
+      return this.requestMobilePermission()
+
+    if (typeof navigator !== 'undefined' && 'geolocation' in navigator)
+      return this.requestBrowserPermission()
 
     return false
   }
@@ -1168,6 +1373,7 @@ class WebGeolocationTracker {
   } | null> {
     if (!isMobileApp)
       return null
+
     try {
       const perm = await invoke<{
         location: boolean
@@ -1175,9 +1381,11 @@ class WebGeolocationTracker {
         batteryOptimizationsIgnored: boolean
         activityRecognition: boolean
       }>('tracking_check_permissions')
+
       if (perm) {
         this.batteryOptimizationsIgnored = perm.batteryOptimizationsIgnored
       }
+
       return perm
     }
     catch {
@@ -1192,9 +1400,11 @@ class WebGeolocationTracker {
   public async requestActivityPermission(): Promise<boolean> {
     if (!isMobileApp)
       return true
+
     try {
       const res = await invoke<boolean>('tracking_request_activity_permission')
       await this.checkPermissions()
+
       return res
     }
     catch {
@@ -1205,9 +1415,11 @@ class WebGeolocationTracker {
   public async requestIgnoreBatteryOptimizations(): Promise<boolean> {
     if (!isMobileApp)
       return true
+
     try {
       const res = await invoke<boolean>('tracking_request_ignore_battery_optimizations')
       await this.checkPermissions()
+
       return res
     }
     catch {
@@ -1218,6 +1430,7 @@ class WebGeolocationTracker {
   public async openAppSettings(): Promise<boolean> {
     if (!isMobileApp)
       return false
+
     try {
       return await invoke<boolean>('tracking_open_app_settings')
     }
@@ -1233,6 +1446,7 @@ class WebGeolocationTracker {
   private pushDeviceActivity(sample: DeviceActivitySample): void {
     if (!sample.tsUtc)
       sample.tsUtc = Date.now()
+
     this.deviceActivitySamples.push(sample)
     const from = sample.tsUtc - DEVICE_ACTIVITY_WINDOW_MS
     this.deviceActivitySamples = this.deviceActivitySamples.filter(s => s.tsUtc >= from).slice(-10)
@@ -1244,6 +1458,7 @@ class WebGeolocationTracker {
   private deviceRecoHint(): { activity: ActivityType, confidence: number } | null {
     // Transition events represent a persistent state; repeated GPS fixes are not independent votes.
     const latest = this.deviceActivitySamples[this.deviceActivitySamples.length - 1]
+
     return latest && latest.confidence >= DEVICE_ACTIVITY_MIN_CONFIDENCE
       ? { activity: latest.activity, confidence: latest.confidence }
       : null
@@ -1256,15 +1471,15 @@ class WebGeolocationTracker {
    * говорит велосипед» больше не возникает: без подтверждённого смещения поверить можно только
    * самому устройству, а оно в покое уверенно сообщает STILL.
    */
-  private resolveLiveActivity(
-    evidence: ReturnType<typeof movementEvidence>,
-    speedMs: number,
-  ): { activity: ActivityType, confidence: number } {
+  private resolveLiveActivity(evidence: ReturnType<typeof movementEvidence>, speedMs: number): { activity: ActivityType, confidence: number } {
     const device = this.deviceRecoHint()
+
     if (device?.activity === 'still' && !evidence.credible)
       return device
+
     if (device && device.activity !== 'still')
       return device
+
     if (evidence.credible)
       return { activity: estimateActivity(speedMs), confidence: 88 }
 
@@ -1274,145 +1489,142 @@ class WebGeolocationTracker {
     return { activity: 'still', confidence: 95 }
   }
 
-  private handlePositionUpdate(pos: {
-    coords: {
-      latitude: number
-      longitude: number
-      accuracy?: number | null
-      altitude?: number | null
-      heading?: number | null
-      speed?: number | null
-    }
-    timestamp?: number
-    /** Активность из системного Activity Recognition (Android-плагин трекинга). */
-    activity?: string | null
-    /** Уверенность Activity Recognition, 0..100 или 0..1. */
-    activityConfidence?: number | null
-  }): void {
-    const coords = pos.coords
-    const ts = pos.timestamp && pos.timestamp > 0 ? pos.timestamp : Date.now()
-    if (this.lastFixPoint && ts <= this.lastFixPoint.tsUtc)
-      return
-    const lat = coords.latitude
-    const lng = coords.longitude
-    if (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180)
-      return
-    const accuracy = typeof coords.accuracy === 'number' && Number.isFinite(coords.accuracy) ? coords.accuracy : null
-    const altitude = typeof coords.altitude === 'number' && Number.isFinite(coords.altitude) ? coords.altitude : null
+  private shouldRejectPosition(fix: NormalizedFix): boolean {
+    const previous = this.lastFixPoint
 
-    // Единый порог качества для первого и последующих фиксов, клиента и сервера.
-    if (accuracy != null && (accuracy < 0 || accuracy > MAX_ACCURACY_M)) {
-      return
+    if (!previous)
+      return false
+
+    const distance = haversineM(
+      previous.lat,
+      previous.lng,
+      fix.lat,
+      fix.lng,
+    )
+
+    if (distance < 1 && fix.ts - previous.tsUtc < 800)
+      return true
+
+    const validity = evaluatePointValidity({ ...fix, tsUtc: fix.ts }, previous)
+
+    if (!validity.isValid) {
+      this.consecutiveRejectedCount++
+      console.warn(`[Tracking] Точка пропущена из-за аномалии (${this.consecutiveRejectedCount}/3): ${validity.reason}`)
+      this.resetAnchorAfterRepeatedRejections()
+
+      return true
     }
 
-    const speed = typeof coords.speed === 'number' && Number.isFinite(coords.speed) && coords.speed >= 0 ? coords.speed : null
-    let bearing = typeof coords.heading === 'number' && Number.isFinite(coords.heading) && coords.heading >= 0 ? coords.heading : null
+    this.consecutiveRejectedCount = 0
 
-    let dM = 0
-
-    if (this.lastFixPoint) {
-      dM = haversineM(this.lastFixPoint.lat, this.lastFixPoint.lng, lat, lng)
-
-      // Игнорируем дублирующие точки от параллельных слушателей (Tauri + Web)
-      if (dM < 1.0 && (ts - this.lastFixPoint.tsUtc) < 800) {
-        return
-      }
-
-      // Проверка валидности точки и отсечение сбоев GPS / мгновенных телепортов
-      const validity = evaluatePointValidity(
-        { lat, lng, tsUtc: ts, accuracy, speed },
-        this.lastFixPoint,
+    if (fix.bearing === null && distance > 3) {
+      fix.bearing = bearingDeg(
+        previous.lat,
+        previous.lng,
+        fix.lat,
+        fix.lng,
       )
-      if (!validity.isValid) {
-        this.consecutiveRejectedCount++
-        console.warn(`[Tracking] Точка пропущена из-за аномалии (${this.consecutiveRejectedCount}/3): ${validity.reason}`)
-        // Если накопилось ≥ 3 отклоненных точек подряд, сбрасываем старую якорную точку для перекалибровки
-        if (this.consecutiveRejectedCount >= 3) {
-          console.warn('[Tracking] Серия отклонений: сброс якорной точки и перекалибровка на новые координаты.')
-          this.lastFixPoint = null
-          // Окно живой оценки тоже сбрасываем: его координаты принадлежат «сбойной» серии
-          this.liveFixes = []
-          this.consecutiveRejectedCount = 0
-        }
-        return
-      }
-
-      this.consecutiveRejectedCount = 0
-
-      // Если девайс не отдал азимут, рассчитываем
-      if (bearing === null && dM > 3) {
-        bearing = bearingDeg(this.lastFixPoint.lat, this.lastFixPoint.lng, lat, lng)
-      }
     }
 
-    // Живое состояние определяем по окну последних фиксов, а не по паре соседних:
-    // при точности 30-40 м дрожание координат даёт «мгновенную скорость» 5-20 м/с
-    // и сидящий телефон уезжает на велосипеде. Окно даёт прямое смещение, которое
-    // сравнивается с погрешностью: не превышает — значит перемещение не доказано.
-    this.liveFixes.push({ lat, lng, tsUtc: ts, accuracy })
-    const liveWindowFrom = ts - LIVE_FIXES_WINDOW_MS
-    this.liveFixes = this.liveFixes.filter(f => f.tsUtc >= liveWindowFrom).slice(-LIVE_FIXES_MAX)
+    return false
+  }
+
+  private resetAnchorAfterRepeatedRejections() {
+    if (this.consecutiveRejectedCount < 3)
+      return
+
+    console.warn('[Tracking] Серия отклонений: сброс якорной точки и перекалибровка на новые координаты.')
+    this.lastFixPoint = null
+    this.liveFixes = []
+    this.consecutiveRejectedCount = 0
+  }
+
+  private resolvePositionActivity(fix: NormalizedFix, position: PositionUpdate): ResolvedFixActivity {
+    // A rolling window distinguishes real movement from GPS drift while stationary.
+    this.liveFixes.push({ lat: fix.lat, lng: fix.lng, tsUtc: fix.ts, accuracy: fix.accuracy })
+    const liveWindowFrom = fix.ts - LIVE_FIXES_WINDOW_MS
+    this.liveFixes = this.liveFixes.filter(item => item.tsUtc >= liveWindowFrom).slice(-LIVE_FIXES_MAX)
     const evidence = movementEvidence(this.liveFixes)
-    const speedMs = trustedSpeedMs(evidence, speed)
+    const speedMs = trustedSpeedMs(evidence, fix.speed)
+    const deviceSample = normalizeDeviceActivity(position.activity, position.activityConfidence)
 
-    // Сигнал Activity Recognition добавляем в окно наблюдений и используем как решающий
-    // голос там, где геометрия не подтверждает перемещение.
-    const deviceSample = normalizeDeviceActivity(pos.activity, pos.activityConfidence)
-    if (deviceSample) {
-      deviceSample.tsUtc = ts
-      this.pushDeviceActivity(deviceSample)
-    }
-    else {
-      this.deviceActivitySamples = []
-    }
-    const deviceActivity = deviceSample?.activity ?? null
-    const deviceActivityConfidence = deviceSample?.confidence ?? null
+    this.updateDeviceActivitySamples(deviceSample, fix.ts)
 
     const resolved = this.resolveLiveActivity(evidence, speedMs)
-    const activity = resolved.activity
-    const activityConfidence = resolved.confidence
 
-    // Одометр: прибавляем дистанцию только когда перемещение подтверждено окном,
-    // иначе дрожание стоящего устройства накручивает километры.
+    return {
+      ...resolved,
+      speedMs,
+      deviceActivity: deviceSample?.activity ?? null,
+      deviceActivityConfidence: deviceSample?.confidence ?? null,
+    }
+  }
 
-    // Preserve every accepted measurement so the shared processor can reconstruct dwell intervals.
+  private updateDeviceActivitySamples(sample: DeviceActivitySample | null, ts: number) {
+    if (!sample) {
+      this.deviceActivitySamples = []
 
-    const point: TrackPoint = {
-      clientPointId: uuidv4(),
-      tsUtc: ts,
-      lat,
-      lng,
-      altitude,
-      accuracy,
-      speed,
-      bearing,
-      activity,
-      activityConfidence,
-      sessionId: this.currentSessionId || uuidv4(),
-      deviceActivity,
-      deviceActivityConfidence,
+      return
     }
 
-    this.lastFixPoint = point
+    sample.tsUtc = ts
+    this.pushDeviceActivity(sample)
+  }
+
+  private createTrackPoint(fix: NormalizedFix, activity: ResolvedFixActivity): TrackPoint {
+    return {
+      clientPointId: uuidv4(),
+      tsUtc: fix.ts,
+      lat: fix.lat,
+      lng: fix.lng,
+      altitude: fix.altitude,
+      accuracy: fix.accuracy,
+      speed: fix.speed,
+      bearing: fix.bearing,
+      activity: activity.activity,
+      activityConfidence: activity.confidence,
+      sessionId: this.currentSessionId || uuidv4(),
+      deviceActivity: activity.deviceActivity,
+      deviceActivityConfidence: activity.deviceActivityConfidence,
+    }
+  }
+
+  private recalculateSessionDistance(point: TrackPoint) {
     this.recentMeasurements.push(point)
     const prepared = prepareTrack(this.recentMeasurements)
     let recentDistance = 0
-    let committed = 0
-    const cutoff = ts - 180_000
-    for (let i = 1; i < prepared.length; i++) {
-      const a = prepared[i - 1]
-      const b = prepared[i]
-      const distance = !b.stop && b.activity !== 'still' && b.tsUtc - a.tsUtc <= 15_000
-        ? haversineM(a.lat, a.lng, b.lat, b.lng)
+    let committedDistance = 0
+    const cutoff = point.tsUtc - 180_000
+
+    for (let index = 1; index < prepared.length; index++) {
+      const previous = prepared[index - 1]!
+      const current = prepared[index]!
+      const representsMovement = !current.stop && current.activity !== 'still' && current.tsUtc - previous.tsUtc <= 15_000
+      const distance = representsMovement
+        ? haversineM(
+            previous.lat,
+            previous.lng,
+            current.lat,
+            current.lng,
+          )
         : 0
+
       recentDistance += distance
-      if (a.tsUtc < cutoff)
-        committed += distance
+
+      if (previous.tsUtc < cutoff)
+        committedDistance += distance
     }
+
     this.sessionDistanceM = Math.max(0, this.sessionDistanceM - this.recentDistanceM + recentDistance)
-    this.recentDistanceM = recentDistance - committed
-    this.recentMeasurements = this.recentMeasurements.filter(p => p.tsUtc >= cutoff)
+    this.recentDistanceM = recentDistance - committedDistance
+    this.recentMeasurements = this.recentMeasurements.filter(item => item.tsUtc >= cutoff)
+
+    return prepared
+  }
+
+  private updateDisplayFix(prepared: ReturnType<typeof prepareTrack>, point: TrackPoint) {
     const display = prepared[prepared.length - 1]
+
     if (display?.stop) {
       this.displayStopAnchor ??= { lat: display.lat, lng: display.lng }
       this.displayFix = { ...display, ...this.displayStopAnchor }
@@ -1421,13 +1633,12 @@ class WebGeolocationTracker {
       this.displayStopAnchor = null
       this.displayFix = display ?? point
     }
+  }
 
-    // Сохраняем точку в локальный буфер
+  private persistTrackPoint(point: TrackPoint) {
     const queue = readStoredPoints()
     queue.push(point)
     writeStoredPoints(queue)
-
-    // Обновляем состояние сессии
     writeStoredSession({
       sessionId: this.currentSessionId || point.sessionId,
       startedAt: this.sessionStartedAt,
@@ -1435,16 +1646,31 @@ class WebGeolocationTracker {
       lastPoint: point,
       isRunning: this.isRunning,
     })
+  }
 
-    // Обновляем живую телеметрию в шторке уведомлений Android
+  private updateTrackingNotification(speedMs: number) {
     const distFormatted = this.sessionDistanceM >= 1000
       ? `${(this.sessionDistanceM / 1000).toFixed(2)} км`
       : `${Math.round(this.sessionDistanceM)} м`
     const speedFormatted = speedMs > 0.3 ? `${Math.round(speedMs * 3.6)} км/ч` : '0 км/ч'
-    this.keepalive.updateNotification(
-      `Запись GPS: ${distFormatted} • ${speedFormatted}`,
-      'TripScheduler • Фоновый трекинг активен',
-    )
+
+    this.keepalive.updateNotification(`Запись GPS: ${distFormatted} • ${speedFormatted}`, 'TripScheduler • Фоновый трекинг активен')
+  }
+
+  private handlePositionUpdate(position: PositionUpdate): void {
+    const fix = normalizePositionUpdate(position, this.lastFixPoint)
+
+    if (!fix || this.shouldRejectPosition(fix))
+      return
+
+    const activity = this.resolvePositionActivity(fix, position)
+    const point = this.createTrackPoint(fix, activity)
+
+    this.lastFixPoint = point
+    const prepared = this.recalculateSessionDistance(point)
+    this.updateDisplayFix(prepared, point)
+    this.persistTrackPoint(point)
+    this.updateTrackingNotification(activity.speedMs)
   }
 
   private handlePositionError(err: GeolocationPositionError): void {
@@ -1465,12 +1691,14 @@ class WebGeolocationTracker {
 
   public getUnsent(limit = 500): TrackPoint[] {
     const queue = readStoredPoints()
+
     return queue.slice(0, limit)
   }
 
   public markSynced(clientPointIds: string[]): void {
     if (clientPointIds.length === 0)
       return
+
     const idSet = new Set(clientPointIds)
     const queue = readStoredPoints()
     const remaining = queue.filter(p => !idSet.has(p.clientPointId))
@@ -1534,56 +1762,98 @@ export const geotrack = {
   },
 }
 
-export function parseTrackPoint(raw: unknown): TrackPoint | null {
-  if (!isRecord(raw))
-    return null
-  const r = raw
-  const num = (v: unknown) => typeof v === 'number' && Number.isFinite(v)
-  if (
-    typeof r.clientPointId !== 'string' || r.clientPointId.length < 8 || r.clientPointId.length > 64
-    || !num(r.tsUtc) || (r.tsUtc as number) <= 0
-    || !num(r.lat) || (r.lat as number) < -90 || (r.lat as number) > 90
-    || !num(r.lng) || (r.lng as number) < -180 || (r.lng as number) > 180
-    || typeof r.activity !== 'string'
-    || typeof r.sessionId !== 'string' || r.sessionId.length < 4
-  ) {
-    return null
-  }
+const TRACK_ACTIVITIES: ActivityType[] = ['still', 'walk', 'bike', 'vehicle', 'rail', 'unknown']
 
-  const activities: ActivityType[] = ['still', 'walk', 'bike', 'vehicle', 'rail', 'unknown']
-  const activity = r.activity as ActivityType
-  if (!activities.includes(activity))
-    return null
+interface ValidTrackPointRecord extends Record<string, unknown> {
+  clientPointId: string
+  tsUtc: number
+  lat: number
+  lng: number
+  activity: string
+  sessionId: string
+}
 
-  const rawConf = num(r.activityConfidence) ? (r.activityConfidence as number) : 85
-  const activityConfidence = rawConf > 0 && rawConf <= 1
-    ? Math.round(rawConf * 100)
-    : Math.round(Math.min(100, Math.max(0, rawConf)))
+function isValidPointId(value: unknown): value is string {
+  return typeof value === 'string' && value.length >= 8 && value.length <= 64
+}
 
-  // Сигнал Activity Recognition: не валидируем строго — отсутствие поля допустимо,
-  // испорченное значение отбрасываем, чтобы не тащить мусор в классификацию дня.
-  const deviceRaw = r.deviceActivity
-  const deviceActivity = typeof deviceRaw === 'string' && activities.includes(deviceRaw as ActivityType)
-    ? deviceRaw as ActivityType
+function isValidSessionId(value: unknown): value is string {
+  return typeof value === 'string' && value.length >= 4
+}
+
+function isValidCoordinate(value: unknown, min: number, max: number): value is number {
+  return typeof value === 'number' && Number.isFinite(value) && value >= min && value <= max
+}
+
+function isValidTrackPointRecord(record: Record<string, unknown>): record is ValidTrackPointRecord {
+  return isValidPointId(record.clientPointId)
+    && typeof record.tsUtc === 'number' && Number.isFinite(record.tsUtc) && record.tsUtc > 0
+    && isValidCoordinate(record.lat, -90, 90)
+    && isValidCoordinate(record.lng, -180, 180)
+    && typeof record.activity === 'string'
+    && isValidSessionId(record.sessionId)
+}
+
+function normalizeConfidence(value: unknown, fallback: number): number {
+  const raw = typeof value === 'number' && Number.isFinite(value) ? value : fallback
+
+  return raw > 0 && raw <= 1
+    ? Math.round(raw * 100)
+    : Math.round(Math.min(100, Math.max(0, raw)))
+}
+
+function getValidOptionalNumber(record: Record<string, unknown>, key: string): number | null {
+  const value = record[key]
+
+  return typeof value === 'number' && Number.isFinite(value) ? value : null
+}
+
+function getNonNegativeOptionalNumber(record: Record<string, unknown>, key: string): number | null {
+  const value = getValidOptionalNumber(record, key)
+
+  return value !== null && value >= 0 ? value : null
+}
+
+function normalizeBearing(value: number | null): number | null {
+  return value === null ? null : (((value % 360) + 360) % 360)
+}
+
+function getStoredDeviceActivity(record: Record<string, unknown>): ActivityType | null {
+  const value = record.deviceActivity
+
+  return typeof value === 'string' && TRACK_ACTIVITIES.includes(value as ActivityType)
+    ? value as ActivityType
     : null
-  const rawDeviceConf = num(r.deviceActivityConfidence) ? (r.deviceActivityConfidence as number) : null
-  const deviceActivityConfidence = rawDeviceConf == null
-    ? null
-    : Math.round(rawDeviceConf > 0 && rawDeviceConf <= 1 ? rawDeviceConf * 100 : Math.min(100, Math.max(0, rawDeviceConf)))
+}
+
+function getStoredDeviceActivityConfidence(record: Record<string, unknown>): number | null {
+  const value = record.deviceActivityConfidence
+
+  return typeof value === 'number' && Number.isFinite(value) ? normalizeConfidence(value, 0) : null
+}
+
+export function parseTrackPoint(raw: unknown): TrackPoint | null {
+  if (!isRecord(raw) || !isValidTrackPointRecord(raw))
+    return null
+
+  const activity = raw.activity as ActivityType
+
+  if (!TRACK_ACTIVITIES.includes(activity))
+    return null
 
   return {
-    clientPointId: r.clientPointId,
-    tsUtc: Math.round(r.tsUtc as number),
-    lat: r.lat as number,
-    lng: r.lng as number,
-    altitude: num(r.altitude) ? (r.altitude as number) : null,
-    accuracy: num(r.accuracy) && (r.accuracy as number) >= 0 ? (r.accuracy as number) : null,
-    speed: num(r.speed) && (r.speed as number) >= 0 ? (r.speed as number) : null,
-    bearing: num(r.bearing) ? ((((r.bearing as number) % 360) + 360) % 360) : null,
+    clientPointId: raw.clientPointId,
+    tsUtc: Math.round(raw.tsUtc as number),
+    lat: raw.lat as number,
+    lng: raw.lng as number,
+    altitude: getValidOptionalNumber(raw, 'altitude'),
+    accuracy: getNonNegativeOptionalNumber(raw, 'accuracy'),
+    speed: getNonNegativeOptionalNumber(raw, 'speed'),
+    bearing: normalizeBearing(getValidOptionalNumber(raw, 'bearing')),
     activity,
-    activityConfidence,
-    sessionId: r.sessionId,
-    deviceActivity,
-    deviceActivityConfidence,
+    activityConfidence: normalizeConfidence(raw.activityConfidence, 85),
+    sessionId: raw.sessionId,
+    deviceActivity: getStoredDeviceActivity(raw),
+    deviceActivityConfidence: getStoredDeviceActivityConfidence(raw),
   }
 }

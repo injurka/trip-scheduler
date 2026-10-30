@@ -21,16 +21,43 @@ interface Props {
 const props = defineProps<Props>()
 
 const { memories: memoriesStore, plan: tripDataStore } = useModuleStore(['memories', 'plan'])
-const { getSelectedDay, getAllDays } = storeToRefs(tripDataStore)
 const toast = useToast()
 const confirm = useConfirm()
 
+const { getSelectedDay, getAllDays } = storeToRefs(tripDataStore)
+const comment = ref(props.memory.comment || '')
+const initialValues = initializeDateTime()
+const selectedDate = shallowRef<CalendarDate>(initialValues.date)
+const selectedTime = shallowRef<Time>(initialValues.time)
+
 const isVideo = computed(() =>
   props.memory.image?.mediaType === 'video'
-  || /\.(?:mp4|webm|mov|mkv|avi|ogg|quicktime)$/i.test(props.memory.image?.url || ''),
-)
+  || /\.(?:mp4|webm|mov|mkv|avi|ogg|quicktime)$/i.test(props.memory.image?.url || ''))
+const isUpdatingMemory = computed(() =>
+  useRequestStatus(`${ETripMemoriesKeys.UPDATE}:${props.memory.id}`).value)
+const isDeletingMemory = computed(() =>
+  useRequestStatus(`${ETripMemoriesKeys.DELETE}:${props.memory.id}`).value)
+const validTripDates = computed(() => {
+  if (!getAllDays.value)
+    return new Set<string>()
 
-const comment = ref(props.memory.comment || '')
+  const dates = getAllDays.value.filter((day: IDay) => !!day.date).map((day: IDay) => day.date!.split('T')[0])
+
+  return new Set(dates)
+})
+const selectedDateFormatted = computed(() => {
+  const date = selectedDate.value.toDate(getLocalTimeZone())
+  const year = date.getFullYear()
+  const month = (date.getMonth() + 1).toString().padStart(2, '0')
+  const day = date.getDate().toString().padStart(2, '0')
+
+  return `${year}.${month}.${day}`
+})
+
+watch(getSelectedDay, (newDay) => {
+  if (newDay && newDay.date && !props.memory.timestamp)
+    selectedDate.value = parseDate(newDay.date.split('T')[0])
+})
 
 function initializeDateTime() {
   if (props.memory.image?.takenAt) {
@@ -41,6 +68,7 @@ function initializeDateTime() {
       time: new Time(takenAtDate.getUTCHours(), takenAtDate.getUTCMinutes()),
     }
   }
+
   if (props.memory.timestamp) {
     const tsDate = new Date(props.memory.timestamp)
 
@@ -51,51 +79,21 @@ function initializeDateTime() {
   }
 
   const defaultDateStr = getSelectedDay.value?.date?.split('T')[0] || new Date().toISOString().split('T')[0]
+
   return {
     date: parseDate(defaultDateStr),
     time: new Time(0, 0),
   }
 }
-
-const initialValues = initializeDateTime()
-const selectedDate = shallowRef<CalendarDate>(initialValues.date)
-const selectedTime = shallowRef<Time>(initialValues.time)
-
-const isUpdatingMemory = computed(() =>
-  useRequestStatus(`${ETripMemoriesKeys.UPDATE}:${props.memory.id}`).value,
-)
-
-const isDeletingMemory = computed(() =>
-  useRequestStatus(`${ETripMemoriesKeys.DELETE}:${props.memory.id}`).value,
-)
-
-const validTripDates = computed(() => {
-  if (!getAllDays.value)
-    return new Set<string>()
-  const dates = getAllDays.value.filter((day: IDay) => !!day.date).map((day: IDay) => day.date!.split('T')[0])
-  return new Set(dates)
-})
-
-watch(getSelectedDay, (newDay) => {
-  if (newDay && newDay.date && !props.memory.timestamp)
-    selectedDate.value = parseDate(newDay.date.split('T')[0])
-})
-
-const selectedDateFormatted = computed(() => {
-  const date = selectedDate.value.toDate(getLocalTimeZone())
-  const year = date.getFullYear()
-  const month = (date.getMonth() + 1).toString().padStart(2, '0')
-  const day = date.getDate().toString().padStart(2, '0')
-  return `${year}.${month}.${day}`
-})
-
 async function handleApply() {
   if (!selectedDate.value || !selectedTime.value)
     return
 
   const selectedDateStr = selectedDate.value.toString()
+
   if (!validTripDates.value.has(selectedDateStr)) {
     toast.error('Выбранная дата не существует в рамках этого путешествия.')
+
     return
   }
 
@@ -109,7 +107,6 @@ async function handleApply() {
     comment: comment.value,
   })
 }
-
 async function handleDelete() {
   const isConfirmed = await confirm({
     title: 'Удалить воспоминание?',
@@ -120,19 +117,16 @@ async function handleDelete() {
   if (isConfirmed)
     await memoriesStore.deleteMemory(props.memory.id)
 }
-
 function handleResetDateInPopover() {
   if (getSelectedDay.value?.date)
     selectedDate.value = parseDate(getSelectedDay.value.date.split('T')[0])
 }
-
 function handleResetDateTime() {
   if (getSelectedDay.value?.date) {
     selectedDate.value = parseDate(getSelectedDay.value.date.split('T')[0])
     selectedTime.value = new Time(0, 0)
   }
 }
-
 function saveComment() {
   if (comment.value !== props.memory.comment)
     memoriesStore.updateMemory({ id: props.memory.id, comment: comment.value })

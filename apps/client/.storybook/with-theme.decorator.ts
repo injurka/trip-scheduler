@@ -1,6 +1,4 @@
-import { h, onMounted, shallowReactive, watch } from 'vue'
-
-import StoryWrapper from './app-wrapper.vue'
+import { h, onMounted, shallowReactive, watch } from 'vue'import StoryWrapper from './app-wrapper.vue'
 
 export const DEFAULT_THEME = 'light'
 
@@ -12,6 +10,7 @@ export function withTheme(storyFn: any, context: any) {
 
   const setTheme = (value: string) => {
     const rootElement = document.querySelector('html')
+
     if (rootElement)
       rootElement.dataset.theme = value
   }

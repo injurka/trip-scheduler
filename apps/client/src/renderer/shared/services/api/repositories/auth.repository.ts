@@ -43,11 +43,13 @@ export class AuthRepository implements IAuthRepository {
 
   async updateStatus(data: { statusText?: string | null, statusEmoji?: string | null }): Promise<User> {
     const result = await trpc.user.updateStatus.mutate(data)
+
     return result as User
   }
 
   async updateUser(data: { name?: string, avatarUrl?: string }): Promise<User> {
     const result = await trpc.user.update.mutate(data)
+
     return result as User
   }
 
@@ -68,6 +70,7 @@ export class AuthRepository implements IAuthRepository {
 
     if (response.status === 401) {
       const refreshed = await refreshTokensIfNeeded()
+
       if (refreshed) {
         accessToken = authStore.tokenPair?.accessToken || localStorage.getItem(TOKEN_KEY)
         response = await fetch(`${SERVER_URL}/api/upload`, {
@@ -102,6 +105,7 @@ export class AuthRepository implements IAuthRepository {
 
     if (response.status === 401) {
       const refreshed = await refreshTokensIfNeeded()
+
       if (refreshed) {
         accessToken = authStore.tokenPair?.accessToken || localStorage.getItem(TOKEN_KEY)
         response = await fetch(`${SERVER_URL}/api/upload`, {

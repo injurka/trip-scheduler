@@ -21,6 +21,7 @@ const emit = defineEmits<{ (e: 'focusBlock', block: TimelineBlock): void }>()
 
 const stageColor = computed(() => {
   const colors = ['#7367F0', '#28C76F', '#EA5455', '#FF9F43', '#00CFE8']
+
   return colors[props.index % colors.length]
 })
 </script>

@@ -68,12 +68,14 @@ async function handleFetchMetadata(image: ImageViewerImage): Promise<IImageViewe
   }
 
   const imageId = (image.meta as any)?.imageId
+
   if (imageId) {
     try {
       return await trpc.image.getMetadata.query({ id: imageId })
     }
     catch (e) {
       console.error('[KitImageViewer] Failed to fetch image metadata:', e)
+
       return null
     }
   }

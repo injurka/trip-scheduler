@@ -15,7 +15,6 @@ import type {
 import { Icon } from '@iconify/vue'
 import { Time } from '@internationalized/date'
 import { onClickOutside } from '@vueuse/core'
-
 import { v4 as uuidv4 } from 'uuid'
 import { KitDropdown } from '~/components/01.kit/kit-dropdown'
 import { KitTimeField } from '~/components/01.kit/kit-time-field'
@@ -30,8 +29,16 @@ import SelectBookingDialog from './dialogs/select-booking-dialog.vue'
 import LlmActivityEditor from './llm-activity-editor.vue'
 import ActivitySectionRenderer from './sections/section-renderer.vue'
 
-const props = defineProps<ActivityItemProps>()
+interface ActivityItemProps {
+  activity: Activity
+  draft?: Activity | null
+  isFirst: boolean
+  isLast: boolean
+  isCollapsed: boolean
+  isPreviewMode?: boolean
+}
 
+const props = defineProps<ActivityItemProps>()
 const emit = defineEmits<{
   (e: 'update', value: Activity): void
   (e: 'delete', value: string): void
@@ -44,46 +51,20 @@ const emit = defineEmits<{
   (e: 'acceptDraftFields', fields: string[]): void
 }>()
 
-const KitInlineMdEditorWrapper = lazyComponent(
-  () => import('~/components/01.kit/kit-inline-md-editor').then(module => module.KitInlineMdEditorWrapper),
-)
-
-interface ActivityItemProps {
-  activity: Activity
-  draft?: Activity | null
-  isFirst: boolean
-  isLast: boolean
-  isCollapsed: boolean
-  isPreviewMode?: boolean
-}
-
 const store = useModuleStore(['ui'])
+
+const KitInlineMdEditorWrapper = lazyComponent(() => import('~/components/01.kit/kit-inline-md-editor').then(module => module.KitInlineMdEditorWrapper))
 const { isViewMode } = storeToRefs(store.ui)
-const isReadOnly = computed(() => isViewMode.value || !!props.isPreviewMode)
-
-const hasRenderedSections = ref(!props.isCollapsed || !isReadOnly.value)
-watchEffect(() => {
-  if (!props.isCollapsed || !isReadOnly.value) {
-    hasRenderedSections.value = true
-  }
-})
-
 const isTimeEditing = ref(false)
 const isAiEditing = ref(false)
 const isSelectBookingOpen = ref(false)
-
 const timeEditorRef = ref<HTMLElement | null>(null)
 const activityTitle = ref(props.activity.title)
-watch(() => props.activity.title, (newTitle) => {
-  activityTitle.value = newTitle
-}, { immediate: true })
 const editingStartTime = shallowRef<Time | null>(null)
 const editingEndTime = shallowRef<Time | null>(null)
 const expandedSections = ref<Record<string, Record<string, boolean>>>({})
-
 const isAccepting = ref(false)
 const isDiscarding = ref(false)
-
 const sectionTypeIcons: Record<EActivitySectionType, string> = {
   [EActivitySectionType.DESCRIPTION]: 'mdi:text-box-outline',
   [EActivitySectionType.GALLERY]: 'mdi:image-multiple-outline',
@@ -92,13 +73,22 @@ const sectionTypeIcons: Record<EActivitySectionType, string> = {
   [EActivitySectionType.BUS]: 'mdi:bus',
   [EActivitySectionType.BOOKING]: 'mdi:ticket-confirmation-outline',
 }
+const tagOptions = Object.values(EActivityTag).map(tag => ({
+  value: tag,
+  label: activityTagLabels[tag],
+  icon: activityTagIcons[tag],
+}))
+
+const isReadOnly = computed(() => isViewMode.value || !!props.isPreviewMode)
+
+const hasRenderedSections = ref(!props.isCollapsed || !isReadOnly.value)
 
 const tagInfo = computed(() => getTagInfo(props.activity.tag))
-
 // Diff вычисляем реактивно относительно draft-пропа
 const activityDiff = computed(() => {
   if (!props.draft)
     return null
+
   const baseDiff = useActivityDiff(props.activity, props.draft)
 
   // Group startTime and endTime into a single 'time' field
@@ -120,13 +110,48 @@ const activityDiff = computed(() => {
     changedFields: newChangedFields,
   }
 })
-
 const isDraftMode = computed(() => !!props.draft)
+const sectionGroups = computed((): SectionGroup[] => {
+  const groups: SectionGroup[] = []
+  const sections = (props.activity.sections || []) as CustomActivitySection[]
+  let i = 0
+
+  while (i < sections.length) {
+    const currentSection = sections[i]
+
+    if (!currentSection.isAttached) {
+      const attachedChildren: CustomActivitySection[] = []
+      let j = i + 1
+
+      while (j < sections.length && sections[j].isAttached) {
+        attachedChildren.push(sections[j])
+        j++
+      }
+
+      groups.push({ parent: currentSection, children: attachedChildren })
+      i = j
+    }
+    else {
+      groups.push({ parent: currentSection, children: [] })
+      i++
+    }
+  }
+
+  return groups
+})
+
+watchEffect(() => {
+  if (!props.isCollapsed || !isReadOnly.value) {
+    hasRenderedSections.value = true
+  }
+})
+watch(() => props.activity.title, (newTitle) => {
+  activityTitle.value = newTitle
+}, { immediate: true })
 
 function handleAiGenerate({ prompt }: { prompt: string }) {
   emit('requestAiEdit', prompt)
 }
-
 function handleAccept() {
   isAccepting.value = true
   setTimeout(() => {
@@ -134,7 +159,6 @@ function handleAccept() {
     isAccepting.value = false
   }, 300)
 }
-
 function handleDiscard() {
   isDiscarding.value = true
   setTimeout(() => {
@@ -142,18 +166,12 @@ function handleDiscard() {
     isDiscarding.value = false
   }, 300)
 }
-
-const tagOptions = Object.values(EActivityTag).map(tag => ({
-  value: tag,
-  label: activityTagLabels[tag],
-  icon: activityTagIcons[tag],
-}))
-
 function getContrastColor(hexcolor: string | undefined): string {
   if (!hexcolor)
     return '#000000'
 
   hexcolor = hexcolor.replace('#', '')
+
   if (hexcolor.length === 3)
     hexcolor = hexcolor.split('').map(char => char + char).join('')
 
@@ -161,11 +179,12 @@ function getContrastColor(hexcolor: string | undefined): string {
   const g = Number.parseInt(hexcolor.substring(2, 4), 16)
   const b = Number.parseInt(hexcolor.substring(4, 6), 16)
   const yiq = ((r * 299) + (g * 587) + (b * 114)) / 1000
+
   return (yiq >= 128) ? '#000000' : '#FFFFFF'
 }
-
 function getTitledPinStyle(pin: CustomActivitySection) {
   const color = pin.color
+
   if (!color)
     return {}
 
@@ -182,9 +201,9 @@ function getTitledPinStyle(pin: CustomActivitySection) {
     borderColor: color,
   }
 }
-
 function getRegularPinStyle(pin: CustomActivitySection) {
   const color = pin.color
+
   if (!color)
     return {}
 
@@ -205,11 +224,9 @@ function getRegularPinStyle(pin: CustomActivitySection) {
     color: getContrastColor(color),
   }
 }
-
 function handleTagUpdate(newTag: EActivityTag) {
   updateActivity({ tag: newTag })
 }
-
 function getGroupedChildren(children: CustomActivitySection[]) {
   const withTitle: CustomActivitySection[] = []
   const withoutTitle: CustomActivitySection[] = []
@@ -219,20 +236,18 @@ function getGroupedChildren(children: CustomActivitySection[]) {
     else
       withoutTitle.push(child)
   })
+
   return { withTitle, withoutTitle }
 }
-
 function toggleSection(groupId: string, sectionId: string) {
   if (!expandedSections.value[groupId])
     expandedSections.value[groupId] = {}
 
   expandedSections.value[groupId][sectionId] = !isSectionExpanded(groupId, sectionId)
 }
-
 function updateActivity(newActivityData: Partial<Activity>) {
   emit('update', { ...props.activity, ...newActivityData })
 }
-
 function parseTime(timeStr?: string): Time {
   if (!timeStr)
     return new Time(0, 0)
@@ -241,7 +256,6 @@ function parseTime(timeStr?: string): Time {
 
   return new Time(hour || 0, minute || 0)
 }
-
 function editTime() {
   if (isReadOnly.value)
     return
@@ -250,7 +264,6 @@ function editTime() {
   editingStartTime.value = parseTime(props.activity.startTime)
   editingEndTime.value = parseTime(props.activity.endTime)
 }
-
 function saveTimeChanges() {
   if (!isTimeEditing.value)
     return
@@ -266,11 +279,9 @@ function saveTimeChanges() {
   updateActivity({ startTime: newStartTime, endTime: newEndTime })
   isTimeEditing.value = false
 }
-
 function cancelTimeEditing() {
   isTimeEditing.value = false
 }
-
 function updateSection(sectionId: string, newSectionData: ActivitySection) {
   const newSections = [...(props.activity.sections || [])]
   const sectionIndex = newSections.findIndex(s => s.id === sectionId)
@@ -280,7 +291,6 @@ function updateSection(sectionId: string, newSectionData: ActivitySection) {
     updateActivity({ sections: newSections })
   }
 }
-
 function handleBookingSelected(booking: Booking) {
   const newSection: ActivitySectionBooking = {
     id: uuidv4(),
@@ -290,12 +300,13 @@ function handleBookingSelected(booking: Booking) {
   const newSections = [...(props.activity.sections || []), newSection]
   updateActivity({ sections: newSections as ActivitySections })
 }
-
 function addSection(type: EActivitySectionType) {
   if (type === EActivitySectionType.BOOKING) {
     isSelectBookingOpen.value = true
+
     return
   }
+
   let newSection: ActivitySection
 
   switch (type) {
@@ -383,15 +394,14 @@ function addSection(type: EActivitySectionType) {
     default:
       return
   }
+
   const newSections = [...(props.activity.sections || []), newSection]
   updateActivity({ sections: newSections as ActivitySections })
 }
-
 function deleteSection(sectionId: string) {
   const newSections = (props.activity.sections || []).filter(s => s.id !== sectionId)
   updateActivity({ sections: newSections })
 }
-
 function moveSection(sectionId: string, direction: 'up' | 'down') {
   const sections = [...(props.activity.sections || [])]
   const index = sections.findIndex(s => s.id === sectionId)
@@ -402,6 +412,7 @@ function moveSection(sectionId: string, direction: 'up' | 'down') {
   if (direction === 'up') {
     if (index === 0)
       return
+
     const temp = sections[index]
     sections[index] = sections[index - 1]
     sections[index - 1] = temp
@@ -409,6 +420,7 @@ function moveSection(sectionId: string, direction: 'up' | 'down') {
   else {
     if (index === sections.length - 1)
       return
+
     const temp = sections[index]
     sections[index] = sections[index + 1]
     sections[index + 1] = temp
@@ -416,42 +428,12 @@ function moveSection(sectionId: string, direction: 'up' | 'down') {
 
   updateActivity({ sections })
 }
-
-const sectionGroups = computed((): SectionGroup[] => {
-  const groups: SectionGroup[] = []
-  const sections = (props.activity.sections || []) as CustomActivitySection[]
-  let i = 0
-
-  while (i < sections.length) {
-    const currentSection = sections[i]
-
-    if (!currentSection.isAttached) {
-      const attachedChildren: CustomActivitySection[] = []
-      let j = i + 1
-
-      while (j < sections.length && sections[j].isAttached) {
-        attachedChildren.push(sections[j])
-        j++
-      }
-      groups.push({ parent: currentSection, children: attachedChildren })
-      i = j
-    }
-    else {
-      groups.push({ parent: currentSection, children: [] })
-      i++
-    }
-  }
-  return groups
-})
-
 function isSectionExpanded(groupId: string, sectionId: string): boolean {
   return expandedSections.value[groupId]?.[sectionId] ?? false
 }
-
 function handleInlineEditorBlur() {
   updateActivity({ title: activityTitle.value })
 }
-
 async function handleDelete() {
   const isConfirmed = await (confirm as any)({
     title: 'Удалить активность?',
@@ -553,7 +535,12 @@ onClickOutside(timeEditorRef, saveTimeChanges)
     <div class="activity-header">
       <div class="activity-time-wrapper">
         <div class="activity-time">
-          <div v-if="isTimeEditing" ref="timeEditorRef" class="time-editor" @keydown.esc.prevent="cancelTimeEditing">
+          <div
+            v-if="isTimeEditing"
+            ref="timeEditorRef"
+            class="time-editor"
+            @keydown.esc.prevent="cancelTimeEditing"
+          >
             <KitTimeField v-model="editingStartTime" />
             <span class="time-separator">-</span>
             <KitTimeField v-model="editingEndTime" />
@@ -692,9 +679,19 @@ onClickOutside(timeEditorRef, saveTimeChanges)
                     :style="getTitledPinStyle(child)"
                     @click="toggleSection(group.parent.id, child.id)"
                   >
-                    <Icon width="18" height="18" :icon="child.icon || sectionTypeIcons[child.type]" class="pill-icon" />
+                    <Icon
+                      width="18"
+                      height="18"
+                      :icon="child.icon || sectionTypeIcons[child.type]"
+                      class="pill-icon"
+                    />
                     <span class="pill-title">{{ child.title }}</span>
-                    <Icon width="18" height="18" :icon="isSectionExpanded(group.parent.id, child.id) ? 'mdi:chevron-up' : 'mdi:chevron-down'" class="pill-chevron" />
+                    <Icon
+                      width="18"
+                      height="18"
+                      :icon="isSectionExpanded(group.parent.id, child.id) ? 'mdi:chevron-up' : 'mdi:chevron-down'"
+                      class="pill-chevron"
+                    />
                   </button>
                   <div v-if="index < getGroupedChildren(group.children).withTitle.length - 1 || getGroupedChildren(group.children).withoutTitle.length > 0" class="attachment-line-end" />
                 </div>

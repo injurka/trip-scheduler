@@ -9,6 +9,7 @@ function clearCacheByName(cacheName: string): Promise<void> {
     if (!('serviceWorker' in navigator) || !navigator.serviceWorker.controller) {
       console.warn('Service Worker не активен, очистка кеша пропущена.')
       resolve()
+
       return
     }
 

@@ -16,7 +16,13 @@ const HARDCODED_PRESETS: ChecklistPreset[] = [
         icon: 'mdi:passport',
         items: [
           { text: 'Загранпаспорт (запас > 6 мес)', priority: 5, description: 'Проверен на целостность страниц и срок действия' },
-          { text: 'Регистрация в Taiwan the Lucky Land', priority: 5, link: 'https://5000.taiwan.net.tw', cost: 'Шанс ~14 000 ₽', description: 'Заполнить за 1–7 дней до прилета, сохранить QR-код' },
+          {
+            text: 'Регистрация в Taiwan the Lucky Land',
+            priority: 5,
+            link: 'https://5000.taiwan.net.tw',
+            cost: 'Шанс ~14 000 ₽',
+            description: 'Заполнить за 1–7 дней до прилета, сохранить QR-код',
+          },
           { text: 'Электронная миграционная карта (TWAC)', priority: 5, link: 'https://niaspeedy.immigration.gov.tw', description: 'Заполнить за 1–3 дня до вылета' },
           { text: 'Медицинская страховка (активный отдых)', priority: 4, cost: 'Покрытие от $50 000', description: 'Включая треккинг до 2500м и снорклинг' },
         ],

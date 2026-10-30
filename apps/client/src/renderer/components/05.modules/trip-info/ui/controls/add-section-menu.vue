@@ -92,8 +92,7 @@ useEventListener('keydown', (e) => {
     return
 
   const option = sectionOptions.find(opt =>
-    opt.shortcut?.toLowerCase() === e.key.toLowerCase(),
-  )
+    opt.shortcut?.toLowerCase() === e.key.toLowerCase())
 
   if (option) {
     e.preventDefault()

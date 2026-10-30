@@ -4,14 +4,14 @@ import { useHead } from '@vueuse/head'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { AppRoutePaths } from '~/shared/constants/routes'
 
+const router = useRouter()
+
 useHead({
   title: 'Страница не найдена (404)',
   meta: [
     { name: 'robots', content: 'noindex' },
   ],
 })
-
-const router = useRouter()
 </script>
 
 <template>

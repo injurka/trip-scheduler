@@ -8,7 +8,6 @@ import { ReloadPrompt } from '~/components/02.shared/reload-prompt'
 import { ToastManager } from '~/components/02.shared/toast-manager'
 import { lazyComponent } from '~/shared/lib/lazy-component'
 import { useLayoutStore } from '~/shared/store/layout.store'
-
 import '~/assets/scss/global.scss'
 import '~/assets/scss/atomic.scss'
 import '~/assets/scss/normalize.scss'
@@ -17,28 +16,25 @@ import '~/assets/scss/fonts.scss'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import '~/assets/scss/maplibre-markers.scss'
 
-const OfflineProgressDialog = lazyComponent(() => import('~/components/02.shared/offline-manager/ui/offline-progress-dialog.vue'))
-const FloatingMap = lazyComponent(() => import('~/components/04.features/floating-map/ui/floating-map.vue'))
-
-const DefaultLayout = lazyComponent(() => import('~/components/06.layouts/default/ui/layout.vue'))
-const EmptyLayout = lazyComponent(() => import('~/components/06.layouts/empty/ui/layout.vue'))
-const TripInfoLayout = lazyComponent(() => import('~/components/06.layouts/trip-info/ui/layout.vue'))
-
 const route = useRoute()
 const layoutStore = useLayoutStore()
 
-const layout = computed(() => route.meta.layout || 'empty')
-const transition = computed(() => route.meta.transition)
-
+const OfflineProgressDialog = lazyComponent(() => import('~/components/02.shared/offline-manager/ui/offline-progress-dialog.vue'))
+const FloatingMap = lazyComponent(() => import('~/components/04.features/floating-map/ui/floating-map.vue'))
+const DefaultLayout = lazyComponent(() => import('~/components/06.layouts/default/ui/layout.vue'))
+const EmptyLayout = lazyComponent(() => import('~/components/06.layouts/empty/ui/layout.vue'))
+const TripInfoLayout = lazyComponent(() => import('~/components/06.layouts/trip-info/ui/layout.vue'))
 const layouts = {
   'default': DefaultLayout,
   'empty': EmptyLayout,
   'trip-info': TripInfoLayout,
 }
-
 const siteUrl = 'https://trip-scheduler.ru'
 const siteName = 'Trip Scheduler'
 const description = 'Trip Scheduler — удобный планировщик путешествий. Создавайте маршруты, сохраняйте воспоминания и организуйте свои поездки в одном месте.'
+
+const layout = computed(() => route.meta.layout || 'empty')
+const transition = computed(() => route.meta.transition)
 
 useHead({
   titleTemplate: (titleChunk) => {
@@ -81,7 +77,6 @@ useHead({
     },
   ],
 })
-
 useSeoMeta({
   description,
   keywords: 'путешествия, trip scheduler, планировщик, маршрут, trip planner, поездка, туризм',

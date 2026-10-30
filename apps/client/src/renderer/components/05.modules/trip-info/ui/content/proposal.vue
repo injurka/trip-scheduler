@@ -14,6 +14,11 @@ const store = useModuleStore(['plan', 'ui'])
 const { getActivitiesForSelectedDay, getSelectedDay } = storeToRefs(store.plan)
 const { isViewMode, areAllActivitiesCollapsed } = storeToRefs(store.ui)
 
+const allActivityIds = computed(() => getActivitiesForSelectedDay.value.map((a: IActivity) => a.id))
+const allRouteBlocksCollapsed = computed(() => areAllActivitiesCollapsed.value(allActivityIds.value))
+const collapseRouteIcon = computed(() =>
+  allRouteBlocksCollapsed.value ? 'mdi:chevron-double-down' : 'mdi:chevron-double-up')
+
 function handleAddNewActivity() {
   if (!getSelectedDay.value)
     return
@@ -34,12 +39,6 @@ function handleAddNewActivity() {
 
   store.plan.addActivity(getSelectedDay.value.id, newActivity)
 }
-
-const allActivityIds = computed(() => getActivitiesForSelectedDay.value.map((a: IActivity) => a.id))
-const allRouteBlocksCollapsed = computed(() => areAllActivitiesCollapsed.value(allActivityIds.value))
-const collapseRouteIcon = computed(() =>
-  allRouteBlocksCollapsed.value ? 'mdi:chevron-double-down' : 'mdi:chevron-double-up',
-)
 function handleToggleAllActivities() {
   store.ui.toggleAllActivities(allActivityIds.value)
 }

@@ -40,16 +40,22 @@ export function useDisplay() {
 
   const name = computed(() => {
     const screenWidth = width.value
+
     if (screenWidth < breakpoints.sm)
       return 'xs'
+
     if (screenWidth < breakpoints.md)
       return 'sm'
+
     if (screenWidth < breakpoints.lg)
       return 'md'
+
     if (screenWidth < breakpoints.xl)
       return 'lg'
+
     if (screenWidth < breakpoints.xxl)
       return 'xl'
+
     return 'xxl'
   })
 

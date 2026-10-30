@@ -17,6 +17,13 @@ interface Props {
   filteredTotal: number
   statusFilter: 'all' | 'paid' | 'planned'
 }
+interface DayGroup {
+  dateKey: string
+  dateFormatted: string
+  dayOfWeek: string
+  totalInMainCurrency: number
+  transactions: Transaction[]
+}
 
 const props = defineProps<Props>()
 const emit = defineEmits<{
@@ -26,71 +33,24 @@ const emit = defineEmits<{
 }>()
 
 const { format: formatCurrency } = useCurrencyFormatter()
+
 const searchQuery = ref('')
-
-function getCategory(id: string | null, categories: Category[]) {
-  return categories.find(c => c.id === (id || 'cat-other'))
-}
-
-function getConvertedAmountInMainCurrency(transaction: Transaction): string | null {
-  if (transaction.currency === props.settings.mainCurrency)
-    return null
-
-  const rate = props.settings.exchangeRates[transaction.currency] || 1
-  const convertedAmount = transaction.amount * rate
-  return formatCurrency(convertedAmount, props.settings.mainCurrency)
-}
-
-function getAmountInMainCurrency(transaction: Transaction): number {
-  if (transaction.currency === props.settings.mainCurrency)
-    return transaction.amount
-  const rate = props.settings.exchangeRates[transaction.currency] || 1
-  return transaction.amount * rate
-}
-
-function getTxWord(count: number): string {
-  const mod10 = count % 10
-  const mod100 = count % 100
-  if (mod100 >= 11 && mod100 <= 19)
-    return 'трат'
-  if (mod10 === 1)
-    return 'трата'
-  if (mod10 >= 2 && mod10 <= 4)
-    return 'траты'
-  return 'трат'
-}
-
-function getTxStatusTooltip(tx: Transaction): string {
-  if (props.readonly) {
-    return tx.status === 'planned' ? 'В планах (к оплате)' : 'Оплачено'
-  }
-  return tx.status === 'planned'
-    ? 'В планах (к оплате). Нажмите, чтобы отметить оплаченным.'
-    : 'Оплачено. Нажмите, чтобы вернуть в статус «В планах».'
-}
 
 const searchedTransactions = computed(() => {
   if (!searchQuery.value.trim())
     return props.transactions
 
   const query = searchQuery.value.trim().toLowerCase()
+
   return props.transactions.filter((tx) => {
     const titleMatch = tx.title.toLowerCase().includes(query)
     const notesMatch = tx.notes ? tx.notes.toLowerCase().includes(query) : false
     const catName = getCategory(tx.categoryId, props.categories)?.name.toLowerCase() || ''
     const catMatch = catName.includes(query)
+
     return titleMatch || notesMatch || catMatch
   })
 })
-
-interface DayGroup {
-  dateKey: string
-  dateFormatted: string
-  dayOfWeek: string
-  totalInMainCurrency: number
-  transactions: Transaction[]
-}
-
 const groupedTransactions = computed<DayGroup[]>(() => {
   const groupsMap = new Map<string, {
     dateKey: string
@@ -136,11 +96,54 @@ const groupedTransactions = computed<DayGroup[]>(() => {
     transactions: g.items,
   }))
 })
-
 const totalSearchedAmount = computed(() => {
   return searchedTransactions.value.reduce((sum, tx) => sum + getAmountInMainCurrency(tx), 0)
 })
 
+function getCategory(id: string | null, categories: Category[]) {
+  return categories.find(c => c.id === (id || 'cat-other'))
+}
+function getConvertedAmountInMainCurrency(transaction: Transaction): string | null {
+  if (transaction.currency === props.settings.mainCurrency)
+    return null
+
+  const rate = props.settings.exchangeRates[transaction.currency] || 1
+  const convertedAmount = transaction.amount * rate
+
+  return formatCurrency(convertedAmount, props.settings.mainCurrency)
+}
+function getAmountInMainCurrency(transaction: Transaction): number {
+  if (transaction.currency === props.settings.mainCurrency)
+    return transaction.amount
+
+  const rate = props.settings.exchangeRates[transaction.currency] || 1
+
+  return transaction.amount * rate
+}
+function getTxWord(count: number): string {
+  const mod10 = count % 10
+  const mod100 = count % 100
+
+  if (mod100 >= 11 && mod100 <= 19)
+    return 'трат'
+
+  if (mod10 === 1)
+    return 'трата'
+
+  if (mod10 >= 2 && mod10 <= 4)
+    return 'траты'
+
+  return 'трат'
+}
+function getTxStatusTooltip(tx: Transaction): string {
+  if (props.readonly) {
+    return tx.status === 'planned' ? 'В планах (к оплате)' : 'Оплачено'
+  }
+
+  return tx.status === 'planned'
+    ? 'В планах (к оплате). Нажмите, чтобы отметить оплаченным.'
+    : 'Оплачено. Нажмите, чтобы вернуть в статус «В планах».'
+}
 function getTransactionActions(tx: Transaction): KitDropdownItem[] {
   const items: KitDropdownItem[] = []
 
@@ -159,23 +162,19 @@ function getTransactionActions(tx: Transaction): KitDropdownItem[] {
     })
   }
 
-  items.push(
-    {
-      value: 'edit',
-      label: 'Редактировать',
-      icon: 'mdi:pencil-outline',
-    },
-    {
-      value: 'delete',
-      label: 'Удалить',
-      icon: 'mdi:trash-can-outline',
-      isDestructive: true,
-    },
-  )
+  items.push({
+    value: 'edit',
+    label: 'Редактировать',
+    icon: 'mdi:pencil-outline',
+  }, {
+    value: 'delete',
+    label: 'Удалить',
+    icon: 'mdi:trash-can-outline',
+    isDestructive: true,
+  })
 
   return items
 }
-
 function handleTransactionAction(action: string, tx: Transaction) {
   if (action === 'toggle-status') {
     emit('toggleStatus', tx.id)

@@ -23,10 +23,9 @@ interface Props {
 }
 
 const props = defineProps<Props>()
+const model = defineModel<CalendarDate | null>({ required: true })
 
 const locale = 'ru-RU'
-
-const model = defineModel<CalendarDate | null>({ required: true })
 </script>
 
 <template>

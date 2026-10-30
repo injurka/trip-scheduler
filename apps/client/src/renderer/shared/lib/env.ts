@@ -18,5 +18,6 @@ export function getAppBaseUrl(): string {
   if (isTauri) {
     return WEB_APP_URL
   }
+
   return typeof window !== 'undefined' ? window.location.origin : WEB_APP_URL
 }

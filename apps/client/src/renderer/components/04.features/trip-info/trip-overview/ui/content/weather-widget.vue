@@ -17,41 +17,20 @@ interface Props {
 }
 
 const props = defineProps<Props>()
-
 const emit = defineEmits<{
   (e: 'weatherUpdated', data: TripWeatherPayload): void
 }>()
 
 const planStore = useTripPlanStore()
 const { ui } = useModuleStore(['ui'])
-const { isViewMode } = storeToRefs(ui)
 const { canEdit } = useTripPermissions()
 
-const isEditMode = computed(() => {
-  if (props.isEditable !== undefined)
-    return props.isEditable
-  return canEdit.value && !isViewMode.value
-})
-
+const { isViewMode } = storeToRefs(ui)
 const selectedCityKey = ref<string | null>(null)
 const isDropdownOpen = ref(false)
 const isDetailsExpanded = ref(false)
 const isGeneratingLocal = ref(false)
 const errorMessage = ref<string | null>(null)
-
-const isGenerating = computed(() => {
-  return isGeneratingLocal.value || planStore.isGeneratingWeather
-})
-
-const cityOptions = computed(() => {
-  return [...(props.cityRefs ?? [])]
-    .sort((a, b) => a.position - b.position)
-    .map(place => ({ value: place.id, label: `${place.name} · ${place.countryName}` }))
-})
-
-const selectedPlace = computed(() => props.cityRefs?.find(place => place.id === selectedCityKey.value) ?? null)
-const selectedCity = computed(() => selectedPlace.value?.name ?? null)
-
 const MONTH_NAMES_PREPOSITIONAL: Record<number, string> = {
   0: 'январе',
   1: 'феврале',
@@ -67,35 +46,50 @@ const MONTH_NAMES_PREPOSITIONAL: Record<number, string> = {
   11: 'декабре',
 }
 
+const isEditMode = computed(() => {
+  if (props.isEditable !== undefined)
+    return props.isEditable
+
+  return canEdit.value && !isViewMode.value
+})
+const isGenerating = computed(() => {
+  return isGeneratingLocal.value || planStore.isGeneratingWeather
+})
+const cityOptions = computed(() => {
+  return [...(props.cityRefs ?? [])]
+    .sort((a, b) => a.position - b.position)
+    .map(place => ({ value: place.id, label: `${place.name} · ${place.countryName}` }))
+})
+const selectedPlace = computed(() => props.cityRefs?.find(place => place.id === selectedCityKey.value) ?? null)
+const selectedCity = computed(() => selectedPlace.value?.name ?? null)
 const monthName = computed(() => {
   if (!props.startDate)
     return ''
+
   const date = new Date(props.startDate)
+
   return MONTH_NAMES_PREPOSITIONAL[date.getMonth()] || date.toLocaleString('ru-RU', { month: 'long' })
 })
-
 const effectiveWeatherByPlaceId = computed(() => props.weatherByPlaceId || planStore.trip?.weatherByPlaceId || null)
-
 const currentCityWeather = computed(() => {
   if (!selectedPlace.value || !effectiveWeatherByPlaceId.value)
     return null
+
   return effectiveWeatherByPlaceId.value[selectedPlace.value.id] ?? null
 })
-
 const hasDetailedInfo = computed(() => {
   if (!currentCityWeather.value)
     return false
+
   const w = currentCityWeather.value
-  return Boolean(
-    w.clothingRecommendation
+
+  return Boolean(w.clothingRecommendation
     || w.summary
     || w.windDescription
     || w.seasonalityDescription
     || w.precipitationType
-    || w.rainyDays,
-  )
+    || w.rainyDays)
 })
-
 const rainDetailText = computed(() => {
   if (!currentCityWeather.value)
     return ''
@@ -112,13 +106,19 @@ const rainDetailText = computed(() => {
   return parts.join(' • ')
 })
 
+watch(cityOptions, (options) => {
+  if (!options.some(option => option.value === selectedCityKey.value))
+    selectedCityKey.value = options[0]?.value ?? null
+}, { immediate: true })
+
 function formatTemp(temp: number | null | undefined): string {
   if (temp === null || temp === undefined)
     return '—'
+
   const rounded = Math.round(temp)
+
   return rounded > 0 ? `+${rounded}°` : `${rounded}°`
 }
-
 function getSeasonalityLabel(level?: string | null): string {
   switch (level) {
     case 'low': return 'Низкая'
@@ -128,7 +128,6 @@ function getSeasonalityLabel(level?: string | null): string {
     default: return level || 'Обычная'
   }
 }
-
 function getSeasonalityClass(level?: string | null): string {
   switch (level) {
     case 'low': return 'seasonality-low'
@@ -138,7 +137,6 @@ function getSeasonalityClass(level?: string | null): string {
     default: return 'seasonality-medium'
   }
 }
-
 async function handleGenerateWeather(forceRefresh = false) {
   if (!selectedCity.value)
     return
@@ -151,6 +149,7 @@ async function handleGenerateWeather(forceRefresh = false) {
       return
 
     const res = await planStore.generateWeather({ placeId: selectedPlace.value.id, forceRefresh })
+
     if (res?.weatherByPlaceId) {
       emit('weatherUpdated', { weatherByPlaceId: res.weatherByPlaceId })
     }
@@ -163,7 +162,6 @@ async function handleGenerateWeather(forceRefresh = false) {
     isGeneratingLocal.value = false
   }
 }
-
 async function handleGenerateAllCities(forceRefresh = false) {
   errorMessage.value = null
   isGeneratingLocal.value = true
@@ -171,6 +169,7 @@ async function handleGenerateAllCities(forceRefresh = false) {
   try {
     const placeIds = props.cityRefs?.map(place => place.id)
     const res = await planStore.generateWeather(placeIds?.length ? { placeIds, forceRefresh } : { forceRefresh })
+
     if (res?.weatherByPlaceId) {
       emit('weatherUpdated', { weatherByPlaceId: res.weatherByPlaceId })
     }
@@ -183,11 +182,6 @@ async function handleGenerateAllCities(forceRefresh = false) {
     isGeneratingLocal.value = false
   }
 }
-
-watch(cityOptions, (options) => {
-  if (!options.some(option => option.value === selectedCityKey.value))
-    selectedCityKey.value = options[0]?.value ?? null
-}, { immediate: true })
 </script>
 
 <template>
@@ -248,7 +242,12 @@ watch(cityOptions, (options) => {
       <div v-else-if="errorMessage" class="state-info error">
         <Icon icon="mdi:alert-circle-outline" class="error-icon" />
         <span class="error-title">{{ errorMessage }}</span>
-        <KitBtn size="sm" variant="tonal" class="retry-btn" @click="handleGenerateWeather(false)">
+        <KitBtn
+          size="sm"
+          variant="tonal"
+          class="retry-btn"
+          @click="handleGenerateWeather(false)"
+        >
           Попробовать снова
         </KitBtn>
       </div>

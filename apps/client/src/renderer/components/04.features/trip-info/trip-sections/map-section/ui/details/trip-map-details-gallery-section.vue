@@ -15,40 +15,33 @@ interface Props {
 const props = defineProps<Props>()
 
 const store = useModuleStore(['routeGallery'])
+const imageViewer = useImageViewer({
+  enableKeyboard: true,
+})
+
 const { tripImages } = storeToRefs(store.routeGallery)
 
 const imageUrls = computed(() => props.section.imageUrls || [])
-
 const fullImagesData = computed(() => {
   return (props.section.imageUrls || [])
     .map(url => tripImages.value.find(tripImg => tripImg.url === url))
     .filter((img): img is TripMedia => !!img)
 })
-
-const imageViewer = useImageViewer({
-  enableKeyboard: true,
-})
-
 const viewerImages = computed<ImageViewerImage[]>(() =>
-  fullImagesData.value.map(tripImage => tripMediaToViewerImage(tripImage)),
-)
+  fullImagesData.value.map(tripImage => tripMediaToViewerImage(tripImage)))
+const maxVisibleImages = computed(() => {
+  const count = fullImagesData.value.length
+
+  return count <= 4 ? count : 4
+})
+const remainingImagesCount = computed(() =>
+  Math.max(0, fullImagesData.value.length - maxVisibleImages.value))
+const visibleImages = computed(() =>
+  imageUrls.value.slice(0, maxVisibleImages.value))
 
 function openViewer(index: number) {
   imageViewer.open(viewerImages.value, index)
 }
-
-const maxVisibleImages = computed(() => {
-  const count = fullImagesData.value.length
-  return count <= 4 ? count : 4
-})
-
-const remainingImagesCount = computed(() =>
-  Math.max(0, fullImagesData.value.length - maxVisibleImages.value),
-)
-
-const visibleImages = computed(() =>
-  imageUrls.value.slice(0, maxVisibleImages.value),
-)
 </script>
 
 <template>

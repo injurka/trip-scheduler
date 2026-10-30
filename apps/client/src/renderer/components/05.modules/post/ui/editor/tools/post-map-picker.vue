@@ -6,7 +6,6 @@ import { KitDialogWithClose } from '~/components/01.kit/kit-dialog-with-close'
 import { KitInput } from '~/components/01.kit/kit-input'
 import { KitMap, useKitMapSearch } from '~/components/01.kit/kit-map'
 import { useToast } from '~/shared/composables/use-toast'
-
 import { nominatimService } from '~/shared/services/geo'
 
 interface Props {
@@ -20,19 +19,45 @@ const emit = defineEmits<{
   (e: 'confirm', data: { lat: number, lng: number, address?: string }): void
 }>()
 
+const { searchLocation, isSearching } = useKitMapSearch()
+
 const selectedCoords = ref<{ lat: number, lon: number } | null>(null)
 const selectedAddress = ref<string>('')
 const isLoadingAddress = ref(false)
 const markers = ref<MapMarker[]>([])
 const searchQuery = ref('')
 
-const { searchLocation, isSearching } = useKitMapSearch()
+const mapCenter = computed((): [number, number] => {
+  if (selectedCoords.value)
+    return [selectedCoords.value.lon, selectedCoords.value.lat]
+
+  return [37.6173, 55.7558]
+})
+
+watch(() => props.visible, (isOpen) => {
+  if (isOpen) {
+    if (props.initialCoords && props.initialCoords.lat !== 0) {
+      selectedCoords.value = { lat: props.initialCoords.lat, lon: props.initialCoords.lng }
+      updateMarker()
+      fetchAddress(props.initialCoords.lng, props.initialCoords.lat).then((addr) => {
+        selectedAddress.value = addr
+      })
+    }
+    else {
+      selectedCoords.value = null
+      selectedAddress.value = ''
+      markers.value = []
+    }
+
+    searchQuery.value = ''
+  }
+})
 
 async function fetchAddress(lon: number, lat: number) {
   const res = await nominatimService.reverse([lon, lat])
+
   return res?.address || ''
 }
-
 async function handleMapClick(coords: [number, number]) {
   const [lon, lat] = coords
   selectedCoords.value = { lat, lon }
@@ -42,7 +67,6 @@ async function handleMapClick(coords: [number, number]) {
   selectedAddress.value = await fetchAddress(lon, lat)
   isLoadingAddress.value = false
 }
-
 function updateMarker() {
   if (!selectedCoords.value)
     return
@@ -52,7 +76,6 @@ function updateMarker() {
     coords: selectedCoords.value,
   }]
 }
-
 async function handleSearch() {
   if (!searchQuery.value.trim())
     return
@@ -74,7 +97,6 @@ async function handleSearch() {
     useToast().error('Ошибка при поиске локации')
   }
 }
-
 function handleConfirm() {
   if (selectedCoords.value) {
     emit('confirm', {
@@ -85,30 +107,6 @@ function handleConfirm() {
     emit('update:visible', false)
   }
 }
-
-const mapCenter = computed((): [number, number] => {
-  if (selectedCoords.value)
-    return [selectedCoords.value.lon, selectedCoords.value.lat]
-  return [37.6173, 55.7558]
-})
-
-watch(() => props.visible, (isOpen) => {
-  if (isOpen) {
-    if (props.initialCoords && props.initialCoords.lat !== 0) {
-      selectedCoords.value = { lat: props.initialCoords.lat, lon: props.initialCoords.lng }
-      updateMarker()
-      fetchAddress(props.initialCoords.lng, props.initialCoords.lat).then((addr) => {
-        selectedAddress.value = addr
-      })
-    }
-    else {
-      selectedCoords.value = null
-      selectedAddress.value = ''
-      markers.value = []
-    }
-    searchQuery.value = ''
-  }
-})
 </script>
 
 <template>

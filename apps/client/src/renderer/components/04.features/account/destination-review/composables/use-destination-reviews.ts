@@ -75,7 +75,18 @@ function createEmptyForm(): ReviewFormState {
     latitude: '',
     longitude: '',
     content: '',
-    metrics: { safety: 3, culture: 3, infrastructure: 3, food: 3, prices: 3, nature: 3, vibe: 3, climate: 3, people: 3, entertainment: 3 },
+    metrics: {
+      safety: 3,
+      culture: 3,
+      infrastructure: 3,
+      food: 3,
+      prices: 3,
+      nature: 3,
+      vibe: 3,
+      climate: 3,
+      people: 3,
+      entertainment: 3,
+    },
     metricComments: {},
   }
 }
@@ -122,6 +133,7 @@ export function useDestinationReviews(userId: string) {
 
   function applyPreset(presetId: string) {
     const preset = METRIC_PRESETS.find(p => p.id === presetId)
+
     if (preset) {
       selectedMetrics.value = [...preset.metrics]
       activePreset.value = preset.id
@@ -140,6 +152,7 @@ export function useDestinationReviews(userId: string) {
     if (selectedMetrics.value.includes(metric)) {
       if (selectedMetrics.value.length === 1)
         return // Запрещаем отключать последний пункт
+
       selectedMetrics.value = selectedMetrics.value.filter(m => m !== metric)
 
       // Сброс сортировки, если мы отключили метрику по которой отсортировано
@@ -159,8 +172,7 @@ export function useDestinationReviews(userId: string) {
       const matchedPreset = METRIC_PRESETS.find(p =>
         p.id !== 'all'
         && p.metrics.length === selectedMetrics.value.length
-        && p.metrics.every(m => selectedMetrics.value.includes(m)),
-      )
+        && p.metrics.every(m => selectedMetrics.value.includes(m)))
       activePreset.value = matchedPreset ? matchedPreset.id : 'custom'
     }
   }
@@ -168,6 +180,7 @@ export function useDestinationReviews(userId: string) {
   async function fetchCountries() {
     if (countries.value.length > 0)
       return
+
     await useRequest({
       key: EDestinationReviewKeys.FETCH_COUNTRIES,
       fn: db => db.destinationReviews.getCountries(),
@@ -241,78 +254,148 @@ export function useDestinationReviews(userId: string) {
     await fetchCountries()
     editingReview.value = review
 
-    const extractedMetrics = {} as Record<DestinationMetricKey, number>
-    const extractedComments = {} as Record<DestinationMetricKey, string>
-
-    if (review.metrics) {
-      for (const [key, value] of Object.entries(review.metrics)) {
-        if (key.endsWith('_comment') && typeof value === 'string') {
-          extractedComments[key.replace('_comment', '') as DestinationMetricKey] = value
-        }
-        else if (typeof value === 'number') {
-          extractedMetrics[key as DestinationMetricKey] = value
-        }
-      }
-    }
-
-    const cityName = (review as any).geoPlace?.nameRu || (review as any).geoPlace?.nameEn || review.city || ''
-    const initialCityRef: GeoPlaceRef | null = review.geoPlaceId
-      ? {
-          id: review.geoPlaceId,
-          name: cityName,
-          countryId: review.country?.id || null,
-          countryCode: review.country?.sourceCode || (review as any).geoPlace?.countryCode || '',
-          countryName: review.country?.name || '',
-          regionName: (review as any).geoPlace?.regionName || null,
-          kind: ((review as any).geoPlace?.kind as any) || 'settlement',
-          latitude: Number(review.latitude) || 0,
-          longitude: Number(review.longitude) || 0,
-          timezone: (review as any).geoPlace?.timezone || null,
-          retired: false,
-        }
-      : null
-
-    Object.assign(editForm, {
-      type: 'city',
-      countryId: review.country?.id || '',
-      geoPlaceId: review.geoPlaceId ?? null,
-      city: cityName,
-      geoPlaceRef: initialCityRef,
-      coverUrl: review.coverUrl || null,
-      coverVariants: (review as any).coverVariants || null,
-      latitude: review.latitude ?? '',
-      longitude: review.longitude ?? '',
-      content: review.content || '',
-      metrics: { ...createEmptyForm().metrics, ...extractedMetrics },
-      metricComments: { ...extractedComments, ...(review as any).metricComments },
-    })
+    Object.assign(editForm, createReviewEditFormValues(review))
 
     editFormFile.value = null
     isEditModalOpen.value = true
   }
 
+  function createReviewEditFormValues(review: DestinationReview) {
+    const metrics = extractReviewMetrics(review.metrics)
+    const cityName = getReviewCityName(review)
+    const cityRef = createReviewCityRef(review, cityName)
+
+    return {
+      ...getReviewEditIdentity(review, cityName, cityRef),
+      ...getReviewEditContent(review),
+      metrics: { ...createEmptyForm().metrics, ...metrics.values },
+      metricComments: { ...metrics.comments, ...(review as any).metricComments },
+    }
+  }
+
+  function extractReviewMetrics(metrics?: DestinationReview['metrics']) {
+    const values = {} as Record<DestinationMetricKey, number>
+    const comments = {} as Record<DestinationMetricKey, string>
+
+    if (!metrics)
+      return { values, comments }
+
+    for (const [key, value] of Object.entries(metrics)) {
+      if (key.endsWith('_comment') && typeof value === 'string')
+        comments[key.replace('_comment', '') as DestinationMetricKey] = value
+      else if (typeof value === 'number')
+        values[key as DestinationMetricKey] = value
+    }
+
+    return { values, comments }
+  }
+
+  function getReviewCityName(review: DestinationReview): string {
+    const place = (review as any).geoPlace
+
+    return place?.nameRu || place?.nameEn || review.city || ''
+  }
+
+  function createReviewCityRef(review: DestinationReview, cityName: string): GeoPlaceRef | null {
+    if (!review.geoPlaceId)
+      return null
+
+    const place = (review as any).geoPlace
+
+    return {
+      id: review.geoPlaceId,
+      name: cityName,
+      countryId: getReviewCountryId(review),
+      countryCode: getReviewCountryCode(review, place),
+      countryName: getReviewCountryName(review),
+      regionName: getReviewRegionName(place),
+      kind: getReviewPlaceKind(place),
+      latitude: getReviewCoordinate(review.latitude),
+      longitude: getReviewCoordinate(review.longitude),
+      timezone: getReviewTimezone(place),
+      retired: false,
+    }
+  }
+
+  function getReviewCountryId(review: DestinationReview): string | null {
+    return review.country?.id || null
+  }
+
+  function getReviewCountryCode(review: DestinationReview, place: any): string {
+    return review.country?.sourceCode || place?.countryCode || ''
+  }
+
+  function getReviewCountryName(review: DestinationReview): string {
+    return review.country?.name || ''
+  }
+
+  function getReviewRegionName(place: any): string | null {
+    return place?.regionName || null
+  }
+
+  function getReviewPlaceKind(place: any): GeoPlaceRef['kind'] {
+    return (place?.kind as any) || 'settlement'
+  }
+
+  function getReviewCoordinate(value: unknown): number {
+    return Number(value) || 0
+  }
+
+  function getReviewTimezone(place: any): string | null {
+    return place?.timezone || null
+  }
+
+  function getReviewEditIdentity(review: DestinationReview, cityName: string, cityRef: GeoPlaceRef | null) {
+    return {
+      type: 'city' as const,
+      countryId: review.country?.id || '',
+      geoPlaceId: review.geoPlaceId ?? null,
+      city: cityName,
+      geoPlaceRef: cityRef,
+      latitude: review.latitude ?? '',
+      longitude: review.longitude ?? '',
+    }
+  }
+
+  function getReviewEditContent(review: DestinationReview) {
+    return {
+      coverUrl: review.coverUrl || null,
+      coverVariants: (review as any).coverVariants || null,
+      content: review.content || '',
+    }
+  }
+
   async function uploadCoverImage(file: File): Promise<{ url: string, variants: Record<string, string> } | null> {
     if (!authStore.user?.id)
       return null
+
     let uploadedData: { url: string, variants: Record<string, string> } | null = null
 
     await useRequest({
       key: EDestinationReviewKeys.UPLOAD_COVER,
-      fn: db => db.files.uploadFile(file, authStore.user!.id, 'review', 'cover'),
+      fn: db => db.files.uploadFile(
+        file,
+        authStore.user!.id,
+        'review',
+        'cover',
+      ),
       onSuccess: (uploadedImage) => {
         uploadedData = { url: uploadedImage.url, variants: (uploadedImage.variants as Record<string, string>) || {} }
       },
       onError: ({ error }) => { toast.error(error.customMessage || 'Ошибка загрузки обложки') },
     })
+
     return uploadedData
   }
 
   function normalizePayload(source: ReviewFormState, coverUrl: string | null, coverVariants: Record<string, string> | null) {
     const combinedMetrics: Record<string, any> = { ...source.metrics }
+
     for (const [key, val] of Object.entries(source.metricComments || {})) {
       if (val)
         combinedMetrics[`${key}_comment`] = val
     }
+
     return {
       type: source.type,
       countryId: source.countryId,
@@ -330,8 +413,10 @@ export function useDestinationReviews(userId: string) {
   async function submitReview() {
     let finalCoverUrl = form.coverUrl
     let finalCoverVariants = form.coverVariants
+
     if (formFile.value) {
       const uploaded = await uploadCoverImage(formFile.value)
+
       if (uploaded) {
         finalCoverUrl = uploaded.variants?.medium || uploaded.url
         finalCoverVariants = uploaded.variants
@@ -356,8 +441,10 @@ export function useDestinationReviews(userId: string) {
 
     let finalCoverUrl = editForm.coverUrl
     let finalCoverVariants = editForm.coverVariants
+
     if (editFormFile.value) {
       const uploaded = await uploadCoverImage(editFormFile.value)
+
       if (uploaded) {
         finalCoverUrl = uploaded.variants?.medium || uploaded.url
         finalCoverVariants = uploaded.variants

@@ -25,6 +25,7 @@ const resolvedSrc = computed(() => resolveApiUrl(props.src))
 const initials = computed(() => {
   if (props.isMore || !props.name)
     return ''
+
   return props.name
     .split(' ')
     .map(n => n[0])
@@ -40,11 +41,13 @@ const initials = computed(() => {
 const colorClass = computed(() => {
   if (props.isMore)
     return 'avatar--more'
+
   if (!props.name)
     return ''
 
   const avatarColorNames = ['blue', 'orange', 'green', 'red', 'purple', 'cyan']
   const index = props.name.length % avatarColorNames.length
+
   return `avatar--${avatarColorNames[index]}`
 })
 
@@ -53,6 +56,7 @@ const colorClass = computed(() => {
  */
 const sizeStyle = computed(() => {
   const sizeValue = typeof props.size === 'number' ? `${props.size}px` : props.size
+
   if (!sizeValue)
     return {}
 

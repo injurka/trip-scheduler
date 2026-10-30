@@ -6,23 +6,31 @@ import { nextTick, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
 import { KitMap } from '~/components/01.kit/kit-map'
 import { createMarkerElement } from '~/shared/services/geo'
 
-const props = defineProps<{
+interface Props {
   places: Place[]
   center: [number, number]
-}>()
+}
+
+const props = defineProps<Props>()
 
 const mapInstance = shallowRef<MapLibreMap | null>(null)
 const markersMap = new Map<string, maplibregl.Marker>()
 const selectedPlace = ref<Place | null>(null)
 
+watch(() => props.places, (newPlaces) => {
+  if (mapInstance.value) {
+    updateMarkers(newPlaces)
+  }
+}, { deep: true })
+
 function clearMarkers() {
   markersMap.forEach(m => m.remove())
   markersMap.clear()
 }
-
 function updateMarkers(places: Place[]) {
   clearMarkers()
   const map = mapInstance.value
+
   if (!map || !places || places.length === 0)
     return
 
@@ -54,7 +62,6 @@ function updateMarkers(places: Place[]) {
     markersMap.set(key, marker)
   })
 }
-
 function onMapReady(map: MapLibreMap) {
   mapInstance.value = map
 
@@ -65,19 +72,12 @@ function onMapReady(map: MapLibreMap) {
   updateMarkers(props.places)
 }
 
-watch(() => props.places, (newPlaces) => {
-  if (mapInstance.value) {
-    updateMarkers(newPlaces)
-  }
-}, { deep: true })
-
 onMounted(() => {
   watch(() => props.places, async () => {
     await nextTick()
     mapInstance.value?.resize()
   })
 })
-
 onUnmounted(() => {
   clearMarkers()
 })

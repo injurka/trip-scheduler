@@ -118,7 +118,12 @@ const activeViewMode = computed(() => props.viewMode || storedViewMode.value || 
               </div>
               <div class="card-actions">
                 <KitSkeleton width="28px" height="28px" border-radius="var(--r-xs)" />
-                <KitSkeleton v-if="!readonly" width="28px" height="28px" border-radius="var(--r-xs)" />
+                <KitSkeleton
+                  v-if="!readonly"
+                  width="28px"
+                  height="28px"
+                  border-radius="var(--r-xs)"
+                />
               </div>
             </div>
           </div>
