@@ -28,7 +28,12 @@ interface SignInResponse {
   }
 }
 
-const availableCities = ['taipei', 'kaohsiung', 'taichung'] as const
+const availableCities = [
+  'taipei',
+  'kaohsiung',
+  'taichung',
+  'moscow',
+] as const
 type City = typeof availableCities[number]
 const availableCitySet: ReadonlySet<string> = new Set(availableCities)
 

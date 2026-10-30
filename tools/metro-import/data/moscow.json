@@ -1,0 +1,2044 @@
+{
+  "id": "ru-moscow",
+  "city": "Москва",
+  "country": "Россия",
+  "lines": [
+    {
+      "id": "ru-moscow-1",
+      "lineNumber": "1",
+      "name": "Сокольническая линия",
+      "color": "#E42313",
+      "stations": [
+        {
+          "id": "ru-moscow-1-bulvar-rokossovskogo",
+          "name": "Бульвар Рокоссовского",
+          "latitude": 55.8148,
+          "longitude": 37.7342
+        },
+        {
+          "id": "ru-moscow-1-cherkizovskaya",
+          "name": "Черкизовская",
+          "latitude": 55.8038,
+          "longitude": 37.7448
+        },
+        {
+          "id": "ru-moscow-1-preobrazhenskaya-ploshchad",
+          "name": "Преображенская площадь",
+          "latitude": 55.7963,
+          "longitude": 37.7151
+        },
+        {
+          "id": "ru-moscow-1-sokolniki",
+          "name": "Сокольники",
+          "latitude": 55.7888,
+          "longitude": 37.6802
+        },
+        {
+          "id": "ru-moscow-1-krasnoselskaya",
+          "name": "Красносельская",
+          "latitude": 55.7801,
+          "longitude": 37.6673
+        },
+        {
+          "id": "ru-moscow-1-komsomolskaya",
+          "name": "Комсомольская",
+          "latitude": 55.7753,
+          "longitude": 37.6562
+        },
+        {
+          "id": "ru-moscow-1-krasnye-vorota",
+          "name": "Красные ворота",
+          "latitude": 55.769,
+          "longitude": 37.6487
+        },
+        {
+          "id": "ru-moscow-1-chistye-prudy",
+          "name": "Чистые пруды",
+          "latitude": 55.7657,
+          "longitude": 37.6388
+        },
+        {
+          "id": "ru-moscow-1-lubyanka",
+          "name": "Лубянка",
+          "latitude": 55.7597,
+          "longitude": 37.6272
+        },
+        {
+          "id": "ru-moscow-1-okhotny-ryad",
+          "name": "Охотный ряд",
+          "latitude": 55.7577,
+          "longitude": 37.6166
+        },
+        {
+          "id": "ru-moscow-1-biblioteka-imeni-lenina",
+          "name": "Библиотека имени Ленина",
+          "latitude": 55.7512,
+          "longitude": 37.61
+        },
+        {
+          "id": "ru-moscow-1-kropotkinskaya",
+          "name": "Кропоткинская",
+          "latitude": 55.7453,
+          "longitude": 37.6037
+        },
+        {
+          "id": "ru-moscow-1-park-kultury",
+          "name": "Парк культуры",
+          "latitude": 55.7356,
+          "longitude": 37.5943
+        },
+        {
+          "id": "ru-moscow-1-frunzenskaya",
+          "name": "Фрунзенская",
+          "latitude": 55.7267,
+          "longitude": 37.5786
+        },
+        {
+          "id": "ru-moscow-1-sportivnaya",
+          "name": "Спортивная",
+          "latitude": 55.7233,
+          "longitude": 37.5639
+        },
+        {
+          "id": "ru-moscow-1-vorobyovy-gory",
+          "name": "Воробьёвы горы",
+          "latitude": 55.7103,
+          "longitude": 37.5592
+        },
+        {
+          "id": "ru-moscow-1-universitet",
+          "name": "Университет",
+          "latitude": 55.6926,
+          "longitude": 37.5333
+        },
+        {
+          "id": "ru-moscow-1-prospekt-vernadskogo",
+          "name": "Проспект Вернадского",
+          "latitude": 55.6771,
+          "longitude": 37.506
+        },
+        {
+          "id": "ru-moscow-1-yugo-zapadnaya",
+          "name": "Юго-Западная",
+          "latitude": 55.6637,
+          "longitude": 37.4833
+        },
+        {
+          "id": "ru-moscow-1-troparyovo",
+          "name": "Тропарёво",
+          "latitude": 55.6459,
+          "longitude": 37.4725
+        },
+        {
+          "id": "ru-moscow-1-rumyantsevo",
+          "name": "Румянцево",
+          "latitude": 55.633,
+          "longitude": 37.4419
+        },
+        {
+          "id": "ru-moscow-1-salaryevo",
+          "name": "Саларьево",
+          "latitude": 55.6227,
+          "longitude": 37.424
+        },
+        {
+          "id": "ru-moscow-1-filatov-lug",
+          "name": "Филатов Луг",
+          "latitude": 55.601367,
+          "longitude": 37.407645
+        },
+        {
+          "id": "ru-moscow-1-prokshino",
+          "name": "Прокшино",
+          "latitude": 55.586242,
+          "longitude": 37.433802
+        },
+        {
+          "id": "ru-moscow-1-olkhovaya",
+          "name": "Ольховая",
+          "latitude": 55.568643,
+          "longitude": 37.459332
+        },
+        {
+          "id": "ru-moscow-1-novomoskovskaya",
+          "name": "Новомосковская",
+          "latitude": 55.560396,
+          "longitude": 37.46822
+        },
+        {
+          "id": "ru-moscow-1-potapovo",
+          "name": "Потапово",
+          "latitude": 55.55264,
+          "longitude": 37.492765
+        }
+      ]
+    },
+    {
+      "id": "ru-moscow-2",
+      "lineNumber": "2",
+      "name": "Замоскворецкая линия",
+      "color": "#4FB04F",
+      "stations": [
+        {
+          "id": "ru-moscow-2-khovrino",
+          "name": "Ховрино",
+          "latitude": 55.8791,
+          "longitude": 37.4822
+        },
+        {
+          "id": "ru-moscow-2-belomorskaya",
+          "name": "Беломорская",
+          "latitude": 55.8658,
+          "longitude": 37.4764
+        },
+        {
+          "id": "ru-moscow-2-rechnoy-vokzal",
+          "name": "Речной вокзал",
+          "latitude": 55.8549,
+          "longitude": 37.4761
+        },
+        {
+          "id": "ru-moscow-2-vodny-stadion",
+          "name": "Водный стадион",
+          "latitude": 55.8398,
+          "longitude": 37.4867
+        },
+        {
+          "id": "ru-moscow-2-voykovskaya",
+          "name": "Войковская",
+          "latitude": 55.819,
+          "longitude": 37.498
+        },
+        {
+          "id": "ru-moscow-2-sokol",
+          "name": "Сокол",
+          "latitude": 55.8051,
+          "longitude": 37.5153
+        },
+        {
+          "id": "ru-moscow-2-aeroport",
+          "name": "Аэропорт",
+          "latitude": 55.8003,
+          "longitude": 37.5329
+        },
+        {
+          "id": "ru-moscow-2-dinamo",
+          "name": "Динамо",
+          "latitude": 55.7897,
+          "longitude": 37.558
+        },
+        {
+          "id": "ru-moscow-2-belorusskaya",
+          "name": "Белорусская",
+          "latitude": 55.7767,
+          "longitude": 37.5835
+        },
+        {
+          "id": "ru-moscow-2-mayakovskaya",
+          "name": "Маяковская",
+          "latitude": 55.7701,
+          "longitude": 37.5958
+        },
+        {
+          "id": "ru-moscow-2-tverskaya",
+          "name": "Тверская",
+          "latitude": 55.7647,
+          "longitude": 37.6065
+        },
+        {
+          "id": "ru-moscow-2-teatralnaya",
+          "name": "Театральная",
+          "latitude": 55.7578,
+          "longitude": 37.619
+        },
+        {
+          "id": "ru-moscow-2-novokuznetskaya",
+          "name": "Новокузнецкая",
+          "latitude": 55.7415,
+          "longitude": 37.6295
+        },
+        {
+          "id": "ru-moscow-2-paveletskaya",
+          "name": "Павелецкая",
+          "latitude": 55.7305,
+          "longitude": 37.6377
+        },
+        {
+          "id": "ru-moscow-2-avtozavodskaya",
+          "name": "Автозаводская",
+          "latitude": 55.7074,
+          "longitude": 37.6576
+        },
+        {
+          "id": "ru-moscow-2-tekhnopark",
+          "name": "Технопарк",
+          "latitude": 55.695,
+          "longitude": 37.6641
+        },
+        {
+          "id": "ru-moscow-2-kolomenskaya",
+          "name": "Коломенская",
+          "latitude": 55.6785,
+          "longitude": 37.6638
+        },
+        {
+          "id": "ru-moscow-2-kashirskaya",
+          "name": "Каширская",
+          "latitude": 55.6551,
+          "longitude": 37.6487
+        },
+        {
+          "id": "ru-moscow-2-kantemirovskaya",
+          "name": "Кантемировская",
+          "latitude": 55.6358,
+          "longitude": 37.6564
+        },
+        {
+          "id": "ru-moscow-2-tsaritsyno",
+          "name": "Царицыно",
+          "latitude": 55.6214,
+          "longitude": 37.6694
+        },
+        {
+          "id": "ru-moscow-2-orekhovo",
+          "name": "Орехово",
+          "latitude": 55.6132,
+          "longitude": 37.6949
+        },
+        {
+          "id": "ru-moscow-2-domodedovskaya",
+          "name": "Домодедовская",
+          "latitude": 55.6108,
+          "longitude": 37.7186
+        },
+        {
+          "id": "ru-moscow-2-krasnogvardeyskaya",
+          "name": "Красногвардейская",
+          "latitude": 55.6137,
+          "longitude": 37.7444
+        },
+        {
+          "id": "ru-moscow-2-alma-atinskaya",
+          "name": "Алма-Атинская",
+          "latitude": 55.6326,
+          "longitude": 37.766
+        }
+      ]
+    },
+    {
+      "id": "ru-moscow-3",
+      "lineNumber": "3",
+      "name": "Арбатско-Покровская линия",
+      "color": "#0072BA",
+      "stations": [
+        {
+          "id": "ru-moscow-3-pyatnitskoye-shosse",
+          "name": "Пятницкое Шоссе",
+          "latitude": 55.8563,
+          "longitude": 37.3544
+        },
+        {
+          "id": "ru-moscow-3-mitino",
+          "name": "Митино",
+          "latitude": 55.8457,
+          "longitude": 37.3622
+        },
+        {
+          "id": "ru-moscow-3-volokolamskaya",
+          "name": "Волоколамская",
+          "latitude": 55.8354,
+          "longitude": 37.3822
+        },
+        {
+          "id": "ru-moscow-3-myakinino",
+          "name": "Мякинино",
+          "latitude": 55.8252,
+          "longitude": 37.3852
+        },
+        {
+          "id": "ru-moscow-3-strogino",
+          "name": "Строгино",
+          "latitude": 55.8038,
+          "longitude": 37.4031
+        },
+        {
+          "id": "ru-moscow-3-krylatskoye",
+          "name": "Крылатское",
+          "latitude": 55.7567,
+          "longitude": 37.4081
+        },
+        {
+          "id": "ru-moscow-3-molodyozhnaya",
+          "name": "Молодёжная",
+          "latitude": 55.7408,
+          "longitude": 37.4168
+        },
+        {
+          "id": "ru-moscow-3-kuntsevskaya",
+          "name": "Кунцевская",
+          "latitude": 55.7307,
+          "longitude": 37.4459
+        },
+        {
+          "id": "ru-moscow-3-slavyansky-bulvar",
+          "name": "Славянский бульвар",
+          "latitude": 55.7296,
+          "longitude": 37.4706
+        },
+        {
+          "id": "ru-moscow-3-park-pobedy",
+          "name": "Парк Победы",
+          "latitude": 55.7362,
+          "longitude": 37.5182
+        },
+        {
+          "id": "ru-moscow-3-kiyevskaya",
+          "name": "Киевская",
+          "latitude": 55.7442,
+          "longitude": 37.5645
+        },
+        {
+          "id": "ru-moscow-3-smolenskaya",
+          "name": "Смоленская",
+          "latitude": 55.7474,
+          "longitude": 37.5823
+        },
+        {
+          "id": "ru-moscow-3-arbatskaya",
+          "name": "Арбатская",
+          "latitude": 55.7522,
+          "longitude": 37.6061
+        },
+        {
+          "id": "ru-moscow-3-ploshchad-revolyutsii",
+          "name": "Площадь Революции",
+          "latitude": 55.7566,
+          "longitude": 37.6216
+        },
+        {
+          "id": "ru-moscow-3-kurskaya",
+          "name": "Курская",
+          "latitude": 55.7576,
+          "longitude": 37.6577
+        },
+        {
+          "id": "ru-moscow-3-baumanskaya",
+          "name": "Бауманская",
+          "latitude": 55.773,
+          "longitude": 37.6806
+        },
+        {
+          "id": "ru-moscow-3-elektrozavodskaya",
+          "name": "Электрозаводская",
+          "latitude": 55.7817,
+          "longitude": 37.7037
+        },
+        {
+          "id": "ru-moscow-3-semyonovskaya",
+          "name": "Семёновская",
+          "latitude": 55.7833,
+          "longitude": 37.7208
+        },
+        {
+          "id": "ru-moscow-3-partizanskaya",
+          "name": "Партизанская",
+          "latitude": 55.7886,
+          "longitude": 37.7506
+        },
+        {
+          "id": "ru-moscow-3-izmaylovskaya",
+          "name": "Измайловская",
+          "latitude": 55.7878,
+          "longitude": 37.7814
+        },
+        {
+          "id": "ru-moscow-3-pervomayskaya",
+          "name": "Первомайская",
+          "latitude": 55.7948,
+          "longitude": 37.7993
+        },
+        {
+          "id": "ru-moscow-3-shchyolkovskaya",
+          "name": "Щёлковская",
+          "latitude": 55.8094,
+          "longitude": 37.7986
+        }
+      ]
+    },
+    {
+      "id": "ru-moscow-4",
+      "lineNumber": "4",
+      "name": "Филёвская линия",
+      "color": "#1EBCEF",
+      "stations": [
+        {
+          "id": "ru-moscow-4-kuntsevskaya",
+          "name": "Кунцевская",
+          "latitude": 55.7307,
+          "longitude": 37.4459
+        },
+        {
+          "id": "ru-moscow-4-pionerskaya",
+          "name": "Пионерская",
+          "latitude": 55.736,
+          "longitude": 37.4671
+        },
+        {
+          "id": "ru-moscow-4-filyovsky-park",
+          "name": "Филёвский парк",
+          "latitude": 55.7396,
+          "longitude": 37.4833
+        },
+        {
+          "id": "ru-moscow-4-bagrationovskaya",
+          "name": "Багратионовская",
+          "latitude": 55.7438,
+          "longitude": 37.4977
+        },
+        {
+          "id": "ru-moscow-4-fili",
+          "name": "Фили",
+          "latitude": 55.746,
+          "longitude": 37.515
+        },
+        {
+          "id": "ru-moscow-4-kutuzovskaya",
+          "name": "Кутузовская",
+          "latitude": 55.7399,
+          "longitude": 37.5344
+        },
+        {
+          "id": "ru-moscow-4-studencheskaya",
+          "name": "Студенческая",
+          "latitude": 55.7388,
+          "longitude": 37.5483
+        },
+        {
+          "id": "ru-moscow-4-moskva-city",
+          "name": "Москва-Сити",
+          "latitude": 55.7483,
+          "longitude": 37.5339
+        },
+        {
+          "id": "ru-moscow-4-delovoy-tsentr",
+          "name": "Деловой центр",
+          "latitude": 55.7502,
+          "longitude": 37.5408
+        },
+        {
+          "id": "ru-moscow-4-kiyevskaya",
+          "name": "Киевская",
+          "latitude": 55.7436,
+          "longitude": 37.5655
+        },
+        {
+          "id": "ru-moscow-4-smolenskaya",
+          "name": "Смоленская",
+          "latitude": 55.7488,
+          "longitude": 37.5825
+        },
+        {
+          "id": "ru-moscow-4-arbatskaya",
+          "name": "Арбатская",
+          "latitude": 55.7518,
+          "longitude": 37.6007
+        },
+        {
+          "id": "ru-moscow-4-aleksandrovsky-sad",
+          "name": "Александровский сад",
+          "latitude": 55.7525,
+          "longitude": 37.6085
+        }
+      ]
+    },
+    {
+      "id": "ru-moscow-5",
+      "lineNumber": "5",
+      "name": "Кольцевая линия",
+      "color": "#915133",
+      "isCircular": true,
+      "stations": [
+        {
+          "id": "ru-moscow-5-kiyevskaya",
+          "name": "Киевская",
+          "latitude": 55.7446,
+          "longitude": 37.5644
+        },
+        {
+          "id": "ru-moscow-5-krasnopresnenskaya",
+          "name": "Краснопресненская",
+          "latitude": 55.7613,
+          "longitude": 37.5774
+        },
+        {
+          "id": "ru-moscow-5-belorusskaya",
+          "name": "Белорусская",
+          "latitude": 55.7764,
+          "longitude": 37.5844
+        },
+        {
+          "id": "ru-moscow-5-novoslobodskaya",
+          "name": "Новослободская",
+          "latitude": 55.7799,
+          "longitude": 37.6028
+        },
+        {
+          "id": "ru-moscow-5-prospekt-mira",
+          "name": "Проспект Мира",
+          "latitude": 55.7798,
+          "longitude": 37.6318
+        },
+        {
+          "id": "ru-moscow-5-komsomolskaya",
+          "name": "Комсомольская",
+          "latitude": 55.7748,
+          "longitude": 37.6549
+        },
+        {
+          "id": "ru-moscow-5-kurskaya",
+          "name": "Курская",
+          "latitude": 55.757,
+          "longitude": 37.6595
+        },
+        {
+          "id": "ru-moscow-5-taganskaya",
+          "name": "Таганская",
+          "latitude": 55.7418,
+          "longitude": 37.6517
+        },
+        {
+          "id": "ru-moscow-5-paveletskaya",
+          "name": "Павелецкая",
+          "latitude": 55.7318,
+          "longitude": 37.6379
+        },
+        {
+          "id": "ru-moscow-5-dobryninskaya",
+          "name": "Добрынинская",
+          "latitude": 55.7291,
+          "longitude": 37.6243
+        },
+        {
+          "id": "ru-moscow-5-oktyabrskaya",
+          "name": "Октябрьская",
+          "latitude": 55.7297,
+          "longitude": 37.6091
+        },
+        {
+          "id": "ru-moscow-5-park-kultury",
+          "name": "Парк культуры",
+          "latitude": 55.7357,
+          "longitude": 37.5915
+        }
+      ]
+    },
+    {
+      "id": "ru-moscow-6",
+      "lineNumber": "6",
+      "name": "Калужско-Рижская линия",
+      "color": "#F07E24",
+      "stations": [
+        {
+          "id": "ru-moscow-6-medvedkovo",
+          "name": "Медведково",
+          "latitude": 55.8872,
+          "longitude": 37.6613
+        },
+        {
+          "id": "ru-moscow-6-babushkinskaya",
+          "name": "Бабушкинская",
+          "latitude": 55.8694,
+          "longitude": 37.6644
+        },
+        {
+          "id": "ru-moscow-6-sviblovo",
+          "name": "Свиблово",
+          "latitude": 55.8552,
+          "longitude": 37.6527
+        },
+        {
+          "id": "ru-moscow-6-botanichesky-sad",
+          "name": "Ботанический сад",
+          "latitude": 55.8449,
+          "longitude": 37.6383
+        },
+        {
+          "id": "ru-moscow-6-vdnkh",
+          "name": "ВДНХ",
+          "latitude": 55.8211,
+          "longitude": 37.6411
+        },
+        {
+          "id": "ru-moscow-6-alekseyevskaya",
+          "name": "Алексеевская",
+          "latitude": 55.8088,
+          "longitude": 37.639
+        },
+        {
+          "id": "ru-moscow-6-rizhskaya",
+          "name": "Рижская",
+          "latitude": 55.7936,
+          "longitude": 37.6362
+        },
+        {
+          "id": "ru-moscow-6-prospekt-mira",
+          "name": "Проспект Мира",
+          "latitude": 55.7812,
+          "longitude": 37.6318
+        },
+        {
+          "id": "ru-moscow-6-sukharevskaya",
+          "name": "Сухаревская",
+          "latitude": 55.7733,
+          "longitude": 37.6319
+        },
+        {
+          "id": "ru-moscow-6-turgenevskaya",
+          "name": "Тургеневская",
+          "latitude": 55.7661,
+          "longitude": 37.6374
+        },
+        {
+          "id": "ru-moscow-6-kitay-gorod",
+          "name": "Китай-город",
+          "latitude": 55.7553,
+          "longitude": 37.6333
+        },
+        {
+          "id": "ru-moscow-6-tretyakovskaya",
+          "name": "Третьяковская",
+          "latitude": 55.7412,
+          "longitude": 37.6274
+        },
+        {
+          "id": "ru-moscow-6-oktyabrskaya",
+          "name": "Октябрьская",
+          "latitude": 55.7306,
+          "longitude": 37.6112
+        },
+        {
+          "id": "ru-moscow-6-shabolovskaya",
+          "name": "Шаболовская",
+          "latitude": 55.7198,
+          "longitude": 37.6083
+        },
+        {
+          "id": "ru-moscow-6-leninsky-prospekt",
+          "name": "Ленинский проспект",
+          "latitude": 55.7077,
+          "longitude": 37.5861
+        },
+        {
+          "id": "ru-moscow-6-akademicheskaya",
+          "name": "Академическая",
+          "latitude": 55.6877,
+          "longitude": 37.5733
+        },
+        {
+          "id": "ru-moscow-6-profsoyuznaya",
+          "name": "Профсоюзная",
+          "latitude": 55.678,
+          "longitude": 37.5627
+        },
+        {
+          "id": "ru-moscow-6-novye-cheryomushki",
+          "name": "Новые Черёмушки",
+          "latitude": 55.6702,
+          "longitude": 37.5544
+        },
+        {
+          "id": "ru-moscow-6-kaluzhskaya",
+          "name": "Калужская",
+          "latitude": 55.6571,
+          "longitude": 37.5405
+        },
+        {
+          "id": "ru-moscow-6-belyayevo",
+          "name": "Беляево",
+          "latitude": 55.6428,
+          "longitude": 37.5257
+        },
+        {
+          "id": "ru-moscow-6-konkovo",
+          "name": "Коньково",
+          "latitude": 55.6333,
+          "longitude": 37.5188
+        },
+        {
+          "id": "ru-moscow-6-tyoply-stan",
+          "name": "Тёплый Стан",
+          "latitude": 55.6191,
+          "longitude": 37.5082
+        },
+        {
+          "id": "ru-moscow-6-yasenevo",
+          "name": "Ясенево",
+          "latitude": 55.6063,
+          "longitude": 37.5333
+        },
+        {
+          "id": "ru-moscow-6-novoyasenevskaya",
+          "name": "Новоясеневская",
+          "latitude": 55.601,
+          "longitude": 37.5541
+        }
+      ]
+    },
+    {
+      "id": "ru-moscow-7",
+      "lineNumber": "7",
+      "name": "Таганско-Краснопресненская линия",
+      "color": "#943E90",
+      "stations": [
+        {
+          "id": "ru-moscow-7-planernaya",
+          "name": "Планерная",
+          "latitude": 55.8607,
+          "longitude": 37.4364
+        },
+        {
+          "id": "ru-moscow-7-skhodnenskaya",
+          "name": "Сходненская",
+          "latitude": 55.8505,
+          "longitude": 37.4396
+        },
+        {
+          "id": "ru-moscow-7-tushinskaya",
+          "name": "Тушинская",
+          "latitude": 55.8267,
+          "longitude": 37.4368
+        },
+        {
+          "id": "ru-moscow-7-spartak",
+          "name": "Спартак",
+          "latitude": 55.8182,
+          "longitude": 37.4352
+        },
+        {
+          "id": "ru-moscow-7-shchukinskaya",
+          "name": "Щукинская",
+          "latitude": 55.8086,
+          "longitude": 37.4641
+        },
+        {
+          "id": "ru-moscow-7-oktyabrskoye-pole",
+          "name": "Октябрьское поле",
+          "latitude": 55.7935,
+          "longitude": 37.4935
+        },
+        {
+          "id": "ru-moscow-7-polezhayevskaya",
+          "name": "Полежаевская",
+          "latitude": 55.7775,
+          "longitude": 37.5192
+        },
+        {
+          "id": "ru-moscow-7-begovaya",
+          "name": "Беговая",
+          "latitude": 55.7738,
+          "longitude": 37.5468
+        },
+        {
+          "id": "ru-moscow-7-ulitsa-1905-goda",
+          "name": "Улица 1905 года",
+          "latitude": 55.765,
+          "longitude": 37.5613
+        },
+        {
+          "id": "ru-moscow-7-barrikadnaya",
+          "name": "Баррикадная",
+          "latitude": 55.7612,
+          "longitude": 37.5795
+        },
+        {
+          "id": "ru-moscow-7-pushkinskaya",
+          "name": "Пушкинская",
+          "latitude": 55.765,
+          "longitude": 37.6079
+        },
+        {
+          "id": "ru-moscow-7-kuznetsky-most",
+          "name": "Кузнецкий мост",
+          "latitude": 55.7606,
+          "longitude": 37.6259
+        },
+        {
+          "id": "ru-moscow-7-kitay-gorod",
+          "name": "Китай-город",
+          "latitude": 55.7553,
+          "longitude": 37.6333
+        },
+        {
+          "id": "ru-moscow-7-taganskaya",
+          "name": "Таганская",
+          "latitude": 55.7402,
+          "longitude": 37.6522
+        },
+        {
+          "id": "ru-moscow-7-proletarskaya",
+          "name": "Пролетарская",
+          "latitude": 55.7319,
+          "longitude": 37.6659
+        },
+        {
+          "id": "ru-moscow-7-volgogradsky-prospekt",
+          "name": "Волгоградский проспект",
+          "latitude": 55.7253,
+          "longitude": 37.6869
+        },
+        {
+          "id": "ru-moscow-7-tekstilshchiki",
+          "name": "Текстильщики",
+          "latitude": 55.7088,
+          "longitude": 37.7316
+        },
+        {
+          "id": "ru-moscow-7-kuzminki",
+          "name": "Кузьминки",
+          "latitude": 55.7056,
+          "longitude": 37.7656
+        },
+        {
+          "id": "ru-moscow-7-ryazansky-prospekt",
+          "name": "Рязанский проспект",
+          "latitude": 55.717,
+          "longitude": 37.7933
+        },
+        {
+          "id": "ru-moscow-7-vykhino",
+          "name": "Выхино",
+          "latitude": 55.7156,
+          "longitude": 37.8181
+        },
+        {
+          "id": "ru-moscow-7-lermontovsky-prospekt",
+          "name": "Лермонтовский проспект",
+          "latitude": 55.7013,
+          "longitude": 37.8525
+        },
+        {
+          "id": "ru-moscow-7-zhulebino",
+          "name": "Жулебино",
+          "latitude": 55.6855,
+          "longitude": 37.8563
+        },
+        {
+          "id": "ru-moscow-7-kotelniki",
+          "name": "Котельники",
+          "latitude": 55.6743,
+          "longitude": 37.8582
+        }
+      ]
+    },
+    {
+      "id": "ru-moscow-8",
+      "lineNumber": "8",
+      "name": "Калининская линия",
+      "color": "#FFCD1C",
+      "stations": [
+        {
+          "id": "ru-moscow-8-tretyakovskaya",
+          "name": "Третьяковская",
+          "latitude": 55.7412,
+          "longitude": 37.6274
+        },
+        {
+          "id": "ru-moscow-8-marksistskaya",
+          "name": "Марксистская",
+          "latitude": 55.7411,
+          "longitude": 37.6543
+        },
+        {
+          "id": "ru-moscow-8-ploshchad-ilyicha",
+          "name": "Площадь Ильича",
+          "latitude": 55.7472,
+          "longitude": 37.6824
+        },
+        {
+          "id": "ru-moscow-8-aviamotornaya",
+          "name": "Авиамоторная",
+          "latitude": 55.7524,
+          "longitude": 37.7191
+        },
+        {
+          "id": "ru-moscow-8-shosse-entuziastov",
+          "name": "Шоссе Энтузиастов",
+          "latitude": 55.7576,
+          "longitude": 37.75
+        },
+        {
+          "id": "ru-moscow-8-perovo",
+          "name": "Перово",
+          "latitude": 55.7511,
+          "longitude": 37.7866
+        },
+        {
+          "id": "ru-moscow-8-novogireyevo",
+          "name": "Новогиреево",
+          "latitude": 55.7517,
+          "longitude": 37.8166
+        },
+        {
+          "id": "ru-moscow-8-novokosino",
+          "name": "Новокосино",
+          "latitude": 55.7451,
+          "longitude": 37.8638
+        }
+      ]
+    },
+    {
+      "id": "ru-moscow-8a",
+      "lineNumber": "8A",
+      "name": "Солнцевская линия",
+      "color": "#FFD700",
+      "stations": [
+        {
+          "id": "ru-moscow-8a-aeroport-vnukovo",
+          "name": "Аэропорт Внуково",
+          "latitude": 55.607086,
+          "longitude": 37.287701
+        },
+        {
+          "id": "ru-moscow-8a-pykhtino",
+          "name": "Пыхтино",
+          "latitude": 55.624641,
+          "longitude": 37.296146
+        },
+        {
+          "id": "ru-moscow-8a-rasskazovka",
+          "name": "Рассказовка",
+          "latitude": 55.6339,
+          "longitude": 37.3347
+        },
+        {
+          "id": "ru-moscow-8a-novoperedelkino",
+          "name": "Новопеределкино",
+          "latitude": 55.6396,
+          "longitude": 37.3552
+        },
+        {
+          "id": "ru-moscow-8a-borovskoye-shosse",
+          "name": "Боровское Шоссе",
+          "latitude": 55.6476,
+          "longitude": 37.3701
+        },
+        {
+          "id": "ru-moscow-8a-solntsevo",
+          "name": "Солнцево",
+          "latitude": 55.6493,
+          "longitude": 37.3909
+        },
+        {
+          "id": "ru-moscow-8a-govorovo",
+          "name": "Говорово",
+          "latitude": 55.6595,
+          "longitude": 37.4172
+        },
+        {
+          "id": "ru-moscow-8a-ozyornaya",
+          "name": "Озёрная",
+          "latitude": 55.6709,
+          "longitude": 37.4491
+        },
+        {
+          "id": "ru-moscow-8a-michurinsky-prospekt",
+          "name": "Мичуринский проспект",
+          "latitude": 55.6896,
+          "longitude": 37.4833
+        },
+        {
+          "id": "ru-moscow-8a-ramenki",
+          "name": "Раменки",
+          "latitude": 55.6975,
+          "longitude": 37.4984
+        },
+        {
+          "id": "ru-moscow-8a-lomonosovsky-prospekt",
+          "name": "Ломоносовский проспект",
+          "latitude": 55.7069,
+          "longitude": 37.5156
+        },
+        {
+          "id": "ru-moscow-8a-minskaya",
+          "name": "Минская",
+          "latitude": 55.7246,
+          "longitude": 37.497
+        },
+        {
+          "id": "ru-moscow-8a-park-pobedy",
+          "name": "Парк Победы",
+          "latitude": 55.7362,
+          "longitude": 37.5182
+        },
+        {
+          "id": "ru-moscow-8a-delovoy-tsentr",
+          "name": "Деловой центр",
+          "latitude": 55.7475,
+          "longitude": 37.5319
+        }
+      ]
+    },
+    {
+      "id": "ru-moscow-9",
+      "lineNumber": "9",
+      "name": "Серпуховско-Тимирязевская линия",
+      "color": "#ADACAC",
+      "stations": [
+        {
+          "id": "ru-moscow-9-altufyevo",
+          "name": "Алтуфьево",
+          "latitude": 55.898,
+          "longitude": 37.587
+        },
+        {
+          "id": "ru-moscow-9-bibirevo",
+          "name": "Бибирево",
+          "latitude": 55.8838,
+          "longitude": 37.6034
+        },
+        {
+          "id": "ru-moscow-9-otradnoye",
+          "name": "Отрадное",
+          "latitude": 55.8633,
+          "longitude": 37.6047
+        },
+        {
+          "id": "ru-moscow-9-vladykino",
+          "name": "Владыкино",
+          "latitude": 55.8473,
+          "longitude": 37.5899
+        },
+        {
+          "id": "ru-moscow-9-petrovsko-razumovskaya",
+          "name": "Петровско-Разумовская",
+          "latitude": 55.8351,
+          "longitude": 37.5745
+        },
+        {
+          "id": "ru-moscow-9-timiryazevskaya",
+          "name": "Тимирязевская",
+          "latitude": 55.8176,
+          "longitude": 37.5765
+        },
+        {
+          "id": "ru-moscow-9-dmitrovskaya",
+          "name": "Дмитровская",
+          "latitude": 55.8069,
+          "longitude": 37.5817
+        },
+        {
+          "id": "ru-moscow-9-savyolovskaya",
+          "name": "Савёловская",
+          "latitude": 55.7927,
+          "longitude": 37.5885
+        },
+        {
+          "id": "ru-moscow-9-mendeleyevskaya",
+          "name": "Менделеевская",
+          "latitude": 55.781,
+          "longitude": 37.6011
+        },
+        {
+          "id": "ru-moscow-9-tsvetnoy-bulvar",
+          "name": "Цветной бульвар",
+          "latitude": 55.7708,
+          "longitude": 37.6187
+        },
+        {
+          "id": "ru-moscow-9-chekhovskaya",
+          "name": "Чеховская",
+          "latitude": 55.7644,
+          "longitude": 37.6097
+        },
+        {
+          "id": "ru-moscow-9-borovitskaya",
+          "name": "Боровицкая",
+          "latitude": 55.7511,
+          "longitude": 37.6072
+        },
+        {
+          "id": "ru-moscow-9-polyanka",
+          "name": "Полянка",
+          "latitude": 55.7379,
+          "longitude": 37.618
+        },
+        {
+          "id": "ru-moscow-9-serpukhovskaya",
+          "name": "Серпуховская",
+          "latitude": 55.728,
+          "longitude": 37.6246
+        },
+        {
+          "id": "ru-moscow-9-tulskaya",
+          "name": "Тульская",
+          "latitude": 55.7087,
+          "longitude": 37.6229
+        },
+        {
+          "id": "ru-moscow-9-nagatinskaya",
+          "name": "Нагатинская",
+          "latitude": 55.683,
+          "longitude": 37.6224
+        },
+        {
+          "id": "ru-moscow-9-nagornaya",
+          "name": "Нагорная",
+          "latitude": 55.6724,
+          "longitude": 37.6104
+        },
+        {
+          "id": "ru-moscow-9-nakhimovsky-prospekt",
+          "name": "Нахимовский проспект",
+          "latitude": 55.6627,
+          "longitude": 37.6055
+        },
+        {
+          "id": "ru-moscow-9-sevastopolskaya",
+          "name": "Севастопольская",
+          "latitude": 55.6524,
+          "longitude": 37.5984
+        },
+        {
+          "id": "ru-moscow-9-chertanovskaya",
+          "name": "Чертановская",
+          "latitude": 55.6405,
+          "longitude": 37.6067
+        },
+        {
+          "id": "ru-moscow-9-yuzhnaya",
+          "name": "Южная",
+          "latitude": 55.6224,
+          "longitude": 37.609
+        },
+        {
+          "id": "ru-moscow-9-prazhskaya",
+          "name": "Пражская",
+          "latitude": 55.6124,
+          "longitude": 37.6044
+        },
+        {
+          "id": "ru-moscow-9-ulitsa-akademika-yangelya",
+          "name": "Улица Академика Янгеля",
+          "latitude": 55.5949,
+          "longitude": 37.6004
+        },
+        {
+          "id": "ru-moscow-9-annino",
+          "name": "Аннино",
+          "latitude": 55.5828,
+          "longitude": 37.5966
+        },
+        {
+          "id": "ru-moscow-9-bulvar-dmitriya-donskogo",
+          "name": "Бульвар Дмитрия Донского",
+          "latitude": 55.5693,
+          "longitude": 37.5769
+        }
+      ]
+    },
+    {
+      "id": "ru-moscow-10",
+      "lineNumber": "10",
+      "name": "Люблинско-Дмитровская линия",
+      "color": "#BED12C",
+      "stations": [
+        {
+          "id": "ru-moscow-10-fiztekh",
+          "name": "Физтех",
+          "latitude": 55.921536,
+          "longitude": 37.546501
+        },
+        {
+          "id": "ru-moscow-10-lianozovo",
+          "name": "Лианозово",
+          "latitude": 55.898615,
+          "longitude": 37.544858
+        },
+        {
+          "id": "ru-moscow-10-yakhromskaya",
+          "name": "Яхромская",
+          "latitude": 55.879903,
+          "longitude": 37.545432
+        },
+        {
+          "id": "ru-moscow-10-seligerskaya",
+          "name": "Селигерская",
+          "latitude": 55.865,
+          "longitude": 37.548333
+        },
+        {
+          "id": "ru-moscow-10-verkhniye-likhobory",
+          "name": "Верхние Лихоборы",
+          "latitude": 55.855833,
+          "longitude": 37.561111
+        },
+        {
+          "id": "ru-moscow-10-okruzhnaya",
+          "name": "Окружная",
+          "latitude": 55.846,
+          "longitude": 37.57425
+        },
+        {
+          "id": "ru-moscow-10-petrovsko-razumovskaya",
+          "name": "Петровско-Разумовская",
+          "latitude": 55.8351,
+          "longitude": 37.5745
+        },
+        {
+          "id": "ru-moscow-10-fonvizinskaya",
+          "name": "Фонвизинская",
+          "latitude": 55.8228,
+          "longitude": 37.5881
+        },
+        {
+          "id": "ru-moscow-10-butyrskaya",
+          "name": "Бутырская",
+          "latitude": 55.8133,
+          "longitude": 37.6028
+        },
+        {
+          "id": "ru-moscow-10-maryina-roshcha",
+          "name": "Марьина Роща",
+          "latitude": 55.7954,
+          "longitude": 37.6162
+        },
+        {
+          "id": "ru-moscow-10-dostoyevskaya",
+          "name": "Достоевская",
+          "latitude": 55.7816,
+          "longitude": 37.6151
+        },
+        {
+          "id": "ru-moscow-10-trubnaya",
+          "name": "Трубная",
+          "latitude": 55.7688,
+          "longitude": 37.62
+        },
+        {
+          "id": "ru-moscow-10-sretensky-bulvar",
+          "name": "Сретенский бульвар",
+          "latitude": 55.7668,
+          "longitude": 37.6392
+        },
+        {
+          "id": "ru-moscow-10-chkalovskaya",
+          "name": "Чкаловская",
+          "latitude": 55.7565,
+          "longitude": 37.6573
+        },
+        {
+          "id": "ru-moscow-10-rimskaya",
+          "name": "Римская",
+          "latitude": 55.7463,
+          "longitude": 37.6819
+        },
+        {
+          "id": "ru-moscow-10-krestyanskaya-zastava",
+          "name": "Крестьянская застава",
+          "latitude": 55.7331,
+          "longitude": 37.6673
+        },
+        {
+          "id": "ru-moscow-10-dubrovka",
+          "name": "Дубровка",
+          "latitude": 55.7186,
+          "longitude": 37.676
+        },
+        {
+          "id": "ru-moscow-10-kozhukhovskaya",
+          "name": "Кожуховская",
+          "latitude": 55.7074,
+          "longitude": 37.6851
+        },
+        {
+          "id": "ru-moscow-10-pechatniki",
+          "name": "Печатники",
+          "latitude": 55.6934,
+          "longitude": 37.727
+        },
+        {
+          "id": "ru-moscow-10-volzhskaya",
+          "name": "Волжская",
+          "latitude": 55.6909,
+          "longitude": 37.753
+        },
+        {
+          "id": "ru-moscow-10-lyublino",
+          "name": "Люблино",
+          "latitude": 55.6758,
+          "longitude": 37.7618
+        },
+        {
+          "id": "ru-moscow-10-bratislavskaya",
+          "name": "Братиславская",
+          "latitude": 55.6597,
+          "longitude": 37.7505
+        },
+        {
+          "id": "ru-moscow-10-maryino",
+          "name": "Марьино",
+          "latitude": 55.65,
+          "longitude": 37.7431
+        },
+        {
+          "id": "ru-moscow-10-borisovo",
+          "name": "Борисово",
+          "latitude": 55.6334,
+          "longitude": 37.7436
+        },
+        {
+          "id": "ru-moscow-10-shipilovskaya",
+          "name": "Шипиловская",
+          "latitude": 55.6211,
+          "longitude": 37.7437
+        },
+        {
+          "id": "ru-moscow-10-zyablikovo",
+          "name": "Зябликово",
+          "latitude": 55.6124,
+          "longitude": 37.7453
+        }
+      ]
+    },
+    {
+      "id": "ru-moscow-11",
+      "lineNumber": "11",
+      "name": "Большая кольцевая линия",
+      "color": "#79CDCD",
+      "isCircular": true,
+      "stations": [
+        {
+          "id": "ru-moscow-11-maryina-roshcha",
+          "name": "Марьина Роща",
+          "latitude": 55.793723,
+          "longitude": 37.61618
+        },
+        {
+          "id": "ru-moscow-11-rizhskaya",
+          "name": "Рижская",
+          "latitude": 55.792494,
+          "longitude": 37.636114
+        },
+        {
+          "id": "ru-moscow-11-sokolniki",
+          "name": "Сокольники",
+          "latitude": 55.7903,
+          "longitude": 37.679
+        },
+        {
+          "id": "ru-moscow-11-elektrozavodskaya",
+          "name": "Электрозаводская",
+          "latitude": 55.780292,
+          "longitude": 37.703013
+        },
+        {
+          "id": "ru-moscow-11-lefortovo",
+          "name": "Лефортово",
+          "latitude": 55.764738,
+          "longitude": 37.706747
+        },
+        {
+          "id": "ru-moscow-11-aviamotornaya",
+          "name": "Авиамоторная",
+          "latitude": 55.75367,
+          "longitude": 37.719149
+        },
+        {
+          "id": "ru-moscow-11-nizhegorodskaya",
+          "name": "Нижегородская",
+          "latitude": 55.731748,
+          "longitude": 37.730076
+        },
+        {
+          "id": "ru-moscow-11-tekstilshchiki",
+          "name": "Текстильщики",
+          "latitude": 55.707,
+          "longitude": 37.7284
+        },
+        {
+          "id": "ru-moscow-11-pechatniki",
+          "name": "Печатники",
+          "latitude": 55.694,
+          "longitude": 37.727
+        },
+        {
+          "id": "ru-moscow-11-nagatinsky-zaton",
+          "name": "Нагатинский затон",
+          "latitude": 55.6845,
+          "longitude": 37.705
+        },
+        {
+          "id": "ru-moscow-11-klenovy-bulvar",
+          "name": "Кленовый бульвар",
+          "latitude": 55.6755,
+          "longitude": 37.6846
+        },
+        {
+          "id": "ru-moscow-11-kashirskaya",
+          "name": "Каширская",
+          "latitude": 55.6551,
+          "longitude": 37.6487
+        },
+        {
+          "id": "ru-moscow-11-varshavskaya",
+          "name": "Варшавская",
+          "latitude": 55.6533,
+          "longitude": 37.6194
+        },
+        {
+          "id": "ru-moscow-11-kakhovskaya",
+          "name": "Каховская",
+          "latitude": 55.653,
+          "longitude": 37.5983
+        },
+        {
+          "id": "ru-moscow-11-zyuzino",
+          "name": "Зюзино",
+          "latitude": 55.6563,
+          "longitude": 37.5721
+        },
+        {
+          "id": "ru-moscow-11-vorontsovskaya",
+          "name": "Воронцовская",
+          "latitude": 55.6587,
+          "longitude": 37.5399
+        },
+        {
+          "id": "ru-moscow-11-novatorskaya",
+          "name": "Новаторская",
+          "latitude": 55.6701,
+          "longitude": 37.5218
+        },
+        {
+          "id": "ru-moscow-11-prospekt-vernadskogo",
+          "name": "Проспект Вернадского",
+          "latitude": 55.6778,
+          "longitude": 37.505
+        },
+        {
+          "id": "ru-moscow-11-michurinsky-prospekt",
+          "name": "Мичуринский проспект",
+          "latitude": 55.6884,
+          "longitude": 37.4851
+        },
+        {
+          "id": "ru-moscow-11-aminyevskaya",
+          "name": "Аминьевская",
+          "latitude": 55.6972,
+          "longitude": 37.4642
+        },
+        {
+          "id": "ru-moscow-11-davydkovo",
+          "name": "Давыдково",
+          "latitude": 55.7153,
+          "longitude": 37.4517
+        },
+        {
+          "id": "ru-moscow-11-kuntsevskaya",
+          "name": "Кунцевская",
+          "latitude": 55.7304,
+          "longitude": 37.4457
+        },
+        {
+          "id": "ru-moscow-11-terekhovo",
+          "name": "Терехово",
+          "latitude": 55.7492,
+          "longitude": 37.4606
+        },
+        {
+          "id": "ru-moscow-11-mnyovniki",
+          "name": "Мнёвники",
+          "latitude": 55.7585,
+          "longitude": 37.4708
+        },
+        {
+          "id": "ru-moscow-11-narodnoye-opolcheniye",
+          "name": "Народное Ополчение",
+          "latitude": 55.7738,
+          "longitude": 37.4844
+        },
+        {
+          "id": "ru-moscow-11-khoroshyovskaya",
+          "name": "Хорошёвская",
+          "latitude": 55.7768,
+          "longitude": 37.5207
+        },
+        {
+          "id": "ru-moscow-11-cska",
+          "name": "ЦСКА",
+          "latitude": 55.7866,
+          "longitude": 37.5333
+        },
+        {
+          "id": "ru-moscow-11-petrovsky-park",
+          "name": "Петровский парк",
+          "latitude": 55.7918,
+          "longitude": 37.5571
+        },
+        {
+          "id": "ru-moscow-11-savyolovskaya",
+          "name": "Савёловская",
+          "latitude": 55.7936,
+          "longitude": 37.588
+        }
+      ]
+    },
+    {
+      "id": "ru-moscow-12",
+      "lineNumber": "12",
+      "name": "Бутовская линия",
+      "color": "#BAC8E8",
+      "stations": [
+        {
+          "id": "ru-moscow-12-bittsevsky-park",
+          "name": "Битцевский парк",
+          "latitude": 55.6004,
+          "longitude": 37.5562
+        },
+        {
+          "id": "ru-moscow-12-lesoparkovaya",
+          "name": "Лесопарковая",
+          "latitude": 55.5821,
+          "longitude": 37.5769
+        },
+        {
+          "id": "ru-moscow-12-ulitsa-starokachalovskaya",
+          "name": "Улица Старокачаловская",
+          "latitude": 55.569,
+          "longitude": 37.5767
+        },
+        {
+          "id": "ru-moscow-12-ulitsa-skobelevskaya",
+          "name": "Улица Скобелевская",
+          "latitude": 55.5481,
+          "longitude": 37.5546
+        },
+        {
+          "id": "ru-moscow-12-bulvar-admirala-ushakova",
+          "name": "Бульвар Адмирала Ушакова",
+          "latitude": 55.5455,
+          "longitude": 37.543
+        },
+        {
+          "id": "ru-moscow-12-ulitsa-gorchakova",
+          "name": "Улица Горчакова",
+          "latitude": 55.5418,
+          "longitude": 37.5308
+        },
+        {
+          "id": "ru-moscow-12-buninskaya-alleya",
+          "name": "Бунинская аллея",
+          "latitude": 55.538,
+          "longitude": 37.5158
+        }
+      ]
+    },
+    {
+      "id": "ru-moscow-13",
+      "lineNumber": "13",
+      "name": "Московский монорельс",
+      "color": "#006DA8",
+      "stations": [
+        {
+          "id": "ru-moscow-13-timiryazevskaya",
+          "name": "Тимирязевская",
+          "latitude": 55.819049,
+          "longitude": 37.578882
+        },
+        {
+          "id": "ru-moscow-13-ulitsa-milashenkova",
+          "name": "Улица Милашенкова",
+          "latitude": 55.821876,
+          "longitude": 37.591206
+        },
+        {
+          "id": "ru-moscow-13-teletsentr",
+          "name": "Телецентр",
+          "latitude": 55.821795,
+          "longitude": 37.608975
+        },
+        {
+          "id": "ru-moscow-13-ulitsa-akademika-korolyova",
+          "name": "Улица Академика Королёва",
+          "latitude": 55.821821,
+          "longitude": 37.627167
+        },
+        {
+          "id": "ru-moscow-13-vystavochny-tsentr",
+          "name": "Выставочный центр",
+          "latitude": 55.824086,
+          "longitude": 37.638494
+        },
+        {
+          "id": "ru-moscow-13-ulitsa-sergeya-eyzenshteyna",
+          "name": "Улица Сергея Эйзенштейна",
+          "latitude": 55.829305,
+          "longitude": 37.644997
+        }
+      ]
+    },
+    {
+      "id": "ru-moscow-14",
+      "lineNumber": "14",
+      "name": "Московское центральное кольцо",
+      "color": "#F9BCD1",
+      "isCircular": true,
+      "stations": [
+        {
+          "id": "ru-moscow-14-okruzhnaya",
+          "name": "Окружная",
+          "latitude": 55.8472,
+          "longitude": 37.5694
+        },
+        {
+          "id": "ru-moscow-14-vladykino",
+          "name": "Владыкино",
+          "latitude": 55.8476,
+          "longitude": 37.593
+        },
+        {
+          "id": "ru-moscow-14-botanichesky-sad",
+          "name": "Ботанический сад",
+          "latitude": 55.846,
+          "longitude": 37.6413
+        },
+        {
+          "id": "ru-moscow-14-rostokino",
+          "name": "Ростокино",
+          "latitude": 55.84,
+          "longitude": 37.6653
+        },
+        {
+          "id": "ru-moscow-14-belokamennaya",
+          "name": "Белокаменная",
+          "latitude": 55.83,
+          "longitude": 37.7006
+        },
+        {
+          "id": "ru-moscow-14-bulvar-rokossovskogo",
+          "name": "Бульвар Рокоссовского",
+          "latitude": 55.8172,
+          "longitude": 37.7369
+        },
+        {
+          "id": "ru-moscow-14-lokomotiv",
+          "name": "Локомотив",
+          "latitude": 55.8039,
+          "longitude": 37.746
+        },
+        {
+          "id": "ru-moscow-14-izmaylovo",
+          "name": "Измайлово",
+          "latitude": 55.7886,
+          "longitude": 37.7428
+        },
+        {
+          "id": "ru-moscow-14-sokolinaya-gora",
+          "name": "Соколиная Гора",
+          "latitude": 55.7714,
+          "longitude": 37.7451
+        },
+        {
+          "id": "ru-moscow-14-shosse-entuziastov",
+          "name": "Шоссе Энтузиастов",
+          "latitude": 55.759,
+          "longitude": 37.7463
+        },
+        {
+          "id": "ru-moscow-14-andronovka",
+          "name": "Андроновка",
+          "latitude": 55.7411,
+          "longitude": 37.7344
+        },
+        {
+          "id": "ru-moscow-14-nizhegorodskaya",
+          "name": "Нижегородская",
+          "latitude": 55.7322,
+          "longitude": 37.7282
+        },
+        {
+          "id": "ru-moscow-14-novokhokhlovskaya",
+          "name": "Новохохловская",
+          "latitude": 55.7239,
+          "longitude": 37.7161
+        },
+        {
+          "id": "ru-moscow-14-ugreshskaya",
+          "name": "Угрешская",
+          "latitude": 55.7183,
+          "longitude": 37.6978
+        },
+        {
+          "id": "ru-moscow-14-dubrovka",
+          "name": "Дубровка",
+          "latitude": 55.7183,
+          "longitude": 37.6978
+        },
+        {
+          "id": "ru-moscow-14-avtozavodskaya",
+          "name": "Автозаводская",
+          "latitude": 55.7063,
+          "longitude": 37.6631
+        },
+        {
+          "id": "ru-moscow-14-zil",
+          "name": "ЗИЛ",
+          "latitude": 55.6983,
+          "longitude": 37.6483
+        },
+        {
+          "id": "ru-moscow-14-verkhniye-kotly",
+          "name": "Верхние Котлы",
+          "latitude": 55.69,
+          "longitude": 37.6189
+        },
+        {
+          "id": "ru-moscow-14-krymskaya",
+          "name": "Крымская",
+          "latitude": 55.69,
+          "longitude": 37.605
+        },
+        {
+          "id": "ru-moscow-14-ploshchad-gagarina",
+          "name": "Площадь Гагарина",
+          "latitude": 55.7069,
+          "longitude": 37.5858
+        },
+        {
+          "id": "ru-moscow-14-luzhniki",
+          "name": "Лужники",
+          "latitude": 55.7203,
+          "longitude": 37.5631
+        },
+        {
+          "id": "ru-moscow-14-kutuzovskaya",
+          "name": "Кутузовская",
+          "latitude": 55.7408,
+          "longitude": 37.5333
+        },
+        {
+          "id": "ru-moscow-14-moskva-city",
+          "name": "Москва-Сити",
+          "latitude": 55.7472,
+          "longitude": 37.5322
+        },
+        {
+          "id": "ru-moscow-14-shelepikha",
+          "name": "Шелепиха",
+          "latitude": 55.7575,
+          "longitude": 37.5256
+        },
+        {
+          "id": "ru-moscow-14-khoroshyovo",
+          "name": "Хорошёво",
+          "latitude": 55.7772,
+          "longitude": 37.5072
+        },
+        {
+          "id": "ru-moscow-14-zorge",
+          "name": "Зорге",
+          "latitude": 55.7878,
+          "longitude": 37.5045
+        },
+        {
+          "id": "ru-moscow-14-panfilovskaya",
+          "name": "Панфиловская",
+          "latitude": 55.7991,
+          "longitude": 37.4988
+        },
+        {
+          "id": "ru-moscow-14-streshnevo",
+          "name": "Стрешнево",
+          "latitude": 55.8136,
+          "longitude": 37.4869
+        },
+        {
+          "id": "ru-moscow-14-baltiyskaya",
+          "name": "Балтийская",
+          "latitude": 55.8258,
+          "longitude": 37.4961
+        },
+        {
+          "id": "ru-moscow-14-koptevo",
+          "name": "Коптево",
+          "latitude": 55.8397,
+          "longitude": 37.5203
+        },
+        {
+          "id": "ru-moscow-14-likhobory",
+          "name": "Лихоборы",
+          "latitude": 55.8472,
+          "longitude": 37.5513
+        }
+      ]
+    },
+    {
+      "id": "ru-moscow-15",
+      "lineNumber": "15",
+      "name": "Некрасовская линия",
+      "color": "#DE64A1",
+      "stations": [
+        {
+          "id": "ru-moscow-15-nizhegorodskaya",
+          "name": "Нижегородская",
+          "latitude": 55.731748,
+          "longitude": 37.730076
+        },
+        {
+          "id": "ru-moscow-15-stakhanovskaya",
+          "name": "Стахановская",
+          "latitude": 55.725,
+          "longitude": 37.7619
+        },
+        {
+          "id": "ru-moscow-15-okskaya",
+          "name": "Окская",
+          "latitude": 55.7186,
+          "longitude": 37.7817
+        },
+        {
+          "id": "ru-moscow-15-yugo-vostochnaya",
+          "name": "Юго-Восточная",
+          "latitude": 55.70497,
+          "longitude": 37.81901
+        },
+        {
+          "id": "ru-moscow-15-kosino",
+          "name": "Косино",
+          "latitude": 55.7033,
+          "longitude": 37.8511
+        },
+        {
+          "id": "ru-moscow-15-ulitsa-dmitriyevskogo",
+          "name": "Улица Дмитриевского",
+          "latitude": 55.71,
+          "longitude": 37.8792
+        },
+        {
+          "id": "ru-moscow-15-lukhmanovskaya",
+          "name": "Лухмановская",
+          "latitude": 55.7085,
+          "longitude": 37.9004
+        },
+        {
+          "id": "ru-moscow-15-nekrasovka",
+          "name": "Некрасовка",
+          "latitude": 55.7036,
+          "longitude": 37.9264
+        }
+      ]
+    },
+    {
+      "id": "ru-moscow-16",
+      "lineNumber": "16",
+      "name": "Троицкая линия",
+      "color": "#03795F",
+      "stations": [
+        {
+          "id": "ru-moscow-16-zil",
+          "name": "ЗИЛ",
+          "latitude": 55.698333,
+          "longitude": 37.648333
+        },
+        {
+          "id": "ru-moscow-16-krymskaya",
+          "name": "Крымская",
+          "latitude": 55.690038,
+          "longitude": 37.605
+        },
+        {
+          "id": "ru-moscow-16-akademicheskaya",
+          "name": "Академическая",
+          "latitude": 55.687147,
+          "longitude": 37.5723
+        },
+        {
+          "id": "ru-moscow-16-vavilovskaya",
+          "name": "Вавиловская",
+          "latitude": 55.6843,
+          "longitude": 37.5396
+        },
+        {
+          "id": "ru-moscow-16-novatorskaya",
+          "name": "Новаторская",
+          "latitude": 55.672029,
+          "longitude": 37.521878
+        },
+        {
+          "id": "ru-moscow-16-universitet-druzhby-narodov",
+          "name": "Университет Дружбы Народов",
+          "latitude": 55.648241,
+          "longitude": 37.507557
+        },
+        {
+          "id": "ru-moscow-16-generala-tyuleneva",
+          "name": "Генерала Тюленева",
+          "latitude": 55.626248,
+          "longitude": 37.486031
+        },
+        {
+          "id": "ru-moscow-16-tyutchevskaya",
+          "name": "Тютчевская",
+          "latitude": 55.618802,
+          "longitude": 37.481416
+        },
+        {
+          "id": "ru-moscow-16-kornilovskaya",
+          "name": "Корниловская",
+          "latitude": 55.598786,
+          "longitude": 37.479301
+        },
+        {
+          "id": "ru-moscow-16-kommunarka",
+          "name": "Коммунарка",
+          "latitude": 55.574598,
+          "longitude": 37.467966
+        },
+        {
+          "id": "ru-moscow-16-novomoskovskaya",
+          "name": "Новомосковская",
+          "latitude": 55.560073,
+          "longitude": 37.468651
+        }
+      ]
+    },
+    {
+      "id": "ru-moscow-17",
+      "lineNumber": "17",
+      "name": "Рублёво-Архангельская линия",
+      "color": "#27303F",
+      "stations": [
+        {
+          "id": "ru-moscow-17-delovoy-tsentr",
+          "name": "Деловой центр",
+          "latitude": 55.747222,
+          "longitude": 37.532222
+        },
+        {
+          "id": "ru-moscow-17-shelepikha",
+          "name": "Шелепиха",
+          "latitude": 55.7575,
+          "longitude": 37.525556
+        },
+        {
+          "id": "ru-moscow-17-zvenigorodskaya",
+          "name": "Звенигородская",
+          "latitude": 55.7660825,
+          "longitude": 37.5094308
+        },
+        {
+          "id": "ru-moscow-17-narodnoye-opolcheniye",
+          "name": "Народное Ополчение",
+          "latitude": 55.7775111,
+          "longitude": 37.4881174
+        },
+        {
+          "id": "ru-moscow-17-bulvar-generala-karbysheva",
+          "name": "Бульвар Генерала Карбышева",
+          "latitude": 55.7841503,
+          "longitude": 37.4733081
+        }
+      ]
+    }
+  ]
+}
