@@ -21,7 +21,6 @@ import { highlightRepository } from '~/repositories/highlight.repository'
 import { userRepository } from '~/repositories/user.repository'
 import { emailService } from '~/services/email.service'
 import { deleteFileWithVariants } from '~/services/file-storage.service'
-import { telegramAuthService } from '~/services/telegram-auth.service'
 
 export const userService = {
   async listPlans() {
@@ -169,16 +168,8 @@ export const userService = {
     return { success: true }
   },
 
-  async unlinkProvider(id: string, provider: 'google' | 'github' | 'telegram' | 'yandex') {
+  async unlinkProvider(id: string, provider: 'google' | 'github' | 'yandex') {
     return await userRepository.unlinkOAuthProvider(id, provider)
-  },
-
-  async initTelegramLink(userId: string) {
-    return telegramAuthService.initLink(userId)
-  },
-
-  async checkTelegramLinkStatus(token: string, userId: string) {
-    return await telegramAuthService.getLinkStatus(token, userId)
   },
 
   async deleteAccount(id: string, data: z.infer<typeof DeleteAccountInputSchema>) {

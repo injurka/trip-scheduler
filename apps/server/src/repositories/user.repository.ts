@@ -7,14 +7,6 @@ import { authUtils } from '~/lib/auth.utils'
 import { FREE_PLAN_ID } from '~/lib/constants'
 import { createTRPCError } from '~/lib/trpc'
 
-interface OAuthInput {
-  provider: 'google' | 'github' | 'telegram' | 'yandex'
-  providerId: string
-  email: string | null
-  name: string
-  avatarUrl?: string
-}
-
 type UserForClient = Omit<typeof users.$inferSelect, 'password'> & { hasPassword?: boolean, plan?: any, _count?: { trips: number } }
 
 function excludePassword<T extends { password?: string | null }>(user: T): Omit<T, 'password'> & { hasPassword: boolean } {
@@ -62,87 +54,12 @@ export const userRepository = {
     return excludePassword(newUser)
   },
 
-  /**
-   * OAuth find or create logic
-   */
-  async findOrCreateFromOAuth({ provider, providerId, email, name, avatarUrl }: OAuthInput): Promise<UserForClient> {
-    let user: Awaited<ReturnType<typeof db.query.users.findFirst>> | undefined
-
-    if (provider === 'google') {
-      user = await db.query.users.findFirst({ where: eq(users.googleId, providerId), with: { plan: true } })
-    }
-    else if (provider === 'github') {
-      user = await db.query.users.findFirst({ where: eq(users.githubId, providerId), with: { plan: true } })
-    }
-    else if (provider === 'telegram') {
-      user = await db.query.users.findFirst({ where: eq(users.telegramId, providerId), with: { plan: true } })
-    }
-    else if (provider === 'yandex') {
-      user = await db.query.users.findFirst({ where: eq(users.yandexId, providerId), with: { plan: true } })
-    }
-
-    if (user) {
-      return excludePassword(user) as UserForClient
-    }
-
-    if (email) {
-      const userWithEmail = await db.query.users.findFirst({
-        where: eq(users.email, email),
-        with: { plan: true },
-      })
-
-      if (userWithEmail) {
-        const updateData: Partial<typeof users.$inferInsert> = { updatedAt: new Date() }
-        if (provider === 'google')
-          updateData.googleId = providerId
-        else if (provider === 'github')
-          updateData.githubId = providerId
-        else if (provider === 'telegram')
-          updateData.telegramId = providerId
-        else if (provider === 'yandex')
-          updateData.yandexId = providerId
-
-        const [updatedUser] = await db.update(users)
-          .set(updateData)
-          .where(eq(users.id, userWithEmail.id))
-          .returning()
-
-        return { ...excludePassword(updatedUser), plan: userWithEmail.plan }
-      }
-    }
-
-    const newUserPayload: typeof users.$inferInsert = {
-      email: email ?? null,
-      name,
-      avatarUrl: avatarUrl || undefined,
-      emailVerified: email ? new Date() : null,
-      planId: FREE_PLAN_ID,
-    }
-
-    if (provider === 'google')
-      newUserPayload.googleId = providerId
-    else if (provider === 'github')
-      newUserPayload.githubId = providerId
-    else if (provider === 'telegram')
-      newUserPayload.telegramId = providerId
-    else if (provider === 'yandex')
-      newUserPayload.yandexId = providerId
-
-    const [newUser] = await db.insert(users)
-      .values(newUserPayload)
-      .returning()
-
-    return await this.getById(newUser.id) as UserForClient
-  },
-
-  async linkOAuthProvider(userId: string, provider: 'google' | 'github' | 'telegram' | 'yandex', providerId: string): Promise<UserForClient> {
+  async linkOAuthProvider(userId: string, provider: 'google' | 'github' | 'yandex', providerId: string): Promise<UserForClient> {
     const providerColumn = provider === 'google'
       ? users.googleId
       : provider === 'github'
         ? users.githubId
-        : provider === 'telegram'
-          ? users.telegramId
-          : users.yandexId
+        : users.yandexId
 
     const existingWithProvider = await db.query.users.findFirst({
       where: eq(providerColumn, providerId),
@@ -161,8 +78,6 @@ export const userRepository = {
       updateData.googleId = providerId
     else if (provider === 'github')
       updateData.githubId = providerId
-    else if (provider === 'telegram')
-      updateData.telegramId = providerId
     else if (provider === 'yandex')
       updateData.yandexId = providerId
 
@@ -174,7 +89,7 @@ export const userRepository = {
     return updatedUser!
   },
 
-  async unlinkOAuthProvider(userId: string, provider: 'google' | 'github' | 'telegram' | 'yandex'): Promise<UserForClient> {
+  async unlinkOAuthProvider(userId: string, provider: 'google' | 'github' | 'yandex'): Promise<UserForClient> {
     const user = await db.query.users.findFirst({
       where: eq(users.id, userId),
     })
@@ -187,13 +102,11 @@ export const userRepository = {
     const connectedProviders = [
       user.googleId ? 'google' : null,
       user.githubId ? 'github' : null,
-      user.telegramId ? 'telegram' : null,
       user.yandexId ? 'yandex' : null,
     ].filter(Boolean)
 
     const isCurrentProviderConnected = (provider === 'google' && user.googleId)
       || (provider === 'github' && user.githubId)
-      || (provider === 'telegram' && user.telegramId)
       || (provider === 'yandex' && user.yandexId)
 
     if (!isCurrentProviderConnected) {
@@ -209,8 +122,6 @@ export const userRepository = {
       updateData.googleId = null
     else if (provider === 'github')
       updateData.githubId = null
-    else if (provider === 'telegram')
-      updateData.telegramId = null
     else if (provider === 'yandex')
       updateData.yandexId = null
 

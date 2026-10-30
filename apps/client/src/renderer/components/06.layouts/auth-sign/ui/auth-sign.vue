@@ -1,12 +1,9 @@
 <script setup lang="ts">
 import { Icon } from '@iconify/vue'
-import { onBeforeUnmount, ref } from 'vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitDivider } from '~/components/01.kit/kit-divider'
-import { AppRoutePaths } from '~/shared/constants/routes'
 import { isTauri, SERVER_URL } from '~/shared/lib/env'
 import { openExternalUrl } from '~/shared/lib/opener'
-import { useAuthStore } from '~/shared/store/auth.store'
 
 enum OAuthProviders {
   GitHub = 'github',
@@ -20,17 +17,6 @@ interface Props {
 
 defineProps<Props>()
 
-const authStore = useAuthStore()
-const router = useRouter()
-const isTelegramLoading = ref(false)
-let statusInterval: any = null
-
-onBeforeUnmount(() => {
-  if (statusInterval) {
-    clearInterval(statusInterval)
-  }
-})
-
 async function handleOAuth(provider: OAuthProviders) {
   const serverUrl = SERVER_URL
   const redirectTypeParam = isTauri ? '?redirect_type=app' : ''
@@ -43,51 +29,12 @@ async function handleOAuth(provider: OAuthProviders) {
     window.location.href = loginUrl
   }
 }
-
-async function handleTelegramAuth() {
-  if (isTelegramLoading.value)
-    return
-
-  isTelegramLoading.value = true
-  try {
-    const { token, url } = await authStore.initTelegramAuth()
-
-    await openExternalUrl(url)
-
-    statusInterval = setInterval(async () => {
-      try {
-        const res = await authStore.checkTelegramAuthStatus(token)
-        if (res.status === 'confirmed') {
-          clearInterval(statusInterval)
-          isTelegramLoading.value = false
-          useToast().success('Вы успешно вошли!')
-          router.push(AppRoutePaths.Trip.List)
-        }
-        else if (res.status === 'cancelled' || res.status === 'expired') {
-          clearInterval(statusInterval)
-          isTelegramLoading.value = false
-          useToast().error('Вход через Telegram отменен или время сессии истекло')
-        }
-      }
-      catch {
-        clearInterval(statusInterval)
-        isTelegramLoading.value = false
-        useToast().error('Ошибка при проверке статуса авторизации')
-      }
-    }, 2000)
-  }
-  catch (error: any) {
-    isTelegramLoading.value = false
-    const msg = error?.data?.message || error?.message || 'Не удалось инициализировать авторизацию через Telegram'
-    useToast().error(msg)
-  }
-}
 </script>
 
 <template>
   <section class="content">
     <div class="card">
-      <div v-if="isLoading || isTelegramLoading" class="loader-overlay">
+      <div v-if="isLoading" class="loader-overlay">
         <Icon icon="mdi:loading" class="spinner" />
       </div>
 
@@ -100,7 +47,7 @@ async function handleTelegramAuth() {
 
       <slot name="utils" />
 
-      <KitDivider class="section-divider" :is-loading="isLoading || isTelegramLoading">
+      <KitDivider class="section-divider" :is-loading="isLoading">
         ИЛИ
       </KitDivider>
 
@@ -109,7 +56,7 @@ async function handleTelegramAuth() {
           v-if="false"
           variant="outlined"
           color="secondary"
-          :disabled="isLoading || isTelegramLoading"
+          :disabled="isLoading"
           icon="mdi:google"
           style="flex-grow: 1;"
           @click="handleOAuth(OAuthProviders.Google)"
@@ -121,7 +68,7 @@ async function handleTelegramAuth() {
           v-if="false"
           variant="outlined"
           color="secondary"
-          :disabled="isLoading || isTelegramLoading"
+          :disabled="isLoading"
           icon="mdi:github"
           style="flex-grow: 1;"
           @click="handleOAuth(OAuthProviders.GitHub)"
@@ -132,24 +79,12 @@ async function handleTelegramAuth() {
         <KitBtn
           variant="outlined"
           color="secondary"
-          :disabled="isLoading || isTelegramLoading"
+          :disabled="isLoading"
           style="flex-grow: 1;"
           @click="handleOAuth(OAuthProviders.Yandex)"
         >
           <span class="yandex-icon-badge">Я</span>
           Яндекс
-        </KitBtn>
-
-        <KitBtn
-          variant="outlined"
-          color="secondary"
-          :disabled="isLoading || isTelegramLoading"
-          :is-loading="isTelegramLoading"
-          icon="mdi:telegram"
-          style="flex-grow: 1;"
-          @click="handleTelegramAuth"
-        >
-          Telegram
         </KitBtn>
       </div>
     </div>

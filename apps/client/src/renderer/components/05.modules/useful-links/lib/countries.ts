@@ -26,7 +26,7 @@ export const COUNTRIES_DATA: CountryInfo[] = [
     tips: [
       {
         title: 'Великий китайский файрвол (GFW)',
-        text: 'Сервисы Google (включая Maps, Gmail, Search), Instagram, WhatsApp, Telegram и Facebook заблокированы. Скачайте проверенный VPN до въезда или используйте роуминговую eSIM (Airalo, Nomad), которая не подвержена цензуре.',
+        text: 'Сервисы Google (включая Maps, Gmail, Search), Instagram, WhatsApp и Facebook заблокированы. Скачайте проверенный VPN до въезда или используйте роуминговую eSIM (Airalo, Nomad), которая не подвержена цензуре.',
         icon: 'mdi:shield-alert-outline',
         type: 'warning',
       },

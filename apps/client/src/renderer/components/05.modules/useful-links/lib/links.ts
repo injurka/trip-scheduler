@@ -460,7 +460,7 @@ export const SERVICE_LINKS: ServiceLink[] = [
     recommended: true,
     isGlobal: true,
     countryNotes: {
-      china: 'Главный лайфхак: роуминговая eSIM от Airalo обходит китайские блокировки — Google Maps, Instagram, Telegram и WhatsApp работают без стороннего VPN!',
+      china: 'Главный лайфхак: роуминговая eSIM от Airalo обходит китайские блокировки — Google Maps, Instagram и WhatsApp работают без стороннего VPN!',
       taiwan: 'Быстрый 5G интернет по всему Тайваню с моментальным подключением.',
     },
     tags: ['eSIM', 'интернет', 'роуминг', 'связь', 'VPN'],

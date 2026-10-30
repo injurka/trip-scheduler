@@ -11,7 +11,6 @@ import { Logger } from './lib/logger'
 import { dumpService } from './services/dump.service'
 import { s3Service } from './services/s3.service'
 import { processStorageCleanup } from './services/storage-cleanup.service'
-import { telegramAuthService } from './services/telegram-auth.service'
 
 const logger = new Logger()
 const app: Hono = Server.getApp()
@@ -67,19 +66,6 @@ try {
 
   setInterval(updateDatabaseMetrics, 30_000)
   await updateDatabaseMetrics()
-
-  // Роскомнадзор сделал дело...
-  if (process.env.TELEGRAM_BOT_TOKEN) {
-    if (process.env.TELEGRAM_MODE === 'polling' || process.env.TELEGRAM_POLLING === 'true') {
-      await telegramAuthService.startPolling()
-    }
-    else {
-      await telegramAuthService.setupWebhook()
-    }
-  }
-  else {
-    logger.warn('TELEGRAM_BOT_TOKEN не задан — пропускаю инициализацию Telegram')
-  }
 
   if (dumpEnabled) {
     createDump('Запуск дампа базы данных...')

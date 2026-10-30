@@ -53,11 +53,7 @@ export const SetPasswordInputSchema = z.object({
 })
 
 export const UnlinkProviderInputSchema = z.object({
-  provider: z.enum(['google', 'github', 'telegram', 'yandex']),
-})
-
-export const CheckTelegramLinkStatusInputSchema = z.object({
-  token: z.string(),
+  provider: z.enum(['google', 'github', 'yandex']),
 })
 
 export const DeleteAccountInputSchema = z.object({
@@ -110,7 +106,7 @@ export const UpdateHighlightInputSchema = CreateHighlightInputSchema.partial().e
 export const PlanSchema = createSelectSchema(plans)
 
 export const UserSchema = createSelectSchema(users)
-  .omit({ password: true })
+  .omit({ password: true, telegramId: true })
   .extend({
     plan: PlanSchema.optional(),
     hasPassword: z.boolean().optional(),

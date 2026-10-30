@@ -6,7 +6,6 @@ import { Cropper } from 'vue-advanced-cropper'
 import { KitAvatar } from '~/components/01.kit/kit-avatar'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitCheckbox } from '~/components/01.kit/kit-checkbox'
-import { KitDialogWithClose } from '~/components/01.kit/kit-dialog-with-close'
 import { KitDivider } from '~/components/01.kit/kit-divider'
 import { KitInput } from '~/components/01.kit/kit-input'
 import { KitTabs } from '~/components/01.kit/kit-tabs'
@@ -57,15 +56,9 @@ const {
   appVersion,
   // OAuth & Integrations
   isYandexLinked,
-  isTelegramLinked,
   hasPassword,
   unlinkingProvider,
-  isTelegramModalVisible,
-  isTelegramLinking,
-  telegramLinkUrl,
   linkOAuth,
-  startTelegramLink,
-  cancelTelegramLinkModal,
   unlinkProvider,
 } = useProfileSettings()
 
@@ -310,50 +303,6 @@ function applyCrop() {
                       size="sm"
                       icon="mdi:plus"
                       @click="linkOAuth('yandex')"
-                    >
-                      Привязать
-                    </KitBtn>
-                  </div>
-                </div>
-
-                <!-- Telegram -->
-                <div class="integration-tile" :class="{ 'is-active': isTelegramLinked }">
-                  <div class="tile-leading">
-                    <div class="provider-icon-wrapper telegram">
-                      <Icon icon="mdi:telegram" />
-                    </div>
-                    <div class="tile-meta">
-                      <div class="provider-title">
-                        Telegram
-                      </div>
-                      <div class="provider-status-badge" :class="{ linked: isTelegramLinked }">
-                        <Icon :icon="isTelegramLinked ? 'mdi:check-circle' : 'mdi:link-variant-off'" class="status-icon" />
-                        <span>{{ isTelegramLinked ? 'Подключен' : 'Не привязан' }}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div class="tile-trailing">
-                    <KitBtn
-                      v-if="isTelegramLinked"
-                      variant="outlined"
-                      color="secondary"
-                      size="sm"
-                      :disabled="unlinkingProvider === 'telegram'"
-                      :loading="unlinkingProvider === 'telegram'"
-                      icon="mdi:link-variant-off"
-                      @click="unlinkProvider('telegram')"
-                    >
-                      Отвязать
-                    </KitBtn>
-                    <KitBtn
-                      v-else
-                      variant="solid"
-                      color="secondary"
-                      size="sm"
-                      :loading="isTelegramLinking"
-                      icon="mdi:plus"
-                      @click="startTelegramLink"
                     >
                       Привязать
                     </KitBtn>
@@ -738,38 +687,6 @@ function applyCrop() {
       </KitTabs>
     </div>
 
-    <!-- Диалог привязки Telegram -->
-    <KitDialogWithClose
-      :visible="isTelegramModalVisible"
-      title="Привязка Telegram"
-      icon="mdi:telegram"
-      :max-width="480"
-      @update:visible="cancelTelegramLinkModal"
-    >
-      <div class="telegram-link-body">
-        <p class="telegram-desc">
-          Чтобы привязать Telegram к вашему аккаунту:
-        </p>
-        <ol class="telegram-steps">
-          <li>Нажмите кнопку ниже, чтобы открыть бота в Telegram</li>
-          <li>В чате с ботом нажмите <strong>«Старт»</strong></li>
-          <li>Подтвердите привязку аккаунта кнопкой <strong>«Привязать»</strong></li>
-        </ol>
-        <div class="telegram-action">
-          <a :href="telegramLinkUrl" target="_blank" class="telegram-btn-link" rel="noopener noreferrer">
-            <KitBtn color="primary" size="md">
-              <Icon icon="mdi:telegram" />
-              Открыть бота в Telegram
-            </KitBtn>
-          </a>
-        </div>
-        <div class="telegram-waiting">
-          <Icon icon="mdi:loading" class="spinner" />
-          <span>Ожидание подтверждения в Telegram...</span>
-        </div>
-      </div>
-    </KitDialogWithClose>
-
     <!-- Модальное окно для обрезки (кроппер) -->
     <Teleport to="body">
       <div v-if="isCropperVisible" class="cropper-overlay">
@@ -1115,9 +1032,6 @@ function applyCrop() {
   &.yandex {
     color: #fc3f1d;
   }
-  &.telegram {
-    color: #229ed9;
-  }
 }
 
 .yandex-glyph {
@@ -1382,62 +1296,6 @@ function applyCrop() {
 
     &:hover:not(:disabled) {
       filter: brightness(1.1);
-    }
-  }
-}
-
-/* Telegram Dialog */
-.telegram-link-body {
-  display: flex;
-  flex-direction: column;
-  gap: 1.25rem;
-  padding: 0.5rem 0;
-
-  .telegram-desc {
-    margin: 0;
-    font-size: 0.95rem;
-    color: var(--fg-secondary-color);
-  }
-
-  .telegram-steps {
-    margin: 0;
-    padding-left: 1.25rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-    font-size: 0.9rem;
-    color: var(--fg-primary-color);
-
-    li strong {
-      color: var(--fg-accent-color);
-    }
-  }
-
-  .telegram-action {
-    display: flex;
-    justify-content: center;
-    margin: 0.5rem 0;
-
-    .telegram-btn-link {
-      text-decoration: none;
-    }
-  }
-
-  .telegram-waiting {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.75rem;
-    padding: 0.75rem;
-    background-color: var(--bg-tertiary-color);
-    border-radius: var(--r-s);
-    font-size: 0.875rem;
-    color: var(--fg-secondary-color);
-
-    .spinner {
-      font-size: 1.25rem;
-      color: var(--fg-accent-color);
-      animation: spin 1s linear infinite;
     }
   }
 }

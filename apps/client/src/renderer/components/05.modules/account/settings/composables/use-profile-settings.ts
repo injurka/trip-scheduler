@@ -89,17 +89,10 @@ export function useProfileSettings() {
   })
   const isDeletingAccount = ref(false)
 
-  // Состояния для привязки Telegram
-  const isTelegramModalVisible = ref(false)
-  const isTelegramLinking = ref(false)
-  const telegramLinkUrl = ref('')
-  let telegramPollInterval: any = null
-
   // Состояния провайдеров
   const isYandexLinked = computed(() => Boolean(user.value?.yandexId))
   const isGoogleLinked = computed(() => Boolean(user.value?.googleId))
   const isGithubLinked = computed(() => Boolean(user.value?.githubId))
-  const isTelegramLinked = computed(() => Boolean(user.value?.telegramId))
   const hasPassword = computed(() => Boolean((user.value as any)?.hasPassword))
 
   const unlinkingProvider = ref<string | null>(null)
@@ -173,73 +166,9 @@ export function useProfileSettings() {
     }
   }
 
-  async function startTelegramLink() {
-    isTelegramLinking.value = true
-    try {
-      const res = await authStore.initTelegramLink()
-      telegramLinkUrl.value = res.url
-      isTelegramModalVisible.value = true
-
-      if (isTauri) {
-        await openExternalUrl(res.url)
-      }
-
-      if (telegramPollInterval) {
-        clearInterval(telegramPollInterval)
-      }
-
-      telegramPollInterval = setInterval(async () => {
-        try {
-          const statusRes = await authStore.checkTelegramLinkStatus(res.token)
-          if (statusRes.status === 'confirmed') {
-            clearInterval(telegramPollInterval)
-            telegramPollInterval = null
-            isTelegramModalVisible.value = false
-            isTelegramLinking.value = false
-            toast.success('Telegram успешно привязан к вашему профилю!')
-          }
-          else if (statusRes.status === 'already_linked') {
-            clearInterval(telegramPollInterval)
-            telegramPollInterval = null
-            isTelegramModalVisible.value = false
-            isTelegramLinking.value = false
-            toast.error(statusRes.message || 'Этот Telegram-аккаунт уже привязан к другому пользователю')
-          }
-          else if (statusRes.status === 'cancelled' || statusRes.status === 'expired') {
-            clearInterval(telegramPollInterval)
-            telegramPollInterval = null
-            isTelegramModalVisible.value = false
-            isTelegramLinking.value = false
-            toast.error('Привязка Telegram отменена или время ссылки истекло')
-          }
-        }
-        catch {
-          clearInterval(telegramPollInterval)
-          telegramPollInterval = null
-          isTelegramModalVisible.value = false
-          isTelegramLinking.value = false
-        }
-      }, 2000)
-    }
-    catch (e: any) {
-      isTelegramLinking.value = false
-      toast.error(e.message || 'Не удалось начать привязку Telegram')
-    }
-  }
-
-  function cancelTelegramLinkModal() {
-    if (telegramPollInterval) {
-      clearInterval(telegramPollInterval)
-      telegramPollInterval = null
-    }
-    isTelegramModalVisible.value = false
-    isTelegramLinking.value = false
-  }
-
-  async function unlinkProvider(provider: 'google' | 'github' | 'telegram' | 'yandex') {
+  async function unlinkProvider(provider: 'google' | 'github' | 'yandex') {
     const providerNames: Record<string, string> = {
       yandex: 'Яндекс',
-      telegram: 'Telegram',
       google: 'Google',
       github: 'GitHub',
     }
@@ -380,13 +309,6 @@ export function useProfileSettings() {
     }
   })
 
-  onBeforeUnmount(() => {
-    if (telegramPollInterval) {
-      clearInterval(telegramPollInterval)
-      telegramPollInterval = null
-    }
-  })
-
   return {
     vaultPath: computed(() => vaultStore.vaultPath),
     selectVaultFolder: vaultStore.selectFolder,
@@ -425,15 +347,9 @@ export function useProfileSettings() {
     isYandexLinked,
     isGoogleLinked,
     isGithubLinked,
-    isTelegramLinked,
     hasPassword,
     unlinkingProvider,
-    isTelegramModalVisible,
-    isTelegramLinking,
-    telegramLinkUrl,
     linkOAuth,
-    startTelegramLink,
-    cancelTelegramLinkModal,
     unlinkProvider,
     updateProfile,
     changePassword,

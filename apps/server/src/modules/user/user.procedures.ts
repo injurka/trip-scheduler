@@ -3,7 +3,6 @@ import { protectedProcedure, publicProcedure } from '~/lib/trpc'
 import {
   AuthOutputSchema,
   ChangePasswordInputSchema,
-  CheckTelegramLinkStatusInputSchema,
   CreateHighlightInputSchema,
   DeleteAccountInputSchema,
   DeleteHighlightInputSchema,
@@ -165,29 +164,6 @@ export const userProcedures = {
     .output(UserSchema)
     .mutation(async ({ ctx, input }) => {
       return userService.unlinkProvider(ctx.user.id, input.provider)
-    }),
-
-  initTelegramLink: protectedProcedure
-    .meta({
-      openapi: { method: 'POST', path: '/users/me/telegram/init-link', tags: ['Users'], summary: 'Инициализировать привязку Telegram' },
-    })
-    .output(z.object({ token: z.string(), url: z.string() }))
-    .mutation(async ({ ctx }) => {
-      return userService.initTelegramLink(ctx.user.id)
-    }),
-
-  checkTelegramLinkStatus: protectedProcedure
-    .meta({
-      openapi: { method: 'POST', path: '/users/me/telegram/link-status', tags: ['Users'], summary: 'Проверить статус привязки Telegram' },
-    })
-    .input(CheckTelegramLinkStatusInputSchema)
-    .output(z.object({
-      status: z.enum(['pending', 'confirmed', 'cancelled', 'expired', 'not_found', 'already_linked']),
-      message: z.string().optional(),
-      user: UserSchema.optional().nullable(),
-    }))
-    .mutation(async ({ ctx, input }) => {
-      return userService.checkTelegramLinkStatus(input.token, ctx.user.id)
     }),
 
   deleteAccount: protectedProcedure
