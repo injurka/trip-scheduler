@@ -52,13 +52,25 @@ export function configureAndroidManifest(): boolean {
   // android:name and rejects conflicting FILE_PROVIDER_PATHS metadata).
   if (existsSync(FILE_PATHS_PATH)) {
     let filePaths = readFileSync(FILE_PATHS_PATH, 'utf-8')
+    let pathsModified = false
     if (!filePaths.includes('name="updates"')) {
       filePaths = filePaths.replace(
         '</paths>',
         '    <cache-path name="updates" path="updates/" />\n</paths>',
       )
-      writeFileSync(FILE_PATHS_PATH, filePaths, 'utf-8')
+      pathsModified = true
       console.log('[configure-android] Added APK update path to FileProvider paths')
+    }
+    if (!filePaths.includes('name="exports"')) {
+      filePaths = filePaths.replace(
+        '</paths>',
+        '    <cache-path name="exports" path="exports/" />\n</paths>',
+      )
+      pathsModified = true
+      console.log('[configure-android] Added KMZ exports path to FileProvider paths')
+    }
+    if (pathsModified) {
+      writeFileSync(FILE_PATHS_PATH, filePaths, 'utf-8')
     }
   }
 
@@ -123,6 +135,28 @@ export function configureAndroidManifest(): boolean {
     if (content.includes('</application>')) {
       content = content.replace('</application>', `${serviceTag}\n    </application>`)
       console.log('[configure-android] Added TrackingService with foregroundServiceType="location"')
+      modified = true
+    }
+  }
+
+  // 5. Add queries for Maps.me / Organic Maps / geo files
+  const queriesTag = `    <queries>
+        <package android:name="com.mapswithme.maps.pro" />
+        <package android:name="app.organicmaps" />
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:mimeType="application/vnd.google-earth.kmz" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:mimeType="application/vnd.google-earth.kml+xml" />
+        </intent>
+    </queries>`
+
+  if (!content.includes('android:name="com.mapswithme.maps.pro"')) {
+    if (content.includes('</manifest>')) {
+      content = content.replace('</manifest>', `${queriesTag}\n</manifest>`)
+      console.log('[configure-android] Added queries for Maps.me / Organic Maps')
       modified = true
     }
   }

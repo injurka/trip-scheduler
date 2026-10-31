@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 import sharp from 'sharp'
-import { extractAndStructureMetadata, generateThumbHash } from './image-metadata.service'
+import { extractAndStructureMetadata, generateImageVariants, generateThumbHash } from './image-metadata.service'
 
 describe('server thumbhash generation', () => {
   it('generates a valid base64 thumbhash from an image buffer', async () => {
@@ -33,6 +33,26 @@ describe('server thumbhash generation', () => {
     expect(result.metadata.width).toBe(160)
     expect(result.metadata.height).toBe(120)
     expect(result.metadata.metadata?.thumbhash).toBeTruthy()
+  })
+
+  it('rotates EXIF-oriented images and generates variants with proper visual dimensions', async () => {
+    // 1000 wide x 600 high with orientation 6 (rotate 90 deg clockwise -> becomes 600 wide x 1000 high)
+    const orientedImage = await sharp({
+      create: {
+        width: 1000,
+        height: 600,
+        channels: 3,
+        background: { r: 200, g: 50, b: 50 },
+      },
+    }).withMetadata({ orientation: 6 }).jpeg().toBuffer()
+
+    const variants = await generateImageVariants(orientedImage)
+    expect(variants.small).toBeDefined()
+
+    const smallMeta = await sharp(variants.small).metadata()
+    // Small variant was resized to width 400. Because it was rotated, height should be > width (portrait).
+    expect(smallMeta.width).toBe(400)
+    expect(smallMeta.height).toBeGreaterThan(400)
   })
 
   it('handles invalid buffer gracefully returning null', async () => {

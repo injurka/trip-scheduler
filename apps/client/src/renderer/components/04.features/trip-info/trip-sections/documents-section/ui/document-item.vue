@@ -224,7 +224,7 @@ function handleCardClick() {
       <!-- Реальная картинка -->
       <img
         v-if="isImage"
-        v-resolve-src="document.url"
+        v-resolve-src="document.variants?.small || document.variants?.medium || document.url"
         :alt="displayName"
         class="img-preview"
       >

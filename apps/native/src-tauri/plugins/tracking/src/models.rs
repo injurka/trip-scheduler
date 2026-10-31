@@ -47,3 +47,19 @@ pub struct SystemBarsThemePayload {
 pub struct InstallApkPayload {
     pub path: String,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OpenKmzPayload {
+    pub file_name: String,
+    pub base64_data: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OpenKmzResult {
+    pub file_name: String,
+    pub downloads_path: Option<String>,
+    pub status: String,
+    pub message: String,
+}

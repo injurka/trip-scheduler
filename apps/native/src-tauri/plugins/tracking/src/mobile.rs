@@ -66,4 +66,8 @@ impl<R: Runtime> Tracking<R> {
     pub fn install_apk(&self, payload: InstallApkPayload) -> Result<bool> {
         self.0.run_mobile_plugin("installApk", payload).map_err(Into::into)
     }
+
+    pub fn open_kmz_in_maps_me(&self, payload: OpenKmzPayload) -> Result<OpenKmzResult> {
+        self.0.run_mobile_plugin("openKmzInMapsMe", payload).map_err(Into::into)
+    }
 }

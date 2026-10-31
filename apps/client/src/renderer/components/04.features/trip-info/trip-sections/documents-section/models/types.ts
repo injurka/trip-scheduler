@@ -21,6 +21,7 @@ export interface DocumentFile {
   category?: DocumentCategory | null
   isFavorite?: boolean
   note?: string | null
+  variants?: Record<string, string> | null
 }
 
 export interface DocumentFolder {

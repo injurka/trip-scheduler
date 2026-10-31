@@ -9,6 +9,7 @@ import { KitImageViewer, useImageViewer } from '~/components/01.kit/kit-image-vi
 import { KitInput } from '~/components/01.kit/kit-input'
 import { KitTooltip } from '~/components/01.kit/kit-tooltip'
 import { useRequest } from '~/plugins/request'
+import { deriveImageVariants } from '~/shared/lib/url'
 import { TripMediaPlacement } from '~/shared/types/models/trip'
 
 interface Props {
@@ -53,6 +54,7 @@ const viewerImages = computed<ImageViewerImage[]>(() =>
     url,
     alt: `${props.title} ${i + 1}`,
     caption: `${props.title}: ${i + 1} из ${photosList.value.length}`,
+    variants: deriveImageVariants(url),
   })))
 
 function openViewer(index: number) {
@@ -250,6 +252,7 @@ function handleAddLink() {
       >
         <KitImage
           :src="photoUrl"
+          :variants="deriveImageVariants(photoUrl)"
           :alt="`${title} ${index + 1}`"
           object-fit="cover"
           class="photo-thumb-img"
@@ -277,6 +280,7 @@ function handleAddLink() {
       >
         <KitImage
           :src="photosList[maxVisibleThumbnails]"
+          :variants="deriveImageVariants(photosList[maxVisibleThumbnails])"
           alt="Остальные фото"
           object-fit="cover"
           class="photo-thumb-img"

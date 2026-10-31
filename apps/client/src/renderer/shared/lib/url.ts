@@ -120,6 +120,50 @@ export function getImageUrl(path: string | null | undefined, options?: ImageOpti
   }
 }
 
+function deriveHttpVariants(url: string): Record<string, string> {
+  const small = getImageUrl(url, { w: 400 })
+  const medium = getImageUrl(url, { w: 800 })
+
+  return {
+    ...(small ? { small } : {}),
+    ...(medium ? { medium } : {}),
+    large: url,
+  }
+}
+
+function deriveStorageVariants(url: string): Record<string, string> | undefined {
+  const extMatch = url.match(/\.([a-z0-9]+)$/i)
+
+  if (!extMatch)
+    return undefined
+
+  const base = url.slice(0, -extMatch[0].length)
+
+  if (/-(?:small|medium|large)$/.test(base))
+    return { small: url }
+
+  return {
+    small: `${base}-small.webp`,
+    medium: `${base}-medium.webp`,
+    large: `${base}-large.webp`,
+  }
+}
+
+/**
+ * Вычисляет или выводит варианты (small, medium, large) для URL изображения.
+ * Для относительных путей хранилища (trips/...) строит пути с суффиксами вариантов.
+ * Для внешних URL формирует параметры динамического ресайза.
+ */
+export function deriveImageVariants(url: string | null | undefined): Record<string, string> | undefined {
+  if (!url)
+    return undefined
+
+  if (/^(?:https?:\/\/|blob:)/i.test(url))
+    return deriveHttpVariants(url)
+
+  return deriveStorageVariants(url)
+}
+
 /**
  * Возвращает публичную ссылку на ICS-календарь путешествия.
  * Ссылка ведёт на API-сервер (а не на origin веб-клиента, который отдаёт только SPA).

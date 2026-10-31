@@ -1,5 +1,13 @@
 import type { Trip } from '~/shared/types/models/trip'
+import { invoke } from '@tauri-apps/api/core'
 import { strToU8, zipSync } from 'fflate'
+
+export interface MapsMeExportResult {
+  success: boolean
+  message: string
+  fileName?: string
+  status?: string
+}
 
 const MAPSME_COLORS = [
   'red',
@@ -191,31 +199,82 @@ function generateKml(trip: Trip, points: any[], routes: any[]): string {
 </kml>`.trim()
 }
 
+function uint8ArrayToBase64(bytes: Uint8Array): string {
+  let binary = ''
+  const len = bytes.byteLength
+  const chunkSize = 8192
+
+  for (let i = 0; i < len; i += chunkSize) {
+    const chunk = bytes.subarray(i, Math.min(i + chunkSize, len))
+    binary += String.fromCharCode.apply(null, chunk as unknown as number[])
+  }
+
+  return btoa(binary)
+}
+
+function getExportFileName(trip: Trip): string {
+  const baseName = (trip.title || trip.id || 'trip').trim().replace(/[/\\?%*:|"<>]/g, '_')
+
+  return `${baseName}.kmz`
+}
+
+function isTauriApp(): boolean {
+  return typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window
+}
+
 /**
- * Основная функция: генерирует KML, пакует в KMZ и скачивает.
+ * Основная функция: генерирует KML, пакует в KMZ и открывает в Maps.me / скачивает.
  */
-export function exportToMapsMe(trip: Trip | null, points: any[], routes: any[]) {
+export async function exportToMapsMe(trip: Trip | null, points: any[], routes: any[]): Promise<MapsMeExportResult | void> {
   if (!trip)
     return
 
   try {
     const kmlString = generateKml(trip, points, routes)
     const safeId = trip.id
+    const fileName = getExportFileName(trip)
 
     const zippedData = zipSync({
       [`${safeId}.kml`]: [strToU8(kmlString), { level: 0 }],
     })
+
+    if (isTauriApp()) {
+      const base64Data = uint8ArrayToBase64(zippedData)
+      const res = await invoke<{
+        fileName: string
+        downloadsPath?: string
+        status: string
+        message: string
+      }>('export_and_open_in_mapsme', {
+        fileName,
+        base64Data,
+      })
+
+      return {
+        success: true,
+        message: res.message,
+        fileName: res.fileName,
+        status: res.status,
+      }
+    }
 
     const blob = new Blob([zippedData], { type: 'application/vnd.google-earth.kmz' })
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
 
     link.href = url
-    link.download = `${safeId}.kmz`
+    link.download = fileName
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
     URL.revokeObjectURL(url)
+
+    return {
+      success: true,
+      message: 'Файл успешно подготовлен и скачан',
+      fileName,
+      status: 'downloaded',
+    }
   }
   catch (error) {
     console.error('Ошибка экспорта в Maps.me:', error)

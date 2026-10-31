@@ -43,6 +43,7 @@ export function useDocumentsSection(props: UseDocumentsSectionProps, emit: (even
       category: (d.metadata.category as DocumentCategory) ?? null,
       isFavorite: Boolean(d.metadata.isFavorite),
       note: d.metadata.note ?? null,
+      variants: d.variants || (d.metadata as any)?.variants || null,
     }
   }
 

@@ -418,13 +418,20 @@ async function deleteTripIfAllowed() {
   if (canDelete.value)
     await handleDeleteTrip()
 }
-function exportToMapsMeFromMenu() {
+async function exportToMapsMeFromMenu() {
   try {
-    exportToMapsMe(props.trip, allPoints.value, allRoutes.value)
-    toast.success('Файл успешно подготовлен и скачан')
+    const result = await exportToMapsMe(props.trip, allPoints.value, allRoutes.value)
+
+    if (result && result.message) {
+      toast.success(result.message)
+    }
+    else {
+      toast.success('Файл успешно подготовлен и скачан')
+    }
   }
-  catch {
-    toast.error('Произошла ошибка при экспорте гео-данных')
+  catch (error: any) {
+    console.error('Ошибка экспорта в Maps.me:', error)
+    toast.error(error?.message || 'Произошла ошибка при экспорте гео-данных')
   }
 }
 function showOfflineDownloadDialog() {

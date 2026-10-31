@@ -459,6 +459,50 @@ async fn set_system_bars_theme(
     app.tracking().set_system_bars_theme(payload).map_err(|e| e.to_string())
 }
 
+#[tauri::command]
+async fn export_and_open_in_mapsme(
+    app: tauri::AppHandle,
+    file_name: String,
+    base64_data: String,
+) -> Result<tauri_plugin_tracking::OpenKmzResult, String> {
+    #[cfg(mobile)]
+    {
+        use tauri_plugin_tracking::{OpenKmzPayload, TrackingExt};
+        app.tracking()
+            .open_kmz_in_maps_me(OpenKmzPayload {
+                file_name,
+                base64_data,
+            })
+            .map_err(|e| e.to_string())
+    }
+
+    #[cfg(desktop)]
+    {
+        use base64::Engine;
+        let bytes = base64::engine::general_purpose::STANDARD
+            .decode(&base64_data)
+            .map_err(|e| format!("Base64 decode error: {e}"))?;
+
+        let download_dir = app
+            .path()
+            .download_dir()
+            .unwrap_or_else(|_| std::env::temp_dir());
+        let file_path = download_dir.join(&file_name);
+        fs::write(&file_path, &bytes).map_err(|e| format!("Save error: {e}"))?;
+
+        let path_str = file_path.display().to_string();
+        use tauri_plugin_opener::OpenerExt;
+        let _ = app.opener().open_path(&path_str, None::<&str>);
+
+        Ok(tauri_plugin_tracking::OpenKmzResult {
+            file_name,
+            downloads_path: Some(path_str),
+            status: "opened_desktop".to_string(),
+            message: "Файл сохранён в Загрузки".to_string(),
+        })
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -489,7 +533,8 @@ pub fn run() {
             tracking_request_ignore_battery_optimizations,
             tracking_request_activity_permission,
             tracking_open_app_settings,
-            set_system_bars_theme
+            set_system_bars_theme,
+            export_and_open_in_mapsme
         ])
         .setup(|app| {
             if cfg!(debug_assertions) {

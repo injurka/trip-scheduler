@@ -76,10 +76,13 @@ imageController.get('/*', async (c) => {
     }
   }
 
-  const width = c.req.query('w') ? Number.parseInt(c.req.query('w')!) : undefined
-  const height = c.req.query('h') ? Number.parseInt(c.req.query('h')!) : undefined
+  const isThumbnailQuery = c.req.query('thumbnail') !== undefined || c.req.query('thumb') !== undefined
+  const widthParam = c.req.query('w') ? Number.parseInt(c.req.query('w')!) : undefined
+  const heightParam = c.req.query('h') ? Number.parseInt(c.req.query('h')!) : undefined
+  const width = widthParam || (isThumbnailQuery && !heightParam ? 400 : undefined)
+  const height = heightParam
   const quality = c.req.query('q') ? Number.parseInt(c.req.query('q')!) : 80
-  const format = c.req.query('fmt') || null
+  const format = c.req.query('fmt') || (isThumbnailQuery ? 'webp' : null)
 
   const fileExt = extname(filePath).slice(1).toLowerCase()
   const targetFormat = (format && ALLOWED_IMAGE_FORMATS.includes(format)) ? format : fileExt
@@ -119,11 +122,50 @@ imageController.get('/*', async (c) => {
     return c.body(streamResult.stream, streamResult.status, headers)
   }
 
-  const s3Result = await s3Service.getFile(filePath)
+  let s3Result = await s3Service.getFile(filePath)
 
   if (!s3Result) {
-    endTimer({ status: 'error', format: 'unknown', type: 'not_found' })
-    return c.notFound()
+    const variantMatch = filePath.match(/^(.*)-(small|medium|large)\.webp$/i)
+    if (variantMatch) {
+      const basePrefix = variantMatch[1]
+      const variantName = variantMatch[2].toLowerCase()
+      for (const ext of ['jpg', 'jpeg', 'png', 'webp', 'avif', 'gif']) {
+        const candidate = `${basePrefix}.${ext}`
+        const candidateResult = await s3Service.getFile(candidate)
+        if (candidateResult) {
+          s3Result = candidateResult
+          const variantWidth = variantName === 'small' ? 400 : variantName === 'medium' ? 800 : 1920
+          const variantQuality = variantName === 'small' ? 80 : variantName === 'medium' ? 85 : 90
+          try {
+            const processed = await sharp(candidateResult.buffer, { animated: true })
+              .rotate()
+              .resize({ width: variantWidth, fit: 'cover', withoutEnlargement: true })
+              .webp({ quality: variantQuality })
+              .toBuffer()
+
+            s3Service.uploadFile(filePath, processed, 'image/webp').catch((err) => {
+              console.warn('[ImageController] Failed to cache variant to S3:', err)
+            })
+
+            endTimer({ status: 'success', format: 'webp', type: 'processed' })
+            imageOutputSizeBytesHistogram.observe({ format: 'webp', type: 'processed' }, processed.length)
+            return c.body(new Uint8Array(processed), 200, {
+              'Content-Type': 'image/webp',
+              'Cache-Control': 'public, max-age=31536000, immutable',
+            })
+          }
+          catch (e) {
+            console.error('[ImageController] Failed on-the-fly variant generation:', e)
+          }
+          break
+        }
+      }
+    }
+
+    if (!s3Result) {
+      endTimer({ status: 'error', format: 'unknown', type: 'not_found' })
+      return c.notFound()
+    }
   }
 
   const isProcessableImage = ALLOWED_IMAGE_FORMATS.includes(fileExt) || s3Result.contentType.startsWith('image/')
@@ -167,7 +209,7 @@ imageController.get('/*', async (c) => {
   }
 
   try {
-    let pipeline = sharp(s3Result.buffer, { animated: true })
+    let pipeline = sharp(s3Result.buffer, { animated: true }).rotate()
 
     if (width || height) {
       pipeline = pipeline.resize({ width, height, fit: 'cover', withoutEnlargement: true })

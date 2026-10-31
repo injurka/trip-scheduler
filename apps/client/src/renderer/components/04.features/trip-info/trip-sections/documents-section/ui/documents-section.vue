@@ -108,6 +108,7 @@ const viewerImages = computed(() => {
   return imageDocuments.value.map(d => ({
     url: d.url,
     alt: d.title || d.originalName,
+    variants: d.variants || undefined,
     meta: { imageId: d.id },
   }))
 })

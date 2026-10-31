@@ -2,6 +2,7 @@
 import type { KitDropdownItem } from '~/components/01.kit/kit-dropdown'
 import type { ImageViewerImage } from '~/components/01.kit/kit-image-viewer'
 import type { ViewSwitcherItem } from '~/components/01.kit/kit-view-switcher'
+import type { TripImageWithTrip } from '~/components/05.modules/account/storage/composables/use-storage'
 import type { TripImagePlacement } from '~/shared/types/models/trip'
 import { Icon } from '@iconify/vue'
 import { computed, onMounted, ref } from 'vue'
@@ -17,8 +18,10 @@ import { KitTooltip } from '~/components/01.kit/kit-tooltip'
 import { KitViewSwitcher } from '~/components/01.kit/kit-view-switcher'
 import { AsyncStateWrapper } from '~/components/02.shared/async-state-wrapper'
 import { NavigationBack } from '~/components/02.shared/navigation-back'
+import { getFileTypeInfo } from '~/components/04.features/trip-info/trip-sections/documents-section/constants'
 import { useStorageModule } from '~/components/05.modules/account/storage/composables/use-storage'
 import { formatDate } from '~/shared/lib/date-time'
+import { resolveApiUrl } from '~/shared/lib/url'
 import { useAuthStore } from '~/shared/store/auth.store'
 import StorageChart from './storage-chart.vue'
 
@@ -111,12 +114,14 @@ const activeFiltersCount = computed(() => {
 
   return count
 })
+const mediaFilesForViewer = computed(() => filteredAndSortedFiles.value.filter(isImageOrVideoFile))
 const viewerImages = computed<ImageViewerImage[]>(() => {
-  return filteredAndSortedFiles.value.map(file => ({
+  return mediaFilesForViewer.value.map(file => ({
     url: file.url,
     variants: file.variants,
     alt: file.originalName,
     caption: file.trip ? `Из путешествия: ${file.trip.title}` : 'Без путешествия',
+    mediaType: file.mediaType === 'video' || /\.(?:mp4|webm|mov|mkv|avi|ogg)$/i.test(file.url) ? 'video' : 'image',
     meta: {
       imageId: file.id,
       latitude: file.latitude,
@@ -126,6 +131,24 @@ const viewerImages = computed<ImageViewerImage[]>(() => {
   }))
 })
 
+function getFileExt(file: { originalName?: string | null, url?: string | null }): string {
+  const name = file.originalName || file.url || ''
+
+  return name.split('.').pop()?.toLowerCase().split('?')[0] || ''
+}
+function isImageOrVideoFile(file: TripImageWithTrip): boolean {
+  const ext = getFileExt(file)
+
+  if (['pdf', 'doc', 'docx', 'xls', 'xlsx', 'txt', 'csv', 'zip', 'rar', 'rtf'].includes(ext)) {
+    return false
+  }
+
+  if (file.mediaType === 'video' || file.mediaType === 'image') {
+    return true
+  }
+
+  return ['jpg', 'jpeg', 'png', 'webp', 'avif', 'gif', 'heic', 'mp4', 'mov', 'webm', 'mkv', 'avi'].includes(ext)
+}
 function clearAllFilters() {
   filters.search = ''
   filters.tripId = ''
@@ -135,7 +158,22 @@ function clearAllFilters() {
   filters.sizeMax = null
 }
 function openViewer(fileId: string) {
-  const index = filteredAndSortedFiles.value.findIndex(f => f.id === fileId)
+  const file = files.value.find(f => f.id === fileId)
+
+  if (!file)
+    return
+
+  if (!isImageOrVideoFile(file)) {
+    const url = resolveApiUrl(file.url)
+
+    if (url && typeof window !== 'undefined') {
+      window.open(url, '_blank', 'noopener,noreferrer')
+    }
+
+    return
+  }
+
+  const index = mediaFilesForViewer.value.findIndex(f => f.id === fileId)
 
   if (index !== -1) {
     imageViewer.open(viewerImages.value, index)
@@ -479,11 +517,20 @@ onMounted(() => {
           >
             <div class="file-thumbnail-box">
               <KitImage
+                v-if="isImageOrVideoFile(file)"
                 :src="file.variants?.medium || file.variants?.small || file.url"
                 :thumbhash="file.variants?.thumbhash"
                 :alt="file.originalName"
                 class="file-img"
               />
+              <div
+                v-else
+                class="file-doc-box"
+                :class="`type--${getFileTypeInfo(getFileExt(file)).type}`"
+              >
+                <Icon :icon="getFileTypeInfo(getFileExt(file)).icon" class="doc-icon" />
+                <span class="doc-ext-badge">{{ getFileExt(file).toUpperCase() }}</span>
+              </div>
 
               <!-- Бейдж секции -->
               <div class="thumbnail-badges">
@@ -497,11 +544,11 @@ onMounted(() => {
                 <button
                   type="button"
                   class="action-btn zoom-btn"
-                  title="Просмотр"
-                  aria-label="Просмотр"
+                  :title="isImageOrVideoFile(file) ? 'Просмотр' : 'Открыть файл'"
+                  :aria-label="isImageOrVideoFile(file) ? 'Просмотр' : 'Открыть файл'"
                   @click.stop="openViewer(file.id)"
                 >
-                  <Icon icon="mdi:eye-outline" />
+                  <Icon :icon="isImageOrVideoFile(file) ? 'mdi:eye-outline' : 'mdi:open-in-new'" />
                 </button>
                 <button
                   type="button"
@@ -574,11 +621,19 @@ onMounted(() => {
                   <td class="td-file">
                     <div class="file-cell">
                       <KitImage
+                        v-if="isImageOrVideoFile(file)"
                         :src="file.variants?.small || file.url"
                         :thumbhash="file.variants?.thumbhash"
                         :alt="file.originalName"
                         class="table-thumbnail"
                       />
+                      <div
+                        v-else
+                        class="table-doc-box"
+                        :class="`type--${getFileTypeInfo(getFileExt(file)).type}`"
+                      >
+                        <Icon :icon="getFileTypeInfo(getFileExt(file)).icon" class="table-doc-icon" />
+                      </div>
                       <span class="table-file-name" :title="file.originalName">{{ file.originalName }}</span>
                     </div>
                   </td>
@@ -1091,6 +1146,46 @@ onMounted(() => {
       transition: transform 0.3s ease;
     }
 
+    .file-doc-box {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+
+      .doc-icon {
+        font-size: 44px;
+      }
+
+      .doc-ext-badge {
+        font-size: 0.7rem;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+        padding: 2px 6px;
+        border-radius: var(--r-s);
+        background: rgba(0, 0, 0, 0.08);
+      }
+
+      &.type--pdf {
+        background-color: rgba(239, 68, 68, 0.1);
+        color: #ef4444;
+      }
+      &.type--doc {
+        background-color: rgba(37, 99, 235, 0.1);
+        color: #2563eb;
+      }
+      &.type--sheet {
+        background-color: rgba(22, 163, 74, 0.1);
+        color: #16a34a;
+      }
+      &.type--file {
+        background-color: rgba(100, 116, 139, 0.1);
+        color: #64748b;
+      }
+    }
+
     .thumbnail-badges {
       position: absolute;
       top: 8px;
@@ -1285,6 +1380,37 @@ onMounted(() => {
       border-radius: var(--r-s);
       object-fit: cover;
       flex-shrink: 0;
+    }
+
+    .table-doc-box {
+      width: 40px;
+      height: 40px;
+      border-radius: var(--r-s);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+
+      .table-doc-icon {
+        font-size: 22px;
+      }
+
+      &.type--pdf {
+        background-color: rgba(239, 68, 68, 0.1);
+        color: #ef4444;
+      }
+      &.type--doc {
+        background-color: rgba(37, 99, 235, 0.1);
+        color: #2563eb;
+      }
+      &.type--sheet {
+        background-color: rgba(22, 163, 74, 0.1);
+        color: #16a34a;
+      }
+      &.type--file {
+        background-color: rgba(100, 116, 139, 0.1);
+        color: #64748b;
+      }
     }
 
     .table-file-name {

@@ -262,10 +262,15 @@ onBeforeUnmount(() => {
           media="(min-width: 600px)"
           type="image/webp"
         >
+        <source
+          v-if="resolvedVariants.small"
+          :srcset="resolvedVariants.small"
+          type="image/webp"
+        >
 
         <img
           ref="imageRef"
-          :src="resolvedSrc"
+          :src="resolvedVariants.small || resolvedSrc"
           class="image"
           :alt="alt"
           :loading="loading"

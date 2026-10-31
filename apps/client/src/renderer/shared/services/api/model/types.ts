@@ -345,6 +345,7 @@ export interface TripDocumentResponse {
   originalName: string
   sizeBytes: number
   createdAt: string
+  variants?: Record<string, string> | null
   metadata: {
     access: DocumentAccess
     folderId: string | null
@@ -352,6 +353,7 @@ export interface TripDocumentResponse {
     category?: string | null
     isFavorite?: boolean
     note?: string | null
+    variants?: Record<string, string> | null
   }
 }
 

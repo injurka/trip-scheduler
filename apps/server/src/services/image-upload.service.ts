@@ -1,5 +1,8 @@
 import type { EntityType, IUploadHandler, UploadContext, UploadResult } from '../models/image-upload'
-import { tripImagePlacementEnum } from 'db/schema'
+import path from 'node:path'
+import { db } from 'db'
+import { postMedia, tripImagePlacementEnum, tripImages } from 'db/schema'
+import { eq } from 'drizzle-orm'
 import { HTTPException } from 'hono/http-exception'
 import sharp from 'sharp'
 import { blogService } from '~/modules/blog/blog.service'
@@ -354,6 +357,11 @@ export class ImageUploadService {
         console.error('[MultipartUpload] Error in background video processing:', err)
       })
     }
+    else if (mediaType === 'image' && dbRecord && 'id' in dbRecord && typeof dbRecord.id === 'string') {
+      this.processImageBackground(dbRecord.id, entityType, ctx.key, ctx.userId).catch((err) => {
+        console.error('[MultipartUpload] Error in background image processing:', err)
+      })
+    }
 
     if (entityType !== 'avatar' && entityType !== 'blog' && entityType !== 'post') {
       await quotaService.incrementStorageUsage(ctx.userId, ctx.fileSize)
@@ -363,6 +371,100 @@ export class ImageUploadService {
     fileUploadSizeBytesHistogram.observe({ placement: entityType }, ctx.fileSize)
 
     return { url: ctx.key, variants: {}, dbRecord, metadata }
+  }
+
+  async processImageBackground(
+    imageId: string,
+    entityType: EntityType,
+    s3Key: string,
+    userId: string,
+  ): Promise<void> {
+    try {
+      const s3Res = await s3Service.getFile(s3Key)
+      if (!s3Res || !s3Res.buffer) {
+        console.warn(`[ImageUploadService] Could not fetch buffer for image ${s3Key}`)
+        return
+      }
+
+      const fileBuffer = Buffer.isBuffer(s3Res.buffer) ? s3Res.buffer : Buffer.from(s3Res.buffer)
+      const metaResult = await extractAndStructureMetadata(fileBuffer)
+      const variants = await generateImageVariants(fileBuffer)
+
+      const dirName = path.dirname(s3Key)
+      const ext = path.extname(s3Key)
+      const baseName = path.basename(s3Key, ext)
+      const variantUrls: Record<string, string> = {}
+      let variantsTotalSize = 0
+
+      const variantPaths = Object.keys(variants).map(name => `${dirName}/${baseName}-${name}.webp`.replace(/\\/g, '/'))
+      if (entityType === 'post') {
+        await trackPendingPostUpload(variantPaths, s3Key)
+      }
+
+      await Promise.all(
+        Object.entries(variants).map(async ([name, variantBuffer]) => {
+          const vPath = `${dirName}/${baseName}-${name}.webp`.replace(/\\/g, '/')
+          await saveFile(vPath, variantBuffer, 'image/webp')
+          variantUrls[name] = vPath
+          variantsTotalSize += variantBuffer.length
+        }),
+      )
+
+      const resolvedThumbhash = (metaResult.metadata?.metadata as any)?.thumbhash || (metaResult.metadata as any)?.thumbhash
+      if (resolvedThumbhash) {
+        variantUrls.thumbhash = resolvedThumbhash
+      }
+
+      if (entityType === 'trip') {
+        const existing = await db.query.tripImages.findFirst({
+          where: eq(tripImages.id, imageId),
+        })
+        if (existing) {
+          const currentMeta = (existing.metadata as Record<string, any>) || {}
+          const currentVariants = (existing.variants as Record<string, string>) || {}
+          await db.update(tripImages)
+            .set({
+              width: metaResult.metadata?.width || existing.width,
+              height: metaResult.metadata?.height || existing.height,
+              variants: { ...currentVariants, ...variantUrls },
+              metadata: {
+                ...currentMeta,
+                ...(metaResult.metadata?.metadata || {}),
+                ...(resolvedThumbhash ? { thumbhash: resolvedThumbhash } : {}),
+              },
+            })
+            .where(eq(tripImages.id, imageId))
+        }
+      }
+      else if (entityType === 'post') {
+        const existing = await db.query.postMedia.findFirst({
+          where: eq(postMedia.id, imageId),
+        })
+        if (existing) {
+          const currentMeta = (existing.metadata as Record<string, any>) || {}
+          const currentVariants = (existing.variants as Record<string, string>) || {}
+          await db.update(postMedia)
+            .set({
+              width: metaResult.metadata?.width || existing.width,
+              height: metaResult.metadata?.height || existing.height,
+              variants: { ...currentVariants, ...variantUrls },
+              metadata: {
+                ...currentMeta,
+                ...(metaResult.metadata?.metadata || {}),
+                ...(resolvedThumbhash ? { thumbhash: resolvedThumbhash } : {}),
+              },
+            })
+            .where(eq(postMedia.id, imageId))
+        }
+      }
+
+      if (variantsTotalSize > 0 && entityType !== 'avatar' && entityType !== 'blog' && entityType !== 'post') {
+        await quotaService.incrementStorageUsage(userId, variantsTotalSize)
+      }
+    }
+    catch (err) {
+      console.error(`[ImageUploadService] Error in background image processing imageId=${imageId}:`, err)
+    }
   }
 
   async abortMultipart(key: string, uploadId: string, userId: string, userRole: string) {

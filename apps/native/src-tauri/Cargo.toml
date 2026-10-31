@@ -40,5 +40,6 @@ tauri-plugin-geolocation = "2"
 tauri-plugin-tracking = { path = "./plugins/tracking" }
 reqwest = { version = "0.12", default-features = false, features = [ "rustls-tls", "stream" ] }
 futures-util = "0.3"
+base64 = "0.22"
 
 

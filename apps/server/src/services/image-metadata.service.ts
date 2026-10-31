@@ -223,10 +223,11 @@ export async function extractAndStructureMetadata(fileBuffer: Buffer): Promise<P
       generateThumbHash(fileBuffer).catch(() => null),
     ])
     if (sharpMeta) {
+      const isRotated = Boolean(sharpMeta.orientation && sharpMeta.orientation >= 5 && sharpMeta.orientation <= 8)
       return {
         metadata: {
-          width: sharpMeta.width,
-          height: sharpMeta.height,
+          width: isRotated ? sharpMeta.height : sharpMeta.width,
+          height: isRotated ? sharpMeta.width : sharpMeta.height,
           metadata: {
             thumbhash: fallbackThumbhash || undefined,
             technical: {

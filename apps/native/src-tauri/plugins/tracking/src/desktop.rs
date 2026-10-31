@@ -57,4 +57,13 @@ impl<R: Runtime> Tracking<R> {
     pub fn set_system_bars_theme(&self, _payload: SystemBarsThemePayload) -> Result<bool> {
         Ok(true)
     }
+
+    pub fn open_kmz_in_maps_me(&self, payload: OpenKmzPayload) -> Result<OpenKmzResult> {
+        Ok(OpenKmzResult {
+            file_name: payload.file_name,
+            downloads_path: None,
+            status: "desktop_saved".to_string(),
+            message: "Файл успешно подготовлен".to_string(),
+        })
+    }
 }

@@ -3,14 +3,18 @@ package ru.tripscheduler.tracking
 import android.Manifest
 import android.annotation.SuppressLint
 import android.app.Activity
+import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.location.Location
 import android.net.Uri
 import android.os.Build
+import android.os.Environment
 import android.os.PowerManager
+import android.provider.MediaStore
 import android.provider.Settings
+import android.util.Base64
 import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
@@ -292,6 +296,146 @@ class TrackingPlugin(private val activity: Activity) : Plugin(activity) {
         } catch (e: Exception) {
             android.util.Log.e("TrackingPlugin", "Failed to open APK installer", e)
             invoke.reject("Failed to open APK installer: ${e.message}")
+        }
+    }
+
+    @Command
+    fun openKmzInMapsMe(invoke: Invoke) {
+        try {
+            val args = invoke.getArgs()
+            val fileName = args.getString("fileName") ?: "trip.kmz"
+            val base64Data = args.getString("base64Data")
+            if (base64Data.isNullOrBlank()) {
+                invoke.reject("Данные файла отсутствуют")
+                return
+            }
+
+            val bytes = Base64.decode(base64Data, Base64.DEFAULT)
+
+            // 1. Сохраняем во внутренний кэш приложения под управлением FileProvider
+            val exportsDir = File(activity.cacheDir, "exports")
+            if (!exportsDir.exists()) {
+                exportsDir.mkdirs()
+            }
+            val cacheFile = File(exportsDir, fileName)
+            cacheFile.writeBytes(bytes)
+
+            // 2. Сохраняем копию в общую системную папку Загрузок (Downloads)
+            val downloadsPath = saveToDownloads(activity, fileName, bytes)
+
+            // 3. Получаем защищенный content:// URI через FileProvider
+            val contentUri = FileProvider.getUriForFile(
+                activity,
+                "${activity.packageName}.fileprovider",
+                cacheFile
+            )
+
+            // 4. Формируем Intent для навигаторов
+            val viewIntent = Intent(Intent.ACTION_VIEW).apply {
+                setDataAndType(contentUri, "application/vnd.google-earth.kmz")
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+
+            val pm = activity.packageManager
+            val isMapsMeInstalled = isAppInstalled(pm, "com.mapswithme.maps.pro")
+            val isOrganicMapsInstalled = isAppInstalled(pm, "app.organicmaps")
+
+            val result = JSObject()
+            result.put("fileName", fileName)
+            if (downloadsPath != null) {
+                result.put("downloadsPath", downloadsPath)
+            }
+
+            if (isMapsMeInstalled) {
+                viewIntent.setPackage("com.mapswithme.maps.pro")
+                activity.startActivity(viewIntent)
+                result.put("status", "opened_mapsme")
+                result.put("message", "Маршрут открыт в Maps.me и сохранён в Загрузки")
+                invoke.resolve(result)
+                return
+            }
+
+            if (isOrganicMapsInstalled) {
+                viewIntent.setPackage("app.organicmaps")
+                activity.startActivity(viewIntent)
+                result.put("status", "opened_organicmaps")
+                result.put("message", "Маршрут открыт в Organic Maps и сохранён в Загрузки")
+                invoke.resolve(result)
+                return
+            }
+
+            // Если Maps.me / Organic Maps не установлены как отдельные пакеты,
+            // запускаем системный Chooser (где пользователь увидит все поддерживаемые приложения)
+            val chooser = Intent.createChooser(viewIntent, "Импорт в навигатор").apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+
+            try {
+                activity.startActivity(chooser)
+                result.put("status", "opened_chooser")
+                result.put("message", "Маршрут сохранён в Загрузки. Выберите приложение для просмотра")
+                invoke.resolve(result)
+            } catch (e: Exception) {
+                result.put("status", "saved_only")
+                result.put("message", "Файл сохранён в Загрузки. Установите Maps.me для прямого импорта")
+                invoke.resolve(result)
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("TrackingPlugin", "Failed to open KMZ in Maps.me", e)
+            invoke.reject("Ошибка при импорте в Maps.me: ${e.message}")
+        }
+    }
+
+    private fun saveToDownloads(context: Context, fileName: String, bytes: ByteArray): String? {
+        return try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                val contentValues = ContentValues().apply {
+                    put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
+                    put(MediaStore.MediaColumns.MIME_TYPE, "application/vnd.google-earth.kmz")
+                    put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
+                    put(MediaStore.MediaColumns.IS_PENDING, 1)
+                }
+                val resolver = context.contentResolver
+                val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, contentValues)
+                    ?: return null
+
+                resolver.openOutputStream(uri)?.use { stream ->
+                    stream.write(bytes)
+                    stream.flush()
+                }
+
+                contentValues.clear()
+                contentValues.put(MediaStore.MediaColumns.IS_PENDING, 0)
+                resolver.update(uri, contentValues, null, null)
+
+                "Downloads/$fileName"
+            } else {
+                val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+                if (!downloadsDir.exists()) {
+                    downloadsDir.mkdirs()
+                }
+                val targetFile = File(downloadsDir, fileName)
+                targetFile.writeBytes(bytes)
+                targetFile.absolutePath
+            }
+        } catch (e: Exception) {
+            android.util.Log.w("TrackingPlugin", "Failed to save file to public Downloads", e)
+            null
+        }
+    }
+
+    private fun isAppInstalled(pm: PackageManager, packageName: String): Boolean {
+        return try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                pm.getPackageInfo(packageName, PackageManager.PackageInfoFlags.of(0))
+            } else {
+                @Suppress("DEPRECATION")
+                pm.getPackageInfo(packageName, 0)
+            }
+            true
+        } catch (_: PackageManager.NameNotFoundException) {
+            false
         }
     }
 
