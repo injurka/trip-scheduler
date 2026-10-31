@@ -138,19 +138,37 @@ export function configureAndroidManifest(): boolean {
   return true
 }
 
-function addFirebaseGradlePlugin(content: string, version?: string): string {
+export function addFirebaseGradlePlugin(content: string, version?: string): string {
   if (version) {
+    const classpath = /(classpath\(["']com\.google\.gms:google-services:)[^"']+(["']\))/
+    if (classpath.test(content))
+      return content.replace(classpath, `$1${version}$2`)
+
     const declaration = /(id\(["']com\.google\.gms\.google-services["']\)\s+version\s+["'])[^"']+(["']\s+apply false)/
     if (declaration.test(content))
       return content.replace(declaration, `$1${version}$2`)
+
+    // Tauri's root project declares plugin dependencies through buildscript,
+    // while its app module applies them through the plugins DSL.
+    const buildscriptDependencies = /\bbuildscript\s*\{[\s\S]*?\bdependencies\s*\{/.exec(content)
+    if (buildscriptDependencies) {
+      const insertionPoint = buildscriptDependencies.index + buildscriptDependencies[0].length
+      return `${content.slice(0, insertionPoint)}\n        classpath("com.google.gms:google-services:${version}")${content.slice(insertionPoint)}`
+    }
   }
 
   if (content.includes('com.google.gms.google-services'))
     return content
 
   const pluginsBlock = /plugins\s*\{/.exec(content)
-  if (!pluginsBlock)
-    throw new Error('[configure-android] Cannot find a plugins block in generated Android Gradle file.')
+  if (!pluginsBlock) {
+    if (!version) {
+      const applyPlugin = /^[ \t]*apply\(plugin\s*=\s*["'][^"']+["']\)[ \t]*$/m
+      if (applyPlugin.test(content))
+        return content.replace(applyPlugin, '$&\napply(plugin = "com.google.gms.google-services")')
+    }
+    throw new Error(`[configure-android] Cannot find ${version ? 'buildscript dependencies or plugins' : 'plugins or apply(plugin = ...)'} in generated ${version ? 'root' : 'app'} Android Gradle file.`)
+  }
 
   const insertionPoint = pluginsBlock.index + pluginsBlock[0].length
   const declaration = version
