@@ -255,7 +255,8 @@ function getImageUrl(image: ImageViewerImage, quality: ImageQuality): string {
     rawUrl = url
   }
   else if (variants) {
-    rawUrl = variants.large || variants.medium || variants.small || Object.values(variants).find(v => !!v) || url || ''
+    const firstVariantUrl = Object.entries(variants).find(([k, v]) => k !== 'thumbhash' && !!v)?.[1]
+    rawUrl = variants.large || variants.medium || variants.small || firstVariantUrl || url || ''
   }
   else {
     rawUrl = url || ''

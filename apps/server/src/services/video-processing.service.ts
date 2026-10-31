@@ -6,6 +6,7 @@ import { promisify } from 'node:util'
 import { db } from 'db'
 import { postMedia, tripImages } from 'db/schema'
 import { eq } from 'drizzle-orm'
+import { generateThumbHash } from './image-metadata.service'
 import { s3Service } from './s3.service'
 import { trackPendingPostUpload } from './storage-cleanup.service'
 
@@ -175,11 +176,13 @@ class VideoProcessingService {
       // 2. Читаем метаданные
       const meta = await this.probeVideo(inputPath)
 
-      // 3. Генерируем постер
+      // 3. Генерируем постер и его ThumbHash
       let posterS3Key: string | undefined
+      let posterThumbhash: string | null = null
       try {
         await this.generatePoster(inputPath, posterPath)
         const posterBuffer = await fs.readFile(posterPath)
+        posterThumbhash = await generateThumbHash(posterBuffer)
         const dirName = path.dirname(s3Key)
         const baseName = path.basename(s3Key, ext)
         posterS3Key = `${dirName}/${baseName}-poster.webp`
@@ -217,10 +220,12 @@ class VideoProcessingService {
           ...currentVariants,
           ...(posterS3Key ? { poster: posterS3Key, small: posterS3Key, medium: posterS3Key } : {}),
           ...(webVideoS3Key ? { web: webVideoS3Key, large: webVideoS3Key } : {}),
+          ...(posterThumbhash ? { thumbhash: posterThumbhash } : {}),
         }
 
         const newMeta = {
           ...currentMeta,
+          ...(posterThumbhash ? { thumbhash: posterThumbhash } : {}),
           duration: meta.duration,
           codec: meta.codec,
           bitrate: meta.bitrate,
@@ -249,10 +254,12 @@ class VideoProcessingService {
             ...currentVariants,
             ...(posterS3Key ? { poster: posterS3Key, small: posterS3Key, medium: posterS3Key } : {}),
             ...(webVideoS3Key ? { web: webVideoS3Key, large: webVideoS3Key } : {}),
+            ...(posterThumbhash ? { thumbhash: posterThumbhash } : {}),
           }
 
           const newMeta = {
             ...currentMeta,
+            ...(posterThumbhash ? { thumbhash: posterThumbhash } : {}),
             duration: meta.duration,
             codec: meta.codec,
             bitrate: meta.bitrate,

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 import sharp from 'sharp'
-import { generateThumbHash } from './image-metadata.service'
+import { extractAndStructureMetadata, generateThumbHash } from './image-metadata.service'
 
 describe('server thumbhash generation', () => {
   it('generates a valid base64 thumbhash from an image buffer', async () => {
@@ -17,6 +17,22 @@ describe('server thumbhash generation', () => {
     expect(thumbhash).toBeTruthy()
     expect(typeof thumbhash).toBe('string')
     expect(thumbhash!.length).toBeGreaterThan(20)
+  })
+
+  it('extracts dimensions and thumbhash even for PNG images without EXIF metadata', async () => {
+    const pngWithoutExif = await sharp({
+      create: {
+        width: 160,
+        height: 120,
+        channels: 4,
+        background: { r: 40, g: 120, b: 220, alpha: 1 },
+      },
+    }).png().toBuffer()
+
+    const result = await extractAndStructureMetadata(pngWithoutExif)
+    expect(result.metadata.width).toBe(160)
+    expect(result.metadata.height).toBe(120)
+    expect(result.metadata.metadata?.thumbhash).toBeTruthy()
   })
 
   it('handles invalid buffer gracefully returning null', async () => {

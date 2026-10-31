@@ -50,7 +50,10 @@ const fullImagesData = computed(() => {
   return imageUrls.value.map((url) => {
     const requestedUrl = normalizeMediaUrl(url)
     const existingImg = tripImages.value.find((tripImg) => {
-      const mediaUrls = [tripImg.url, ...Object.values(tripImg.variants || {})].filter((value): value is string => !!value)
+      const variantUrls = Object.entries(tripImg.variants || {})
+        .filter(([key, value]) => key !== 'thumbhash' && !!value)
+        .map(([, value]) => value)
+      const mediaUrls = [tripImg.url, ...variantUrls].filter((value): value is string => !!value)
 
       return mediaUrls.some(mediaUrl => normalizeMediaUrl(mediaUrl) === requestedUrl)
     })
@@ -255,6 +258,7 @@ onMounted(() => {
               class="image-item"
               :src="image.variants?.small || image.variants?.medium || image.url"
               :variants="image.variants?.medium ? { medium: image.variants.medium, large: image.variants.medium } : undefined"
+              :thumbhash="image.variants?.thumbhash || image.metadata?.thumbhash"
               :alt="`Image ${index + 1}`"
               object-fit="cover"
             />
@@ -279,6 +283,7 @@ onMounted(() => {
               class="image-item"
               :src="moreImageSrc"
               :variants="moreImageVariants"
+              :thumbhash="moreImage?.variants?.thumbhash || moreImage?.metadata?.thumbhash"
               alt="More images"
               object-fit="cover"
             />

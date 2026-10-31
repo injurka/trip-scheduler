@@ -156,6 +156,7 @@ function handleGoToPlan() {
         >
           <KitImage
             :src="item.image?.variants?.medium || item.image?.url"
+            :thumbhash="item.image?.variants?.thumbhash || item.image?.metadata?.thumbhash"
             object-fit="cover"
             class="photo-img"
           />

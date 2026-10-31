@@ -102,12 +102,13 @@ const thumbHashAvgColor = computed(() => getThumbHashAverageColor(activeThumbhas
 
 const imageStyle = computed(() => {
   const isLoaded = !isLoading.value && !hasError.value
+  const hasThumbhash = Boolean(thumbHashDataUrl.value)
 
   return {
     objectFit: props.objectFit,
     opacity: isLoaded ? 1 : 0,
-    filter: isLoaded ? 'blur(0)' : 'blur(10px)',
-    transform: isLoaded ? 'scale(1)' : 'scale(1.1)',
+    filter: isLoaded || hasThumbhash ? 'blur(0)' : 'blur(10px)',
+    transform: isLoaded || hasThumbhash ? 'scale(1)' : 'scale(1.1)',
   }
 })
 
@@ -309,8 +310,6 @@ onBeforeUnmount(() => {
     .thumbhash-placeholder {
       width: 100%;
       height: 100%;
-      filter: blur(12px);
-      transform: scale(1.1);
       pointer-events: none;
     }
   }

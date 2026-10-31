@@ -88,7 +88,7 @@ export function useImageViewerUi(options: UseImageViewerUiOptions) {
     const keys = new Set<string>()
     if (image.variants) {
       for (const [k, v] of Object.entries(image.variants)) {
-        if (v && typeof v === 'string')
+        if (k !== 'thumbhash' && v && typeof v === 'string')
           keys.add(k)
       }
     }

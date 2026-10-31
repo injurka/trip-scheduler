@@ -8,6 +8,7 @@ export interface MemoryImageSource {
     large: string
     poster?: string
     web?: string
+    thumbhash?: string
   }
 }
 
@@ -51,7 +52,12 @@ function getLocalMemorySource(
 
   return {
     url: localUrl,
-    variants: { small: localUrl, medium: localUrl, large: localUrl },
+    variants: {
+      small: localUrl,
+      medium: localUrl,
+      large: localUrl,
+      thumbhash: image.variants?.thumbhash || image.metadata?.thumbhash,
+    },
   }
 }
 
@@ -63,12 +69,15 @@ export function resolveMemoryImageSource(
 ): MemoryImageSource {
   const serverUrl = resolveApiUrl(image.url)
 
+  const thumbhash = image.variants?.thumbhash || image.metadata?.thumbhash
+
   const variants = {
     small: resolveVariantUrl(image.variants, ['small', 'poster'], serverUrl) ?? serverUrl,
     medium: resolveVariantUrl(image.variants, ['medium', 'poster'], serverUrl) ?? serverUrl,
     large: resolveVariantUrl(image.variants, ['large', 'web'], serverUrl) ?? serverUrl,
     poster: resolveVariantUrl(image.variants, ['poster', 'small']),
     web: resolveVariantUrl(image.variants, ['web', 'large']),
+    thumbhash,
   }
 
   const localSource = getLocalMemorySource(

@@ -480,6 +480,7 @@ onMounted(() => {
             <div class="file-thumbnail-box">
               <KitImage
                 :src="file.variants?.medium || file.variants?.small || file.url"
+                :thumbhash="file.variants?.thumbhash"
                 :alt="file.originalName"
                 class="file-img"
               />
@@ -572,7 +573,12 @@ onMounted(() => {
                 >
                   <td class="td-file">
                     <div class="file-cell">
-                      <KitImage :src="file.variants?.small || file.url" :alt="file.originalName" class="table-thumbnail" />
+                      <KitImage
+                        :src="file.variants?.small || file.url"
+                        :thumbhash="file.variants?.thumbhash"
+                        :alt="file.originalName"
+                        class="table-thumbnail"
+                      />
                       <span class="table-file-name" :title="file.originalName">{{ file.originalName }}</span>
                     </div>
                   </td>

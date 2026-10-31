@@ -3,10 +3,10 @@ import { and, eq, or, sql } from 'drizzle-orm'
 import { Hono } from 'hono'
 import { HTTPException } from 'hono/http-exception'
 import sharp from 'sharp'
-import { rgbaToThumbHash } from 'thumbhash'
 import { db } from '~/../db'
 import { postMedia, posts, postWhitelist, tripImages, tripParticipants, trips } from '~/../db/schema'
 import { authUtils } from '~/lib/auth.utils'
+import { generateThumbHash } from '~/services/image-metadata.service'
 import {
   imageOutputSizeBytesHistogram,
   imageProcessingDurationHistogram,
@@ -142,16 +142,14 @@ imageController.get('/*', async (c) => {
   }
 
   if (c.req.query('thumbhash') !== undefined || format === 'thumbhash') {
-    const raw = await sharp(s3Result.buffer)
-      .resize(100, 100, { fit: 'inside' })
-      .ensureAlpha()
-      .raw()
-      .toBuffer({ resolveWithObject: true })
-
-    const hash = rgbaToThumbHash(raw.info.width, raw.info.height, raw.data)
-    const base64 = Buffer.from(hash).toString('base64')
+    const base64 = await generateThumbHash(s3Result.buffer)
+    if (!base64) {
+      endTimer({ status: 'error', format: 'thumbhash', type: 'processed' })
+      throw new HTTPException(500, { message: 'ThumbHash generation failed' })
+    }
 
     endTimer({ status: 'success', format: 'thumbhash', type: 'processed' })
+    c.header('Cache-Control', 'public, max-age=31536000, immutable')
     return c.json({ thumbhash: base64 })
   }
 

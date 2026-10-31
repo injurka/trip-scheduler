@@ -93,8 +93,12 @@ function collectDescriptionMediaUrls(trip: TripWithDays, urls: Set<string>) {
 function collectNoteMediaUrls(notes: TripNote[], urls: Set<string>) {
   notes.forEach((note) => {
     note.images?.forEach((image) => {
-      if (image.sources)
-        Object.values(image.sources).forEach(url => addOfflineUrl(urls, url))
+      if (image.sources) {
+        Object.entries(image.sources).forEach(([key, url]) => {
+          if (key !== 'thumbhash')
+            addOfflineUrl(urls, url)
+        })
+      }
     })
 
     addMarkdownUrls(urls, note.content)

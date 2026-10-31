@@ -59,6 +59,7 @@ onMounted(() => {
         <KitImage
           v-else
           :src="item.image?.variants?.small || item.image?.url"
+          :thumbhash="item.image?.variants?.thumbhash || item.image?.metadata?.thumbhash"
           object-fit="cover"
           class="img"
         />

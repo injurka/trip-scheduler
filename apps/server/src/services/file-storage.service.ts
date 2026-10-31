@@ -109,8 +109,12 @@ export async function deleteFileWithVariants(image: Pick<TripImage, 'url' | 'var
 
   if (image.url)
     filesToDelete.push(image.url)
-  if (image.variants)
-    filesToDelete.push(...Object.values(image.variants))
+  if (image.variants) {
+    for (const [key, val] of Object.entries(image.variants)) {
+      if (key !== 'thumbhash' && val)
+        filesToDelete.push(val)
+    }
+  }
 
   await Promise.all(filesToDelete.map(filePath => deleteFileFromStorage(filePath)))
 }
@@ -133,8 +137,8 @@ export async function deleteTripFiles(
       extraKeys.push(img.url)
     }
     if (img.variants) {
-      for (const vUrl of Object.values(img.variants)) {
-        if (vUrl && !vUrl.startsWith(`trips/${tripId}/`)) {
+      for (const [vKey, vUrl] of Object.entries(img.variants)) {
+        if (vKey !== 'thumbhash' && vUrl && !vUrl.startsWith(`trips/${tripId}/`)) {
           extraKeys.push(vUrl)
         }
       }

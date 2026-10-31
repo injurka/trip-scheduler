@@ -86,6 +86,7 @@ function toggleTooltip(e: Event) {
     <div class="media-wrap">
       <KitImage
         :src="photoUrl"
+        :variants="(photo.variants as Record<string, string> | undefined)"
         :alt="locationName"
         :aspect-ratio="dynamicAspectRatio"
         class="highlight-image"

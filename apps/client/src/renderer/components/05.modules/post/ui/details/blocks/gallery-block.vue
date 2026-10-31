@@ -167,7 +167,12 @@ function handleItemClick(img: PostMedia, e: Event) {
             :poster="getOptimizedUrl(img)"
             :alt="img.originalName || 'Видео'"
           />
-          <KitImage v-else :src="getOptimizedUrl(img)" object-fit="cover" />
+          <KitImage
+            v-else
+            :src="getOptimizedUrl(img)"
+            :thumbhash="getPostMediaVariants(img).thumbhash"
+            object-fit="cover"
+          />
           <div v-if="img.type === 'video'" class="video-play-badge">
             <Icon icon="mdi:play" />
           </div>
@@ -214,6 +219,7 @@ function handleItemClick(img: PostMedia, e: Event) {
             <KitImage
               v-else
               :src="getOptimizedUrl(img)"
+              :thumbhash="getPostMediaVariants(img).thumbhash"
               object-fit="cover"
               draggable="false"
             />
@@ -249,7 +255,12 @@ function handleItemClick(img: PostMedia, e: Event) {
             :poster="getOptimizedUrl(img)"
             :alt="img.originalName || 'Видео'"
           />
-          <KitImage v-else :src="getOptimizedUrl(img)" object-fit="cover" />
+          <KitImage
+            v-else
+            :src="getOptimizedUrl(img)"
+            :thumbhash="getPostMediaVariants(img).thumbhash"
+            object-fit="cover"
+          />
           <div v-if="img.type === 'video'" class="video-play-badge">
             <Icon icon="mdi:play" />
           </div>

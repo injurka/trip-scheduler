@@ -64,9 +64,10 @@ export async function generateImageVariants(fileBuffer: Buffer): Promise<Record<
  * Генерирует компактный Base64 ThumbHash для мгновенного плавного плейсхолдера.
  * Изображение масштабируется до 100x100 в соответствии с рекомендациями алгоритма ThumbHash.
  */
-export async function generateThumbHash(fileBuffer: Buffer): Promise<string | null> {
+export async function generateThumbHash(fileBuffer: Buffer | Uint8Array): Promise<string | null> {
   try {
     const raw = await sharp(fileBuffer)
+      .rotate()
       .resize(100, 100, { fit: 'inside' })
       .ensureAlpha()
       .raw()
@@ -97,20 +98,30 @@ export async function extractAndStructureMetadata(fileBuffer: Buffer): Promise<P
       translateValues: false,
     }
 
-    const [exifData, embeddedThumbnailBuffer] = await Promise.all([
-      exifr.parse(fileBuffer, exifrOptions),
+    const [exifData, embeddedThumbnailBuffer, sharpMeta, thumbhash] = await Promise.all([
+      exifr.parse(fileBuffer, exifrOptions).catch(() => null),
       exifr.thumbnail(fileBuffer).catch(() => null),
-    ])
-
-    if (!exifData) {
-      console.warn('Не удалось извлечь EXIF данные из файла.')
-      return { metadata: {}, embeddedThumbnailBuffer: null }
-    }
-
-    const [sharpMeta, thumbhash] = await Promise.all([
       sharp(fileBuffer).metadata(),
       generateThumbHash(fileBuffer),
     ])
+
+    if (!exifData) {
+      return {
+        metadata: {
+          width: sharpMeta.width,
+          height: sharpMeta.height,
+          metadata: {
+            thumbhash: thumbhash || undefined,
+            technical: {
+              format: sharpMeta.format,
+              fileSize: fileBuffer.length,
+            },
+          },
+        },
+        embeddedThumbnailBuffer: null,
+      }
+    }
+
     const structuredMeta: Partial<ExtractedImageData> = {}
 
     const takenAtDate = exifData.DateTimeOriginal || exifData.CreateDate

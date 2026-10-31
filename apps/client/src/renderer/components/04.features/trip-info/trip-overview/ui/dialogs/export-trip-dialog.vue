@@ -10,6 +10,7 @@ import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitCheckbox } from '~/components/01.kit/kit-checkbox'
 import { KitDialogWithClose } from '~/components/01.kit/kit-dialog-with-close'
 import { KitDivider } from '~/components/01.kit/kit-divider'
+import { useRequest } from '~/plugins/request'
 import { useToast } from '~/shared/composables/use-toast'
 import { EActivitySectionType } from '~/shared/types/models/activity'
 import { TripSectionType } from '~/shared/types/models/trip'
@@ -45,23 +46,44 @@ const formats = [
   { id: 'ics', label: 'Календарь (.ics)', description: 'События для Apple Calendar, Google Calendar, Outlook с поддержкой WebCal-подписки.', icon: 'mdi:calendar-export' },
 ]
 
-const calendarUrl = computed(() => {
-  const slugOrId = props.trip.shareSlug || props.trip.id
+const resolvedShareSlug = ref<string | null>(props.trip.shareSlug || null)
 
-  return `${window.location.origin}/api/trips/${slugOrId}/calendar.ics`
+watch(() => props.trip.shareSlug, (nextSlug) => {
+  if (nextSlug)
+    resolvedShareSlug.value = nextSlug
 })
 
-const webcalUrl = computed(() => {
-  return calendarUrl.value.replace(/^https?:\/\//, 'webcal://')
-})
+async function ensureCalendarIdentifier(): Promise<string> {
+  if (resolvedShareSlug.value)
+    return resolvedShareSlug.value
 
-function copyCalendarLink() {
-  copy(calendarUrl.value)
+  if (props.trip.visibility === 'private') {
+    const slug = await useRequest({
+      key: `trip-export:share-slug:${props.trip.id}`,
+      fn: db => db.trips.getOrCreateShareSlug(props.trip.id),
+    })
+
+    if (slug) {
+      resolvedShareSlug.value = slug
+
+      return slug
+    }
+  }
+
+  return props.trip.id
+}
+
+async function copyCalendarLink() {
+  const slugOrId = await ensureCalendarIdentifier()
+  const url = `${window.location.origin}/api/trips/${slugOrId}/calendar.ics`
+  copy(url)
   toast.success('Ссылка на календарь скопирована')
 }
 
-function openWebcalSubscription() {
-  window.open(webcalUrl.value, '_blank')
+async function openWebcalSubscription() {
+  const slugOrId = await ensureCalendarIdentifier()
+  const url = `${window.location.origin}/api/trips/${slugOrId}/calendar.ics`.replace(/^https?:\/\//, 'webcal://')
+  window.open(url, '_blank')
 }
 
 function stripMarkdown(text: string): string {

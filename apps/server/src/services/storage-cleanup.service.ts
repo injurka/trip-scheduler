@@ -7,11 +7,19 @@ import { s3Service } from './s3.service'
 type CleanupTask = typeof storageCleanupTasks.$inferSelect
 export type CleanupInput = typeof storageCleanupTasks.$inferInsert
 
+function extractVariantStorageKeys(variants?: Record<string, string> | null): string[] {
+  if (!variants)
+    return []
+  return Object.entries(variants)
+    .filter(([key, value]) => key !== 'thumbhash' && Boolean(value))
+    .map(([, value]) => value)
+}
+
 export function postMediaStorageKeys(media: { url: string, variants?: Record<string, string> | null, metadata?: unknown }): string[] {
   const metadata = media.metadata as { variants?: Record<string, string> } | null
   // Include deterministic video outputs even if deletion races with transcoding.
   const base = media.url.replace(/\.[^/.]+$/, '')
-  return [...new Set([media.url, ...Object.values(media.variants || {}), ...Object.values(metadata?.variants || {}), `${base}-poster.webp`, `${base}-web.mp4`].filter(Boolean))]
+  return [...new Set([media.url, ...extractVariantStorageKeys(media.variants), ...extractVariantStorageKeys(metadata?.variants), `${base}-poster.webp`, `${base}-web.mp4`].filter(Boolean))]
 }
 
 export async function queueStorageCleanup(input: CleanupInput) {

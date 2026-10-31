@@ -1,10 +1,7 @@
 import type { Context } from 'hono'
 import { generateTripCalendarIcs } from '@injurka/trip-calendar'
-import { and, eq } from 'drizzle-orm'
 import { Hono } from 'hono'
 import { HTTPException } from 'hono/http-exception'
-import { db } from '~/../db'
-import { tripParticipants } from '~/../db/schema'
 import { authUtils } from '~/lib/auth.utils'
 import { tripRepository } from '~/repositories/trip.repository'
 
@@ -39,19 +36,14 @@ async function handleCalendar(c: Context) {
     const user = token ? await authUtils.getUserFromToken(token) : null
 
     if (!user) {
-      if (trip.shareSlug) {
-        return c.redirect(`/api/trips/${trip.shareSlug}/calendar.ics`)
-      }
       throw new HTTPException(401, { message: 'Требуется авторизация для доступа к календарю' })
     }
 
     const isAdmin = user.role === 'admin'
     const isOwner = trip.userId === user.id
-    const participant = await db.query.tripParticipants.findFirst({
-      where: and(eq(tripParticipants.tripId, trip.id), eq(tripParticipants.userId, user.id)),
-    })
+    const isParticipant = isOwner || isAdmin ? true : await tripRepository.hasAccess(trip.id, user.id)
 
-    if (!isAdmin && !isOwner && !participant) {
+    if (!isAdmin && !isOwner && !isParticipant) {
       throw new HTTPException(403, { message: 'Нет доступа к календарю этой поездки' })
     }
   }

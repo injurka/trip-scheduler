@@ -184,7 +184,12 @@ function onClickLocation() {
           :aria-label="`Открыть пост: ${post.title}`"
           @click.stop="emit('clickCard', post.id)"
         >
-          <KitImage :src="getMainImgUrl(media)" :alt="media.originalName || post.title" object-fit="cover" />
+          <KitImage
+            :src="getMainImgUrl(media)"
+            :thumbhash="media.variants?.thumbhash || (media.metadata as any)?.thumbhash"
+            :alt="media.originalName || post.title"
+            object-fit="cover"
+          />
           <Icon v-if="media.isPrivate" icon="mdi:lock" class="private-icon" />
         </button>
       </div>

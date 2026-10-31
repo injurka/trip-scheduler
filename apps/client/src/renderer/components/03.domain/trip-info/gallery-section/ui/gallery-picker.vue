@@ -272,7 +272,11 @@ function handleClose() {
                 :style="{ flexBasis: `${100 / columnsCount}%` }"
                 @click="toggleSelection(tripImg.url)"
               >
-                <KitImage :src="tripImg.variants?.small || tripImg.url" object-fit="cover" />
+                <KitImage
+                  :src="tripImg.variants?.small || tripImg.url"
+                  :thumbhash="tripImg.variants?.thumbhash || tripImg.metadata?.thumbhash"
+                  object-fit="cover"
+                />
 
                 <!-- Selection Overlay -->
                 <div class="overlay">

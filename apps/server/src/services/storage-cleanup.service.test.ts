@@ -30,8 +30,12 @@ beforeEach(() => {
     fn.mockClear()
 })
 describe('durable post storage cleanup', () => {
-  it('collects originals, first-class variants, legacy variants and late video outputs exactly once', () => {
-    const keys = postMediaStorageKeys({ url: 'posts/p/movie.mov', variants: { poster: 'poster.webp', small: 'poster.webp' }, metadata: { variants: { web: 'web.mp4' } } })
+  it('collects originals, first-class variants, legacy variants and late video outputs exactly once while ignoring thumbhash', () => {
+    const keys = postMediaStorageKeys({
+      url: 'posts/p/movie.mov',
+      variants: { poster: 'poster.webp', small: 'poster.webp', thumbhash: 'InMBBYCHh4iIiIh/eHh3e3h4j4cI' },
+      metadata: { variants: { web: 'web.mp4', thumbhash: 'InMBBYCHh4iIiIh/eHh3e3h4j4cI' } },
+    })
     expect(keys).toEqual(['posts/p/movie.mov', 'poster.webp', 'web.mp4', 'posts/p/movie-poster.webp', 'posts/p/movie-web.mp4'])
   })
   it('retains failed cleanup in PostgreSQL and retries successfully on a later worker run', async () => {

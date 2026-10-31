@@ -184,6 +184,7 @@ function openPreview(index: number): void {
           <button class="img-preview-btn" @click="openPreview(index)">
             <KitImage
               :src="img.sources.small ?? img.sources.original"
+              :thumbhash="img.sources.thumbhash"
               object-fit="cover"
               class="img-thumb"
             />
