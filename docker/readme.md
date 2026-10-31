@@ -31,7 +31,7 @@
 
 ### FCM Push в production
 
-Создайте Android-приложение Firebase с package name `ru.tripscheduler.app` и скачайте `google-services.json` в `apps/native/firebase/google-services.json`. При сборке Tauri скопирует его в Android-проект и подключит Firebase Messaging.
+Конфигурация Android-приложения Firebase для package name `ru.tripscheduler.app` хранится в `apps/native/firebase/google-services.json` и включается в Git, чтобы GitHub Actions получал её при checkout. Это клиентская конфигурация, которая входит в APK; закрытого ключа сервисного аккаунта в ней нет. При сборке Tauri скопирует её в Android-проект и подключит Firebase Messaging. После изменения настроек Android-приложения скачайте обновлённый файл из Firebase и включите его в коммит.
 
 Для API-сервера создайте сервисный аккаунт Firebase с правом отправки FCM-сообщений. Задайте его JSON целиком в base64 в `.env`, который использует Docker Compose:
 

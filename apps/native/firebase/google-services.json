@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "870808125662",
+    "project_id": "trip-scheduler-5b6b9",
+    "storage_bucket": "trip-scheduler-5b6b9.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:870808125662:android:8e20308b17a7a6a420c24f",
+        "android_client_info": {
+          "package_name": "ru.tripscheduler.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD0vcj27E3A2M7B_dBrpju3R2VQiHzYKu8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
