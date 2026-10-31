@@ -116,3 +116,23 @@ useSeoMeta({
     <OfflineProgressDialog />
   </ConfigProvider>
 </template>
+
+<style lang="scss">
+#app:has(.offline-banner) {
+  --offline-banner-height: 40px;
+}
+
+#app:has(.offline-banner:not(.slide-down-leave-active)) header.header {
+  top: var(--offline-banner-height);
+}
+
+#app:has(.offline-banner:not(.slide-down-leave-active)) header.header--hidden {
+  transform: translateY(calc(-100% - var(--offline-banner-height)));
+}
+
+@media (max-width: 600px) {
+  #app:has(.offline-banner) {
+    --offline-banner-height: 36px;
+  }
+}
+</style>

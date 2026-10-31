@@ -141,6 +141,13 @@
       "when": 1793099436435,
       "tag": "0019_soft_zodiak",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1793432581768,
+      "tag": "0020_early_warlock",
+      "breakpoints": true
     }
   ]
 }

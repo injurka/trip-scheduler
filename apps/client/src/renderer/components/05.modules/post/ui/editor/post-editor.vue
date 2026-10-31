@@ -101,7 +101,9 @@ const isTagInputFocused = ref(false)
 const isGenerating = computed(() => postStore.isGenerating)
 const hasTimelineContent = computed(() => (post.value.stages || []).some(stage => stage.blocks.length > 0 || stage.title !== 'Начало'))
 const stageCount = computed(() => hasTimelineContent.value || isManualTimeline.value ? post.value.stages?.length || 0 : 0)
-const coverMedia = computed(() => post.value.media[0])
+const coverPhotos = computed(() => post.value.media.filter(media => media.type === 'image' && media.hasAccess !== false))
+const selectedCoverIds = computed(() => post.value.statsDetail.coverMediaIds ?? coverPhotos.value.slice(0, 5).map(media => media.id))
+const coverMedia = computed(() => coverPhotos.value.find(media => selectedCoverIds.value.includes(media.id)) || post.value.media[0])
 const coverUrl = computed(() => {
   const media = coverMedia.value
 
@@ -178,6 +180,26 @@ watch(() => [post.value?.title, post.value?.insight, post.value?.description], (
   store.isDirty = true
 }, { deep: true })
 
+function toggleCoverPhoto(id: string) {
+  const ids = selectedCoverIds.value.filter(id => coverPhotos.value.some(media => media.id === id))
+
+  if (ids.includes(id)) {
+    if (ids.length === 1)
+      return
+
+    post.value.statsDetail.coverMediaIds = ids.filter(item => item !== id)
+  }
+  else if (ids.length < 5) {
+    post.value.statsDetail.coverMediaIds = [...ids, id]
+  }
+
+  store.isDirty = true
+}
+function coverPhotoUrl(media: PostMedia) {
+  const variants = getPostMediaVariants(media)
+
+  return variants.small || variants.medium || media.url
+}
 const getDraftKey = (id?: string) => id ? `trip_scheduler_post_draft_${id}` : 'trip_scheduler_post_draft_new'
 function clearNewDraftAlias(postId: string) {
   try {
@@ -556,6 +578,26 @@ onMounted(async () => {
             <span v-else class="cover-placeholder"><Icon icon="mdi:image-plus-outline" /><span>{{ coverMedia ? 'Видео в медиатеке' : 'Добавить обложку' }}</span></span>
             <span class="cover-caption"><Icon icon="mdi:image-multiple-outline" />{{ post.media.length ? `Медиатека · ${post.media.length}` : 'Фото и видео' }}</span>
           </button>
+        </section>
+        <section v-if="coverPhotos.length" class="cover-selection">
+          <h3>Фото для превью · {{ selectedCoverIds.length }}/5</h3>
+          <p>Выберите от 1 до 5 фото для коллажа. Все фото и видео останутся в галерее.</p>
+          <div class="cover-options">
+            <button
+              v-for="media in coverPhotos"
+              :key="media.id"
+              type="button"
+              class="cover-option"
+              :class="{ selected: selectedCoverIds.includes(media.id) }"
+              :aria-pressed="selectedCoverIds.includes(media.id)"
+              :aria-label="media.originalName || 'Фото для превью'"
+              :disabled="!selectedCoverIds.includes(media.id) && selectedCoverIds.length >= 5"
+              @click="toggleCoverPhoto(media.id)"
+            >
+              <KitImage :src="coverPhotoUrl(media)" :alt="media.originalName || 'Фото'" />
+              <span v-if="selectedCoverIds.includes(media.id)">{{ selectedCoverIds.indexOf(media.id) + 1 }}</span>
+            </button>
+          </div>
         </section>
         <section class="essentials-grid">
           <div class="field-group">
@@ -1046,6 +1088,53 @@ onMounted(async () => {
   background: var(--bg-secondary-color);
   font-size: 12px;
   width: 100%;
+}
+.cover-selection {
+  margin-bottom: 24px;
+  h3 {
+    font-size: 14px;
+    margin: 0 0 8px;
+  }
+  p {
+    font-size: 13px;
+    color: var(--fg-secondary-color);
+  }
+}
+.cover-options {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 4px;
+}
+.cover-option {
+  position: relative;
+  flex: 0 0 80px;
+  height: 80px;
+  padding: 0;
+  border: 2px solid transparent;
+  border-radius: var(--r-s);
+  overflow: hidden;
+  cursor: pointer;
+  &.selected {
+    border-color: var(--fg-accent-color);
+  }
+  &:disabled {
+    opacity: 0.45;
+    cursor: default;
+  }
+  :deep(.kit-image-wrapper),
+  :deep(.kit-image-container) {
+    height: 100%;
+  }
+  span {
+    position: absolute;
+    bottom: 4px;
+    right: 4px;
+    background: #111;
+    color: white;
+    padding: 2px 6px;
+    border-radius: 8px;
+  }
 }
 .essentials-grid {
   display: grid;

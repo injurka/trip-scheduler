@@ -158,6 +158,7 @@ export type PostElementContent
     | PostContentBlockRoute
 
 export interface PostStatsDetail {
+  coverMediaIds?: string[]
   views: number
   duration: number
 }

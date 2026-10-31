@@ -88,7 +88,7 @@ function buildCreatePostPayload(post: PostDetail): CreatePostInput {
     longitude: post.longitude ?? undefined,
     tags: toRaw(post.tags) || [],
     status: 'draft',
-    statsDetail: { duration: post.statsDetail?.duration || 0 },
+    statsDetail: { duration: post.statsDetail?.duration || 0, coverMediaIds: post.statsDetail?.coverMediaIds },
   }
 }
 
@@ -216,7 +216,7 @@ function buildUpdatePostPayload(
     longitude: post.longitude ?? undefined,
     tags: toRaw(post.tags) || [],
     status: publishStatus,
-    statsDetail: { duration: post.statsDetail.duration || 0 },
+    statsDetail: { duration: post.statsDetail.duration || 0, coverMediaIds: post.statsDetail.coverMediaIds },
     mediaIds: post.media.map(media => media.id),
     mediaPrivacy,
     whitelistUserIds: (post.whitelist || []).map(user => user.id),

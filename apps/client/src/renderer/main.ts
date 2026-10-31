@@ -80,7 +80,7 @@ async function initializeApp() {
     addPluginListener<{ token: string }>('tracking', 'pushTokenUpdated', ({ token }) => {
       void notificationStore.syncNativePushToken(token)
     }).catch((error) => {
-      console.warn('[Notifications] Не удалось подписаться на обновление RuStore push-токена', error)
+      console.warn('[Notifications] Не удалось подписаться на обновление FCM-токена', error)
     })
   }
 

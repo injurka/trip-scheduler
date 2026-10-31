@@ -29,16 +29,19 @@
     ```
     Эта команда соберет образы для клиента и сервера (флаг `--build`) и запустит их в фоновом режиме (флаг `-d`).
 
-### RuStore Push в production
+### FCM Push в production
 
-В `.env`, который использует Docker Compose на сервере, задайте ID проекта и новый сервисный токен из RuStore Console:
+Создайте Android-приложение Firebase с package name `ru.tripscheduler.app` и скачайте `google-services.json` в `apps/native/firebase/google-services.json`. При сборке Tauri скопирует его в Android-проект и подключит Firebase Messaging.
+
+Для API-сервера создайте сервисный аккаунт Firebase с правом отправки FCM-сообщений. Задайте его JSON целиком в base64 в `.env`, который использует Docker Compose:
 
 ```env
-RUSTORE_PUSH_PROJECT_ID=...
-RUSTORE_PUSH_SERVICE_TOKEN=...
+FCM_SERVICE_ACCOUNT_JSON_BASE64=...
 ```
 
-Не добавляйте сервисный токен в APK, `VITE_*` переменные или Git. После обновления образа сервера примените миграцию базы один раз:
+Получить значение можно командой `base64 -w0 firebase-service-account.json`. В Portainer задайте переменную в окружении сервиса `server`.
+
+Сервисный аккаунт нужен только серверу: не добавляйте его JSON в APK, `VITE_*` переменные или Git. После обновления образа сервера примените миграцию базы один раз:
 
 ```bash
 docker-compose -f docker/docker-compose.yml exec server bun run apps/server/db/migrate.ts

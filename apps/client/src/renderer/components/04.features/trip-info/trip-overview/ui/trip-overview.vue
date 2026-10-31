@@ -11,7 +11,7 @@ import { KitAvatar } from '~/components/01.kit/kit-avatar'
 import { KitDivider } from '~/components/01.kit/kit-divider'
 import { KitDropdown } from '~/components/01.kit/kit-dropdown'
 import { KitImage } from '~/components/01.kit/kit-image'
-import { KitInlineMdEditorWrapper } from '~/components/01.kit/kit-inline-md-editor'
+import { KitMarkdownViewer } from '~/components/01.kit/kit-markdown-viewer'
 import { KitTooltip } from '~/components/01.kit/kit-tooltip'
 import { OfflineDownloadDialog } from '~/components/02.shared/offline-manager'
 import { ETripPlanKeys } from '~/components/04.features/trip-info/trip-plan/store/trip-plan.store'
@@ -71,8 +71,6 @@ const isOfflineDownloadDialogVisible = ref(false)
 const isShareDialogVisible = ref(false)
 const shareDialogInitialSlug = ref('')
 const isDescriptionExpanded = ref(false)
-const descriptionShortText = ref('')
-const descriptionFullText = ref('')
 const isMobileTagsOpen = ref(false)
 const menuActionHandlers: Record<string, () => void | Promise<void>> = {
   share: shareTripFromMenu,
@@ -333,11 +331,10 @@ const moreMenuItems = computed((): KitDropdownItem<string>[] => {
   return items
 })
 
-watch(() => props.trip, (newTrip) => {
-  descriptionShortText.value = newTrip?.descriptionShort || newTrip?.description || ''
-  descriptionFullText.value = newTrip?.description || ''
+watch(() => props.trip?.id, () => {
   isMobileTagsOpen.value = false
-}, { immediate: true, deep: true })
+  isDescriptionExpanded.value = false
+})
 watch([() => props.trip?.id, () => appStore.auth.user?.id], ([tripId, userId]) => {
   if (tripId && userId)
     void appStore.notif.checkTripSubscription(tripId)
@@ -633,10 +630,8 @@ async function handleConfirmOfflineDownload(options: OfflineDownloadOptions) {
       v-if="trip.descriptionShort || trip.description"
       class="trip-description-summary"
     >
-      <KitInlineMdEditorWrapper
-        :key="`desc-short-${trip.id}`"
-        v-model="descriptionShortText"
-        :readonly="true"
+      <KitMarkdownViewer
+        :markdown="trip.descriptionShort || trip.description || ''"
         class="description-md-view description-md-view--short"
       />
 
@@ -644,10 +639,8 @@ async function handleConfirmOfflineDownload(options: OfflineDownloadOptions) {
         <div v-if="isDescriptionExpanded" class="description-expand-container">
           <div class="description-full-wrapper">
             <div class="description-separator" />
-            <KitInlineMdEditorWrapper
-              :key="`desc-full-${trip.id}`"
-              v-model="descriptionFullText"
-              :readonly="true"
+            <KitMarkdownViewer
+              :markdown="trip.description || ''"
               class="description-md-view description-md-view--full"
             />
           </div>
@@ -656,6 +649,8 @@ async function handleConfirmOfflineDownload(options: OfflineDownloadOptions) {
 
       <button
         v-if="hasExpandableDescription"
+        type="button"
+        :aria-expanded="isDescriptionExpanded"
         class="description-toggle-btn"
         @click="isDescriptionExpanded = !isDescriptionExpanded"
       >
@@ -1417,25 +1412,13 @@ async function handleConfirmOfflineDownload(options: OfflineDownloadOptions) {
 }
 
 .description-md-view {
-  :deep(.milkdown) {
-    > div {
-      padding: 0;
-    }
-  }
-
-  :deep(.ProseMirror) {
-    cursor: default;
-  }
-
-  :deep(.milkdown div) {
-    &:hover {
-      background-color: transparent !important;
-    }
+  :deep(.kit-markdown-viewer__content) {
+    min-width: 0;
   }
 }
 
 .description-md-view--short {
-  :deep(.ProseMirror p) {
+  :deep(p) {
     color: var(--fg-secondary-color);
     font-size: 0.95rem;
     line-height: 1.6;
@@ -1444,7 +1427,7 @@ async function handleConfirmOfflineDownload(options: OfflineDownloadOptions) {
 }
 
 .description-md-view--full {
-  :deep(.ProseMirror p) {
+  :deep(p) {
     color: var(--fg-primary-color);
     font-size: 0.9rem;
     line-height: 1.7;

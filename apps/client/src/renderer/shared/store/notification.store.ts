@@ -40,7 +40,7 @@ const useNotificationStore = defineStore('notification', {
       const token = await invoke<string>('tracking_get_push_token')
 
       if (!token) {
-        throw new Error('RuStore не выдал push-токен. Проверьте, что на устройстве установлен RuStore или приложение VK')
+        throw new Error('Не удалось получить FCM-токен. Проверьте подключение к интернету и Google Play services на устройстве')
       }
 
       return token
@@ -62,7 +62,7 @@ const useNotificationStore = defineStore('notification', {
         })
       }
       catch (error) {
-        console.warn('[Notifications] Не удалось синхронизировать RuStore push-токен', error)
+        console.warn('[Notifications] Не удалось синхронизировать FCM-токен', error)
       }
     },
 

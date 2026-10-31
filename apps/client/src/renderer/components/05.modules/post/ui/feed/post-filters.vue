@@ -64,7 +64,7 @@ watchDebounced(() => filters.value.search, () => {
   align-items: center;
   gap: 12px;
 
-  @media (max-width: 480px) {
+  @media (max-width: 640px) {
     flex-direction: column-reverse;
     align-items: stretch;
   }
@@ -101,6 +101,18 @@ watchDebounced(() => filters.value.search, () => {
 
   &:hover:not(.active) {
     color: var(--fg-primary-color);
+  }
+}
+@media (max-width: 640px) {
+  .tabs-switch {
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .tab-btn {
+    flex: 1;
+    min-width: 0;
+    padding-inline: 8px;
   }
 }
 </style>

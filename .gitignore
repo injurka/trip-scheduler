@@ -32,3 +32,4 @@ docs
 .hermes-workspace
 tools/obsidian-importer/backups/
 .firecrawl
+apps/native/firebase/google-services.json

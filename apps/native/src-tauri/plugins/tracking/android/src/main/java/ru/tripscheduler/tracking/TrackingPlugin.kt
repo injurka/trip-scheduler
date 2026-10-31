@@ -17,6 +17,7 @@ import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import android.graphics.Color
 import androidx.core.view.WindowCompat
+import com.google.firebase.messaging.FirebaseMessaging
 import app.tauri.annotation.Command
 import app.tauri.annotation.Permission
 import app.tauri.annotation.PermissionCallback
@@ -40,7 +41,7 @@ class TrackingPlugin(private val activity: Activity) : Plugin(activity) {
                 payload.put("token", token)
                 trigger("pushTokenUpdated", payload)
             } catch (e: Exception) {
-                android.util.Log.w("TrackingPlugin", "Failed to forward refreshed RuStore push token", e)
+                android.util.Log.w("TrackingPlugin", "Failed to forward refreshed FCM token", e)
             }
         }
 
@@ -107,7 +108,7 @@ class TrackingPlugin(private val activity: Activity) : Plugin(activity) {
     @Command
     fun getPushToken(invoke: Invoke) {
         try {
-            ru.rustore.sdk.pushclient.RuStorePushClient.getToken()
+            FirebaseMessaging.getInstance().token
                 .addOnSuccessListener { token ->
                     activity.getSharedPreferences(PUSH_PREFERENCES, Context.MODE_PRIVATE)
                         .edit()
@@ -116,18 +117,12 @@ class TrackingPlugin(private val activity: Activity) : Plugin(activity) {
                     invoke.resolveObject(token)
                 }
                 .addOnFailureListener { error ->
-                    android.util.Log.w("TrackingPlugin", "Could not obtain RuStore push token", error)
-                    val message = when (error.javaClass.simpleName) {
-                        "HostAppNotInstalledException" -> "Установите RuStore и войдите в него"
-                        "UnauthorizedException" -> "Войдите в RuStore"
-                        "SdkIsNotInitializedException" -> "RuStore Push ещё запускается. Повторите попытку"
-                        else -> "RuStore не выдал токен: ${error.javaClass.simpleName}"
-                    }
-                    invoke.reject(message)
+                    android.util.Log.w("TrackingPlugin", "Could not obtain FCM token", error)
+                    invoke.reject("Не удалось получить FCM-токен: ${error.message ?: error.javaClass.simpleName}")
                 }
         } catch (e: Exception) {
-            android.util.Log.w("TrackingPlugin", "RuStore push SDK is unavailable", e)
-            invoke.reject("RuStore Push SDK недоступен на этом устройстве")
+            android.util.Log.w("TrackingPlugin", "FCM SDK is unavailable", e)
+            invoke.reject("FCM не настроен для этой Android-сборки")
         }
     }
 

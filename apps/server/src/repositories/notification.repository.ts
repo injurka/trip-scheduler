@@ -28,12 +28,12 @@ export const notificationRepository = {
     await db.delete(pushSubscriptions).where(eq(pushSubscriptions.endpoint, endpoint))
   },
 
-  async upsertPushToken(userId: string, token: string) {
+  async upsertPushToken(userId: string, token: string, provider: 'rustore' | 'fcm' = 'fcm') {
     await db.insert(pushTokens)
-      .values({ userId, token, updatedAt: new Date() })
+      .values({ userId, token, provider, updatedAt: new Date() })
       .onConflictDoUpdate({
         target: pushTokens.token,
-        set: { userId, updatedAt: new Date() },
+        set: { userId, provider, updatedAt: new Date() },
       })
   },
 
@@ -106,7 +106,7 @@ export const notificationRepository = {
     return tokens
   },
 
-  async getSubscribersPushTokens(tripId: string, excludeUserId: string) {
+  async getSubscribersPushTokens(tripId: string, excludeUserId: string, provider: 'rustore' | 'fcm' = 'fcm') {
     const subs = await db.query.tripSubscriptions.findMany({
       where: eq(tripSubscriptions.tripId, tripId),
       columns: { userId: true },
@@ -120,7 +120,10 @@ export const notificationRepository = {
       return []
 
     return await db.query.pushTokens.findMany({
-      where: inArray(pushTokens.userId, userIds),
+      where: and(
+        inArray(pushTokens.userId, userIds),
+        eq(pushTokens.provider, provider),
+      ),
       columns: { token: true },
     })
   },

@@ -229,7 +229,10 @@ onBeforeUnmount(() => {
     </div>
 
     <BackgroundEffects />
-    <AppFooter :class="{ 'is-panel-pinned': isDaysPanelPinned && !mdAndDown }" />
+    <AppFooter
+      v-if="!isMapView && !isNotesView"
+      :class="{ 'is-panel-pinned': isDaysPanelPinned && !mdAndDown }"
+    />
   </main>
 
   <ThemeManager />

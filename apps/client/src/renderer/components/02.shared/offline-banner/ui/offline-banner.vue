@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Icon } from '@iconify/vue'
 import { useOnline } from '@vueuse/core'
 import { useDataTimestamp } from '~/shared/composables/use-data-timestamp'
 
@@ -30,20 +31,22 @@ const formattedDate = computed(() => {
     <div v-if="!isOnline" class="offline-banner">
       <div class="banner-content">
         <div class="main-info">
-          <span>Нет соединения</span>
+          <span class="connection-label">Нет соединения</span>
+          <Icon
+            class="connection-icon"
+            icon="mdi:wifi-off"
+            role="img"
+            aria-label="Нет соединения"
+          />
         </div>
 
         <div class="read-only-badge">
-          <svg class="badge-icon" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M12,17A2,2 0 0,0 14,15C14,13.89 13.1,13 12,13A2,2 0 0,0 10,15A2,2 0 0,0 12,17M18,8A2,2 0 0,1 20,10V20A2,2 0 0,1 18,22H6A2,2 0 0,1 4,20V10C4,8.89 4.9,8 6,8H7V6A5,5 0 0,1 12,1A5,5 0 0,1 17,6V8H18M12,3A3,3 0 0,0 9,6V8H15V6A3,3 0 0,0 12,3Z" />
-          </svg>
+          <Icon class="badge-icon" icon="mdi:lock" />
           <span>Режим чтения</span>
         </div>
 
         <div v-if="formattedDate" class="cache-badge">
-          <svg class="badge-icon" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M12,20A8,8 0 0,0 20,12A8,8 0 0,0 12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20M12,2A10,10 0 0,1 22,12A10,10 0 0,1 12,22C6.47,22 2,17.5 2,12A10,10 0 0,1 12,2M12.5,7V12.25L17,14.92L16.25,16.15L11,13V7H12.5Z" />
-          </svg>
+          <Icon class="badge-icon" icon="mdi:clock-outline" />
           <span>Обновлено: {{ formattedDate }}</span>
         </div>
         <div v-else class="cache-badge">
@@ -57,23 +60,26 @@ const formattedDate = computed(() => {
 <style scoped lang="scss">
 .offline-banner {
   position: relative;
+  flex: 0 0 auto;
   width: 100%;
+  height: var(--offline-banner-height, 40px);
+  box-sizing: border-box;
   z-index: 9999;
   background-color: var(--fg-warning-color);
   color: var(--bg-primary-color);
   display: flex;
   justify-content: center;
-  padding: 6px 16px;
-  padding-top: calc(6px + var(--safe-area-inset-top));
+  padding: 8px 16px;
 }
 
 .banner-content {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 12px;
+  gap: 6px 12px;
   max-width: 1200px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  overflow: hidden;
   width: 100%;
 }
 
@@ -83,7 +89,11 @@ const formattedDate = computed(() => {
   gap: 8px;
   font-weight: 700;
   font-size: 0.95rem;
-  white-space: nowrap;
+  line-height: 1.4;
+}
+
+.connection-icon {
+  display: none;
 }
 
 .read-only-badge,
@@ -96,13 +106,10 @@ const formattedDate = computed(() => {
   background-color: rgba(255, 255, 255, 0.2);
   padding: 2px 10px;
   border-radius: 12px;
-  white-space: nowrap;
-}
-
-.icon {
-  width: 1.2rem;
-  height: 1.2rem;
-  flex-shrink: 0;
+  min-width: 0;
+  max-width: 100%;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
 }
 
 .badge-icon {
@@ -115,7 +122,7 @@ const formattedDate = computed(() => {
 .slide-down-enter-active,
 .slide-down-leave-active {
   transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-  max-height: 100px;
+  max-height: var(--offline-banner-height, 40px);
   overflow: hidden;
 }
 
@@ -128,8 +135,44 @@ const formattedDate = computed(() => {
 }
 
 @media (max-width: 600px) {
+  .offline-banner {
+    padding: 6px 8px;
+  }
+
   .banner-content {
-    justify-content: space-between;
+    gap: 4px;
+  }
+
+  .main-info {
+    flex: 0 0 auto;
+    font-size: 0.8rem;
+    white-space: nowrap;
+  }
+
+  .connection-label {
+    display: none;
+  }
+
+  .connection-icon {
+    display: block;
+    width: 1.25rem;
+    height: 1.25rem;
+  }
+
+  .read-only-badge,
+  .cache-badge {
+    flex: 0 1 auto;
+    padding: 2px 6px;
+    gap: 4px;
+    font-size: 0.6875rem;
+    white-space: nowrap;
+    overflow: hidden;
+  }
+
+  .read-only-badge span,
+  .cache-badge span {
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 }
 </style>

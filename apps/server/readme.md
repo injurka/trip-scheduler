@@ -64,10 +64,9 @@ DATABASE_URL="postgresql://trip-scheduler:trip-scheduler@localhost:5432/trip_sch
 # URL API для доступа к загруженным файлам
 API_URL="http://localhost:8080"
 
-# Необязательно: серверная отправка push через RuStore.
-# Сервисный токен хранится только в окружении API-сервера, не добавляйте его в APK или VITE_*.
-RUSTORE_PUSH_PROJECT_ID="ваш_id_проекта_rustore"
-RUSTORE_PUSH_SERVICE_TOKEN="ваш_новый_сервисный_токен"
+# Необязательно: серверная отправка push через FCM HTTP v1.
+# Передайте JSON ключ сервисного аккаунта Firebase в base64 только API-серверу.
+FCM_SERVICE_ACCOUNT_JSON_BASE64="base64_json_сервисного_аккаунта"
 ```
 
 ### 3. Установка зависимостей и запуск сервера

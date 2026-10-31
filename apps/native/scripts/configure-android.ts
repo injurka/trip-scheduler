@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 const MANIFEST_PATH = resolve(
@@ -13,7 +13,17 @@ const ANDROID_BUILD_GRADLE_PATH = resolve(
   import.meta.dirname,
   '../src-tauri/gen/android/build.gradle.kts',
 )
-const RUSTORE_MAVEN_REPOSITORY = 'https://nexus-external.rustore.ru/repository/maven-rustore-exposed/'
+const ANDROID_APP_GRADLE_PATH = resolve(
+  import.meta.dirname,
+  '../src-tauri/gen/android/app/build.gradle.kts',
+)
+const FIREBASE_CONFIG_SOURCE = process.env.FIREBASE_ANDROID_CONFIG_PATH
+  ? resolve(process.env.FIREBASE_ANDROID_CONFIG_PATH)
+  : resolve(import.meta.dirname, '../firebase/google-services.json')
+const FIREBASE_CONFIG_DESTINATION = resolve(
+  import.meta.dirname,
+  '../src-tauri/gen/android/app/google-services.json',
+)
 
 const REQUIRED_PERMISSIONS = [
   'android.permission.ACCESS_FINE_LOCATION',
@@ -128,33 +138,62 @@ export function configureAndroidManifest(): boolean {
   return true
 }
 
-export function configureAndroidRepositories(): boolean {
-  if (!existsSync(ANDROID_BUILD_GRADLE_PATH)) {
-    console.log('[configure-android] Android root build.gradle.kts not found yet, skipping.')
+function addFirebaseGradlePlugin(content: string, version?: string): string {
+  if (version) {
+    const declaration = /(id\(["']com\.google\.gms\.google-services["']\)\s+version\s+["'])[^"']+(["']\s+apply false)/
+    if (declaration.test(content))
+      return content.replace(declaration, `$1${version}$2`)
+  }
+
+  if (content.includes('com.google.gms.google-services'))
+    return content
+
+  const pluginsBlock = /plugins\s*\{/.exec(content)
+  if (!pluginsBlock)
+    throw new Error('[configure-android] Cannot find a plugins block in generated Android Gradle file.')
+
+  const insertionPoint = pluginsBlock.index + pluginsBlock[0].length
+  const declaration = version
+    ? `\n    id("com.google.gms.google-services") version "${version}" apply false`
+    : '\n    id("com.google.gms.google-services")'
+  return content.slice(0, insertionPoint) + declaration + content.slice(insertionPoint)
+}
+
+export function configureAndroidFirebase(): boolean {
+  if (!existsSync(ANDROID_BUILD_GRADLE_PATH) || !existsSync(ANDROID_APP_GRADLE_PATH)) {
+    console.log('[configure-android] Generated Android Gradle project not found yet; run `tauri android init` first.')
     return false
   }
 
-  const content = readFileSync(ANDROID_BUILD_GRADLE_PATH, 'utf-8')
-  if (content.includes(RUSTORE_MAVEN_REPOSITORY)) {
-    console.log('[configure-android] RuStore Maven repository is already configured.')
-    return true
+  if (!existsSync(FIREBASE_CONFIG_SOURCE)) {
+    throw new Error(
+      `[configure-android] Firebase Android config is missing at ${FIREBASE_CONFIG_SOURCE}. `
+      + 'Download google-services.json for package ru.tripscheduler.app and put it there, '
+      + 'or set FIREBASE_ANDROID_CONFIG_PATH.',
+    )
   }
 
-  // Tauri's Android root project owns dependency repositories. The tracking
-  // plugin's settings.gradle is only used when the plugin is built separately.
-  const repositories = /allprojects\s*\{[\s\S]*?repositories\s*\{[\s\S]*?^([ \t]*)mavenCentral\(\)[ \t]*(\r?\n)/m.exec(content)
-  if (!repositories) {
-    throw new Error('[configure-android] Cannot find allprojects repositories in Android root build.gradle.kts.')
+  const firebaseConfig = JSON.parse(readFileSync(FIREBASE_CONFIG_SOURCE, 'utf-8')) as {
+    client?: Array<{ client_info?: { android_client_info?: { package_name?: string } } }>
   }
+  const hasMatchingPackage = firebaseConfig.client?.some(
+    client => client.client_info?.android_client_info?.package_name === 'ru.tripscheduler.app',
+  )
+  if (!hasMatchingPackage)
+    throw new Error('[configure-android] google-services.json does not contain package ru.tripscheduler.app.')
 
-  const insertionPoint = repositories.index + repositories[0].length
-  const repositoryLine = `${repositories[1]}maven { url = uri("${RUSTORE_MAVEN_REPOSITORY}") }${repositories[2]}`
-  writeFileSync(ANDROID_BUILD_GRADLE_PATH, content.slice(0, insertionPoint) + repositoryLine + content.slice(insertionPoint), 'utf-8')
-  console.log('[configure-android] Added RuStore Maven repository to Android root build.gradle.kts')
+  const rootBuild = addFirebaseGradlePlugin(readFileSync(ANDROID_BUILD_GRADLE_PATH, 'utf-8'), '4.5.0')
+  const appBuild = addFirebaseGradlePlugin(readFileSync(ANDROID_APP_GRADLE_PATH, 'utf-8'))
+  writeFileSync(ANDROID_BUILD_GRADLE_PATH, rootBuild, 'utf-8')
+  writeFileSync(ANDROID_APP_GRADLE_PATH, appBuild, 'utf-8')
+
+  mkdirSync(resolve(import.meta.dirname, '../src-tauri/gen/android/app'), { recursive: true })
+  copyFileSync(FIREBASE_CONFIG_SOURCE, FIREBASE_CONFIG_DESTINATION)
+  console.log('[configure-android] Configured Firebase Cloud Messaging for the Android app.')
   return true
 }
 
 if (import.meta.main) {
   configureAndroidManifest()
-  configureAndroidRepositories()
+  configureAndroidFirebase()
 }

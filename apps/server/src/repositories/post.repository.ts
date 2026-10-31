@@ -145,7 +145,7 @@ export const postRepository = {
         orderBy: [desc(posts.createdAt)],
         with: {
           user: userRelationQuery,
-          media: { limit: 1, orderBy: (media, { asc }) => [asc(media.order)] },
+          media: { orderBy: (media, { asc }) => [asc(media.order)] },
           whitelist: currentUserId ? { where: (pw, { eq }) => eq(pw.userId, currentUserId), limit: 1 } : undefined,
           savedBy: currentUserId ? { where: (sp, { eq }) => eq(sp.userId, currentUserId), limit: 1 } : undefined,
           likedBy: currentUserId ? { where: (pl, { eq }) => eq(pl.userId, currentUserId), limit: 1 } : undefined,

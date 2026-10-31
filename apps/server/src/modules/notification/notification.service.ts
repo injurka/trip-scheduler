@@ -4,6 +4,7 @@ import { createTRPCError } from '~/lib/trpc'
 import { dayRepository } from '~/repositories/day.repository'
 import { notificationRepository } from '~/repositories/notification.repository'
 import { tripRepository } from '~/repositories/trip.repository'
+import { hasFcmServiceAccountConfigured, sendFcmMessage } from './fcm'
 
 if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
   webpush.setVapidDetails(
@@ -37,12 +38,12 @@ export const notificationService = {
       throw createTRPCError('NOT_FOUND', 'Путешествие не найдено')
     }
 
-    await notificationRepository.upsertPushToken(userId, token)
+    await notificationRepository.upsertPushToken(userId, token, 'fcm')
     await notificationRepository.addTripSubscription(userId, tripId)
   },
 
   async registerPushToken(userId: string, token: string) {
-    await notificationRepository.upsertPushToken(userId, token)
+    await notificationRepository.upsertPushToken(userId, token, 'fcm')
   },
 
   async unregisterPushToken(userId: string, token: string) {
@@ -67,7 +68,7 @@ export const notificationService = {
 
     const [tokens, pushTokens] = await Promise.all([
       notificationRepository.getSubscribersTokens(tripId, actorId),
-      notificationRepository.getSubscribersPushTokens(tripId, actorId),
+      notificationRepository.getSubscribersPushTokens(tripId, actorId, 'fcm'),
     ])
 
     if (tokens.length === 0 && pushTokens.length === 0)
@@ -106,70 +107,43 @@ export const notificationService = {
 
     await Promise.allSettled(sendPromises)
 
-    await this.sendPushMemoryUpdate(pushTokens, trip.title, route)
+    await this.sendFcmMemoryUpdate(pushTokens, trip.title, route)
   },
 
-  async sendPushMemoryUpdate(
+  async sendFcmMemoryUpdate(
     tokenRecords: { token: string }[],
     tripTitle: string,
     route: string,
   ) {
-    const projectId = process.env.RUSTORE_PUSH_PROJECT_ID
-    const serviceToken = process.env.RUSTORE_PUSH_SERVICE_TOKEN
-
-    if (!projectId || !serviceToken) {
+    if (!hasFcmServiceAccountConfigured()) {
       if (tokenRecords.length > 0) {
-        console.warn('[RuStore Push] Project ID or service token is not configured; native push delivery is skipped.')
+        console.warn('[FCM] Service account credentials are not configured; native push delivery is skipped.')
       }
       return
     }
 
     const deepLink = `trip-scheduler://${route.replace(/^\//, '')}`
-    const endpoint = `https://vkpns.rustore.ru/v1/projects/${encodeURIComponent(projectId)}/messages:send`
 
     await Promise.allSettled(tokenRecords.map(async ({ token }) => {
       try {
-        const response = await fetch(endpoint, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${serviceToken}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            message: {
-              token,
-              notification: {
-                title: `Новые фото в "${tripTitle}"`,
-                body: 'Кто-то поделился воспоминаниями. Нажмите, чтобы посмотреть.',
-              },
-              data: { url: deepLink },
-              android: {
-                notification: {
-                  click_action: deepLink,
-                  click_action_type: 1,
-                },
-              },
-            },
-          }),
+        const result = await sendFcmMessage(token, {
+          title: `Новые фото в "${tripTitle}"`,
+          body: 'Кто-то поделился воспоминаниями. Нажмите, чтобы посмотреть.',
+          url: deepLink,
         })
 
-        if (response.ok)
+        if (result.ok)
           return
 
-        const responseBody = await response.json().catch(() => null) as { error?: { status?: string, message?: string } } | null
-        const isExpired = response.status === 404 || responseBody?.error?.status === 'NOT_FOUND'
-        const isInvalidToken = response.status === 400
-          && /registration token/i.test(responseBody?.error?.message ?? '')
-
-        if (isExpired || isInvalidToken) {
+        if (result.errorCode === 'UNREGISTERED') {
           await notificationRepository.deletePushTokenByToken(token)
           return
         }
 
-        console.error(`[RuStore Push] Delivery failed with HTTP ${response.status}.`)
+        console.error(`[FCM] Delivery failed with HTTP ${result.status}: ${result.errorCode ?? 'unknown error'}.`)
       }
       catch (error) {
-        console.error('[RuStore Push] Delivery request failed.', error)
+        console.error('[FCM] Delivery request failed.', error)
       }
     }))
   },

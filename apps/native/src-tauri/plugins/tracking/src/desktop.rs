@@ -26,7 +26,7 @@ impl<R: Runtime> Tracking<R> {
     }
 
     pub fn get_push_token(&self) -> Result<String> {
-        Err(crate::Error::Generic("RuStore push is available only on Android".to_string()))
+        Err(crate::Error::Generic("FCM push is available only on Android".to_string()))
     }
 
     pub fn check_permissions(&self) -> Result<TrackingPermissionsStatus> {

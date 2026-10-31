@@ -65,6 +65,7 @@ export const PostElementContentSchema = z.discriminatedUnion('type', [
 ])
 
 export const PostStatsDetailSchema = z.object({
+  coverMediaIds: z.array(z.string().uuid()).max(5).optional(),
   views: z.number().default(0),
   duration: z.number().default(0),
 })

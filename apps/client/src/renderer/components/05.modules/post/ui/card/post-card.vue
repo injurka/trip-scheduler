@@ -7,9 +7,10 @@ import { KitAvatar } from '~/components/01.kit/kit-avatar'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitDropdown } from '~/components/01.kit/kit-dropdown'
 import { KitImage } from '~/components/01.kit/kit-image'
+import { KitImageViewer, useImageViewer } from '~/components/01.kit/kit-image-viewer'
 import { getPostMediaVariants } from '~/components/05.modules/post/lib/media-variants'
-import { resolveApiUrl } from '~/shared/lib/url'
-import PostVideoThumbnail from '../shared/post-video-thumbnail.vue'
+import { useRequest } from '~/plugins/request'
+import { useToast } from '~/shared/composables/use-toast'
 
 interface Props {
   post: PostDetail
@@ -27,19 +28,38 @@ const emit = defineEmits<{
 
 const authStore = useAppStore('auth')
 const timeAgo = useTimeAgo(new Date(props.post.createdAt))
+const { isOpen, open, currentIndex } = useImageViewer()
 
 const { user } = storeToRefs(authStore)
-const activeMediaIndex = ref(0)
-const activeMarkId = ref<string | null>(null)
-const cardAccentColor = ref('#A8AAAE')
+const galleryMedia = ref<PostMedia[]>([])
+const isGalleryLoading = ref(false)
 const menuItems: KitDropdownItem[] = [
   { label: 'Редактировать', value: 'edit', icon: 'mdi:pencil' },
   { label: 'Удалить', value: 'delete', icon: 'mdi:trash-can-outline', isDestructive: true },
 ]
 
+const accessibleMedia = computed(() => props.post.media.filter(media => media.hasAccess !== false))
+const previewMedia = computed(() => {
+  const photos = accessibleMedia.value.filter(media => media.type === 'image')
+  const ids = props.post.statsDetail?.coverMediaIds
+  const selected = ids?.flatMap(id => photos.filter(media => media.id === id)) || []
+
+  return (selected.length ? selected : photos).slice(0, 5)
+})
+const viewerImages = computed(() => galleryMedia.value.map((media) => {
+  const variants = getPostMediaVariants(media)
+
+  return {
+    url: media.type === 'video' ? variants.web || media.url : media.url,
+    mediaType: media.type,
+    alt: media.originalName || 'Медиа поста',
+    variants: media.type === 'video'
+      ? { ...variants, small: variants.poster || variants.small, medium: variants.poster || variants.medium, large: variants.web || media.url }
+      : variants,
+    meta: { ...media.metadata, imageId: media.id },
+  }
+}))
 const isOwner = computed(() => !!user.value && user.value.id === props.post.user.id)
-const currentMedia = computed(() => props.post.media[activeMediaIndex.value])
-const hasMultipleMedia = computed(() => props.post.media.length > 1)
 const formattedStartDate = computed(() => {
   if (!props.post.startDate)
     return ''
@@ -59,36 +79,45 @@ const formattedDuration = computed(() => {
 
   return `${hours} ч.`
 })
-const cardStyle = computed(() => ({
-  '--post-card-accent': cardAccentColor.value,
-}))
 
-watch(() => props.post.media[0], (newMedia) => {
-  if (newMedia) {
-    extractAverageColor(getBlurImgUrl(newMedia))
+async function openGallery() {
+  if (isGalleryLoading.value)
+    return
+
+  isGalleryLoading.value = true
+  const postId = props.post.id
+
+  try {
+    const detail = await useRequest<PostDetail>({
+      key: `post:gallery:${postId}`,
+      fn: db => db.posts.getById({ id: postId }),
+      onError: () => {
+        useToast().error('Не удалось загрузить галерею. Попробуйте ещё раз.')
+      },
+    })
+
+    if (!detail || props.post.id !== postId)
+      return
+
+    galleryMedia.value = detail.media.filter(item => item.hasAccess !== false)
+
+    if (!galleryMedia.value.length) {
+      useToast().info('В этом посте нет доступных фото и видео.')
+
+      return
+    }
+
+    open(viewerImages.value, 0)
   }
-}, { immediate: true })
-
+  finally {
+    isGalleryLoading.value = false
+  }
+}
 function handleMenuAction(action: string) {
   if (action === 'edit')
     emit('edit', props.post.id)
   else if (action === 'delete')
     emit('delete', props.post.id)
-}
-function nextImage() {
-  if (activeMediaIndex.value < props.post.media.length - 1) {
-    activeMediaIndex.value++
-    activeMarkId.value = null
-  }
-}
-function prevImage() {
-  if (activeMediaIndex.value > 0) {
-    activeMediaIndex.value--
-    activeMarkId.value = null
-  }
-}
-function toggleMark(markId: string) {
-  activeMarkId.value = activeMarkId.value === markId ? null : markId
 }
 function getMainImgUrl(media: PostMedia) {
   if (media.hasAccess === false)
@@ -102,76 +131,6 @@ function getMainImgUrl(media: PostMedia) {
 
   return variants?.medium || media.url
 }
-function getBlurImgUrl(media: PostMedia) {
-  if (media.hasAccess === false)
-    return ''
-
-  const variants = getPostMediaVariants(media)
-
-  if (media.type === 'video') {
-    return variants.poster || variants.small || variants.medium || ''
-  }
-
-  return variants?.small || variants?.medium || media.url
-}
-async function extractAverageColor(url: string) {
-  if (!url)
-    return
-
-  const resolvedUrl = resolveApiUrl(url)
-
-  const img = new Image()
-  img.crossOrigin = 'Anonymous'
-
-  img.onerror = () => {
-    console.error(`Не удалось загрузить изображение для анализа цвета: ${resolvedUrl}`)
-    cardAccentColor.value = '#A8AAAE'
-  }
-
-  img.onload = () => {
-    const canvas = document.createElement('canvas')
-    const ctx = canvas.getContext('2d', { willReadFrequently: true })
-
-    if (!ctx)
-      return
-
-    canvas.width = 1
-    canvas.height = 1
-
-    try {
-      ctx.drawImage(
-        img,
-        0,
-        0,
-        1,
-        1,
-      )
-
-      const pixelData = ctx.getImageData(
-        0,
-        0,
-        1,
-        1,
-      ).data
-      const [r, g, b, a] = pixelData
-
-      if (a === 0) {
-        console.warn(`Анализ цвета не удался (прозрачный пиксель), используется цвет по умолчанию. URL: ${resolvedUrl}`)
-        cardAccentColor.value = '#A8AAAE'
-
-        return
-      }
-
-      cardAccentColor.value = `rgb(${r},${g},${b})`
-    }
-    catch (e) {
-      console.error(`Ошибка при анализе цвета изображения (вероятно, CORS): ${resolvedUrl}`, e)
-      cardAccentColor.value = '#A8AAAE'
-    }
-  }
-
-  img.src = resolvedUrl
-}
 function onClickLocation() {
   const { city, country, latitude, longitude } = props.post
 
@@ -180,7 +139,7 @@ function onClickLocation() {
 </script>
 
 <template>
-  <article class="post-card" :style="cardStyle" @click="$emit('clickCard', post.id)">
+  <article class="post-card" @click="$emit('clickCard', post.id)">
     <header class="card-header">
       <div class="author-info">
         <KitAvatar :src="post.user.avatarUrl" :name="post.user.name" size="32" />
@@ -216,88 +175,35 @@ function onClickLocation() {
     </header>
 
     <div class="media-zone">
-      <div v-if="hasMultipleMedia" class="media-dots-top">
-        <span
-          v-for="(_, idx) in post.media"
-          :key="idx"
-          class="dot"
-          :class="{ active: idx === activeMediaIndex }"
-        />
+      <div v-if="previewMedia.length" class="photo-collage" :class="`photos-${previewMedia.length}`">
+        <button
+          v-for="media in previewMedia"
+          :key="media.id"
+          class="collage-tile"
+          type="button"
+          :aria-label="`Открыть пост: ${post.title}`"
+          @click.stop="emit('clickCard', post.id)"
+        >
+          <KitImage :src="getMainImgUrl(media)" :alt="media.originalName || post.title" object-fit="cover" />
+          <Icon v-if="media.isPrivate" icon="mdi:lock" class="private-icon" />
+        </button>
       </div>
-
-      <div v-if="hasMultipleMedia" class="nav-overlay">
-        <div class="nav-zone left" @click.stop="prevImage" />
-        <div class="nav-zone right" @click.stop="nextImage" />
+      <div v-else class="no-media">
+        <Icon :icon="accessibleMedia.length ? 'mdi:video-outline' : post.media.length ? 'mdi:lock-outline' : 'mdi:image-off-outline'" />
       </div>
-
-      <div class="image-container">
-        <Transition name="fade" mode="out-in">
-          <div :key="currentMedia?.id || 'empty'" class="image-wrapper">
-            <template v-if="currentMedia">
-              <div v-if="currentMedia.hasAccess === false" class="locked-backdrop">
-                <Icon icon="mdi:lock" class="locked-icon" />
-                <span class="locked-text">Приватное медиа</span>
-                <span class="locked-sub">Доступно только в белом списке</span>
-              </div>
-              <template v-else>
-                <div class="blur-backdrop">
-                  <!-- Оптимизация: берем маленькую версию для фона -->
-                  <KitImage
-                    v-if="currentMedia.type !== 'video' || getBlurImgUrl(currentMedia)"
-                    :src="getBlurImgUrl(currentMedia)"
-                    object-fit="cover"
-                    class="backdrop-img"
-                  />
-                  <div class="backdrop-overlay" />
-                </div>
-
-                <div class="main-img-wrapper">
-                  <PostVideoThumbnail
-                    v-if="currentMedia.type === 'video'"
-                    :src="getPostMediaVariants(currentMedia).web || currentMedia.url"
-                    :poster="getMainImgUrl(currentMedia) || getBlurImgUrl(currentMedia)"
-                    :alt="currentMedia.originalName || 'Видео'"
-                  />
-                  <KitImage
-                    v-else
-                    :src="getMainImgUrl(currentMedia)"
-                    class="main-img"
-                    object-fit="contain"
-                  />
-                </div>
-
-                <div v-if="currentMedia.type === 'video'" class="card-video-badge">
-                  <Icon icon="mdi:play" />
-                </div>
-
-                <div v-if="currentMedia.isPrivate" class="card-private-badge" title="Приватное медиа">
-                  <Icon icon="mdi:lock" />
-                </div>
-
-                <template v-if="currentMedia.marks">
-                  <div
-                    v-for="mark in currentMedia.marks"
-                    :key="mark.id"
-                    class="smart-mark"
-                    :class="{ 'is-active': activeMarkId === mark.id }"
-                    :style="{ left: `${mark.x}%`, top: `${mark.y}%` }"
-                    @click.stop="toggleMark(mark.id)"
-                  >
-                    <div class="mark-dot" />
-                    <div class="mark-bubble">
-                      <span>{{ mark.label }}</span>
-                      <div class="bubble-tail" />
-                    </div>
-                  </div>
-                </template>
-              </template>
-            </template>
-            <div v-else class="no-media">
-              <Icon icon="mdi:image-off-outline" />
-            </div>
-          </div>
-        </Transition>
-      </div>
+      <KitBtn
+        v-if="accessibleMedia.length"
+        class="gallery-button"
+        variant="text"
+        size="xs"
+        :icon="isGalleryLoading ? 'mdi:loading' : 'mdi:image-multiple-outline'"
+        :disabled="isGalleryLoading"
+        :aria-busy="isGalleryLoading"
+        aria-label="Открыть все фото и видео поста"
+        @click.stop="openGallery()"
+      >
+        {{ isGalleryLoading ? 'Загрузка…' : 'Галерея' }}
+      </KitBtn>
 
       <div class="info-overlay">
         <div class="title-row">
@@ -325,7 +231,7 @@ function onClickLocation() {
       </div>
     </div>
 
-    <div class="insight-block">
+    <div v-if="post.insight?.trim()" class="insight-block">
       <div class="insight-icon">
         <Icon icon="mdi:lightbulb-on-outline" />
       </div>
@@ -362,6 +268,13 @@ function onClickLocation() {
       </div>
     </footer>
   </article>
+  <KitImageViewer
+    v-if="isOpen"
+    v-model:visible="isOpen"
+    v-model:current-index="currentIndex"
+    :images="viewerImages"
+    enable-thumbnails
+  />
 </template>
 
 <style scoped lang="scss">
@@ -377,7 +290,8 @@ function onClickLocation() {
     transform 0.2s,
     box-shadow 0.2s;
   border: 1px solid var(--border-secondary-color);
-  border-left: 4px solid var(--post-card-accent);
+  content-visibility: auto;
+  contain-intrinsic-size: auto 650px;
 
   @include hover {
     & {
@@ -457,70 +371,93 @@ function onClickLocation() {
   background-color: #1a1a1a;
 }
 
-.image-container {
-  width: 100%;
+.photo-collage {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+  gap: 3px;
   height: 100%;
-  position: relative;
+  &.photos-1 {
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr;
+  }
+  &.photos-2 {
+    grid-template-rows: 1fr;
+  }
+  &.photos-3 .collage-tile:first-child {
+    grid-row: span 2;
+  }
+  &.photos-5 {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    .collage-tile {
+      grid-column: span 2;
+    }
+    .collage-tile:nth-child(-n + 2) {
+      grid-column: span 3;
+    }
+  }
 }
-
-.image-wrapper {
-  width: 100%;
-  height: 100%;
+.collage-tile {
   position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.blur-backdrop {
-  position: absolute;
-  inset: 0;
-  z-index: 0;
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+  border: 0;
   overflow: hidden;
-  pointer-events: none;
+  cursor: pointer;
+  background: var(--bg-tertiary-color);
+  :deep(.kit-image-wrapper),
   :deep(.kit-image-container) {
-    background: transparent;
+    width: 100%;
+    height: 100%;
+  }
+  &:focus-visible {
+    outline: 3px solid var(--fg-accent-color);
+    outline-offset: -3px;
   }
 }
-
-.backdrop-img {
-  width: 100%;
-  height: 100%;
-  filter: blur(20px) brightness(0.9) saturate(1.2);
-  transform: scale(1.5);
-  opacity: 1;
-}
-
-.backdrop-overlay {
+.private-icon {
   position: absolute;
-  inset: 0;
-  background-color: rgba(0, 0, 0, 0.2);
-  z-index: 1;
+  top: 8px;
+  right: 8px;
+  color: white;
 }
+.gallery-button.kit-btn {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  z-index: 16;
+  height: 32px;
+  min-width: 48px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(20, 20, 24, 0.5);
+  color: #fff;
+  box-shadow: none;
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  transition: background-color 150ms ease;
 
-.main-img-wrapper {
-  position: relative;
-  z-index: 2;
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  filter: drop-shadow(0 10px 30px rgba(0, 0, 0, 0.5));
+  :deep(.kit-btn-content) {
+    gap: 6px;
+  }
+  :deep(.kit-btn-icon) {
+    font-size: 16px;
+  }
 
-  :deep(.kit-image-container) {
-    background: transparent;
+  &:hover {
+    background: rgba(20, 20, 24, 0.95);
+    color: #fff;
+    box-shadow: none;
+  }
+
+  &:focus-visible {
+    outline: 2px solid #fff;
+    outline-offset: 3px;
   }
 }
-
-.main-img {
-  max-width: 100%;
-  max-height: 100%;
-  width: 100%;
-  height: 100%;
-  display: block;
-}
-
 .no-media {
   display: flex;
   align-items: center;
@@ -531,183 +468,14 @@ function onClickLocation() {
   height: 100%;
 }
 
-.locked-backdrop {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  height: 100%;
-  background: var(--bg-tertiary-color);
-  color: var(--fg-secondary-color);
-  gap: 6px;
-  text-align: center;
-  padding: 16px;
-
-  .locked-icon {
-    font-size: 36px;
-    color: var(--fg-warning-color, #f59e0b);
-  }
-
-  .locked-text {
-    font-size: 0.95rem;
-    font-weight: 600;
-    color: var(--fg-primary-color);
-  }
-
-  .locked-sub {
-    font-size: 0.8rem;
-    color: var(--fg-secondary-color);
-  }
-}
-
-.card-video-badge {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 48px;
-  height: 48px;
-  background: rgba(0, 0, 0, 0.65);
-  backdrop-filter: blur(4px);
-  color: white;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 32px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-  z-index: 5;
-  pointer-events: none;
-}
-
-.card-private-badge {
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  background: rgba(0, 0, 0, 0.65);
-  color: var(--fg-warning-color, #f59e0b);
-  padding: 4px;
-  border-radius: 6px;
-  font-size: 16px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 5;
-  pointer-events: none;
-}
-
-.nav-overlay {
-  position: absolute;
-  inset: 0;
-  z-index: 10;
-  display: flex;
-}
-
-.nav-zone {
-  height: 100%;
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-
-  &.left {
-    width: 30%;
-  }
-  &.right {
-    width: 70%;
-  }
-}
-
-.media-dots-top {
-  position: absolute;
-  top: 12px;
-  left: 50%;
-  transform: translateX(-50%);
-  display: flex;
-  gap: 6px;
-  z-index: 20;
-  pointer-events: none;
-}
-
-.dot {
-  width: 6px;
-  height: 6px;
-  background-color: rgba(255, 255, 255, 0.4);
-  border-radius: 50%;
-  transition: all 0.2s cubic-bezier(0.25, 0.8, 0.5, 1);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
-
-  &.active {
-    background-color: white;
-    transform: scale(1.3);
-  }
-}
-
-.smart-mark {
-  position: absolute;
-  transform: translate(-50%, -50%);
-  z-index: 30;
-  cursor: pointer;
-}
-
-.mark-dot {
-  width: 12px;
-  height: 12px;
-  background-color: rgba(255, 255, 255, 0.9);
-  border: 2px solid var(--post-card-accent);
-  border-radius: 50%;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-  transition: transform 0.2s;
-  animation: pulse 2s infinite;
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .smart-mark:hover .mark-dot,
-  .smart-mark.is-active .mark-dot {
-    transform: scale(1.2);
-  }
-}
-
-.mark-bubble {
-  position: absolute;
-  bottom: 18px;
-  left: 50%;
-  transform: translateX(-50%) scale(0.8);
-  background-color: rgba(0, 0, 0, 0.8);
-  color: white;
-  padding: 4px 8px;
-  border-radius: 6px;
-  font-size: 0.75rem;
-  white-space: nowrap;
-  opacity: 0;
-  pointer-events: none;
-  transition: all 0.2s;
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .smart-mark:hover .mark-bubble,
-  .smart-mark.is-active .mark-bubble {
-    opacity: 1;
-    transform: translateX(-50%) scale(1);
-    pointer-events: auto;
-  }
-}
-
-.bubble-tail {
-  position: absolute;
-  bottom: -4px;
-  left: 50%;
-  margin-left: -4px;
-  border-width: 4px 4px 0;
-  border-style: solid;
-  border-color: rgba(0, 0, 0, 0.8) transparent transparent transparent;
-}
-
 .info-overlay {
   position: absolute;
   bottom: 0;
   left: 0;
   right: 0;
-  padding: 40px 16px 12px;
+  padding: 40px 90px 12px;
+  padding-left: 16px;
+  pointer-events: none;
   background: linear-gradient(to top, var(--bg-tertiary-color) 0%, transparent 80%);
   color: white;
   pointer-events: none;

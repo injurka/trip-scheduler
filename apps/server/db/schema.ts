@@ -545,10 +545,12 @@ export const pushSubscriptions = pgTable('push_subscriptions', {
 export const pushTokens = pgTable('push_tokens', {
   token: text('token').primaryKey(),
   userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  provider: text('provider').notNull().default('rustore'),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 }, t => ({
   userIdx: index('push_tokens_user_id_idx').on(t.userId),
+  providerUserIdx: index('push_tokens_provider_user_idx').on(t.provider, t.userId),
 }))
 
 export const tripSubscriptions = pgTable('trip_subscriptions', {
