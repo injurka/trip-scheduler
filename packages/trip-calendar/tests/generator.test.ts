@@ -2,6 +2,22 @@ import { describe, expect, it } from 'bun:test'
 import { generateTripCalendar, generateTripCalendarIcs } from '../src'
 
 describe('tripCalendarGenerator', () => {
+  it('escapes calendar metadata so multiline text cannot become ICS properties', () => {
+    const ics = generateTripCalendarIcs({
+      trip: {
+        id: 'metadata',
+        title: 'Trip, title; \\ path\r\nSecond line',
+        description: 'Intro\n\n0. Phase: travel\r\nEND:VCALENDAR\rLast line',
+        startDate: '2026-11-01',
+        endDate: '2026-11-02',
+      },
+    }).replace(/\r\n[ \t]/g, '')
+
+    expect(ics).toContain('X-WR-CALNAME:Trip\\, title\\; \\\\ path\\nSecond line\r\n')
+    expect(ics).toContain('X-WR-CALDESC:Intro\\n\\n0. Phase: travel\\nEND:VCALENDAR\\nLast line\r\n')
+    expect(ics.match(/^END:VCALENDAR$/gm)).toHaveLength(1)
+  })
+
   const sampleTrip = {
     id: 'trip-123',
     title: 'Поездка в Токио',

@@ -43,12 +43,15 @@ function parseTimezoneOffset(offsetString: string | undefined): number | undefin
  */
 export async function generateImageVariants(fileBuffer: Buffer): Promise<Record<string, Buffer>> {
   const variants: Record<string, Buffer> = {}
-  const image = sharp(fileBuffer)
+  const image = sharp(fileBuffer).rotate()
   const metadata = await image.metadata()
+
+  const isRotated = Boolean(metadata.orientation && metadata.orientation >= 5 && metadata.orientation <= 8)
+  const effectiveWidth = isRotated ? metadata.height : metadata.width
 
   for (const [name, config] of Object.entries(IMAGE_VARIANTS_CONFIG)) {
     // Не создаем вариант, если он будет больше или равен по ширине оригиналу
-    if (metadata.width && metadata.width > config.width) {
+    if (effectiveWidth && effectiveWidth > config.width) {
       variants[name] = await image
         .clone() // Важно клонировать, чтобы операции не влияли друг на друга
         .resize({ width: config.width })
@@ -106,10 +109,11 @@ export async function extractAndStructureMetadata(fileBuffer: Buffer): Promise<P
     ])
 
     if (!exifData) {
+      const isRotated = Boolean(sharpMeta.orientation && sharpMeta.orientation >= 5 && sharpMeta.orientation <= 8)
       return {
         metadata: {
-          width: sharpMeta.width,
-          height: sharpMeta.height,
+          width: isRotated ? sharpMeta.height : sharpMeta.width,
+          height: isRotated ? sharpMeta.width : sharpMeta.height,
           metadata: {
             thumbhash: thumbhash || undefined,
             technical: {
@@ -145,8 +149,13 @@ export async function extractAndStructureMetadata(fileBuffer: Buffer): Promise<P
       structuredMeta.longitude = exifData.longitude
     }
 
-    structuredMeta.width = sharpMeta.width
-    structuredMeta.height = sharpMeta.height
+    const isRotated = Boolean(
+      (sharpMeta.orientation && sharpMeta.orientation >= 5 && sharpMeta.orientation <= 8)
+      || (exifData.Orientation && exifData.Orientation >= 5 && exifData.Orientation <= 8),
+    )
+
+    structuredMeta.width = isRotated ? sharpMeta.height : sharpMeta.width
+    structuredMeta.height = isRotated ? sharpMeta.width : sharpMeta.height
 
     structuredMeta.metadata = {
       thumbhash: thumbhash || undefined,

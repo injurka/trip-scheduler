@@ -5,6 +5,11 @@ import { addActivityEvent } from './formatters/activity.formatter'
 import { addBookingEvents } from './formatters/booking.formatter'
 import { addDayEvent } from './formatters/day.formatter'
 
+// ical-generator writes calendar-level name/description verbatim (unlike event TEXT).
+function escapeCalendarText(value: string): string {
+  return value.replace(/\\/g, '\\\\').replace(/\r\n|\r|\n/g, '\\n').replace(/;/g, '\\;').replace(/,/g, '\\,')
+}
+
 export function generateTripCalendar(
   input: TripCalendarInput,
   options: TripCalendarOptions = {},
@@ -18,8 +23,8 @@ export function generateTripCalendar(
   } = options
 
   const calendar = ical({
-    name: calendarName,
-    description: trip.description || undefined,
+    name: escapeCalendarText(calendarName),
+    description: trip.description ? escapeCalendarText(trip.description) : undefined,
     url: trip.url || undefined,
   })
 
