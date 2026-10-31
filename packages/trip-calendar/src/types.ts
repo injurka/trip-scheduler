@@ -182,7 +182,8 @@ export interface TripCalendarOptions {
   includeActivities?: boolean
 
   /**
-   * Включать ли бронирования (перелеты, отели, поезда, авто и др.)
+   * Включать ли бронирования транспорта и билетов. Отели не создают события;
+   * заселение и выезд экспортируются из активностей маршрута.
    * @default true
    */
   includeBookings?: boolean

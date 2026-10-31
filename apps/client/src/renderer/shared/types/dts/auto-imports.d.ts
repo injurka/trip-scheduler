@@ -56,6 +56,7 @@ declare global {
   const defineAsyncComponent: typeof import('vue').defineAsyncComponent
   const defineComponent: typeof import('vue').defineComponent
   const defineStore: typeof import('pinia').defineStore
+  const deriveImageVariants: typeof import('../../lib/url').deriveImageVariants
   const eagerComputed: typeof import('@vueuse/core').eagerComputed
   const effectScope: typeof import('vue').effectScope
   const ensureMaplibreWorkerReady: typeof import('../../lib/map-styles-sources').ensureMaplibreWorkerReady
@@ -471,6 +472,7 @@ declare module 'vue' {
     readonly defineAsyncComponent: UnwrapRef<typeof import('vue')['defineAsyncComponent']>
     readonly defineComponent: UnwrapRef<typeof import('vue')['defineComponent']>
     readonly defineStore: UnwrapRef<typeof import('pinia')['defineStore']>
+    readonly deriveImageVariants: UnwrapRef<typeof import('../../lib/url')['deriveImageVariants']>
     readonly eagerComputed: UnwrapRef<typeof import('@vueuse/core')['eagerComputed']>
     readonly effectScope: UnwrapRef<typeof import('vue')['effectScope']>
     readonly ensureMaplibreWorkerReady: UnwrapRef<typeof import('../../lib/map-styles-sources')['ensureMaplibreWorkerReady']>

@@ -111,8 +111,8 @@ describe('tripCalendarGenerator', () => {
     expect(ics).toContain('Москва ➔ Токио')
 
     // Hotel
-    expect(ics).toContain('Park Hyatt Tokyo')
-    expect(ics).toContain('HOTEL-999')
+    expect(ics).not.toContain('Park Hyatt Tokyo')
+    expect(ics).not.toContain('HOTEL-999')
 
     // Day
     expect(ics).toContain('Прибытие и заселение')

@@ -101,7 +101,7 @@ const currentExportItems = computed<ExportItemOption[]>(() => {
       {
         key: 'includeBookings',
         label: 'Бронирования',
-        hint: 'Рейсы, поезда и заселение в отели',
+        hint: 'Рейсы, поезда и билеты; отели — только из плана дня',
         icon: 'mdi:ticket-percent-outline',
       },
     ]

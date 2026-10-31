@@ -3,7 +3,6 @@ import type {
   AttractionData,
   CarData,
   FlightData,
-  HotelData,
   OtherData,
   TrainData,
   TripCalendarBooking,
@@ -24,14 +23,6 @@ function parseIsoToDate(isoString?: string | null, offset?: string): Date | null
   return Number.isNaN(date.getTime()) ? null : date
 }
 
-function parseHotelDate(dateStr?: string | null, timeStr: string = '14:00'): Date | null {
-  if (!dateStr || !/^\d{4}-\d{2}-\d{2}$/.test(dateStr.trim()))
-    return null
-  const [year = 2000, month = 1, day = 1] = dateStr.trim().split('-').map(Number)
-  const [hours = 14, minutes = 0] = timeStr.split(':').map(Number)
-  return new Date(Date.UTC(year, month - 1, day, hours, minutes, 0))
-}
-
 export function addBookingEvents(
   calendar: ICalCalendar,
   booking: TripCalendarBooking,
@@ -45,7 +36,8 @@ export function addBookingEvents(
       formatFlight(calendar, booking, data as FlightData, trip, options)
       break
     case 'hotel':
-      formatHotel(calendar, booking, data as HotelData, trip, options)
+      // Hotel bookings describe accommodation, not scheduled activities.
+      // Check-in/out is exported only from the timed daily itinerary.
       break
     case 'train':
       formatTrain(calendar, booking, data as TrainData, trip, options)
@@ -131,74 +123,6 @@ function formatFlight(
       })
     }
   })
-}
-
-function formatHotel(
-  calendar: ICalCalendar,
-  booking: TripCalendarBooking,
-  data: HotelData,
-  trip: TripCalendarTrip,
-  options: TripCalendarOptions,
-): void {
-  const checkIn = parseHotelDate(data?.checkInDate, data?.checkInTime || '00:00')
-  const checkOut = parseHotelDate(data?.checkOutDate, data?.checkOutTime || '00:00')
-
-  if (!checkIn)
-    return
-
-  const hotelName = data?.hotelName || booking.title || 'Отель'
-
-  const descLines: string[] = []
-  if (data?.address)
-    descLines.push(`Адрес: ${data.address}`)
-  if (data?.confirmationNumber)
-    descLines.push(`Номер брони: ${data.confirmationNumber}`)
-  if (data?.roomType)
-    descLines.push(`Номер: ${data.roomType}`)
-  if (data?.guests)
-    descLines.push(`Гости: ${data.guests}`)
-  if (data?.phone)
-    descLines.push(`Телефон: ${data.phone}`)
-  if (data?.email)
-    descLines.push(`Email: ${data.email}`)
-  if (data?.website)
-    descLines.push(`Сайт: ${data.website}`)
-  if (data?.notes)
-    descLines.push(`\nЗаметки: ${data.notes}`)
-  if (trip.url)
-    descLines.push(`\nВ Trip Scheduler: ${trip.url}`)
-
-  const locTitle = [data?.hotelName, data?.address].filter(Boolean).join(', ') || undefined
-  const locationProp = locTitle
-    ? (data?.location ? { title: locTitle, geo: { lat: data.location.lat, lon: data.location.lon } } : locTitle)
-    : undefined
-
-  // A stay is reference information, not a busy event spanning every night.
-  const milestones = [
-    { id: `booking-${booking.id}`, start: checkIn, time: data?.checkInTime, label: 'Заселение' },
-    ...(checkOut && checkOut > checkIn
-      ? [{ id: `booking-${booking.id}-checkout`, start: checkOut, time: data?.checkOutTime, label: 'Выезд' }]
-      : []),
-  ]
-  for (const milestone of milestones) {
-    const summary = `🏨 ${milestone.label}: ${hotelName}`
-    const event = calendar.createEvent({
-      id: milestone.id,
-      start: milestone.start,
-      ...(milestone.time ? { end: new Date(milestone.start.getTime() + 30 * 60 * 1000) } : { allDay: true }),
-      floating: true,
-      summary,
-      description: calendarPlainText([
-        ...(!milestone.time ? ['Время не указано в бронировании.'] : []),
-        ...descLines,
-      ].join('\n')) || undefined,
-      location: locationProp,
-      url: data?.sourceUrl || trip.url || undefined,
-    })
-    if (options.enableAlarms !== false && milestone.time) {
-      event.createAlarm({ type: ICalAlarmType.display, trigger: 60 * 60, description: summary })
-    }
-  }
 }
 
 function formatTrain(

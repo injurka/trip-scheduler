@@ -18,35 +18,30 @@ describe('calendar presentation', () => {
     expect(generateTripCalendar({ trip, days }, { includeDaySummaries: true }).events()).toHaveLength(2)
   })
 
-  it('creates hotel milestones instead of blocking the whole stay', () => {
-    const events = generateTripCalendar({ trip, bookings: [{ id: 'hotel', type: 'hotel', title: 'Hotel', data: {
-      checkInDate: '2026-11-01',
-      checkOutDate: '2026-11-05',
-      checkInTime: '15:00',
-      checkOutTime: '11:00',
-    } }] }).events()
-    expect(events).toHaveLength(2)
-    expect(events[0].id()).toBe('booking-hotel')
-    expect(events[0].summary()).toBe('🏨 Заселение: Hotel')
-    expect(events[1].summary()).toBe('🏨 Выезд: Hotel')
-    for (const event of events) {
-      const ics = event.toString()
-      expect(ics).toContain(`DTSTART:${event === events[0] ? '20261101T150000' : '20261105T110000'}\r\n`)
-      expect((event.end() as Date).getTime() - (event.start() as Date).getTime()).toBe(30 * 60 * 1000)
-    }
-  })
-
-  it('does not invent hotel times or alarms when only dates are known', () => {
-    const events = generateTripCalendar({ trip, bookings: [{ id: 'hotel', type: 'hotel', title: 'Hotel', data: {
-      checkInDate: '2026-11-01',
-      checkOutDate: '2026-11-05',
-    } }] }).events()
-    expect(events).toHaveLength(2)
-    for (const event of events) {
-      expect(event.allDay()).toBe(true)
-      expect(event.alarms()).toHaveLength(0)
-      expect(event.description()?.plain).toContain('Время не указано')
-    }
+  it('excludes hotel bookings even with check-in times, preserving itinerary activities', () => {
+    const events = generateTripCalendar({
+      trip,
+      bookings: [
+        { id: 'hotel', type: 'hotel', title: 'Booking hotel', data: {
+          checkInDate: '2026-11-10',
+          checkOutDate: '2026-11-11',
+          checkInTime: '15:00',
+          checkOutTime: '11:00',
+        } },
+        { id: 'unknown-time', type: 'hotel', title: 'Other hotel', data: {
+          checkInDate: '2026-11-10',
+          checkOutDate: '2026-11-11',
+        } },
+      ],
+      days: [{ id: 'day', date: '2026-11-11', title: 'Hualien', activities: [
+        { id: 'checkin', title: 'Заселение в Together Hotel Hualien', startTime: '12:20', endTime: '12:35' },
+      ] }],
+    }).events()
+    expect(events).toHaveLength(1)
+    expect(events[0].id()).toBe('act-checkin')
+    expect(events[0].toString()).toContain('DTSTART:20261111T122000\r\n')
+    expect(events[0].toString()).toContain('DTEND:20261111T123500\r\n')
+    expect(events[0].allDay()).toBe(false)
   })
 
   it('uses transport endpoint offsets and preserves explicit timestamp offsets', () => {
