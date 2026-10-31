@@ -77,7 +77,7 @@ describe('memory notification delivery report', () => {
     const report = await notificationService.sendMemoryUpdate('actor', 'trip', 'day')
     expect(report.fcm).toEqual({ attempted: 1, accepted: 1, failed: 0, skipped: 0, errorCodes: [] })
     expect(sendFcm).toHaveBeenCalledWith('device-token', expect.objectContaining({
-      url: 'trip-scheduler://trip/trip?day=day&section=memories',
+      url: 'trip-scheduler://trip/trip?day=day&view=memories',
     }))
   })
 

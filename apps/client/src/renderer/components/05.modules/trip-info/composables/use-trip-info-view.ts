@@ -44,6 +44,7 @@ export function useTripInfoView() {
   })
   const dayId = computed(() => route.query.day as string)
   const sectionQuery = computed(() => route.query.section as string)
+  const viewQuery = computed(() => route.query.view)
 
   const resolvedSectionId = computed(() => {
     const query = sectionQuery.value
@@ -112,6 +113,11 @@ export function useTripInfoView() {
     else if (!newDayId && plan.currentDayId && !sectionQuery.value) {
       plan.setCurrentDay('')
     }
+  }, { immediate: true })
+
+  watch(viewQuery, (view) => {
+    if (view === 'plan' || view === 'memories')
+      ui.setActiveView(view)
   }, { immediate: true })
 
   watch([() => ui.activeView, tripId], ([view, tId]) => {

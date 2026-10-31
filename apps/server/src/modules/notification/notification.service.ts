@@ -88,7 +88,7 @@ export const notificationService = {
       recordError(web, 'NOT_CONFIGURED')
     }
 
-    const route = `/trip/${tripId}?day=${dayId}&section=memories`
+    const route = `/trip/${tripId}?day=${dayId}&view=memories`
     const payload = JSON.stringify({
       title: `Новые фото в "${trip.title}"`,
       body: 'Кто-то поделился воспоминаниями. Нажмите, чтобы посмотреть.',
