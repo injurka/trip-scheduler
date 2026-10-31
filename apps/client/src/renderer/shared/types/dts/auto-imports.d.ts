@@ -83,6 +83,7 @@ declare global {
   const getThumbHashDataUrl: typeof import('../../lib/thumbhash').getThumbHashDataUrl
   const getTilesForBBox: typeof import('../../lib/tile-calc').getTilesForBBox
   const getTimeFromTimestamp: typeof import('../../lib/date-time').getTimeFromTimestamp
+  const getTripCalendarUrl: typeof import('../../lib/url').getTripCalendarUrl
   const getTripDeepLinkUrl: typeof import('../../lib/deep-link').getTripDeepLinkUrl
   const getTripWebUrl: typeof import('../../lib/deep-link').getTripWebUrl
   const h: typeof import('vue').h
@@ -177,6 +178,7 @@ declare global {
   const toRef: typeof import('vue').toRef
   const toRefs: typeof import('vue').toRefs
   const toValue: typeof import('vue').toValue
+  const toWebcalUrl: typeof import('../../lib/url').toWebcalUrl
   const transliterate: typeof import('../../lib/slug').transliterate
   const triggerRef: typeof import('vue').triggerRef
   const tryOnBeforeMount: typeof import('@vueuse/core').tryOnBeforeMount
@@ -496,6 +498,7 @@ declare module 'vue' {
     readonly getThumbHashDataUrl: UnwrapRef<typeof import('../../lib/thumbhash')['getThumbHashDataUrl']>
     readonly getTilesForBBox: UnwrapRef<typeof import('../../lib/tile-calc')['getTilesForBBox']>
     readonly getTimeFromTimestamp: UnwrapRef<typeof import('../../lib/date-time')['getTimeFromTimestamp']>
+    readonly getTripCalendarUrl: UnwrapRef<typeof import('../../lib/url')['getTripCalendarUrl']>
     readonly getTripDeepLinkUrl: UnwrapRef<typeof import('../../lib/deep-link')['getTripDeepLinkUrl']>
     readonly getTripWebUrl: UnwrapRef<typeof import('../../lib/deep-link')['getTripWebUrl']>
     readonly h: UnwrapRef<typeof import('vue')['h']>
@@ -590,6 +593,7 @@ declare module 'vue' {
     readonly toRef: UnwrapRef<typeof import('vue')['toRef']>
     readonly toRefs: UnwrapRef<typeof import('vue')['toRefs']>
     readonly toValue: UnwrapRef<typeof import('vue')['toValue']>
+    readonly toWebcalUrl: UnwrapRef<typeof import('../../lib/url')['toWebcalUrl']>
     readonly transliterate: UnwrapRef<typeof import('../../lib/slug')['transliterate']>
     readonly triggerRef: UnwrapRef<typeof import('vue')['triggerRef']>
     readonly tryOnBeforeMount: UnwrapRef<typeof import('@vueuse/core')['tryOnBeforeMount']>

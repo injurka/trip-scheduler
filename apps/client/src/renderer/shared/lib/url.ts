@@ -121,6 +121,24 @@ export function getImageUrl(path: string | null | undefined, options?: ImageOpti
 }
 
 /**
+ * Возвращает публичную ссылку на ICS-календарь путешествия.
+ * Ссылка ведёт на API-сервер (а не на origin веб-клиента, который отдаёт только SPA).
+ * @param slugOrId - shareSlug (приоритетно) либо ID путешествия.
+ */
+export function getTripCalendarUrl(slugOrId: string): string {
+  const base = (serverUrl || (typeof window !== 'undefined' ? window.location.origin : '')).replace(/\/+$/, '')
+
+  return `${base}/api/trips/${encodeURIComponent(slugOrId)}/calendar.ics`
+}
+
+/**
+ * Преобразует http(s)-ссылку на календарь в webcal:// для подписки в нативных календарях.
+ */
+export function toWebcalUrl(httpUrl: string): string {
+  return httpUrl.replace(/^https?:\/\//, 'webcal://')
+}
+
+/**
  * Удаляет только параметр авторизации `token` из URL, сохраняя остальные query-параметры (w, h, fmt и т.д.)
  */
 export function stripAuthTokenFromUrl(url: string | null | undefined): string {

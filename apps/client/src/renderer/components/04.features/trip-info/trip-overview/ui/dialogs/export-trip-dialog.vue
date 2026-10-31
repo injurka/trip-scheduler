@@ -10,6 +10,9 @@ import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitDialogWithClose } from '~/components/01.kit/kit-dialog-with-close'
 import { useRequest } from '~/plugins/request'
 import { useToast } from '~/shared/composables/use-toast'
+import { isTauri } from '~/shared/lib/env'
+import { openExternalUrl } from '~/shared/lib/opener'
+import { getTripCalendarUrl, toWebcalUrl } from '~/shared/lib/url'
 import { EActivitySectionType } from '~/shared/types/models/activity'
 import { TripSectionType } from '~/shared/types/models/trip'
 
@@ -174,16 +177,35 @@ async function ensureCalendarIdentifier(): Promise<string> {
 
   return props.trip.id
 }
+async function resolveCalendarUrl(): Promise<string> {
+  return getTripCalendarUrl(await ensureCalendarIdentifier())
+}
 async function copyCalendarLink() {
-  const slugOrId = await ensureCalendarIdentifier()
-  const url = `${window.location.origin}/api/trips/${slugOrId}/calendar.ics`
-  copy(url)
+  copy(await resolveCalendarUrl())
   toast.success('Ссылка на календарь скопирована')
 }
 async function openWebcalSubscription() {
-  const slugOrId = await ensureCalendarIdentifier()
-  const url = `${window.location.origin}/api/trips/${slugOrId}/calendar.ics`.replace(/^https?:\/\//, 'webcal://')
-  window.open(url, '_blank')
+  const httpUrl = await resolveCalendarUrl()
+  const webcalUrl = toWebcalUrl(httpUrl)
+
+  // На случай, если в системе нет обработчика webcal:// — ссылка всегда копируется
+  copy(httpUrl)
+  toast.info('Открываем календарь. Если ничего не произошло — ссылка скопирована, добавьте её вручную как подписку.')
+
+  if (isTauri) {
+    await openExternalUrl(webcalUrl)
+
+    return
+  }
+
+  // window.open после await блокируется как popup, а для кастомной схемы нужна именно навигация
+  window.location.assign(webcalUrl)
+}
+async function openGoogleCalendarSubscription() {
+  const httpUrl = await resolveCalendarUrl()
+  const subscribeUrl = `https://calendar.google.com/calendar/r?cid=${encodeURIComponent(toWebcalUrl(httpUrl))}`
+
+  await openExternalUrl(subscribeUrl)
 }
 function stripMarkdown(text: string): string {
   if (!text)
@@ -653,6 +675,14 @@ function handleExport() {
               @click="openWebcalSubscription"
             >
               Подписаться
+            </KitBtn>
+            <KitBtn
+              size="sm"
+              variant="outlined"
+              icon="mdi:google"
+              @click="openGoogleCalendarSubscription"
+            >
+              Google Календарь
             </KitBtn>
             <KitBtn
               size="sm"
