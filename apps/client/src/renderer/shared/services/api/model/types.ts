@@ -103,6 +103,19 @@ export interface IPostRepository {
   getWhitelist: (params: { id: string }) => Promise<WhitelistUser[]>
 }
 
+export interface NotificationChannelDelivery {
+  attempted: number
+  accepted: number
+  failed: number
+  skipped: number
+  errorCodes: string[]
+}
+
+export interface MemoryNotificationDelivery {
+  web: NotificationChannelDelivery
+  fcm: NotificationChannelDelivery
+}
+
 export interface INotificationRepository {
   checkTripSubscription: (tripId: string) => Promise<boolean>
   subscribeToTrip: (payload: { tripId: string, subscription: any }) => Promise<void>
@@ -110,7 +123,7 @@ export interface INotificationRepository {
   registerPushToken: (token: string) => Promise<void>
   unregisterPushToken: (token: string) => Promise<void>
   unsubscribeFromTrip: (tripId: string) => Promise<void>
-  sendMemoryUpdate: (payload: { tripId: string, dayId: string }) => Promise<void>
+  sendMemoryUpdate: (payload: { tripId: string, dayId: string }) => Promise<MemoryNotificationDelivery>
 }
 
 export interface IMarksRepository {

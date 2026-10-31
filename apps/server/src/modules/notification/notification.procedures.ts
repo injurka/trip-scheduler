@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { protectedProcedure } from '~/lib/trpc'
 import {
   CheckTripSubscriptionInputSchema,
+  MemoryNotificationDeliverySchema,
   PushTokenInputSchema,
   SendMemoryUpdateInputSchema,
   SubscribeToTripInputSchema,
@@ -55,8 +56,8 @@ export const notificationProcedures = {
 
   sendMemoryUpdate: protectedProcedure
     .input(SendMemoryUpdateInputSchema)
-    .output(z.void())
+    .output(MemoryNotificationDeliverySchema)
     .mutation(async ({ input, ctx }) => {
-      await notificationService.sendMemoryUpdate(ctx.user.id, input.tripId, input.dayId)
+      return await notificationService.sendMemoryUpdate(ctx.user.id, input.tripId, input.dayId)
     }),
 }

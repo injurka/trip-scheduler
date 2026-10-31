@@ -24,17 +24,21 @@ export function verifyOAuthClientState(value: string | null): boolean {
   if (!storedValue)
     return value === null
 
-  localStorage.removeItem(PENDING_OAUTH_STATE_KEY)
-
   try {
     const storedState = JSON.parse(storedValue) as Partial<StoredOAuthState>
-
-    return typeof storedState.value === 'string'
+    const isValid = typeof storedState.value === 'string'
       && typeof storedState.expiresAt === 'number'
       && storedState.expiresAt >= Date.now()
       && storedState.value === value
+
+    if (isValid || typeof storedState.expiresAt !== 'number' || storedState.expiresAt < Date.now())
+      localStorage.removeItem(PENDING_OAUTH_STATE_KEY)
+
+    return isValid
   }
   catch {
+    localStorage.removeItem(PENDING_OAUTH_STATE_KEY)
+
     return false
   }
 }

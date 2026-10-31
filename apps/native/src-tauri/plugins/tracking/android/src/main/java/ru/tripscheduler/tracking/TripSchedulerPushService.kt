@@ -15,6 +15,7 @@ import com.google.firebase.messaging.RemoteMessage
 
 class TripSchedulerPushService : FirebaseMessagingService() {
     override fun onNewToken(token: String) {
+        Log.i(TAG, "FCM registration token refreshed")
         getSharedPreferences(PUSH_PREFERENCES, Context.MODE_PRIVATE)
             .edit()
             .putString(PUSH_TOKEN_KEY, token)
@@ -23,9 +24,30 @@ class TripSchedulerPushService : FirebaseMessagingService() {
     }
 
     override fun onMessageReceived(message: RemoteMessage) {
-        val title = message.data["title"] ?: "Trip Scheduler"
-        val body = message.data["body"] ?: return
-        val launchIntent = packageManager.getLaunchIntentForPackage(packageName) ?: return
+        Log.i(TAG, "FCM message received")
+        val title = message.data["title"] ?: message.notification?.title ?: "Trip Scheduler"
+        val body = message.data["body"] ?: message.notification?.body
+        if (body == null) {
+            Log.w(TAG, "FCM message has no notification body")
+            return
+        }
+        val notificationManager = NotificationManagerCompat.from(this)
+        if (!notificationManager.areNotificationsEnabled()) {
+            Log.w(TAG, "FCM notification blocked: app notifications are disabled")
+            return
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = getSystemService(NotificationManager::class.java).getNotificationChannel(CHANNEL_ID)
+            if (channel?.importance == NotificationManager.IMPORTANCE_NONE) {
+                Log.w(TAG, "FCM notification blocked: notification channel is disabled")
+                return
+            }
+        }
+        val launchIntent = packageManager.getLaunchIntentForPackage(packageName)
+        if (launchIntent == null) {
+            Log.w(TAG, "FCM notification cannot find the app launch activity")
+            return
+        }
 
         message.data["url"]?.let { url ->
             launchIntent.action = Intent.ACTION_VIEW
@@ -50,10 +72,11 @@ class TripSchedulerPushService : FirebaseMessagingService() {
             .build()
 
         try {
-            NotificationManagerCompat.from(this).notify(
+            notificationManager.notify(
                 message.data["url"]?.hashCode() ?: System.currentTimeMillis().toInt(),
                 notification,
             )
+            Log.i(TAG, "FCM notification posted")
         } catch (error: SecurityException) {
             Log.w(TAG, "Cannot display FCM notification without notification permission", error)
         }

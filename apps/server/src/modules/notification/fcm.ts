@@ -14,7 +14,14 @@ interface FcmErrorResponse {
   error?: {
     status?: string
     message?: string
-    details?: Array<{ errorCode?: string }>
+    details?: Array<{ errorCode?: string, reason?: string }>
+  }
+}
+
+export class FcmRequestError extends Error {
+  constructor(readonly code: string, message: string) {
+    super(message)
+    this.name = 'FcmRequestError'
   }
 }
 
@@ -57,14 +64,18 @@ function getServiceAccount(): FcmServiceAccount {
   if (serviceAccount)
     return serviceAccount
 
-  const encodedJson = process.env.FCM_SERVICE_ACCOUNT_JSON_BASE64
-  const raw = process.env.FCM_SERVICE_ACCOUNT_JSON ?? (encodedJson ? atob(encodedJson) : undefined)
-  if (!raw)
-    throw new Error('FCM_SERVICE_ACCOUNT_JSON is not configured')
-
-  const parsed = JSON.parse(raw) as Partial<FcmServiceAccount>
-  if (!parsed.project_id || !parsed.client_email || !parsed.private_key)
-    throw new Error('FCM service account JSON must include project_id, client_email, and private_key')
+  let parsed: Partial<FcmServiceAccount>
+  try {
+    const encodedJson = process.env.FCM_SERVICE_ACCOUNT_JSON_BASE64?.trim()
+    const raw = process.env.FCM_SERVICE_ACCOUNT_JSON?.trim() || (encodedJson ? atob(encodedJson) : '')
+    parsed = JSON.parse(raw) as Partial<FcmServiceAccount>
+    if (!parsed || !parsed.project_id || !parsed.client_email || !parsed.private_key)
+      throw new Error('Missing service account fields')
+  }
+  catch {
+    // JSON parser errors can include credential contents. Never forward them.
+    throw new FcmRequestError('INVALID_CREDENTIALS', 'FCM service account configuration is missing or invalid')
+  }
 
   serviceAccount = parsed as FcmServiceAccount
   return serviceAccount
@@ -93,7 +104,9 @@ async function createAccessToken(): Promise<CachedAccessToken> {
     { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
     false,
     ['sign'],
-  )
+  ).catch(() => {
+    throw new FcmRequestError('INVALID_CREDENTIALS', 'FCM service account private key is invalid')
+  })
   const signature = await crypto.subtle.sign(
     'RSASSA-PKCS1-v1_5',
     signingKey,
@@ -116,7 +129,7 @@ async function createAccessToken(): Promise<CachedAccessToken> {
   } | null
 
   if (!response.ok || !responseBody?.access_token) {
-    throw new Error(`FCM OAuth token request failed (${response.status}): ${responseBody?.error_description ?? 'no access token returned'}`)
+    throw new FcmRequestError(`OAUTH_${response.status}`, `FCM OAuth token request failed (${response.status})`)
   }
 
   return {
@@ -174,6 +187,7 @@ export async function sendFcmMessage(token: string, data: Record<string, string>
 
   const responseBody = await response.json().catch(() => null) as FcmErrorResponse | null
   const errorCode = responseBody?.error?.details?.find(detail => detail.errorCode)?.errorCode
+    ?? responseBody?.error?.details?.find(detail => detail.reason)?.reason
     ?? responseBody?.error?.status
 
   return {

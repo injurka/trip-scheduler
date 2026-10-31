@@ -227,8 +227,34 @@ const useNotificationStore = defineStore('notification', {
       await useRequest({
         key: ENotificationKeys.NOTIFY_MEMORY,
         fn: db => db.notification.sendMemoryUpdate({ tripId, dayId }),
-        onSuccess: () => {
-          toast.info('Уведомления отправлены')
+        onSuccess: (report) => {
+          if (!report) {
+            toast.warn('Сервер не вернул результат отправки уведомлений')
+
+            return
+          }
+
+          const accepted = report.web.accepted + report.fcm.accepted
+          const failed = report.web.failed + report.fcm.failed + report.web.skipped + report.fcm.skipped
+
+          if (report.web.attempted + report.fcm.attempted === 0) {
+            toast.warn('Нет подписанных устройств других участников. На телефоне получателя нажмите «Следить»')
+          }
+          else if (accepted === 0 && report.fcm.errorCodes.includes('NOT_CONFIGURED')) {
+            toast.error('Android-уведомления не настроены на сервере')
+          }
+          else if (accepted === 0) {
+            toast.error('Не удалось отправить уведомления. Проверьте настройки отправки на сервере')
+          }
+          else if (failed > 0) {
+            toast.warn(`Передано службе уведомлений: ${accepted}. Не отправлено: ${failed}`)
+          }
+          else {
+            toast.info(`Передано службе уведомлений: ${accepted}`)
+          }
+        },
+        onError: ({ error }) => {
+          toast.error(error.customMessage || 'Не удалось отправить уведомления')
         },
       })
     },

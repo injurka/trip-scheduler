@@ -1,5 +1,20 @@
 import { z } from 'zod'
 
+export const NotificationChannelDeliverySchema = z.object({
+  attempted: z.number().int().nonnegative(),
+  accepted: z.number().int().nonnegative(),
+  failed: z.number().int().nonnegative(),
+  skipped: z.number().int().nonnegative(),
+  errorCodes: z.array(z.string()),
+})
+
+export type NotificationChannelDelivery = z.infer<typeof NotificationChannelDeliverySchema>
+
+export const MemoryNotificationDeliverySchema = z.object({
+  web: NotificationChannelDeliverySchema,
+  fcm: NotificationChannelDeliverySchema,
+})
+
 export const PushSubscriptionSchema = z.object({
   endpoint: z.string(),
   keys: z.object({

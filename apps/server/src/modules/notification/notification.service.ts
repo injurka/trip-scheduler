@@ -1,10 +1,20 @@
 import type { PushSubscription as WebPushSubscription } from 'web-push'
+import type { NotificationChannelDelivery } from './notification.schemas'
 import webpush from 'web-push'
 import { createTRPCError } from '~/lib/trpc'
 import { dayRepository } from '~/repositories/day.repository'
 import { notificationRepository } from '~/repositories/notification.repository'
 import { tripRepository } from '~/repositories/trip.repository'
-import { hasFcmServiceAccountConfigured, sendFcmMessage } from './fcm'
+import { FcmRequestError, hasFcmServiceAccountConfigured, sendFcmMessage } from './fcm'
+
+function deliveryReport(attempted: number): NotificationChannelDelivery {
+  return { attempted, accepted: 0, failed: 0, skipped: 0, errorCodes: [] }
+}
+
+function recordError(report: NotificationChannelDelivery, code: string) {
+  if (!report.errorCodes.includes(code))
+    report.errorCodes.push(code)
+}
 
 if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
   webpush.setVapidDetails(
@@ -14,7 +24,7 @@ if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
   )
 }
 else {
-  console.warn('VAPID keys are missing. Push notifications will not work.')
+  console.warn('[Web Push] VAPID keys are missing; browser notifications are unavailable.')
 }
 
 export const notificationService = {
@@ -71,8 +81,12 @@ export const notificationService = {
       notificationRepository.getSubscribersPushTokens(tripId, actorId, 'fcm'),
     ])
 
-    if (tokens.length === 0 && pushTokens.length === 0)
-      return
+    const web = deliveryReport(tokens.length)
+    const webConfigured = Boolean(process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY)
+    if (!webConfigured && tokens.length > 0) {
+      web.skipped = tokens.length
+      recordError(web, 'NOT_CONFIGURED')
+    }
 
     const route = `/trip/${tripId}?day=${dayId}&section=memories`
     const payload = JSON.stringify({
@@ -85,7 +99,7 @@ export const notificationService = {
       tag: `trip-memory-${tripId}`,
     })
 
-    const sendPromises = tokens.map(async (tokenRecord: { endpoint: string, keys: { p256dh: string, auth: string } }) => {
+    const sendPromises = (webConfigured ? tokens : []).map(async (tokenRecord: { endpoint: string, keys: { p256dh: string, auth: string } }) => {
       try {
         await webpush.sendNotification(
           {
@@ -94,20 +108,28 @@ export const notificationService = {
           },
           payload,
         )
+        web.accepted++
       }
       catch (error: any) {
+        web.failed++
+        recordError(web, error.statusCode ? `HTTP_${error.statusCode}` : 'REQUEST_FAILED')
         if (error.statusCode === 410 || error.statusCode === 404) {
           await notificationRepository.deletePushSubscription(tokenRecord.endpoint)
         }
         else {
-          console.error('[Push Error]', error)
+          console.error(`[Web Push] Delivery failed: ${error.statusCode ?? 'REQUEST_FAILED'}.`)
         }
       }
     })
 
-    await Promise.allSettled(sendPromises)
-
-    await this.sendFcmMemoryUpdate(pushTokens, trip.title, route)
+    const [, fcm] = await Promise.all([
+      Promise.allSettled(sendPromises),
+      this.sendFcmMemoryUpdate(pushTokens, trip.title, route),
+    ])
+    const report = { web, fcm }
+    // Counts and provider error codes only: never log recipient tokens or keys.
+    process.stdout.write(`[Push] Memory notification summary ${JSON.stringify(report)}\n`)
+    return report
   },
 
   async sendFcmMemoryUpdate(
@@ -115,11 +137,15 @@ export const notificationService = {
     tripTitle: string,
     route: string,
   ) {
+    const report = deliveryReport(tokenRecords.length)
+    if (tokenRecords.length === 0)
+      return report
+
     if (!hasFcmServiceAccountConfigured()) {
-      if (tokenRecords.length > 0) {
-        console.warn('[FCM] Service account credentials are not configured; native push delivery is skipped.')
-      }
-      return
+      report.skipped = tokenRecords.length
+      recordError(report, 'NOT_CONFIGURED')
+      console.warn('[FCM] Service account credentials are not configured; native push delivery is skipped.')
+      return report
     }
 
     const deepLink = `trip-scheduler://${route.replace(/^\//, '')}`
@@ -132,8 +158,13 @@ export const notificationService = {
           url: deepLink,
         })
 
-        if (result.ok)
+        if (result.ok) {
+          report.accepted++
           return
+        }
+
+        report.failed++
+        recordError(report, result.errorCode ?? `HTTP_${result.status}`)
 
         if (result.errorCode === 'UNREGISTERED') {
           await notificationRepository.deletePushTokenByToken(token)
@@ -143,8 +174,13 @@ export const notificationService = {
         console.error(`[FCM] Delivery failed with HTTP ${result.status}: ${result.errorCode ?? 'unknown error'}.`)
       }
       catch (error) {
-        console.error('[FCM] Delivery request failed.', error)
+        const code = error instanceof FcmRequestError ? error.code : 'REQUEST_FAILED'
+        recordError(report, code)
+        console.error(`[FCM] Delivery request failed: ${code}.`)
       }
     }))
+    // Include transport/auth failures without counting cleanup errors twice.
+    report.failed = tokenRecords.length - report.accepted
+    return report
   },
 }

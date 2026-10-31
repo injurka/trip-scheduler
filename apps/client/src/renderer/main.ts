@@ -62,9 +62,10 @@ async function initializeApp() {
   setupMobileDevtools(appSettingsStore)
 
   // Инициализация Deep Link для внешних OAuth редиректов и ссылок приложения
-  initializeDeepLinks(pinia, router)
+  const sessionReady = restoreSession(pinia)
+  initializeDeepLinks(pinia, router, sessionReady)
 
-  await restoreSession(pinia)
+  await sessionReady
 
   const authStore = useAuthStore(pinia)
   const notificationStore = useNotificationStore(pinia)

@@ -172,13 +172,38 @@ export async function handleDeepLinkUrl(rawUrl: string, pinia: Pinia, router: Ro
 /**
  * Инициализирует слушатель Deep Link для нативных платформ Tauri.
  */
-export function initializeDeepLinks(pinia: Pinia, router: Router): void {
+export function initializeDeepLinks(pinia: Pinia, router: Router, sessionReady: Promise<void> = Promise.resolve()): void {
   if (!isTauri)
     return
 
+  const handledOAuthCallbacks = new Set<string>()
+  let processing = sessionReady
+
   const handleUrls = async (urls: string[]) => {
-    for (const url of urls)
-      await handleDeepLinkUrl(url, pinia, router)
+    for (const url of urls) {
+      processing = processing.then(async () => {
+        const parsed = new URL(normalizeDeepLinkUrl(url))
+        const isOAuthCallback = parsed.pathname === '/auth/callback'
+          || parsed.searchParams.has('oauth_success')
+          || parsed.searchParams.has('oauth_error')
+
+        if (isOAuthCallback && handledOAuthCallbacks.has(url))
+          return
+
+        if (isOAuthCallback) {
+          handledOAuthCallbacks.add(url)
+
+          if (handledOAuthCallbacks.size > 16)
+            handledOAuthCallbacks.delete(handledOAuthCallbacks.values().next().value!)
+        }
+
+        await handleDeepLinkUrl(url, pinia, router)
+      }).catch(() => {
+        console.warn('[DeepLink] Не удалось обработать входящую ссылку')
+      })
+    }
+
+    await processing
   }
 
   onOpenUrl(handleUrls).catch((err) => {

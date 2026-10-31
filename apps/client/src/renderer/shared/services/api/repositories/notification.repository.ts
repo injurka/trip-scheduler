@@ -1,4 +1,4 @@
-import type { INotificationRepository } from '../model/types'
+import type { INotificationRepository, MemoryNotificationDelivery } from '../model/types'
 import { trpc } from '~/shared/services/trpc/trpc.service'
 
 export class NotificationRepository implements INotificationRepository {
@@ -26,7 +26,7 @@ export class NotificationRepository implements INotificationRepository {
     await trpc.notification.unsubscribeFromTrip.mutate({ tripId })
   }
 
-  async sendMemoryUpdate(payload: { tripId: string, dayId: string }): Promise<void> {
-    await trpc.notification.sendMemoryUpdate.mutate(payload)
+  async sendMemoryUpdate(payload: { tripId: string, dayId: string }): Promise<MemoryNotificationDelivery> {
+    return await trpc.notification.sendMemoryUpdate.mutate(payload)
   }
 }
