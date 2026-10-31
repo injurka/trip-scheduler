@@ -10,7 +10,7 @@ import {
   DialogRoot,
   DialogTitle,
 } from 'reka-ui'
-import { computed, useId } from 'vue'
+import { computed, useId, watch } from 'vue'
 import { useDialogHistory } from '../composables/use-dialog-history'
 
 interface Props {
@@ -20,6 +20,8 @@ interface Props {
   persistent?: boolean
   description?: string
   contentClass?: string | Record<string, boolean> | string[]
+  fullscreenable?: boolean
+  resetFullscreenOnClose?: boolean
 }
 
 const {
@@ -29,13 +31,39 @@ const {
   persistent = false,
   description,
   contentClass,
+  fullscreenable = false,
+  resetFullscreenOnClose = true,
 } = defineProps<Props>()
+const emit = defineEmits<{
+  (e: 'toggleFullscreen', isFullscreen: boolean): void
+}>()
 const visible = defineModel<boolean>('visible', { required: true })
-
+const isFullscreen = defineModel<boolean>('fullscreen', { default: false })
 const dialogId = useId()
 
 const maxWidthPx = computed(() => `${maxWidth}px`)
 
+watch(visible, (isOpen) => {
+  if (!isOpen && resetFullscreenOnClose) {
+    isFullscreen.value = false
+  }
+})
+
+function toggleFullscreen() {
+  isFullscreen.value = !isFullscreen.value
+  emit('toggleFullscreen', isFullscreen.value)
+}
+function handleHeaderDblClick(event: MouseEvent) {
+  if (!fullscreenable)
+    return
+
+  const target = event.target as HTMLElement | null
+
+  if (target?.closest('button, a, input, select, textarea, [role="button"]'))
+    return
+
+  toggleFullscreen()
+}
 function handlePointerDownOutside(event: PointerDownOutsideEvent) {
   if (persistent) {
     event.preventDefault()
@@ -60,11 +88,11 @@ useDialogHistory(dialogId, visible)
       <DialogOverlay class="dialog-overlay" />
       <DialogContent
         class="dialog-content-wrapper"
-        :class="contentClass"
-        :style="{ maxWidth: maxWidthPx }"
+        :class="[contentClass, { 'is-fullscreen': isFullscreen }]"
+        :style="{ maxWidth: isFullscreen ? 'none' : maxWidthPx }"
         @pointer-down-outside="handlePointerDownOutside"
       >
-        <div class="dialog-header">
+        <div class="dialog-header" @dblclick="handleHeaderDblClick">
           <slot v-if="$slots.header" name="header" />
           <template v-else>
             <div class="title-container">
@@ -78,8 +106,19 @@ useDialogHistory(dialogId, visible)
             <div v-if="$slots['header-actions']" class="dialog-header-actions">
               <slot name="header-actions" />
             </div>
+            <button
+              v-if="fullscreenable"
+              type="button"
+              class="header-button fullscreen-button"
+              :class="{ 'is-active': isFullscreen }"
+              :aria-label="isFullscreen ? 'Свернуть из полноэкранного режима' : 'На весь экран'"
+              :title="isFullscreen ? 'Свернуть из полноэкранного режима' : 'На весь экран'"
+              @click="toggleFullscreen"
+            >
+              <Icon :icon="isFullscreen ? 'mdi:fullscreen-exit' : 'mdi:fullscreen'" />
+            </button>
             <DialogClose as-child>
-              <button class="close-button" :aria-label="`Закрыть диалог ${title ?? ''}`">
+              <button class="header-button close-button" :aria-label="`Закрыть диалог ${title ?? ''}`">
                 <Icon icon="mdi:close" />
               </button>
             </DialogClose>
@@ -145,6 +184,12 @@ useDialogHistory(dialogId, visible)
   flex-direction: column;
   gap: 16px;
   max-height: 90vh;
+  transition:
+    max-width 0.2s ease,
+    width 0.2s ease,
+    height 0.2s ease,
+    max-height 0.2s ease,
+    border-radius 0.2s ease;
 
   &:focus {
     outline: none;
@@ -155,6 +200,37 @@ useDialogHistory(dialogId, visible)
   }
   &[data-state='closed'] {
     animation: content-warp-out 200ms cubic-bezier(0.7, 0, 0.84, 0) forwards;
+  }
+
+  &.is-fullscreen {
+    animation: none !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    transform: none !important;
+    width: 100vw !important;
+    max-width: 100vw !important;
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+    border-radius: 0 !important;
+    border: none;
+    box-shadow: none;
+    padding: 16px 20px;
+    padding-top: max(16px, var(--safe-area-inset-top, env(safe-area-inset-top, 0px)));
+    padding-bottom: max(16px, var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)));
+    padding-left: max(20px, var(--safe-area-inset-left, env(safe-area-inset-left, 0px)));
+    padding-right: max(20px, var(--safe-area-inset-right, env(safe-area-inset-right, 0px)));
+
+    .dialog-header {
+      padding-bottom: 2px;
+    }
+
+    .dialog-body {
+      flex: 1 1 0;
+      min-height: 0;
+      height: 100%;
+    }
   }
 
   @include media-down(sm) {
@@ -176,6 +252,16 @@ useDialogHistory(dialogId, visible)
     }
     &[data-state='closed'] {
       animation: content-slide-down 200ms cubic-bezier(0.7, 0, 0.84, 0) forwards;
+    }
+
+    &.is-fullscreen {
+      animation: none !important;
+      max-height: 100dvh !important;
+      height: 100dvh !important;
+      border-top-left-radius: 0 !important;
+      border-top-right-radius: 0 !important;
+      padding-top: max(12px, var(--safe-area-inset-top, env(safe-area-inset-top, 0px)));
+      padding-bottom: max(12px, var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)));
     }
   }
 }
@@ -208,7 +294,9 @@ useDialogHistory(dialogId, visible)
   white-space: nowrap;
 }
 
-.dialog-actions.has-header-actions .close-button {
+.dialog-actions.has-header-actions .header-button,
+.dialog-actions.has-header-actions .close-button,
+.dialog-actions.has-header-actions .fullscreen-button {
   position: static;
   width: 38px;
   height: 38px;
@@ -243,7 +331,9 @@ useDialogHistory(dialogId, visible)
   margin-top: -8px;
 }
 
-.close-button {
+.header-button,
+.close-button,
+.fullscreen-button {
   background: transparent;
   border: none;
   padding: 4px;
@@ -253,17 +343,28 @@ useDialogHistory(dialogId, visible)
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  transition: background-color 0.2s;
+  transition:
+    background-color 0.2s,
+    color 0.2s;
+  font-size: 1.125rem;
+  width: 30px;
+  height: 30px;
 
   &:hover {
     background-color: var(--bg-hover-color);
     color: var(--fg-accent-color);
+  }
+
+  &.is-active {
+    color: var(--color-primary-base);
+    background-color: var(--bg-hover-color);
   }
 }
 
 .dialog-body {
   flex-grow: 1;
   overflow-y: auto;
+  min-height: 0;
 }
 
 .dialog-footer {

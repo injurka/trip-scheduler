@@ -1060,4 +1060,24 @@ function handleConfirm() {
     transform: rotate(360deg);
   }
 }
+
+:global(.dialog-content-wrapper.is-fullscreen) {
+  .concept-review {
+    display: flex;
+    flex-direction: column;
+    min-height: 100%;
+  }
+
+  .tab-panel {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+
+  .cards-scroll-area {
+    max-height: calc(100dvh - 360px);
+    flex: 1 1 auto;
+  }
+}
 </style>

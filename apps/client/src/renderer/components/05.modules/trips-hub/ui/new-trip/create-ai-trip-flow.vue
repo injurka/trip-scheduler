@@ -375,6 +375,7 @@ function openTrip() {
     icon="mdi:auto-fix"
     :max-width="dialogMaxWidth"
     :persistent="isRunning || phase === 'proposing' || showCloseConfirm"
+    fullscreenable
     @update:visible="onVisibleChange"
   >
     <div class="ai-trip-flow">
