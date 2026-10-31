@@ -16,5 +16,6 @@ import { UsefulLinks } from '~/components/05.modules/useful-links'
   margin: 0 auto;
   display: flex;
   flex-direction: column;
+  gap: 16px;
 }
 </style>

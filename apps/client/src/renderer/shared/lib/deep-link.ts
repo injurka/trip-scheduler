@@ -2,6 +2,7 @@ import type { Pinia } from 'pinia'
 import type { Router } from 'vue-router'
 import { getCurrent, onOpenUrl } from '@tauri-apps/plugin-deep-link'
 import { AppRoutePaths } from '~/shared/constants/routes'
+import { verifyOAuthClientState } from '~/shared/lib/oauth-state'
 import { useToastStore } from '~/shared/store/toast.store'
 import { useAuthStore } from '../store/auth.store'
 import { getAppBaseUrl, isTauri } from './env'
@@ -87,6 +88,18 @@ async function handleUserSettingsLink(
     await router.push(`/user/${authStore.user.id}/settings`)
 }
 
+function isValidOAuthLinkCallback(searchParams: URLSearchParams, toastStore: ReturnType<typeof useToastStore>): boolean {
+  if (!searchParams.has('oauth_success') && !searchParams.has('oauth_error'))
+    return true
+
+  const isValid = verifyOAuthClientState(searchParams.get('oauth_state'))
+
+  if (!isValid)
+    toastStore.error('Не удалось подтвердить привязку аккаунта. Повторите попытку.')
+
+  return isValid
+}
+
 function isSupportedDeepLinkPath(pathname: string): boolean {
   return pathname.startsWith('/trip/')
     || pathname.startsWith('/trips')
@@ -113,6 +126,13 @@ export async function handleDeepLinkUrl(rawUrl: string, pinia: Pinia, router: Ro
 
     // 1. Авторизация через OAuth callback
     if (pathname.includes('/auth/callback') || pathname.startsWith('/auth/callback')) {
+      if (!verifyOAuthClientState(searchParams.get('oauth_state'))) {
+        toastStore.error('Не удалось подтвердить вход. Повторите попытку.')
+        await router.push(AppRoutePaths.Auth.SignIn)
+
+        return
+      }
+
       await handleAuthCallback(
         searchParams,
         authStore,
@@ -125,6 +145,9 @@ export async function handleDeepLinkUrl(rawUrl: string, pinia: Pinia, router: Ro
 
     // 2. Привязка аккаунта в настройках
     if (pathname.includes('/user/settings') || pathname.includes('/settings')) {
+      if (!isValidOAuthLinkCallback(searchParams, toastStore))
+        return
+
       await handleUserSettingsLink(
         searchParams,
         authStore,

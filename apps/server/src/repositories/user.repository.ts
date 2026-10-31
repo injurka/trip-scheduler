@@ -182,9 +182,43 @@ export const userRepository = {
   },
 
   async update(id: string, data: z.infer<typeof UpdateUserInputSchema>): Promise<UserForClient> {
+    const { email: requestedEmail, ...profileData } = data
+    const updateData: Partial<typeof users.$inferInsert> = { ...profileData, updatedAt: new Date() }
+
+    if (requestedEmail !== undefined) {
+      const currentUser = await db.query.users.findFirst({
+        where: eq(users.id, id),
+        columns: { id: true, email: true },
+      })
+
+      if (!currentUser) {
+        throw createTRPCError('NOT_FOUND', 'Пользователь не найден.')
+      }
+
+      const email = requestedEmail.toLowerCase()
+
+      if (currentUser.email && currentUser.email.toLowerCase() !== email) {
+        throw createTRPCError('BAD_REQUEST', 'Почта аккаунта уже указана и не может быть изменена этим способом.')
+      }
+
+      if (!currentUser.email) {
+        const existingUser = await db.query.users.findFirst({
+          where: sql`lower(${users.email}) = ${email}`,
+          columns: { id: true },
+        })
+
+        if (existingUser) {
+          throw createTRPCError('CONFLICT', 'Пользователь с таким email уже существует.')
+        }
+
+        updateData.email = email
+        updateData.emailVerified = new Date()
+      }
+    }
+
     await db
       .update(users)
-      .set({ ...data, updatedAt: new Date() })
+      .set(updateData)
       .where(eq(users.id, id))
 
     return await this.getById(id) as UserForClient

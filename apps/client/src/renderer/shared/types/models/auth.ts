@@ -29,3 +29,8 @@ export type SignInPayload = RouterInput['user']['signIn']
  * @example RouterInput['user']['signUp']
  */
 export type SignUpPayload = RouterInput['user']['signUp']
+
+/**
+ * Данные для обновления профиля пользователя.
+ */
+export type UpdateUserPayload = RouterInput['user']['update']

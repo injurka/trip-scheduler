@@ -2,6 +2,7 @@ import { useVaultMemoriesStore } from '~/components/04.features/trip-info/trip-m
 import { useRequestStatus } from '~/plugins/request'
 import { AppRouteNames } from '~/shared/constants/routes'
 import { isMobileApp, isTauri, SERVER_URL } from '~/shared/lib/env'
+import { createOAuthClientState } from '~/shared/lib/oauth-state'
 import { openExternalUrl } from '~/shared/lib/opener'
 import { trpc } from '~/shared/services/trpc/trpc.service'
 import { useAppSettingsStore } from '~/shared/store/app-settings.store'
@@ -69,8 +70,11 @@ export function useProfileSettings() {
 
   const isUpdatingProfile = useRequestStatus([EAuthRequestKeys.UPDATE_USER, EAuthRequestKeys.UPLOAD_AVATAR])
 
-  // Кнопка сохранения активна, если изменено имя ИЛИ выбрана новая обложка
-  const isProfileChanged = computed(() => profileForm.name !== user.value?.name || !!coverFile.value)
+  // Кнопка сохранения активна при изменении имени, добавлении email или выборе обложки.
+  const isProfileChanged = computed(() =>
+    profileForm.name !== user.value?.name
+    || (!user.value?.email && !!profileForm.email.trim())
+    || !!coverFile.value)
 
   // Обложка уже есть: сохраненная на сервере или только что выбранная (еще не загруженная)
   const hasCover = computed(() => !!coverPreviewUrl.value || Boolean((user.value as any)?.coverUrl))
@@ -99,7 +103,9 @@ export function useProfileSettings() {
 
   async function updateProfile() {
     try {
-      await authStore.updateUser({ name: profileForm.name })
+      const email = profileForm.email.trim()
+      const profileData = { name: profileForm.name, ...(!user.value?.email && email ? { email } : {}) }
+      await authStore.updateUser(profileData)
 
       if (coverFile.value) {
         await authStore.uploadCover(coverFile.value)
@@ -157,8 +163,14 @@ export function useProfileSettings() {
   async function linkOAuth(provider: 'google' | 'github' | 'yandex') {
     const serverUrl = SERVER_URL
     const token = authStore.tokenPair?.accessToken || localStorage.getItem(TOKEN_KEY) || ''
-    const redirectTypeParam = isTauri ? '&redirect_type=app' : ''
-    const linkUrl = `${serverUrl}/api/auth/${provider}/login?linkToken=${encodeURIComponent(token)}${redirectTypeParam}`
+    const query = new URLSearchParams({ linkToken: token })
+
+    if (isTauri) {
+      query.set('redirect_type', 'app')
+      query.set('client_state', createOAuthClientState())
+    }
+
+    const linkUrl = `${serverUrl}/api/auth/${provider}/login?${query.toString()}`
 
     if (isTauri) {
       await openExternalUrl(linkUrl)

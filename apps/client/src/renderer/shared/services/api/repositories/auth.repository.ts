@@ -2,6 +2,7 @@ import type { IAuthRepository } from '../model/types'
 import type {
   SignInPayload,
   SignUpPayload,
+  UpdateUserPayload,
   User,
 } from '~/shared/types/models/auth'
 import { SERVER_URL } from '~/shared/lib/env'
@@ -47,7 +48,7 @@ export class AuthRepository implements IAuthRepository {
     return result as User
   }
 
-  async updateUser(data: { name?: string, avatarUrl?: string }): Promise<User> {
+  async updateUser(data: UpdateUserPayload): Promise<User> {
     const result = await trpc.user.update.mutate(data)
 
     return result as User

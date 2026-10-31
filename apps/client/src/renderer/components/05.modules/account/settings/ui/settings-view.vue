@@ -234,10 +234,14 @@ function applyCrop() {
                   <KitInput
                     v-model="profileForm.email"
                     label="Электронная почта"
+                    type="email"
                     icon="mdi:email-outline"
-                    disabled
+                    placeholder="Введите адрес электронной почты"
+                    :disabled="Boolean(user.email)"
                   />
-                  <span class="field-hint">Email используется для входа и подтверждений</span>
+                  <span class="field-hint">
+                    {{ user.email ? 'Эта почта используется для входа' : 'После сохранения почта сразу станет подтвержденной и будет использоваться для входа' }}
+                  </span>
                 </div>
               </div>
             </div>
@@ -801,8 +805,9 @@ function applyCrop() {
 .card-header {
   padding: 1.25rem 1.5rem;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
+  flex-wrap: wrap;
   gap: 1rem;
   border-bottom: 1px solid var(--border-secondary-color);
 
@@ -810,6 +815,8 @@ function applyCrop() {
     display: flex;
     flex-direction: column;
     gap: 0.25rem;
+    flex: 1 1 20rem;
+    min-width: 0;
   }
 
   .card-title {
@@ -817,12 +824,18 @@ function applyCrop() {
     font-weight: 600;
     margin: 0;
     color: var(--fg-primary-color);
+    overflow-wrap: anywhere;
   }
 
   .card-subtitle {
     font-size: 0.875rem;
     color: var(--fg-secondary-color);
     margin: 0;
+    overflow-wrap: anywhere;
+  }
+
+  > .kit-btn {
+    flex-shrink: 0;
   }
 }
 
@@ -997,19 +1010,22 @@ function applyCrop() {
 /* Сетка интеграций */
 .integrations-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr));
   gap: 1rem;
+  min-width: 0;
 }
 
 .integration-tile {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
   padding: 1rem 1.25rem;
   background-color: var(--bg-primary-color);
   border: 1px solid var(--border-secondary-color);
   border-radius: var(--r-m);
   gap: 1rem;
+  min-width: 0;
   transition: all 0.2s ease;
 
   &:hover {
@@ -1027,6 +1043,8 @@ function applyCrop() {
   display: flex;
   align-items: center;
   gap: 0.875rem;
+  flex: 1 1 16rem;
+  min-width: 0;
 }
 
 .provider-icon-wrapper {
@@ -1068,29 +1086,43 @@ function applyCrop() {
   display: flex;
   flex-direction: column;
   gap: 0.2rem;
+  min-width: 0;
 
   .provider-title {
     font-size: 1rem;
     font-weight: 600;
     color: var(--fg-primary-color);
+    overflow-wrap: anywhere;
   }
 }
 
 .provider-status-badge {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 4px;
   font-size: 0.8125rem;
   color: var(--fg-tertiary-color);
+  min-width: 0;
+
+  span {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
 
   .status-icon {
     font-size: 0.95rem;
+    flex-shrink: 0;
   }
 
   &.linked {
     color: var(--fg-success-color);
     font-weight: 500;
   }
+}
+
+.tile-trailing {
+  flex: 0 0 auto;
+  margin-left: auto;
 }
 
 /* Безопасность */

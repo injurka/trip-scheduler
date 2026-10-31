@@ -9,6 +9,13 @@ interface AccessTokenPayload {
   email: string | null
 }
 
+interface OAuthStatePayload {
+  purpose: 'oauth'
+  clientState: string
+  linkUserId: string | null
+  exp: number
+}
+
 // Время жизни токенов в секундах
 const ACCESS_TOKEN_EXPIRY = 60 * 15 * 24 * 1 // 1 день
 const REFRESH_TOKEN_EXPIRY = 60 * 60 * 24 * 14 // 14 дней
@@ -107,6 +114,38 @@ async function verifyAccessToken(token: string): Promise<AccessTokenPayload | nu
   }
 }
 
+async function createOAuthState(clientState: string, linkUserId: string | null): Promise<string> {
+  return sign(
+    {
+      purpose: 'oauth',
+      clientState,
+      linkUserId,
+      exp: Math.floor(Date.now() / 1000) + 10 * 60,
+    },
+    JWT_SECRET,
+    'HS256',
+  )
+}
+
+async function verifyOAuthState(token: string): Promise<OAuthStatePayload | null> {
+  try {
+    const payload = await verify(token, JWT_SECRET, 'HS256')
+
+    if (
+      payload.purpose !== 'oauth'
+      || typeof payload.clientState !== 'string'
+      || !(typeof payload.linkUserId === 'string' || payload.linkUserId === null)
+    ) {
+      return null
+    }
+
+    return payload as unknown as OAuthStatePayload
+  }
+  catch {
+    return null
+  }
+}
+
 /**
  * Проверяет токен и возвращает полный объект пользователя из БД.
  * @param token - Строка access token.
@@ -143,5 +182,7 @@ export const authUtils = {
   refreshTokens: refreshUserTokens,
   invalidateTokens: invalidateUserTokens,
   verifyToken: verifyAccessToken,
+  createOAuthState,
+  verifyOAuthState,
   getUserFromToken,
 }

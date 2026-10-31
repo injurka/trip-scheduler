@@ -11,6 +11,7 @@ import PostCard from '../card/post-card.vue'
 const router = useRouter()
 const store = usePostStore()
 const confirm = useConfirm()
+const { mdAndUp } = useDisplay()
 
 const { posts } = storeToRefs(store)
 
@@ -54,23 +55,24 @@ onMounted(() => {
 
 <template>
   <section class="content-wrapper">
-    <div class="page-header-row">
-      <div class="left">
-        <NavigationBack />
+    <NavigationBack />
+
+    <div class="page-header">
+      <div class="header-info">
+        <h1>Истории и маршруты</h1>
+        <p>Читайте рассказы других путешественников и делитесь своими впечатлениями.</p>
       </div>
       <KitBtn
         icon="mdi:plus"
         size="sm"
         variant="tonal"
+        aria-label="Создать пост"
         @click="handleCreate"
       >
-        Создать
+        <template v-if="mdAndUp">
+          Создать
+        </template>
       </KitBtn>
-    </div>
-
-    <div class="page-header">
-      <h1>Истории и маршруты</h1>
-      <p>Читайте рассказы других путешественников и делитесь своими впечатлениями.</p>
     </div>
 
     <PostFilters />
@@ -120,23 +122,13 @@ onMounted(() => {
   gap: 16px;
 }
 
-.page-header-row {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+.page-header {
+  flex-direction: row;
+  margin: 0;
+}
 
-  .left {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-  }
-
-  h1 {
-    font-size: 1.5rem;
-    font-weight: 700;
-    margin: 0;
-  }
+.header-info {
+  min-width: 0;
 }
 
 .feed-container {

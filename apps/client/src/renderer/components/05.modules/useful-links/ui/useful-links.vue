@@ -99,12 +99,14 @@ function handleCategoryClick(catId: CategoryId | 'all') {
   <section class="useful-links">
     <!-- Header -->
     <div class="page-header">
-      <h1 class="page-title">
-        Полезные ссылки и сервисы
-      </h1>
-      <p class="page-subtitle">
-        Подборка проверенных приложений, локальных сервисов и особенностей работы в разных странах мира.
-      </p>
+      <div class="header-info">
+        <h1 class="page-title">
+          Полезные ссылки и сервисы
+        </h1>
+        <p class="page-subtitle">
+          Подборка проверенных приложений, локальных сервисов и особенностей работы в разных странах мира.
+        </p>
+      </div>
     </div>
 
     <KitViewSwitcher
@@ -444,21 +446,25 @@ function handleCategoryClick(catId: CategoryId | 'all') {
 
 /* Header */
 .page-header {
-  margin: 0;
-  padding: 0;
   display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin: 0;
+  padding: 0 8px;
+
+  .header-info {
+    min-width: 0;
+  }
 
   .page-title {
     font-size: 2rem;
-    font-weight: 800;
-    letter-spacing: -0.02em;
+    font-weight: 700;
     color: var(--fg-primary-color);
-    margin: 0;
+    margin: 0 0 8px;
 
     @include media-down(sm) {
-      font-size: 1.5rem;
+      font-size: 1.8rem;
     }
   }
 
@@ -466,7 +472,10 @@ function handleCategoryClick(catId: CategoryId | 'all') {
     font-size: 1rem;
     color: var(--fg-secondary-color);
     margin: 0;
-    line-height: 1.5;
+
+    @include media-down(sm) {
+      font-size: 0.9rem;
+    }
   }
 }
 

@@ -3,6 +3,7 @@ import { Icon } from '@iconify/vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitDivider } from '~/components/01.kit/kit-divider'
 import { isTauri, SERVER_URL } from '~/shared/lib/env'
+import { createOAuthClientState } from '~/shared/lib/oauth-state'
 import { openExternalUrl } from '~/shared/lib/opener'
 
 enum OAuthProviders {
@@ -19,8 +20,15 @@ defineProps<Props>()
 
 async function handleOAuth(provider: OAuthProviders) {
   const serverUrl = SERVER_URL
-  const redirectTypeParam = isTauri ? '?redirect_type=app' : ''
-  const loginUrl = `${serverUrl}/api/auth/${provider}/login${redirectTypeParam}`
+  const query = new URLSearchParams()
+
+  if (isTauri) {
+    query.set('redirect_type', 'app')
+    query.set('client_state', createOAuthClientState())
+  }
+
+  const queryString = query.toString()
+  const loginUrl = `${serverUrl}/api/auth/${provider}/login${queryString ? `?${queryString}` : ''}`
 
   if (isTauri) {
     await openExternalUrl(loginUrl)

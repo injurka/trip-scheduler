@@ -2,6 +2,7 @@ import type {
   SignInPayload,
   SignUpPayload,
   TokenPair,
+  UpdateUserPayload,
   User,
 } from '../types/models/auth'
 import { invoke } from '@tauri-apps/api/core'
@@ -262,7 +263,7 @@ export const useAuthStore = defineStore('auth', {
       }
     },
 
-    async updateUser(data: { name?: string, avatarUrl?: string }) {
+    async updateUser(data: UpdateUserPayload) {
       return useRequest<User>({
         key: EAuthRequestKeys.UPDATE_USER,
         fn: db => db.auth.updateUser(data),

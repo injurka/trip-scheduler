@@ -34,6 +34,7 @@ export const GetUserByIdInputSchema = z.object({
 
 export const UpdateUserInputSchema = z.object({
   name: z.string().min(1).optional(),
+  email: z.string().trim().email('Некорректный формат email').optional(),
   avatarUrl: z.string().optional(),
   coverUrl: z.string().optional(),
 }).strict()
