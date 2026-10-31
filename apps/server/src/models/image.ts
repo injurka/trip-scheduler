@@ -72,6 +72,8 @@ interface ImageMetadata {
   gps?: GpsMetadata
   iptc?: IptcMetadata
 
+  thumbhash?: string
+
   rawExif?: Record<string, any>
 }
 

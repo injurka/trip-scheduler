@@ -1,6 +1,7 @@
 import type { TripImage } from '~/models/image'
 import exifr from 'exifr'
 import sharp from 'sharp'
+import { rgbaToThumbHash } from 'thumbhash'
 
 type ExtractedImageData = Omit<TripImage, 'id' | 'tripId' | 'url' | 'placement' | 'createdAt' | 'variants'>
 
@@ -60,6 +61,27 @@ export async function generateImageVariants(fileBuffer: Buffer): Promise<Record<
 }
 
 /**
+ * Генерирует компактный Base64 ThumbHash для мгновенного плавного плейсхолдера.
+ * Изображение масштабируется до 100x100 в соответствии с рекомендациями алгоритма ThumbHash.
+ */
+export async function generateThumbHash(fileBuffer: Buffer): Promise<string | null> {
+  try {
+    const raw = await sharp(fileBuffer)
+      .resize(100, 100, { fit: 'inside' })
+      .ensureAlpha()
+      .raw()
+      .toBuffer({ resolveWithObject: true })
+
+    const hash = rgbaToThumbHash(raw.info.width, raw.info.height, raw.data)
+    return Buffer.from(hash).toString('base64')
+  }
+  catch (error) {
+    console.warn('Не удалось сгенерировать thumbhash:', error)
+    return null
+  }
+}
+
+/**
  * Извлекает и структурирует EXIF и другие метаданные из буфера изображения.
  */
 export async function extractAndStructureMetadata(fileBuffer: Buffer): Promise<Params> {
@@ -85,7 +107,10 @@ export async function extractAndStructureMetadata(fileBuffer: Buffer): Promise<P
       return { metadata: {}, embeddedThumbnailBuffer: null }
     }
 
-    const sharpMeta = await sharp(fileBuffer).metadata()
+    const [sharpMeta, thumbhash] = await Promise.all([
+      sharp(fileBuffer).metadata(),
+      generateThumbHash(fileBuffer),
+    ])
     const structuredMeta: Partial<ExtractedImageData> = {}
 
     const takenAtDate = exifData.DateTimeOriginal || exifData.CreateDate
@@ -113,6 +138,7 @@ export async function extractAndStructureMetadata(fileBuffer: Buffer): Promise<P
     structuredMeta.height = sharpMeta.height
 
     structuredMeta.metadata = {
+      thumbhash: thumbhash || undefined,
       timezoneOffset: parseTimezoneOffset(offset),
       camera: {
         make: exifData.Make,
@@ -172,13 +198,17 @@ export async function extractAndStructureMetadata(fileBuffer: Buffer): Promise<P
   catch (error) {
     console.warn('Не удалось извлечь метаданные из изображения:', error)
 
-    const sharpMeta = await sharp(fileBuffer).metadata().catch(() => null)
+    const [sharpMeta, fallbackThumbhash] = await Promise.all([
+      sharp(fileBuffer).metadata().catch(() => null),
+      generateThumbHash(fileBuffer).catch(() => null),
+    ])
     if (sharpMeta) {
       return {
         metadata: {
           width: sharpMeta.width,
           height: sharpMeta.height,
           metadata: {
+            thumbhash: fallbackThumbhash || undefined,
             technical: {
               format: sharpMeta.format,
               fileSize: fileBuffer.length,

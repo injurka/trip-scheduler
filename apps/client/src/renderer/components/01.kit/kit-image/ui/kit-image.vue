@@ -2,6 +2,7 @@
 import { AspectRatio } from 'reka-ui'
 import smthWrongImage from '~/assets/images/smth-wrong.png'
 import { KitSkeleton } from '~/components/01.kit/kit-skeleton'
+import { getThumbHashAverageColor, getThumbHashDataUrl } from '~/shared/lib/thumbhash'
 import { resolveApiUrl } from '~/shared/lib/url'
 
 interface Props {
@@ -13,7 +14,12 @@ interface Props {
     small?: string
     medium?: string
     large?: string
-  } | null
+    thumbhash?: string
+  } | Record<string, string> | null
+  /**
+   * Компактный Base64 ThumbHash для мгновенного плавного плейсхолдера.
+   */
+  thumbhash?: string | null
   /**
    * URL оригинального изображения (используется как фоллбэк).
    */
@@ -31,6 +37,7 @@ interface Props {
 
 const props = withDefaults(defineProps<Props>(), {
   variants: undefined,
+  thumbhash: undefined,
   src: '',
   alt: '',
   aspectRatio: undefined,
@@ -89,6 +96,10 @@ const resolvedVariants = computed(() => {
   }
 })
 const resolvedSrc = computed(() => resolveApiUrl(props.src))
+const activeThumbhash = computed(() => props.thumbhash || props.variants?.thumbhash || null)
+const thumbHashDataUrl = computed(() => getThumbHashDataUrl(activeThumbhash.value))
+const thumbHashAvgColor = computed(() => getThumbHashAverageColor(activeThumbhash.value))
+
 const imageStyle = computed(() => {
   const isLoaded = !isLoading.value && !hasError.value
 
@@ -209,9 +220,20 @@ onBeforeUnmount(() => {
   >
     <div class="kit-image-container">
       <transition name="faded">
-        <div v-if="isLoading" class="placeholder-wrapper">
+        <div
+          v-if="isLoading"
+          class="placeholder-wrapper"
+          :style="thumbHashAvgColor ? { backgroundColor: thumbHashAvgColor } : undefined"
+        >
           <slot name="loader">
-            <KitSkeleton class="skeleton-placeholder" />
+            <img
+              v-if="thumbHashDataUrl"
+              :src="thumbHashDataUrl"
+              class="thumbhash-placeholder"
+              :style="{ objectFit: props.objectFit }"
+              alt=""
+            >
+            <KitSkeleton v-else class="skeleton-placeholder" />
           </slot>
         </div>
       </transition>
@@ -282,6 +304,14 @@ onBeforeUnmount(() => {
     .skeleton-placeholder {
       width: 100% !important;
       height: 100% !important;
+    }
+
+    .thumbhash-placeholder {
+      width: 100%;
+      height: 100%;
+      filter: blur(12px);
+      transform: scale(1.1);
+      pointer-events: none;
     }
   }
 

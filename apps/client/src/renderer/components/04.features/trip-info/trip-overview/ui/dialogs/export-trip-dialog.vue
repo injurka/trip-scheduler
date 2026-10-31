@@ -4,10 +4,13 @@ import type { BookingSectionContent, ChecklistSectionContent, FinancesSectionCon
 import type { ActivitySectionText } from '~/shared/types/models/activity'
 import type { Trip, TripSection } from '~/shared/types/models/trip'
 import { Icon } from '@iconify/vue'
+import { generateTripCalendarIcs } from '@injurka/trip-calendar'
+import { useClipboard } from '@vueuse/core'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitCheckbox } from '~/components/01.kit/kit-checkbox'
 import { KitDialogWithClose } from '~/components/01.kit/kit-dialog-with-close'
 import { KitDivider } from '~/components/01.kit/kit-divider'
+import { useToast } from '~/shared/composables/use-toast'
 import { EActivitySectionType } from '~/shared/types/models/activity'
 import { TripSectionType } from '~/shared/types/models/trip'
 
@@ -17,12 +20,15 @@ interface Props {
   days: IDay[]
   sections: TripSection[]
 }
-type ExportFormat = 'json' | 'text'
+type ExportFormat = 'json' | 'text' | 'ics'
 
 const props = defineProps<Props>()
 const emit = defineEmits<{
   (e: 'update:visible', value: boolean): void
 }>()
+
+const toast = useToast()
+const { copy } = useClipboard()
 
 const selectedFormat = ref<ExportFormat>('text')
 const isExporting = ref(false)
@@ -36,7 +42,27 @@ const options = ref({
 const formats = [
   { id: 'text', label: 'Plain Text', description: 'Читаемый текстовый формат. Удобно для заметок и мессенджеров.', icon: 'mdi:text-box-outline' },
   { id: 'json', label: 'JSON', description: 'Структурированные данные. Подходит для резервного копирования.', icon: 'mdi:code-json' },
+  { id: 'ics', label: 'Календарь (.ics)', description: 'События для Apple Calendar, Google Calendar, Outlook с поддержкой WebCal-подписки.', icon: 'mdi:calendar-export' },
 ]
+
+const calendarUrl = computed(() => {
+  const slugOrId = props.trip.shareSlug || props.trip.id
+
+  return `${window.location.origin}/api/trips/${slugOrId}/calendar.ics`
+})
+
+const webcalUrl = computed(() => {
+  return calendarUrl.value.replace(/^https?:\/\//, 'webcal://')
+})
+
+function copyCalendarLink() {
+  copy(calendarUrl.value)
+  toast.success('Ссылка на календарь скопирована')
+}
+
+function openWebcalSubscription() {
+  window.open(webcalUrl.value, '_blank')
+}
 
 function stripMarkdown(text: string): string {
   if (!text)
@@ -337,6 +363,32 @@ function handleExport() {
       mimeType = 'text/plain'
       extension = 'txt'
     }
+    else if (selectedFormat.value === 'ics') {
+      const bookingSection = sections.find(s => s.type === TripSectionType.BOOKINGS)
+      const bookings = (bookingSection?.content as BookingSectionContent)?.bookings || []
+
+      content = generateTripCalendarIcs({
+        trip: {
+          id: trip.id,
+          title: trip.title,
+          description: trip.description,
+          startDate: trip.startDate,
+          endDate: trip.endDate,
+          shareSlug: trip.shareSlug,
+          cityRefs: trip.cityRefs,
+          url: window.location.href,
+        },
+        days: days as any,
+        bookings: bookings as any,
+      }, {
+        includeBookings: options.value.includeBookings,
+        includeActivities: options.value.includeActivityDetails,
+        includeDaySummaries: options.value.includeDayMeta,
+        calendarName: trip.title,
+      })
+      mimeType = 'text/calendar;charset=utf-8'
+      extension = 'ics'
+    }
 
     const blob = new Blob([content], { type: mimeType })
     const url = URL.createObjectURL(blob)
@@ -406,20 +458,47 @@ function handleExport() {
         </h4>
         <div class="settings-grid">
           <KitCheckbox v-model="options.includeActivityDetails">
-            Содержимое активностей (заметки)
+            {{ selectedFormat === 'ics' ? 'Активности и экскурсии' : 'Содержимое активностей (заметки)' }}
           </KitCheckbox>
           <KitCheckbox v-model="options.includeDayMeta">
-            Мета-информация дня
+            {{ selectedFormat === 'ics' ? 'Дни путешествия (целодневные события)' : 'Мета-информация дня' }}
           </KitCheckbox>
           <KitCheckbox v-model="options.includeBookings">
             Раздел "Бронирования"
           </KitCheckbox>
-          <KitCheckbox v-model="options.includeChecklist">
+          <KitCheckbox v-if="selectedFormat !== 'ics'" v-model="options.includeChecklist">
             Раздел "Чек-лист"
           </KitCheckbox>
-          <KitCheckbox v-model="options.includeFinances">
+          <KitCheckbox v-if="selectedFormat !== 'ics'" v-model="options.includeFinances">
             Раздел "Финансы"
           </KitCheckbox>
+        </div>
+      </div>
+
+      <div v-if="selectedFormat === 'ics'" class="webcal-box">
+        <div class="webcal-header">
+          <Icon icon="mdi:calendar-sync" class="webcal-icon" />
+          <div class="webcal-titles">
+            <span class="webcal-title">Постоянная автосинхронизация (WebCal)</span>
+            <span class="webcal-subtitle">
+              Подпишитесь в Apple Calendar, Google Calendar или Outlook, чтобы изменения в поездке обновлялись автоматически.
+            </span>
+          </div>
+        </div>
+        <div class="webcal-actions">
+          <KitBtn
+            size="sm"
+            variant="outlined"
+            color="secondary"
+            @click="copyCalendarLink"
+          >
+            <Icon icon="mdi:content-copy" />
+            Копировать ссылку
+          </KitBtn>
+          <KitBtn size="sm" variant="outlined" @click="openWebcalSubscription">
+            <Icon icon="mdi:calendar-plus" />
+            Подписаться
+          </KitBtn>
         </div>
       </div>
 
@@ -453,10 +532,10 @@ function handleExport() {
 
 .formats-list {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(3, 1fr);
   gap: 12px;
 
-  @include media-down(sm) {
+  @include media-down(md) {
     grid-template-columns: 1fr;
   }
 }
@@ -556,6 +635,58 @@ function handleExport() {
 
   @include media-down(sm) {
     grid-template-columns: 1fr;
+  }
+}
+
+.webcal-box {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1rem;
+  border-radius: var(--r-m);
+  border: 1px dashed var(--border-primary-color);
+  background-color: var(--bg-secondary-color);
+}
+
+.webcal-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.webcal-icon {
+  font-size: 1.4rem;
+  color: var(--fg-accent-color);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.webcal-titles {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.webcal-title {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--fg-primary-color);
+}
+
+.webcal-subtitle {
+  font-size: 0.8rem;
+  color: var(--fg-secondary-color);
+  line-height: 1.4;
+}
+
+.webcal-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  padding-left: 2.15rem;
+
+  @include media-down(sm) {
+    padding-left: 0;
   }
 }
 

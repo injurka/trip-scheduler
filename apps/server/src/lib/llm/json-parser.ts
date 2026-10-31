@@ -10,6 +10,7 @@ export interface ParseJsonWithAiRepairOptions<T = any> {
   model?: AiModel
   operation?: string
   maxRetries?: number
+  maxTokens?: number
   customInstructions?: string
   validate?: (data: T) => boolean
   schema?: ZodType<T>
@@ -23,6 +24,9 @@ export interface DataValidationResult<T> {
   errors?: string[]
 }
 
+const VALID_JSON_ESCAPE_CHARS = new Set(['"', '\\', '/', 'b', 'f', 'n', 'r', 't'])
+const HEX_DIGIT_REGEX = /^[0-9a-f]{4}$/i
+
 /**
  * Validates parsed data against schema, validateWithErrors, or validate callback.
  */
@@ -32,43 +36,59 @@ export function validateParsedData<T = any>(
 ): DataValidationResult<T> {
   if (options.schema) {
     const result = options.schema.safeParse(data)
-    if (result.success) {
-      return { success: true, data: result.data }
-    }
-    const errors: string[] = []
-    const collectErrors = (issue: any) => {
-      if (issue.code === 'invalid_union') {
-        const nested = issue.errors || issue.unionErrors
-        if (Array.isArray(nested)) {
-          for (const sub of nested) {
-            if (Array.isArray(sub)) {
-              for (const subIssue of sub) {
-                collectErrors(subIssue)
+    if (!result.success) {
+      const errors: string[] = []
+      const collectErrors = (issue: any) => {
+        if (issue.code === 'invalid_union') {
+          const nested = issue.errors || issue.unionErrors
+          if (Array.isArray(nested)) {
+            for (const sub of nested) {
+              if (Array.isArray(sub)) {
+                for (const subIssue of sub) {
+                  collectErrors(subIssue)
+                }
+              }
+              else if (sub && Array.isArray(sub.issues)) {
+                for (const subIssue of sub.issues) {
+                  collectErrors(subIssue)
+                }
               }
             }
-            else if (sub && Array.isArray(sub.issues)) {
-              for (const subIssue of sub.issues) {
-                collectErrors(subIssue)
-              }
-            }
+            return
           }
-          return
         }
+
+        const path = issue.path && issue.path.length > 0 ? issue.path.join('.') : 'root'
+        errors.push(`Field "${path}": ${issue.message}`)
       }
 
-      const path = issue.path && issue.path.length > 0 ? issue.path.join('.') : 'root'
-      errors.push(`Field "${path}": ${issue.message}`)
+      for (const issue of result.error.issues) {
+        collectErrors(issue)
+      }
+
+      const specificErrors = errors.filter(e => !e.includes('Field "root": Invalid input') && !e.includes('Field "root": expected array, received object'))
+      const finalErrors = specificErrors.length > 0 ? specificErrors : errors
+
+      return { success: false, errors: finalErrors.length > 0 ? finalErrors : ['Validation failed'] }
     }
 
-    for (const issue of result.error.issues) {
-      collectErrors(issue)
+    // Schema passed — also run validateWithErrors or validate if provided!
+    if (options.validateWithErrors) {
+      const customResult = options.validateWithErrors(result.data)
+      if (!customResult.success) {
+        return { success: false, errors: customResult.errors }
+      }
+      return { success: true, data: customResult.data }
     }
 
-    // Deduplicate and filter out root "Invalid input" if deeper errors exist
-    const specificErrors = errors.filter(e => !e.includes('Field "root": Invalid input') && !e.includes('Field "root": expected array, received object'))
-    const finalErrors = specificErrors.length > 0 ? specificErrors : errors
+    if (options.validate) {
+      const isValid = options.validate(result.data)
+      if (!isValid) {
+        return { success: false, errors: ['Структура данных не прошла проверку валидатора.'] }
+      }
+    }
 
-    return { success: false, errors: finalErrors.length > 0 ? finalErrors : ['Validation failed'] }
+    return { success: true, data: result.data }
   }
 
   if (options.validateWithErrors) {
@@ -91,29 +111,49 @@ export function validateParsedData<T = any>(
 }
 
 /**
- * Extracts and sanitizes a JSON string from raw LLM output.
- * Handles markdown code fences, leading/trailing commentary, comments, and trailing commas.
+ * Extracts outer JSON candidate from markdown fences and surrounding prose.
  */
-export function sanitizeJsonString(raw: string): string {
+export function extractOuterJsonCandidate(raw: string): string {
   if (!raw || typeof raw !== 'string') {
     return ''
   }
 
   let text = raw.trim()
 
-  // 1. Extract content from markdown code block if present (e.g. ```json ... ```)
-  const firstFence = text.indexOf('```')
-  const lastFence = text.lastIndexOf('```')
-  if (firstFence !== -1 && lastFence > firstFence) {
-    let inner = text.slice(firstFence + 3, lastFence).trim()
-    if (inner.toLowerCase().startsWith('json')) {
-      inner = inner.slice(4).trim()
+  // 1. Extract content from outer markdown code block ONLY if the whole response starts with a fence
+  // (Careful not to match ```mermaid fences inside JSON string values when response itself is not fenced!)
+  if (text.startsWith('```')) {
+    const lastFence = text.lastIndexOf('```')
+    if (lastFence > 3) {
+      let inner = text.slice(3, lastFence).trim()
+      if (inner.toLowerCase().startsWith('json')) {
+        inner = inner.slice(4).trim()
+      }
+      text = inner
     }
-    text = inner
+    else {
+      text = text.replace(/^```(?:json)?/i, '').trim()
+    }
   }
   else {
-    // Strip partial/unclosed markdown code fences
-    text = text.replace(/^```(?:json)?/i, '').replace(/```$/, '').trim()
+    // Check if there's a ```json block preceded only by short prose (no `{` before the fence)
+    const firstBrace = text.indexOf('{')
+    const firstBracket = text.indexOf('[')
+    const firstFence = text.indexOf('```')
+    const earliestJsonChar = firstBrace === -1
+      ? firstBracket
+      : (firstBracket === -1 ? firstBrace : Math.min(firstBrace, firstBracket))
+
+    if (firstFence !== -1 && (earliestJsonChar === -1 || firstFence < earliestJsonChar)) {
+      const lastFence = text.lastIndexOf('```')
+      if (lastFence > firstFence + 2) {
+        let inner = text.slice(firstFence + 3, lastFence).trim()
+        if (inner.toLowerCase().startsWith('json')) {
+          inner = inner.slice(4).trim()
+        }
+        text = inner
+      }
+    }
   }
 
   // 2. Find outermost JSON structure: first '{' or '[' to last matching '}' or ']'
@@ -140,23 +180,183 @@ export function sanitizeJsonString(raw: string): string {
     }
   }
 
-  // 3. Remove single-line comments (// ...) outside strings
-  text = text.replace(/^\s*\/\/.*$/gm, '')
-
-  // 4. Remove multi-line comments (/* ... */)
-  text = text.replace(/\/\*[\s\S]*?\*\//g, '')
-
-  // 5. Remove trailing commas before closing braces/brackets
-  text = text.replace(/,\s*([\]}])/g, '$1')
-
   return text.trim()
+}
+
+/**
+ * String-aware JSON repair for LLM outputs containing Markdown, URLs, comments,
+ * raw newlines/tabs inside strings, invalid backslash escapes (e.g. `\|`, `\[`, `\*`),
+ * and trailing commas.
+ */
+export function repairJsonLiteralsAndComments(input: string): string {
+  if (!input)
+    return ''
+
+  let out = ''
+  let inString = false
+  let i = 0
+  const len = input.length
+
+  while (i < len) {
+    const ch = input[i]
+
+    if (!inString) {
+      // Strip single-line // comments outside strings
+      if (ch === '/' && input[i + 1] === '/') {
+        i += 2
+        while (i < len && input[i] !== '\n') {
+          i++
+        }
+        continue
+      }
+
+      // Strip multi-line /* ... */ comments outside strings
+      if (ch === '/' && input[i + 1] === '*') {
+        i += 2
+        while (i < len && !(input[i] === '*' && input[i + 1] === '/')) {
+          i++
+        }
+        i += 2
+        continue
+      }
+
+      // Strip trailing commas before } or ] (skipping whitespace and comments)
+      if (ch === ',') {
+        let lookahead = i + 1
+        while (lookahead < len) {
+          const la = input[lookahead]
+          if (la === ' ' || la === '\t' || la === '\r' || la === '\n') {
+            lookahead++
+            continue
+          }
+          if (la === '/' && input[lookahead + 1] === '/') {
+            lookahead += 2
+            while (lookahead < len && input[lookahead] !== '\n') lookahead++
+            continue
+          }
+          if (la === '/' && input[lookahead + 1] === '*') {
+            lookahead += 2
+            while (lookahead < len && !(input[lookahead] === '*' && input[lookahead + 1] === '/')) lookahead++
+            lookahead += 2
+            continue
+          }
+          break
+        }
+        if (lookahead < len && (input[lookahead] === '}' || input[lookahead] === ']')) {
+          i++
+          continue
+        }
+      }
+
+      if (ch === '"') {
+        inString = true
+      }
+
+      out += ch
+      i++
+      continue
+    }
+
+    // Inside a JSON string literal
+    if (ch === '\\') {
+      const next = input[i + 1]
+      if (next === undefined) {
+        out += '\\\\'
+        i++
+        continue
+      }
+
+      if (VALID_JSON_ESCAPE_CHARS.has(next)) {
+        out += ch + next
+        i += 2
+        continue
+      }
+
+      if (next === 'u') {
+        const hex = input.slice(i + 2, i + 6)
+        if (HEX_DIGIT_REGEX.test(hex)) {
+          out += `\\u${hex}`
+          i += 6
+          continue
+        }
+        // Invalid \u escape (e.g. "\users") -> escape the backslash
+        out += '\\\\'
+        i++
+        continue
+      }
+
+      // Raw escaped newline inside string -> \n
+      if (next === '\n') {
+        out += '\\n'
+        i += 2
+        continue
+      }
+      if (next === '\r') {
+        if (input[i + 2] === '\n')
+          i += 3
+        else
+          i += 2
+        out += '\\n'
+        continue
+      }
+
+      // Invalid escape sequence like \|, \[, \], \*, \_ in Markdown -> preserve literal backslash
+      out += `\\\\${next}`
+      i += 2
+      continue
+    }
+
+    if (ch === '"') {
+      inString = false
+      out += ch
+      i++
+      continue
+    }
+
+    // Escape raw unescaped control characters inside strings
+    const code = ch.charCodeAt(0)
+    if (code < 0x20) {
+      if (ch === '\n') {
+        out += '\\n'
+      }
+      else if (ch === '\r') {
+        // Normalize \r\n or \r inside string
+        if (input[i + 1] === '\n')
+          i++
+        out += '\\n'
+      }
+      else if (ch === '\t') {
+        out += '\\t'
+      }
+      else {
+        out += `\\u${code.toString(16).padStart(4, '0')}`
+      }
+      i++
+      continue
+    }
+
+    out += ch
+    i++
+  }
+
+  return out.trim()
+}
+
+/**
+ * Extracts and sanitizes a JSON string from raw LLM output.
+ * Handles markdown code fences, leading/trailing commentary, comments,
+ * raw control characters, invalid Markdown escapes, and trailing commas.
+ */
+export function sanitizeJsonString(raw: string): string {
+  const candidate = extractOuterJsonCandidate(raw)
+  return repairJsonLiteralsAndComments(candidate)
 }
 
 /**
  * Attempts to safely parse JSON.
  */
 export function tryParseJson<T = any>(raw: string): { success: true, data: T } | { success: false, error: Error } {
-  // Direct attempt
+  // 1. Direct attempt
   try {
     const data = JSON.parse(raw)
     return { success: true, data }
@@ -165,10 +365,22 @@ export function tryParseJson<T = any>(raw: string): { success: true, data: T } |
     // Fall through to sanitized parse
   }
 
-  // Sanitized attempt
-  const sanitized = sanitizeJsonString(raw)
+  // 2. Outer candidate extraction attempt (before string-level rewriting)
+  const candidate = extractOuterJsonCandidate(raw)
+  if (candidate && candidate !== raw) {
+    try {
+      const data = JSON.parse(candidate)
+      return { success: true, data }
+    }
+    catch {
+      // Fall through to full string-aware repair
+    }
+  }
+
+  // 3. String-aware repaired attempt
+  const repaired = repairJsonLiteralsAndComments(candidate)
   try {
-    const data = JSON.parse(sanitized)
+    const data = JSON.parse(repaired)
     return { success: true, data }
   }
   catch (error: any) {
@@ -189,6 +401,7 @@ export async function parseJsonWithAiRepair<T = any>(
     model = DEFAULT_AI_MODEL,
     operation = 'llmOperation',
     maxRetries = 2,
+    maxTokens,
     customInstructions,
     validate,
     schema,
@@ -248,6 +461,7 @@ ${currentContent}`,
       const repairCompletion = await createAiChatRequest(repairPrompts, {
         model,
         temperature: 0.1,
+        max_tokens: maxTokens,
         response_format: { type: 'json_object' },
       })
 
@@ -296,7 +510,7 @@ ${currentContent}`,
     }
   }
 
-  console.error('[AI JSON Parser] Все попытки исправления JSON исчерпаны. Исходный ответ:', rawResponse)
+  console.error('[AI JSON Parser] Все попытки исправления JSON исчерпаны. Исходный ответ:', rawResponse.slice(0, 1500))
   throw new TRPCError({
     code: 'INTERNAL_SERVER_ERROR',
     message: `ИИ вернул данные, не соответствующие схеме (${lastError.message}), и попытка автоматического исправления агентом не удалась.`,

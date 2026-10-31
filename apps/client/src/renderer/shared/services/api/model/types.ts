@@ -195,6 +195,101 @@ export interface ILLMRepository {
   transcribeChecklistVoice: (formData: FormData) => Promise<{ text: string }>
 }
 
+export type AiTripUserPinType = 'place' | 'hotel' | 'logistics'
+export type AiTripPlaceCategory = 'attraction' | 'nature' | 'food' | 'culture' | 'relax'
+export type AiTripHotelTier = 'budget' | 'comfort' | 'boutique'
+
+export interface IAiTripUserPin {
+  type: AiTripUserPinType
+  title: string
+  note?: string
+}
+
+export interface IAiTripConceptCity {
+  name: string
+  nights: number
+  role: string
+}
+
+export interface IAiTripConceptPlace {
+  id: string
+  name: string
+  city: string
+  category: AiTripPlaceCategory
+  whyVisit: string
+  isUserPinned?: boolean
+}
+
+export interface IAiTripConceptHotel {
+  id: string
+  name: string
+  city: string
+  area: string
+  pricePerNightRub: number
+  tier: AiTripHotelTier
+  whyStay: string
+  isUserPinned?: boolean
+}
+
+export interface IAiTripConceptDayOutline {
+  dayNumber: number
+  city: string
+  title: string
+  highlights: string[]
+}
+
+export interface IAiTripConceptProposal {
+  title: string
+  summary: string
+  estimatedBudgetRub: number
+  cities: IAiTripConceptCity[]
+  places: IAiTripConceptPlace[]
+  hotels: IAiTripConceptHotel[]
+  daysOutline: IAiTripConceptDayOutline[]
+}
+
+export interface IProposeAiTripConceptInput {
+  country: string
+  startDate: string
+  days: number
+  wishes?: string
+  pinnedItems?: IAiTripUserPin[]
+  previousConcept?: IAiTripConceptProposal
+  excludedPlaceNames?: string[]
+  refinementFeedback?: string
+}
+
+export interface IApprovedAiTripConcept {
+  title: string
+  summary: string
+  estimatedBudgetRub?: number
+  cities: IAiTripConceptCity[]
+  selectedPlaces: Array<{
+    name: string
+    city: string
+    category?: string
+    whyVisit?: string
+  }>
+  excludedPlaces: string[]
+  selectedHotels: Array<{
+    name: string
+    city: string
+    area?: string
+    pricePerNightRub?: number
+    whyStay?: string
+  }>
+  daysOutline: IAiTripConceptDayOutline[]
+}
+
+export interface IGenerateAiTripInput {
+  country: string
+  startDate: string
+  days: number
+  wishes?: string
+  pinnedItems?: IAiTripUserPin[]
+  approvedConcept?: IApprovedAiTripConcept
+}
+
 export interface IAiTripJobStatus {
   status: 'pending' | 'generating' | 'importing' | 'done' | 'needs_input' | 'error'
   stage: string
@@ -207,7 +302,8 @@ export interface IAiTripJobStatus {
 }
 
 export interface IAiTripRepository {
-  generate: (input: { country: string, startDate: string, days: number, wishes?: string }) => Promise<{ jobId: string }>
+  proposeConcept: (input: IProposeAiTripConceptInput) => Promise<IAiTripConceptProposal>
+  generate: (input: IGenerateAiTripInput) => Promise<{ jobId: string }>
   getStatus: (jobId: string) => Promise<IAiTripJobStatus>
 }
 

@@ -10,7 +10,7 @@ import { postRepository } from '~/repositories/post.repository'
 import { tripRepository } from '~/repositories/trip.repository'
 import { userRepository } from '~/repositories/user.repository'
 import { generateFilePaths, saveFile } from '~/services/file-storage.service'
-import { extractAndStructureMetadata, generateImageVariants } from '~/services/image-metadata.service'
+import { extractAndStructureMetadata, generateImageVariants, generateThumbHash } from '~/services/image-metadata.service'
 import { fileUploadsCounter, fileUploadSizeBytesHistogram } from '~/services/metrics.service'
 import { quotaService } from '~/services/quota.service'
 import { s3Service } from '~/services/s3.service'
@@ -152,6 +152,11 @@ export class ImageUploadService {
       try {
         if (entityType === 'avatar') {
           processedBuffer = await sharp(ctx.buffer).resize({ width: 400, height: 400, fit: 'cover' }).webp({ quality: 90 }).toBuffer()
+          const thumbhash = await generateThumbHash(processedBuffer)
+          if (thumbhash) {
+            metadata.thumbhash = thumbhash
+            metadata.metadata = { ...(metadata.metadata || {}), thumbhash }
+          }
         }
         else {
           const metaResult = await extractAndStructureMetadata(ctx.buffer)
@@ -188,6 +193,11 @@ export class ImageUploadService {
         variantsTotalSize += variantBuffer.length
       }),
     )
+
+    const resolvedThumbhash = metadata.metadata?.thumbhash || metadata.thumbhash
+    if (resolvedThumbhash) {
+      variantUrls.thumbhash = resolvedThumbhash
+    }
 
     const originalMime = entityType === 'avatar' ? 'image/webp' : ctx.file.type
     await saveFile(paths.path, processedBuffer, originalMime)

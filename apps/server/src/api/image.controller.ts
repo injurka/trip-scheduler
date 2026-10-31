@@ -3,6 +3,7 @@ import { and, eq, or, sql } from 'drizzle-orm'
 import { Hono } from 'hono'
 import { HTTPException } from 'hono/http-exception'
 import sharp from 'sharp'
+import { rgbaToThumbHash } from 'thumbhash'
 import { db } from '~/../db'
 import { postMedia, posts, postWhitelist, tripImages, tripParticipants, trips } from '~/../db/schema'
 import { authUtils } from '~/lib/auth.utils'
@@ -138,6 +139,20 @@ imageController.get('/*', async (c) => {
       'Cache-Control': 'public, max-age=31536000, immutable',
       'Content-Disposition': `${disposition}; filename="${filePath.split('/').pop() || `file.${fileExt || 'bin'}`}"`,
     })
+  }
+
+  if (c.req.query('thumbhash') !== undefined || format === 'thumbhash') {
+    const raw = await sharp(s3Result.buffer)
+      .resize(100, 100, { fit: 'inside' })
+      .ensureAlpha()
+      .raw()
+      .toBuffer({ resolveWithObject: true })
+
+    const hash = rgbaToThumbHash(raw.info.width, raw.info.height, raw.data)
+    const base64 = Buffer.from(hash).toString('base64')
+
+    endTimer({ status: 'success', format: 'thumbhash', type: 'processed' })
+    return c.json({ thumbhash: base64 })
   }
 
   if (!width && !height && !format) {

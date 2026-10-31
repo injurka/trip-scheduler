@@ -1,15 +1,35 @@
 import { z } from 'zod'
 import { protectedProcedure, router } from '~/lib/trpc'
-import { aiTripService, GenerateAiTripInputSchema } from './ai-trip.service'
+import {
+  AiTripConceptProposalSchema,
+  aiTripService,
+  GenerateAiTripInputSchema,
+  ProposeAiTripConceptInputSchema,
+} from './ai-trip.service'
 
 export const aiTripProcedures = {
+  proposeConcept: protectedProcedure
+    .meta({
+      openapi: {
+        method: 'POST',
+        path: '/ai-trip/propose-concept',
+        tags: ['AI Trip'],
+        summary: 'Спроектировать интерактивную концепцию путешествия (маршрут, места, отели, дни)',
+      },
+    })
+    .input(ProposeAiTripConceptInputSchema)
+    .output(AiTripConceptProposalSchema)
+    .mutation(async ({ input, ctx }) => {
+      return aiTripService.proposeConcept(ctx.user.id, input)
+    }),
+
   generate: protectedProcedure
     .meta({
       openapi: {
         method: 'POST',
         path: '/ai-trip/generate',
         tags: ['AI Trip'],
-        summary: 'Запустить генерацию путешествия через ИИ (страна, дата, дни, пожелания)',
+        summary: 'Запустить генерацию полного путешествия через ИИ (с опциональной утверждённой концепцией)',
       },
     })
     .input(GenerateAiTripInputSchema)

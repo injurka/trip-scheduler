@@ -1,5 +1,10 @@
 <script setup lang="ts">
 import type { CalendarDate } from '@internationalized/date'
+import type {
+  AiTripUserPinType,
+  IAiTripUserPin,
+  IApprovedAiTripConcept,
+} from '~/shared/services/api/model/types'
 import { Icon } from '@iconify/vue'
 import { getLocalTimeZone, parseDate, today } from '@internationalized/date'
 import { KitBtn } from '~/components/01.kit/kit-btn'
@@ -9,6 +14,7 @@ import { KitSlider } from '~/components/01.kit/kit-slider'
 import { CalendarPopover } from '~/components/02.shared/calendar-popover'
 import { formatDate } from '~/shared/lib/date-time'
 import { useAiTripGeneration } from '../../composables/use-ai-trip-generation'
+import AiTripConceptReview from './ai-trip-concept-review.vue'
 
 interface WishPreset {
   id: string
@@ -23,7 +29,11 @@ const emit = defineEmits<{
 const visible = defineModel<boolean>('visible', { required: true })
 
 const {
+  propose,
+  refineConcept,
   start,
+  backToForm,
+  backFromError,
   reset,
   phase,
   stage,
@@ -33,6 +43,9 @@ const {
   progress,
   attempt,
   attemptsTotal,
+  concept,
+  isRefining,
+  refineError,
   stopPolling,
 } = useAiTripGeneration()
 
@@ -42,7 +55,37 @@ const days = ref(7)
 const wishes = ref('')
 const showCloseConfirm = ref(false)
 const logsBoxEl = ref<HTMLElement | null>(null)
+// Свои места, отели и логистика на старте
+const isPinsOpen = ref(false)
+const pinType = ref<AiTripUserPinType>('place')
+const pinTitle = ref('')
+const pinNote = ref('')
+const pinnedItems = ref<IAiTripUserPin[]>([])
+const lastApprovedConcept = ref<IApprovedAiTripConcept | undefined>(undefined)
 const durationQuickOptions = [3, 5, 7, 14]
+const pinTypeOptions: Array<{ id: AiTripUserPinType, label: string, icon: string, placeholder: string, notePlaceholder: string }> = [
+  {
+    id: 'place',
+    label: 'Место',
+    icon: 'mdi:map-marker-plus-outline',
+    placeholder: 'Например: Парк Гибли, Фудзи…',
+    notePlaceholder: 'Город или уточнение (опц.)',
+  },
+  {
+    id: 'hotel',
+    label: 'Отель',
+    icon: 'mdi:bed-outline',
+    placeholder: 'Например: APA Hotel Shinjuku…',
+    notePlaceholder: 'Город / ночи (опц.)',
+  },
+  {
+    id: 'logistics',
+    label: 'Логистика',
+    icon: 'mdi:airplane-clock',
+    placeholder: 'Например: Прилёт в Нариту в 11:20…',
+    notePlaceholder: 'Дата / рейс (опц.)',
+  },
+]
 const wishPresets: WishPreset[] = [
   { id: 'beach', label: 'Море и пляж', icon: 'mdi:beach', text: 'Больше моря, пляжей и отдыха у воды' },
   { id: 'nature', label: 'Природа и горы', icon: 'mdi:image-filter-hdr', text: 'Акцент на природу: горы, треккинг, национальные парки' },
@@ -54,13 +97,31 @@ const wishPresets: WishPreset[] = [
   { id: 'relaxed', label: 'Спокойный темп', icon: 'mdi:spa-outline', text: 'Спокойный ненасыщенный темп, меньше переездов, время на отдых' },
 ]
 
+const activePinOption = computed(() => pinTypeOptions.find(o => o.id === pinType.value) ?? pinTypeOptions[0])
 const isFormValid = computed(() => country.value.trim().length >= 2)
 const isRunning = computed(() => phase.value === 'generating' || phase.value === 'importing')
+const isBusy = computed(() => isRunning.value || phase.value === 'proposing' || isRefining.value)
+const dialogTitle = computed(() => {
+  if (phase.value === 'review')
+    return 'Настройка маршрута и мест'
+
+  return 'Путешествие через ИИ'
+})
+const dialogDescription = computed(() => {
+  if (phase.value === 'review')
+    return 'Отметьте понравившиеся места и отели или добавьте свои — ИИ соберёт маршрут строго под ваш выбор'
+
+  return 'Опишите направление и предпочтения — ИИ предложит места и составит детальный план по дням'
+})
+const dialogMaxWidth = computed(() => (phase.value === 'review' ? 660 : 540))
 const phaseLabel = computed(() => {
+  if (phase.value === 'proposing')
+    return 'Подбираем концепцию, места и отели…'
+
   if (phase.value === 'importing')
     return 'Импорт маршрута в расписание…'
 
-  return 'ИИ проектирует ваше путешествие…'
+  return 'ИИ прорабатывает ваше путешествие…'
 })
 const progressPercent = computed(() => {
   if (progress.value === null)
@@ -68,22 +129,17 @@ const progressPercent = computed(() => {
 
   return Math.min(100, Math.max(0, progress.value))
 })
-const progressBarStyle = computed(() => ({
-  '--progress-width': `${progressPercent.value ?? 0}%`,
-}))
 const isProgressIndeterminate = computed(() => progress.value === null)
 const activePresetsCount = computed(() => {
   return wishPresets.filter(preset => isPresetActive(preset)).length
 })
 
-// Автопрокрутка лога вниз по мере поступления записей
 watch(logs, async () => {
   await nextTick()
 
   if (logsBoxEl.value)
     logsBoxEl.value.scrollTop = logsBoxEl.value.scrollHeight
 })
-// Сброс подтверждения при повторном открытии родителем
 watch(visible, (value) => {
   if (value)
     showCloseConfirm.value = false
@@ -162,29 +218,114 @@ function togglePreset(preset: WishPreset) {
     wishes.value = trimmed.length > 0 ? `${trimmed}; ${preset.text}` : preset.text
   }
 }
+function addPinnedItem() {
+  const title = pinTitle.value.trim()
+
+  if (!title)
+    return
+
+  pinnedItems.value.push({
+    type: pinType.value,
+    title,
+    note: pinNote.value.trim() || undefined,
+  })
+  pinTitle.value = ''
+  pinNote.value = ''
+}
+function removePinnedItem(index: number) {
+  pinnedItems.value.splice(index, 1)
+}
+function pinIcon(type: AiTripUserPinType): string {
+  if (type === 'hotel')
+    return 'mdi:bed-outline'
+
+  if (type === 'logistics')
+    return 'mdi:airplane-clock'
+
+  return 'mdi:map-marker-outline'
+}
 function toStartDateString(): string {
   const selected = startDate.value ?? today(getLocalTimeZone())
 
   return selected.toDate('UTC').toISOString()
 }
-async function generate() {
-  if (!isFormValid.value || isRunning.value)
+function collectPendingPinIfTyped() {
+  if (pinTitle.value.trim())
+    addPinnedItem()
+}
+async function handleProposeConcept() {
+  if (!isFormValid.value || isBusy.value)
     return
 
+  collectPendingPinIfTyped()
+  showCloseConfirm.value = false
+  await propose({
+    country: country.value.trim(),
+    startDate: toStartDateString(),
+    days: days.value,
+    wishes: wishes.value.trim() || undefined,
+    pinnedItems: pinnedItems.value.length > 0 ? pinnedItems.value : undefined,
+  })
+}
+async function handleRefineConcept(payload: {
+  feedback: string
+  excludedPlaceNames: string[]
+  customPins: Array<{ type: 'place' | 'hotel', title: string, note?: string }>
+}) {
+  const mergedPins: IAiTripUserPin[] = [
+    ...pinnedItems.value,
+    ...payload.customPins.filter(cp => !pinnedItems.value.some(p => p.title.toLowerCase() === cp.title.toLowerCase())),
+  ]
+
+  await refineConcept({
+    country: country.value.trim(),
+    startDate: toStartDateString(),
+    days: days.value,
+    wishes: wishes.value.trim() || undefined,
+    pinnedItems: mergedPins.length > 0 ? mergedPins : undefined,
+    previousConcept: concept.value ?? undefined,
+    excludedPlaceNames: payload.excludedPlaceNames,
+    refinementFeedback: payload.feedback,
+  })
+}
+async function handleConfirmConcept(approvedConcept: IApprovedAiTripConcept) {
+  lastApprovedConcept.value = approvedConcept
   showCloseConfirm.value = false
   await start({
     country: country.value.trim(),
     startDate: toStartDateString(),
     days: days.value,
     wishes: wishes.value.trim() || undefined,
+    pinnedItems: pinnedItems.value.length > 0 ? pinnedItems.value : undefined,
+    approvedConcept,
   })
 }
-/**
- * Перехват попытки закрыть модалку. Во время генерации клик вне, Esc или крестик
- * не закрывают диалог — вместо этого показываем подтверждение.
- * Приходится «откатывать» visible обратно в true: DialogClose в KitDialogWithClose
- * пишет в v-model напрямую, и без этого диалог закрылся бы до нашего обработчика.
- */
+async function handleQuickGenerate() {
+  if (!isFormValid.value || isBusy.value)
+    return
+
+  collectPendingPinIfTyped()
+  lastApprovedConcept.value = undefined
+  showCloseConfirm.value = false
+  await start({
+    country: country.value.trim(),
+    startDate: toStartDateString(),
+    days: days.value,
+    wishes: wishes.value.trim() || undefined,
+    pinnedItems: pinnedItems.value.length > 0 ? pinnedItems.value : undefined,
+  })
+}
+async function retryAfterError() {
+  if (lastApprovedConcept.value) {
+    await handleConfirmConcept(lastApprovedConcept.value)
+  }
+  else if (concept.value) {
+    backFromError()
+  }
+  else {
+    await handleProposeConcept()
+  }
+}
 function onVisibleChange(value: boolean) {
   if (value) {
     showCloseConfirm.value = false
@@ -229,22 +370,22 @@ function openTrip() {
 <template>
   <KitDialogWithClose
     v-model:visible="visible"
-    title="Путешествие через ИИ"
-    description="Опишите направление и предпочтения — ИИ составит детальный план по дням, бюджет и заметки"
+    :title="dialogTitle"
+    :description="dialogDescription"
     icon="mdi:auto-fix"
-    :max-width="540"
-    :persistent="isRunning || showCloseConfirm"
+    :max-width="dialogMaxWidth"
+    :persistent="isRunning || phase === 'proposing' || showCloseConfirm"
     @update:visible="onVisibleChange"
   >
     <div class="ai-trip-flow">
-      <template v-if="phase === 'idle' || phase === 'error'">
-        <!-- Направление -->
+      <!-- ШАГ 1: ВВОДНЫЕ ПАРАМЕТРЫ -->
+      <template v-if="phase === 'idle'">
         <KitInput
           v-model="country"
           label="Куда отправимся?"
           icon="mdi:map-marker-radius-outline"
-          placeholder="Страна или регион — например, Япония"
-          @keydown.enter.prevent="generate"
+          placeholder="Страна, регион или маршрут — например, Япония"
+          @keydown.enter.prevent="handleProposeConcept"
         >
           <template v-if="country" #append>
             <button
@@ -341,42 +482,169 @@ function openTrip() {
           <KitInput
             v-model="wishes"
             type="textarea"
-            placeholder="Дополнительные детали: города мечты, любимая кухня, состав компании, бюджет или особые пожелания…"
+            placeholder="Дополнительные детали: любимая еда, состав компании, бюджет или особый ритм поездки…"
           />
         </div>
 
-        <div
-          v-if="phase === 'error'"
-          class="error-box"
-          role="alert"
-        >
-          <Icon icon="mdi:alert-circle-outline" class="error-box-icon" />
-          <div class="error-box-content">
-            <strong>Не удалось сгенерировать путешествие</strong>
-            <p>{{ errorMessage || 'Произошла непредвиденная ошибка. Попробуйте ещё раз.' }}</p>
+        <!-- Свои отели, места и билеты -->
+        <div class="pins-section">
+          <button
+            type="button"
+            class="pins-toggle"
+            :aria-expanded="isPinsOpen || pinnedItems.length > 0"
+            @click="isPinsOpen = !isPinsOpen"
+          >
+            <div class="pins-toggle-left">
+              <Icon icon="mdi:pin-outline" class="pins-toggle-icon" />
+              <span>Уже есть свои отели, места или рейсы?</span>
+              <span v-if="pinnedItems.length > 0" class="presets-badge">
+                {{ pinnedItems.length }}
+              </span>
+            </div>
+            <Icon
+              :icon="isPinsOpen || pinnedItems.length > 0 ? 'mdi:chevron-up' : 'mdi:chevron-down'"
+              class="pins-chevron"
+            />
+          </button>
+
+          <div v-if="isPinsOpen || pinnedItems.length > 0" class="pins-body">
+            <div class="pin-type-tabs">
+              <button
+                v-for="opt in pinTypeOptions"
+                :key="opt.id"
+                type="button"
+                class="pin-type-btn"
+                :class="{ active: pinType === opt.id }"
+                @click="pinType = opt.id"
+              >
+                <Icon :icon="opt.icon" />
+                <span>{{ opt.label }}</span>
+              </button>
+            </div>
+
+            <div class="pin-inputs-row">
+              <KitInput
+                v-model="pinTitle"
+                size="sm"
+                :placeholder="activePinOption.placeholder"
+                class="pin-input-title"
+                @keydown.enter.prevent="addPinnedItem"
+              />
+              <KitInput
+                v-model="pinNote"
+                size="sm"
+                :placeholder="activePinOption.notePlaceholder"
+                class="pin-input-note"
+                @keydown.enter.prevent="addPinnedItem"
+              />
+              <KitBtn
+                variant="tonal"
+                size="sm"
+                icon="mdi:plus"
+                :disabled="!pinTitle.trim()"
+                @click="addPinnedItem"
+              />
+            </div>
+
+            <div v-if="pinnedItems.length > 0" class="pinned-chips">
+              <div
+                v-for="(item, idx) in pinnedItems"
+                :key="`${item.type}-${idx}`"
+                class="pinned-chip"
+              >
+                <Icon :icon="pinIcon(item.type)" class="pinned-chip-icon" />
+                <span class="pinned-chip-title">{{ item.title }}</span>
+                <small v-if="item.note" class="pinned-chip-note">· {{ item.note }}</small>
+                <button
+                  type="button"
+                  class="pinned-chip-remove"
+                  aria-label="Удалить привязку"
+                  @click="removePinnedItem(idx)"
+                >
+                  <Icon icon="mdi:close" />
+                </button>
+              </div>
+            </div>
           </div>
         </div>
 
-        <div class="flow-actions">
+        <div class="flow-actions is-spaced">
           <KitBtn
-            variant="outlined"
+            variant="text"
             color="secondary"
-            @click="close"
+            size="sm"
+            :disabled="!isFormValid || isBusy"
+            @click="handleQuickGenerate"
           >
-            Отмена
+            Сразу без отбора
           </KitBtn>
-          <KitBtn
-            :disabled="!isFormValid || isRunning"
-            variant="solid"
-            color="primary"
-            icon="mdi:auto-fix"
-            @click="generate"
-          >
-            Сгенерировать маршрут
-          </KitBtn>
+
+          <div class="flow-actions-right">
+            <KitBtn
+              variant="outlined"
+              color="secondary"
+              @click="close"
+            >
+              Отмена
+            </KitBtn>
+            <KitBtn
+              :disabled="!isFormValid || isBusy"
+              variant="solid"
+              color="primary"
+              icon="mdi:auto-fix"
+              @click="handleProposeConcept"
+            >
+              Подобрать маршрут и места
+            </KitBtn>
+          </div>
         </div>
       </template>
 
+      <!-- ШАГ 2: ИНТЕРАКТИВНЫЙ ОТБОР И НАСТРОЙКА КОНЦЕПЦИИ -->
+      <template v-else-if="phase === 'review' && concept">
+        <AiTripConceptReview
+          :proposal="concept"
+          :is-refining="isRefining"
+          :refine-error="refineError"
+          @back="backToForm"
+          @refine="handleRefineConcept"
+          @confirm="handleConfirmConcept"
+        />
+      </template>
+
+      <!-- ЭКРАН ОШИБКИ С ВОЗМОЖНОСТЬЮ ВЕРНУТЬСЯ БЕЗ ПОТЕРИ ДАННЫХ -->
+      <template v-else-if="phase === 'error'">
+        <div class="error-state">
+          <div class="error-box" role="alert">
+            <Icon icon="mdi:alert-circle-outline" class="error-box-icon" />
+            <div class="error-box-content">
+              <strong>Не удалось завершить операцию</strong>
+              <p>{{ errorMessage || 'Произошла непредвиденная ошибка. Попробуйте повторить запрос.' }}</p>
+            </div>
+          </div>
+
+          <div class="flow-actions">
+            <KitBtn
+              variant="outlined"
+              color="secondary"
+              icon="mdi:arrow-left"
+              @click="backFromError"
+            >
+              {{ concept ? 'К настройке маршрута' : 'К параметрам' }}
+            </KitBtn>
+            <KitBtn
+              variant="solid"
+              color="primary"
+              icon="mdi:refresh"
+              @click="retryAfterError"
+            >
+              Повторить попытку
+            </KitBtn>
+          </div>
+        </div>
+      </template>
+
+      <!-- ЭКРАН ПРОГРЕССА (ПОДБОР КОНЦЕПЦИИ / ГЕНЕРАЦИЯ / ИМПОРТ / ГОТОВО) -->
       <template v-else>
         <div class="progress-state">
           <div class="status-visual" :class="{ 'is-done': phase === 'done' }">
@@ -406,13 +674,13 @@ function openTrip() {
               v-if="phase === 'generating' && attemptsTotal > 1 && attempt > 1"
               class="attempt-badge"
             >
-              <Icon icon="mdi:refresh" />
-              Попытка {{ attempt }} из {{ attemptsTotal }}
+              <Icon icon="mdi:shield-refresh-outline" />
+              Самопроверка и коррекция ИИ (шаг {{ attempt }}/{{ attemptsTotal }})
             </span>
           </div>
 
-          <!-- Пошаговый индикатор фаз -->
-          <div class="phase-steps">
+          <!-- Пошаговый индикатор фаз полной сборки -->
+          <div v-if="phase !== 'proposing'" class="phase-steps">
             <div
               class="phase-step"
               :class="{
@@ -421,7 +689,7 @@ function openTrip() {
               }"
             >
               <span class="phase-step-dot" />
-              <span class="phase-step-text">Генерация плана</span>
+              <span class="phase-step-text">План и дни</span>
             </div>
             <div class="phase-step-line" :class="{ 'is-filled': phase === 'importing' || phase === 'done' }" />
             <div
@@ -432,7 +700,7 @@ function openTrip() {
               }"
             >
               <span class="phase-step-dot" />
-              <span class="phase-step-text">Импорт заметок</span>
+              <span class="phase-step-text">Импорт в базу</span>
             </div>
             <div class="phase-step-line" :class="{ 'is-filled': phase === 'done' }" />
             <div
@@ -447,18 +715,19 @@ function openTrip() {
           </div>
 
           <div
-            v-if="phase === 'generating' || phase === 'importing'"
+            v-if="phase === 'proposing' || phase === 'generating' || phase === 'importing'"
             class="progress-track"
-            :class="{ indeterminate: isProgressIndeterminate }"
+            :class="{ indeterminate: phase === 'proposing' || isProgressIndeterminate }"
           >
-            <div
-              v-if="!isProgressIndeterminate"
-              class="progress-bar"
-              :style="progressBarStyle"
+            <progress
+              v-if="phase !== 'proposing' && !isProgressIndeterminate"
+              class="native-progress"
+              :value="progressPercent ?? 0"
+              max="100"
             />
             <div
               v-else
-              class="progress-bar indeterminate-bar"
+              class="indeterminate-bar"
             />
           </div>
 
@@ -538,7 +807,7 @@ function openTrip() {
 .ai-trip-flow {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 18px;
 }
 
 .schedule-card {
@@ -769,16 +1038,190 @@ function openTrip() {
   }
 }
 
+.pins-section {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border-secondary-color);
+  border-radius: var(--r-m);
+  background-color: var(--bg-secondary-color);
+  overflow: hidden;
+}
+
+.pins-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 14px;
+  background: transparent;
+  border: none;
+  color: var(--fg-secondary-color);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  transition: color 0.15s ease;
+
+  @include hover {
+    color: var(--fg-primary-color);
+  }
+
+  &-left {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  &-icon {
+    font-size: 1rem;
+    color: var(--fg-accent-color);
+  }
+}
+
+.pins-chevron {
+  font-size: 1.125rem;
+  color: var(--fg-tertiary-color);
+}
+
+.pins-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 0 14px 12px;
+}
+
+.pin-type-tabs {
+  display: flex;
+  gap: 6px;
+}
+
+.pin-type-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: var(--r-full);
+  background-color: var(--bg-primary-color);
+  border: 1px solid var(--border-secondary-color);
+  color: var(--fg-secondary-color);
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+
+  @include hover {
+    border-color: var(--border-focus-color);
+    color: var(--fg-primary-color);
+  }
+
+  &.active {
+    background-color: var(--bg-accent-overlay-color);
+    border-color: var(--fg-accent-color);
+    color: var(--fg-accent-color);
+    font-weight: 600;
+  }
+}
+
+.pin-inputs-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+
+  @include media-down(sm) {
+    flex-wrap: wrap;
+  }
+
+  .pin-input-title {
+    flex: 1.4;
+    min-width: 150px;
+  }
+
+  .pin-input-note {
+    flex: 1;
+    min-width: 120px;
+  }
+}
+
+.pinned-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.pinned-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 8px 4px 10px;
+  border-radius: var(--r-full);
+  background-color: var(--bg-primary-color);
+  border: 1px solid var(--border-secondary-color);
+  font-size: 0.75rem;
+  color: var(--fg-primary-color);
+
+  &-icon {
+    font-size: 0.875rem;
+    color: var(--fg-accent-color);
+    flex-shrink: 0;
+  }
+
+  &-title {
+    font-weight: 500;
+  }
+
+  &-note {
+    color: var(--fg-secondary-color);
+    font-size: 0.72rem;
+  }
+
+  &-remove {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2px;
+    border: none;
+    border-radius: 50%;
+    background: transparent;
+    color: var(--fg-tertiary-color);
+    cursor: pointer;
+
+    @include hover {
+      color: var(--fg-error-color);
+      background-color: var(--bg-hover-color);
+    }
+  }
+}
+
 .flow-actions {
   display: flex;
   justify-content: flex-end;
-  gap: 12px;
-  padding-top: 16px;
+  align-items: center;
+  gap: 10px;
+  padding-top: 14px;
   border-top: 1px solid var(--border-secondary-color);
+
+  &.is-spaced {
+    justify-content: space-between;
+    flex-wrap: wrap;
+  }
 
   &.is-full-width {
     width: 100%;
   }
+
+  &-right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-left: auto;
+  }
+}
+
+.error-state {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
 .progress-state {
@@ -841,9 +1284,9 @@ function openTrip() {
   .attempt-badge {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
+    gap: 5px;
     margin-top: 2px;
-    padding: 2px 10px;
+    padding: 3px 10px;
     border-radius: var(--r-full);
     background-color: var(--bg-secondary-color);
     border: 1px solid var(--border-secondary-color);
@@ -918,16 +1361,36 @@ function openTrip() {
   overflow: hidden;
   position: relative;
 
-  .progress-bar {
+  .native-progress {
+    display: block;
+    width: 100%;
     height: 100%;
-    width: var(--progress-width, 0%);
-    border-radius: var(--r-full);
-    background-color: var(--fg-accent-color);
-    transition: width 0.3s ease;
+    appearance: none;
+    border: none;
+    background-color: var(--bg-secondary-color);
+
+    &::-webkit-progress-bar {
+      background-color: var(--bg-secondary-color);
+      border-radius: var(--r-full);
+    }
+
+    &::-webkit-progress-value {
+      background-color: var(--fg-accent-color);
+      border-radius: var(--r-full);
+      transition: width 0.3s ease;
+    }
+
+    &::-moz-progress-bar {
+      background-color: var(--fg-accent-color);
+      border-radius: var(--r-full);
+      transition: width 0.3s ease;
+    }
   }
 
   &.indeterminate .indeterminate-bar {
+    height: 100%;
     width: 35%;
+    border-radius: var(--r-full);
     background-color: var(--fg-accent-color);
     animation: ai-trip-load 1.4s ease-in-out infinite;
   }

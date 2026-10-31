@@ -7,6 +7,7 @@ import { HTTPException } from 'hono/http-exception'
 import { createOpenApiFetchHandler, generateOpenApiDocument } from 'trpc-to-openapi'
 import { Logger } from '~/lib/logger'
 import { authController } from './api/auth.controller'
+import { calendarController } from './api/calendar.controller'
 import { imageController } from './api/image.controller'
 import { llmController } from './api/llm.controller'
 import {
@@ -106,6 +107,8 @@ class Server {
       .post('/upload/multipart/abort', abortMultipartUploadController)
       .route('/auth', authController)
       .route('/llm', llmController)
+      .route('/calendar', calendarController)
+      .route('/trips', calendarController)
 
     this.app.route('/api', apiRoutes)
     this.app.route('/image', imageController)

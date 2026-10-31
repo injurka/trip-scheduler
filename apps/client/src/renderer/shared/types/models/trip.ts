@@ -83,6 +83,8 @@ export interface ImageMetadata {
   gps?: GpsMetadata
   iptc?: IptcMetadata
 
+  thumbhash?: string
+
   // Поле для всех остальных данных, которые не были распарсены
   rawExif?: Record<string, any>
 }
@@ -117,7 +119,8 @@ export interface TripMedia {
     large?: string
     poster?: string
     web?: string
-  } | null
+    thumbhash?: string
+  } | Record<string, string> | null
 
   // --- Все остальные метаданные в одном поле JSONB ---
   metadata?: ImageMetadata | null
@@ -190,6 +193,7 @@ export interface TripWeatherPayload {
 export interface Trip {
   id: string
   userId: string
+  shareSlug?: string | null
   title: string
   imageUrl: string | null
   description: string | null

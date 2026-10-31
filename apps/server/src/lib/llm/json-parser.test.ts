@@ -107,4 +107,50 @@ describe('json-parser', () => {
     expect(result.errors).toBeDefined()
     expect(result.errors?.[0]).toContain('Field "tag"')
   })
+
+  it('repairs raw newlines, tabs, and invalid markdown escapes inside JSON strings', () => {
+    const raw = `{"files": [{"path": "04 - Финансы/Финансы.md", "content": "# Финансы\n| Статья | Сумма |\n| --- | --- |\n| Еда \\| Кафе | 5000 ₽ |\nСсылка \\[тест\\](https://example.com/a//b)"}]}`
+    const result = tryParseJson<{ files: Array<{ path: string, content: string }> }>(raw)
+    expect(result.success).toBe(true)
+    if (result.success) {
+      expect(result.data.files[0].content).toContain('https://example.com/a//b')
+      expect(result.data.files[0].content).toContain('\\|')
+      expect(result.data.files[0].content).toContain('\n| Статья |')
+    }
+  })
+
+  it('preserves inner markdown code fences like ```mermaid inside JSON string values', () => {
+    const raw = JSON.stringify({
+      files: [
+        {
+          path: '04 - Финансы/Финансы.md',
+          content: '# Бюджет\n```mermaid\npie title Расходы\n  "Отели" : 50000\n```\nИтого, все учтено.',
+        },
+      ],
+    })
+    // Add trailing comma to force sanitizer path
+    const withTrailingComma = raw.replace('}]}', '}]}')
+    const result = tryParseJson<{ files: Array<{ path: string, content: string }> }>(withTrailingComma)
+    expect(result.success).toBe(true)
+    if (result.success) {
+      expect(result.data.files[0].content).toContain('```mermaid')
+    }
+  })
+
+  it('runs both Zod schema and validateWithErrors together when both are supplied', () => {
+    const schema = z.object({
+      days: z.array(z.number()),
+    })
+    const result = validateParsedData(
+      { days: [1, 2] },
+      {
+        schema,
+        validateWithErrors: data => data.days.length === 3
+          ? { success: true, data }
+          : { success: false, errors: ['Expected 3 days'] },
+      },
+    )
+    expect(result.success).toBe(false)
+    expect(result.errors).toEqual(['Expected 3 days'])
+  })
 })
