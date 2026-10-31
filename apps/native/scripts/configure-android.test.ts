@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { addFirebaseGradlePlugin } from './configure-android'
+import { addFirebaseGradlePlugin, configureAndroidKotlin } from './configure-android'
 
 const ROOT_BUILD = `buildscript {
     repositories {
@@ -8,7 +8,7 @@ const ROOT_BUILD = `buildscript {
     }
     dependencies {
         classpath("com.android.tools.build:gradle:8.11.0")
-        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:2.1.0")
+        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:1.9.25")
     }
 }
 
@@ -19,6 +19,38 @@ allprojects {
     }
 }
 `
+
+describe('Android Kotlin compatibility', () => {
+  test('upgrades the compiler inherited by app and library modules from the Tauri root', () => {
+    const configured = configureAndroidKotlin(ROOT_BUILD)
+    expect(configured).toContain('classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:2.2.21")')
+    expect(configured).not.toContain('1.9.25')
+    expect(configured).toContain('classpath("com.android.tools.build:gradle:8.11.0")')
+    expect(configureAndroidKotlin(configured)).toBe(configured)
+    expect(addFirebaseGradlePlugin(configured, '4.5.0')).toContain('classpath("com.google.gms:google-services:4.5.0")')
+  })
+
+  test('supports the plugins DSL and Kotlin shorthand', () => {
+    expect(configureAndroidKotlin('plugins { id("org.jetbrains.kotlin.android") version "1.9.25" apply false }'))
+      .toContain('version "2.2.21" apply false')
+    expect(configureAndroidKotlin('plugins { kotlin("android") version "2.1.21" apply false }'))
+      .toContain('version "2.2.21" apply false')
+  })
+
+  test('keeps a newer compiler rather than downgrading a newer Tauri template', () => {
+    const newer = ROOT_BUILD.replace('1.9.25', '2.3.0')
+    expect(configureAndroidKotlin(newer)).toBe(newer)
+  })
+
+  test('replaces a version variable in a buildscript coordinate', () => {
+    const variable = ROOT_BUILD.replace('1.9.25', '$kotlinVersion')
+    expect(configureAndroidKotlin(variable)).toContain('kotlin-gradle-plugin:2.2.21')
+  })
+
+  test('fails explicitly if the generated template stops declaring a Kotlin version', () => {
+    expect(() => configureAndroidKotlin('allprojects {}')).toThrow('Kotlin Gradle plugin version')
+  })
+})
 
 describe('Firebase Gradle configuration', () => {
   test('adds the Google Services classpath to the generated Tauri root buildscript', () => {

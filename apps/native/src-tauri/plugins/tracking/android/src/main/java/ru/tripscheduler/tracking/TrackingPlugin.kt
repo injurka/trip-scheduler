@@ -377,7 +377,7 @@ class TrackingPlugin(private val activity: Activity) : Plugin(activity) {
         // о способе передвижения. Нет данных — полей нет, потребитель обязан это учитывать.
         val extras = loc.extras
         val deviceActivity = extras?.getString(TrackingService.EXTRA_DEVICE_ACTIVITY)
-        if (!deviceActivity.isNullOrEmpty()) {
+        if (extras != null && !deviceActivity.isNullOrEmpty()) {
             ret["activity"] = deviceActivity
             ret["activityConfidence"] =
                 extras.getInt(TrackingService.EXTRA_DEVICE_ACTIVITY_CONFIDENCE, 0)

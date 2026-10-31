@@ -138,6 +138,35 @@ export function configureAndroidManifest(): boolean {
   return true
 }
 
+export function configureAndroidKotlin(content: string): string {
+  const minimumVersion = '2.2.21'
+  const declarations = [
+    /(classpath\(\s*["']org\.jetbrains\.kotlin:kotlin-gradle-plugin:)([^"']+)(["']\s*\))/g,
+    /(id\(["']org\.jetbrains\.kotlin\.android["']\)\s+version\s+["'])([^"']+)(["'])/g,
+    /(kotlin\(["']android["']\)\s+version\s+["'])([^"']+)(["'])/g,
+  ]
+
+  for (const declaration of declarations) {
+    if (!declaration.test(content))
+      continue
+
+    declaration.lastIndex = 0
+    return content.replace(declaration, (_, prefix: string, version: string, suffix: string) => {
+      const parts = version.split('.').map(Number)
+      const minimum = minimumVersion.split('.').map(Number)
+      for (let index = 0; index < minimum.length; index++) {
+        if (Number.isNaN(parts[index]) || parts[index] < minimum[index])
+          return `${prefix}${minimumVersion}${suffix}`
+        if (parts[index] > minimum[index])
+          return `${prefix}${version}${suffix}`
+      }
+      return `${prefix}${version}${suffix}`
+    })
+  }
+
+  throw new Error('[configure-android] Cannot find the Kotlin Gradle plugin version in the generated root Android Gradle file.')
+}
+
 export function addFirebaseGradlePlugin(content: string, version?: string): string {
   if (version) {
     const classpath = /(classpath\(["']com\.google\.gms:google-services:)[^"']+(["']\))/
@@ -200,7 +229,10 @@ export function configureAndroidFirebase(): boolean {
   if (!hasMatchingPackage)
     throw new Error('[configure-android] google-services.json does not contain package ru.tripscheduler.app.')
 
-  const rootBuild = addFirebaseGradlePlugin(readFileSync(ANDROID_BUILD_GRADLE_PATH, 'utf-8'), '4.5.0')
+  const rootBuild = addFirebaseGradlePlugin(
+    configureAndroidKotlin(readFileSync(ANDROID_BUILD_GRADLE_PATH, 'utf-8')),
+    '4.5.0',
+  )
   const appBuild = addFirebaseGradlePlugin(readFileSync(ANDROID_APP_GRADLE_PATH, 'utf-8'))
   writeFileSync(ANDROID_BUILD_GRADLE_PATH, rootBuild, 'utf-8')
   writeFileSync(ANDROID_APP_GRADLE_PATH, appBuild, 'utf-8')

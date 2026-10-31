@@ -186,7 +186,7 @@ class TrackingService : Service() {
                         // Состояние Activity Recognition переживает гибель процесса вместе с точкой
                         val extras = location.extras
                         val deviceActivity = extras?.getString(EXTRA_DEVICE_ACTIVITY)
-                        if (!deviceActivity.isNullOrEmpty()) {
+                        if (extras != null && !deviceActivity.isNullOrEmpty()) {
                             put("act", deviceActivity)
                             put(
                                 "actc",
