@@ -289,6 +289,17 @@ function getStayWeekday(iso?: string): string {
           :readonly="readonly"
           @update:model-value="updateDataField('guests', $event)"
         />
+        <BookingDateTimeField
+          v-if="!readonly || booking.data.checkInTime"
+          :model-value="booking.data.checkInTime"
+          label="Ориентир заезда (лента)"
+          icon="mdi:timeline-clock-outline"
+          placeholder="Авто (по маршруту)"
+          :readonly="readonly"
+          type="time"
+          class="span-2"
+          @update:model-value="updateDataField('checkInTime', $event)"
+        />
 
         <KitDivider v-if="!readonly || (booking.data.confirmationNumber || booking.data.sourceUrl)" class="span-2" />
 

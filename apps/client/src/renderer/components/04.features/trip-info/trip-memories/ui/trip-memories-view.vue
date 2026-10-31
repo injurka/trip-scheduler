@@ -4,7 +4,7 @@ import type { ImageQuality } from '../composables/use-image-cacher'
 import type { ImageViewerImage } from '~/components/01.kit/kit-image-viewer'
 import type { Activity } from '~/shared/types/models/activity'
 import { Icon } from '@iconify/vue'
-import { useDropZone, useFileDialog } from '@vueuse/core'
+import { onKeyStroke, useDropZone, useFileDialog, useScrollLock } from '@vueuse/core'
 import { KitDivider } from '~/components/01.kit/kit-divider'
 import { KitDropdown } from '~/components/01.kit/kit-dropdown'
 import { KitTooltip } from '~/components/01.kit/kit-tooltip'
@@ -41,6 +41,8 @@ const {
   syncState,
 } = useTripMemoriesVault()
 const imageCacher = useImageCacher()
+const isBodyScrollLocked = useScrollLock(typeof document !== 'undefined' ? document.body : null)
+const isHtmlScrollLocked = useScrollLock(typeof document !== 'undefined' ? document.documentElement : null)
 
 const {
   memoriesForSelectedDay,
@@ -159,6 +161,11 @@ const playerDayUtc = computed<string | undefined>(() => {
   return DAY_REGEX.test(datePart) ? datePart : undefined
 })
 
+watch(isFullScreen, (val) => {
+  isBodyScrollLocked.value = val
+  isHtmlScrollLocked.value = val
+})
+
 function onDrop(files: File[] | null) {
   if (!files || activeView.value !== 'memories' || isViewMode.value)
     return
@@ -243,6 +250,12 @@ async function handleNotifyParticipants() {
   }
 }
 
+onKeyStroke('Escape', (e) => {
+  if (isFullScreen.value && !isAddNoteDialogVisible.value && !isAddActivityDialogVisible.value && !isMemoriesTrackPlayerOpen.value) {
+    e.preventDefault()
+    isFullScreen.value = false
+  }
+})
 onChange((files) => {
   if (!files || files.length === 0)
     return
@@ -250,206 +263,213 @@ onChange((files) => {
   memories.enqueueFilesForUpload(Array.from(files))
   reset()
 })
+
+onBeforeUnmount(() => {
+  isBodyScrollLocked.value = false
+  isHtmlScrollLocked.value = false
+})
 </script>
 
 <template>
-  <div ref="dropZoneRef" class="memories-view" :class="{ 'is-fullscreen-mode': isFullScreen }">
-    <DownloadStatusBanner :progress="syncState" />
+  <Teleport to="body" :disabled="!isFullScreen">
+    <div ref="dropZoneRef" class="memories-view" :class="{ 'is-fullscreen-mode': isFullScreen }">
+      <DownloadStatusBanner :progress="syncState" />
 
-    <div class="divider-with-action">
-      <KitDivider
-        :is-loading="isLoadingMemories || memories.isCreatingMemory || memories.isMutateMemory"
-      />
-      <div class="controls-wrapper">
-        <template v-if="isNative">
-          <KitTooltip :text="vaultStore.isLocalMode ? 'Локальный режим включён' : 'Включить локальный режим'">
-            <button
-              class="control-btn local-mode-btn"
-              :class="{ 'is-active': vaultStore.isLocalMode && vaultStore.isConfigured }"
-              @click="handleToggleLocalMode"
+      <div class="divider-with-action">
+        <KitDivider
+          :is-loading="isLoadingMemories || memories.isCreatingMemory || memories.isMutateMemory"
+        />
+        <div class="controls-wrapper">
+          <template v-if="isNative">
+            <KitTooltip :text="vaultStore.isLocalMode ? 'Локальный режим включён' : 'Включить локальный режим'">
+              <button
+                class="control-btn local-mode-btn"
+                :class="{ 'is-active': vaultStore.isLocalMode && vaultStore.isConfigured }"
+                @click="handleToggleLocalMode"
+              >
+                <Icon :icon="vaultStore.isLocalMode ? 'mdi:harddisk' : 'mdi:cloud-outline'" />
+              </button>
+            </KitTooltip>
+
+            <KitTooltip
+              v-if="memoriesForSelectedDay.length > 0 && vaultStore.isLocalMode"
+              :text="syncState.isDownloading ? 'Скачивание...' : 'Скачать медиа локально'"
             >
-              <Icon :icon="vaultStore.isLocalMode ? 'mdi:harddisk' : 'mdi:cloud-outline'" />
+              <button
+                class="control-btn sync-btn"
+                :class="{ 'is-active': syncState.isDownloading }"
+                :disabled="syncState.isDownloading"
+                @click="handleDownloadVault"
+              >
+                <Icon
+                  :icon="syncState.isDownloading ? 'mdi:loading' : 'mdi:download-network-outline'"
+                  :class="{ spin: syncState.isDownloading }"
+                />
+              </button>
+            </KitTooltip>
+          </template>
+
+          <KitTooltip
+            v-if="memoriesForSelectedDay.length > 0"
+            :text="imageCacher.isCaching.value ? `Кеширование (${cachingPercent}%). Нажмите для остановки` : 'Кешировать изображения на странице'"
+          >
+            <button
+              v-if="imageCacher.isCaching.value"
+              class="control-btn cache-btn is-active"
+              @click="imageCacher.stopCaching()"
+            >
+              <div class="progress-circle-wrapper">
+                <svg class="progress-circle" viewBox="0 0 36 36">
+                  <path
+                    class="circle-bg"
+                    d="M18 2.0845
+                    a 15.9155 15.9155 0 0 1 0 31.831
+                    a 15.9155 15.9155 0 0 1 0 -31.831"
+                  />
+                  <path
+                    class="circle"
+                    :stroke-dasharray="`${cachingPercent}, 100`"
+                    d="M18 2.0845
+                    a 15.9155 15.9155 0 0 1 0 31.831
+                    a 15.9155 15.9155 0 0 1 0 -31.831"
+                  />
+                </svg>
+                <span class="progress-text">{{ cachingPercent }}</span>
+              </div>
+            </button>
+            <KitDropdown
+              v-else
+              :items="cacheQualityOptions"
+              @update:model-value="handleCacheAll"
+            >
+              <template #trigger>
+                <button class="control-btn cache-btn">
+                  <Icon icon="mdi:cached" />
+                </button>
+              </template>
+            </KitDropdown>
+          </KitTooltip>
+
+          <KitTooltip text="Маршрут дня (подвижность)">
+            <button
+              class="control-btn track-route-btn"
+              :class="{ 'is-active': isMemoriesTrackPlayerOpen }"
+              @click="ui.toggleMemoriesTrackPlayer()"
+            >
+              <Icon icon="mdi:map-marker-path" />
             </button>
           </KitTooltip>
 
-          <KitTooltip
-            v-if="memoriesForSelectedDay.length > 0 && vaultStore.isLocalMode"
-            :text="syncState.isDownloading ? 'Скачивание...' : 'Скачать медиа локально'"
-          >
+          <KitTooltip v-if="!isViewMode && memoriesForSelectedDay.length > 0" text="Уведомить участников">
             <button
-              class="control-btn sync-btn"
-              :class="{ 'is-active': syncState.isDownloading }"
-              :disabled="syncState.isDownloading"
-              @click="handleDownloadVault"
+              class="control-btn notify-btn"
+              :class="{ 'is-loading': isNotifyLoading }"
+              :disabled="isNotifyLoading"
+              @click="handleNotifyParticipants"
             >
               <Icon
-                :icon="syncState.isDownloading ? 'mdi:loading' : 'mdi:download-network-outline'"
-                :class="{ spin: syncState.isDownloading }"
+                :icon="isNotifyLoading ? 'mdi:loading' : 'mdi:bell-ring-outline'"
+                :class="{ spin: isNotifyLoading }"
               />
             </button>
           </KitTooltip>
-        </template>
 
-        <KitTooltip
-          v-if="memoriesForSelectedDay.length > 0"
-          :text="imageCacher.isCaching.value ? `Кеширование (${cachingPercent}%). Нажмите для остановки` : 'Кешировать изображения на странице'"
-        >
-          <button
-            v-if="imageCacher.isCaching.value"
-            class="control-btn cache-btn is-active"
-            @click="imageCacher.stopCaching()"
-          >
-            <div class="progress-circle-wrapper">
-              <svg class="progress-circle" viewBox="0 0 36 36">
-                <path
-                  class="circle-bg"
-                  d="M18 2.0845
-                    a 15.9155 15.9155 0 0 1 0 31.831
-                    a 15.9155 15.9155 0 0 1 0 -31.831"
-                />
-                <path
-                  class="circle"
-                  :stroke-dasharray="`${cachingPercent}, 100`"
-                  d="M18 2.0845
-                    a 15.9155 15.9155 0 0 1 0 31.831
-                    a 15.9155 15.9155 0 0 1 0 -31.831"
-                />
-              </svg>
-              <span class="progress-text">{{ cachingPercent }}</span>
-            </div>
-          </button>
-          <KitDropdown
-            v-else
-            :items="cacheQualityOptions"
-            @update:model-value="handleCacheAll"
-          >
-            <template #trigger>
-              <button class="control-btn cache-btn">
-                <Icon icon="mdi:cached" />
-              </button>
-            </template>
-          </KitDropdown>
-        </KitTooltip>
+          <KitTooltip v-if="mdAndUp && memoriesForSelectedDay.length > 0" :text="isFullScreen ? 'Свернуть' : 'На весь экран'">
+            <button
+              class="control-btn fullscreen-btn"
+              :class="{ 'is-active': isFullScreen }"
+              @click="toggleFullScreen"
+            >
+              <Icon :icon="isFullScreen ? 'mdi:fullscreen-exit' : 'mdi:fullscreen'" />
+            </button>
+          </KitTooltip>
 
-        <KitTooltip text="Маршрут дня (подвижность)">
-          <button
-            class="control-btn track-route-btn"
-            :class="{ 'is-active': isMemoriesTrackPlayerOpen }"
-            @click="ui.toggleMemoriesTrackPlayer()"
-          >
-            <Icon icon="mdi:map-marker-path" />
-          </button>
-        </KitTooltip>
-
-        <KitTooltip v-if="!isViewMode && memoriesForSelectedDay.length > 0" text="Уведомить участников">
-          <button
-            class="control-btn notify-btn"
-            :class="{ 'is-loading': isNotifyLoading }"
-            :disabled="isNotifyLoading"
-            @click="handleNotifyParticipants"
-          >
-            <Icon
-              :icon="isNotifyLoading ? 'mdi:loading' : 'mdi:bell-ring-outline'"
-              :class="{ spin: isNotifyLoading }"
-            />
-          </button>
-        </KitTooltip>
-
-        <KitTooltip v-if="mdAndUp && memoriesForSelectedDay.length > 0" :text="isFullScreen ? 'Свернуть' : 'На весь экран'">
-          <button
-            class="control-btn fullscreen-btn"
-            :class="{ 'is-active': isFullScreen }"
-            @click="toggleFullScreen"
-          >
-            <Icon :icon="isFullScreen ? 'mdi:fullscreen-exit' : 'mdi:fullscreen'" />
-          </button>
-        </KitTooltip>
-
-        <KitTooltip v-if="allMemoryGroupKeys.length > 0" :text="allMemoryBlocksCollapsed ? 'Развернуть все группы' : 'Свернуть все группы'">
-          <button
-            class="control-btn collapse-btn"
-            @click="handleToggleAllMemories"
-          >
-            <Icon :icon="collapseMemoriesIcon" />
-          </button>
-        </KitTooltip>
-      </div>
-    </div>
-
-    <div class="memories-content-scroll">
-      <AsyncStateWrapper
-        class="async-wrapper"
-        :loading="isLoadingMemories && !isProcessing"
-        :error="fetchError"
-        :data="memoriesData"
-        :retry-handler="() => memories.fetchMemories(tripData.currentTripId!)"
-      >
-        <template #loading>
-          <MemoriesSkeleton />
-        </template>
-
-        <template #error="{ error, retry }">
-          <MemoriesError :error="error" :retry="retry" />
-        </template>
-
-        <template #success>
-          <MemoriesList
-            :memories="memoriesForSelectedDay"
-            :gallery-images="galleryImages"
-            :import-options="importOptions"
-            :is-view-mode="isViewMode"
-            :is-processing="isProcessing"
-            :processing-memories="getProcessingMemories"
-            :is-full-screen="isFullScreen"
-            @upload="openFileDialog"
-            @add-note="handleAddTextNote"
-            @add-activity="handleAddActivity"
-            @import="handleImport"
-          />
-        </template>
-
-        <template #empty>
-          <MemoriesEmpty
-            :is-view-mode="isViewMode"
-            :import-options="importOptions"
-            @upload="openFileDialog"
-            @add-note="handleAddTextNote"
-            @add-activity="handleAddActivity"
-            @import="handleImport"
-          />
-        </template>
-      </AsyncStateWrapper>
-
-      <div v-if="isOverDropZone && !isViewMode" class="drop-overlay">
-        <div class="drop-overlay-content">
-          <Icon icon="mdi:upload-multiple" />
-          <span>Отпустите, чтобы загрузить</span>
+          <KitTooltip v-if="allMemoryGroupKeys.length > 0" :text="allMemoryBlocksCollapsed ? 'Развернуть все группы' : 'Свернуть все группы'">
+            <button
+              class="control-btn collapse-btn"
+              @click="handleToggleAllMemories"
+            >
+              <Icon :icon="collapseMemoriesIcon" />
+            </button>
+          </KitTooltip>
         </div>
       </div>
+
+      <div class="memories-content-scroll">
+        <AsyncStateWrapper
+          class="async-wrapper"
+          :loading="isLoadingMemories && !isProcessing"
+          :error="fetchError"
+          :data="memoriesData"
+          :retry-handler="() => memories.fetchMemories(tripData.currentTripId!)"
+        >
+          <template #loading>
+            <MemoriesSkeleton />
+          </template>
+
+          <template #error="{ error, retry }">
+            <MemoriesError :error="error" :retry="retry" />
+          </template>
+
+          <template #success>
+            <MemoriesList
+              :memories="memoriesForSelectedDay"
+              :gallery-images="galleryImages"
+              :import-options="importOptions"
+              :is-view-mode="isViewMode"
+              :is-processing="isProcessing"
+              :processing-memories="getProcessingMemories"
+              :is-full-screen="isFullScreen"
+              @upload="openFileDialog"
+              @add-note="handleAddTextNote"
+              @add-activity="handleAddActivity"
+              @import="handleImport"
+            />
+          </template>
+
+          <template #empty>
+            <MemoriesEmpty
+              :is-view-mode="isViewMode"
+              :import-options="importOptions"
+              @upload="openFileDialog"
+              @add-note="handleAddTextNote"
+              @add-activity="handleAddActivity"
+              @import="handleImport"
+            />
+          </template>
+        </AsyncStateWrapper>
+
+        <div v-if="isOverDropZone && !isViewMode" class="drop-overlay">
+          <div class="drop-overlay-content">
+            <Icon icon="mdi:upload-multiple" />
+            <span>Отпустите, чтобы загрузить</span>
+          </div>
+        </div>
+      </div>
+
+      <AddNoteDialog
+        v-model:visible="isAddNoteDialogVisible"
+        @save="handleSaveNote"
+      />
+
+      <AddActivityDialog
+        v-model:visible="isAddActivityDialogVisible"
+        @save="handleSaveActivity"
+      />
+
+      <DayTrackDrawer
+        :open="isMemoriesTrackPlayerOpen"
+        :day-utc="playerDayUtc"
+        mode="memories"
+        :day-dates="tripDayDates"
+        :show-today-button="false"
+        :memories="memoriesForSelectedDay"
+        :gallery-images="galleryImages"
+        @close="ui.closeMemoriesTrackPlayer()"
+        @day-change="handlePlayerDayChange"
+      />
     </div>
-
-    <AddNoteDialog
-      v-model:visible="isAddNoteDialogVisible"
-      @save="handleSaveNote"
-    />
-
-    <AddActivityDialog
-      v-model:visible="isAddActivityDialogVisible"
-      @save="handleSaveActivity"
-    />
-
-    <DayTrackDrawer
-      :open="isMemoriesTrackPlayerOpen"
-      :day-utc="playerDayUtc"
-      mode="memories"
-      :day-dates="tripDayDates"
-      :show-today-button="false"
-      :memories="memoriesForSelectedDay"
-      :gallery-images="galleryImages"
-      @close="ui.closeMemoriesTrackPlayer()"
-      @day-change="handlePlayerDayChange"
-    />
-  </div>
+  </Teleport>
 </template>
 
 <style scoped lang="scss">
@@ -462,7 +482,7 @@ onChange((files) => {
   &.is-fullscreen-mode {
     position: fixed;
     inset: 0;
-    z-index: 100;
+    z-index: 995;
     background-color: var(--bg-primary-color);
     overflow-y: auto;
     padding: 0px 8px;

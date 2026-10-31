@@ -44,6 +44,11 @@ export interface FlightSegment {
   seat?: string
 }
 
+export interface FlightSegmentRange {
+  start: number
+  end: number
+}
+
 /**
  * Тип данных для авиаперелета. Теперь включает массив сегментов.
  */
@@ -65,6 +70,7 @@ export interface HotelData {
   location?: LocationCoords
   checkInDate?: string // YYYY-MM-DD
   checkOutDate?: string // YYYY-MM-DD
+  checkInTime?: string // HH:mm — необязательный ориентир заезда для позиционирования в ленте
   roomType?: string
   guests?: string
   confirmationNumber?: string

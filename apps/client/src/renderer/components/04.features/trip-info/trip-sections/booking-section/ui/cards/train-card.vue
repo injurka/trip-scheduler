@@ -41,6 +41,7 @@ const isArrivalLocationViewerOpen = ref(false)
 
 const tripId = computed(() => (route?.params?.id as string) || tripPlanStore?.currentTripId || '')
 const photosList = computed<string[]>(() => props.booking.data.photos || props.booking.data.imageUrls || [])
+const trainNumber = computed(() => props.booking.data.trainNumber?.trim())
 const totalDurationMs = computed(() => {
   const startDate = createDateWithTimezone(props.booking.data.departureDateTime, props.booking.data.departureTimeZone)
   const endDate = createDateWithTimezone(props.booking.data.arrivalDateTime, props.booking.data.arrivalTimeZone)
@@ -160,9 +161,8 @@ function formatDuration(ms: number) {
             <Icon icon="mdi:train" />
           </div>
         </div>
-        <div class="stations">
-          <span>{{ booking.data.departureStation }}</span>
-          <span>{{ booking.data.arrivalStation }}</span>
+        <div v-if="trainNumber" class="transport-summary">
+          Поезд №{{ trainNumber }}
         </div>
       </div>
 
@@ -468,10 +468,10 @@ function formatDuration(ms: number) {
   font-size: 1.2rem;
 }
 
-.stations {
+.transport-summary {
   width: 100%;
-  display: flex;
-  justify-content: space-between;
+  text-align: center;
+  overflow-wrap: anywhere;
   font-size: 0.85rem;
   font-weight: 600;
   color: var(--fg-accent-color);

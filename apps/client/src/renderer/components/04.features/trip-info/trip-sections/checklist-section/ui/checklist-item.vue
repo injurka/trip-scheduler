@@ -184,7 +184,7 @@ onClickOutside(priorityPickerMenuRef, () => {
 </script>
 
 <template>
-  <div class="checklist-item-wrapper">
+  <div class="checklist-item-wrapper" :data-checklist-item-id="item.id">
     <div
       class="checklist-item"
       :class="[
@@ -480,6 +480,11 @@ onClickOutside(priorityPickerMenuRef, () => {
 </template>
 
 <style scoped lang="scss">
+.checklist-item-wrapper.is-ai-highlighted .checklist-item {
+  border-color: var(--fg-accent-color);
+  box-shadow: 0 0 0 2px var(--fg-accent-color);
+}
+
 .checklist-item {
   display: flex;
   flex-direction: column;

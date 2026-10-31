@@ -175,9 +175,24 @@ export interface GeneratedTransaction {
   isSpontaneous?: boolean
 }
 
+export interface ChecklistMatchItemResult {
+  itemId: string
+  confidence: 'exact' | 'high' | 'possible'
+  reason: string
+  matchedSubtaskIds?: string[]
+}
+
+export interface ChecklistMatchResponse {
+  placeInfo?: string
+  summary: string
+  matches: ChecklistMatchItemResult[]
+}
+
 export interface ILLMRepository {
   generateBookingFromData: (formData: FormData) => Promise<GeneratedBooking>
   generateFinancesFromData: (formData: FormData) => Promise<GeneratedTransaction[]>
+  matchChecklistFromData: (formData: FormData) => Promise<ChecklistMatchResponse>
+  transcribeChecklistVoice: (formData: FormData) => Promise<{ text: string }>
 }
 
 export interface IAiTripJobStatus {

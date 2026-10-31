@@ -451,6 +451,7 @@ function createBlankBadge() {
       v-if="isBookingsModalOpen && bookingsForSelectedDay.length > 0"
       v-model:visible="isBookingsModalOpen"
       :bookings="bookingsForSelectedDay"
+      :day="getSelectedDay"
     />
   </div>
 </template>

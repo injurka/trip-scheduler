@@ -58,6 +58,14 @@ const totalDurationFormatted = computed(() => {
   return totalDurationMs.value === null ? 'Время уточняется' : formatDuration(totalDurationMs.value)
 })
 const kindMeta = computed(() => resolveBookingKind('car', props.booking.data.kind, props.booking.icon))
+const transportSummary = computed(() => {
+  const details = [props.booking.data.company, props.booking.data.carModel]
+    .map(value => value?.trim())
+    .filter((value): value is string => Boolean(value))
+
+  return [...new Set(details)].join(' · ')
+})
+const isRental = computed(() => kindMeta.value?.value === 'rental')
 
 function updateDataField<K extends keyof CarData>(key: K, value: CarData[K]) {
   emit('update:booking', {
@@ -161,7 +169,7 @@ function updateKind(value?: string) {
           {{ formatDisplayDateTime(booking.data.pickupDateTime).time || '—' }}
         </div>
         <div class="station">
-          {{ booking.data.pickupLocation || 'Место подачи' }}
+          {{ booking.data.pickupLocation || (isRental ? 'Место получения' : 'Место посадки') }}
         </div>
         <div class="date">
           {{ formatDisplayDateTime(booking.data.pickupDateTime).date }}
@@ -170,16 +178,15 @@ function updateKind(value?: string) {
 
       <div class="route-visualizer">
         <div class="total-duration">
-          {{ totalDurationFormatted !== '---' ? totalDurationFormatted : (booking.data.carModel || booking.data.company || 'Авто') }}
+          {{ totalDurationFormatted !== '---' ? totalDurationFormatted : 'Время уточняется' }}
         </div>
         <div class="route-line">
           <div class="route-icon">
             <Icon :icon="kindMeta?.icon || 'mdi:car'" />
           </div>
         </div>
-        <div class="stations">
-          <span>{{ booking.data.company || 'Подача' }}</span>
-          <span>{{ booking.data.carModel || 'Возврат' }}</span>
+        <div v-if="transportSummary" class="transport-summary">
+          {{ transportSummary }}
         </div>
       </div>
 
@@ -188,7 +195,7 @@ function updateKind(value?: string) {
           {{ formatDisplayDateTime(booking.data.dropoffDateTime).time || '—' }}
         </div>
         <div class="station">
-          {{ booking.data.dropoffLocation || 'Место возврата' }}
+          {{ booking.data.dropoffLocation || (isRental ? 'Место возврата' : 'Место высадки') }}
         </div>
         <div class="date">
           {{ formatDisplayDateTime(booking.data.dropoffDateTime).date }}
@@ -495,10 +502,10 @@ function updateKind(value?: string) {
     font-size: 1.2rem;
   }
 
-  .stations {
+  .transport-summary {
     width: 100%;
-    display: flex;
-    justify-content: space-between;
+    text-align: center;
+    overflow-wrap: anywhere;
     font-size: 0.85rem;
     font-weight: 600;
     color: var(--fg-accent-color);

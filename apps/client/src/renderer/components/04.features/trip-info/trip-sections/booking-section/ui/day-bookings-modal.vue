@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import type { Booking } from '../models/types'
+import type { Day } from '~/shared/types/models/activity'
 import { KitDialogWithClose } from '~/components/01.kit/kit-dialog-with-close'
 import { KitTabs } from '~/components/01.kit/kit-tabs'
 import { useBookingSection } from '../composables/use-booking-section'
+import { buildTimelineEntries } from '../lib/booking-timeline'
 import AttractionCard from './cards/attraction-card.vue'
 import CarCard from './cards/car-card.vue'
 import FlightCard from './cards/flight-card.vue'
@@ -12,6 +14,7 @@ import TrainCard from './cards/train-card.vue'
 
 interface Props {
   bookings: Booking[]
+  day?: Day | null
   visible: boolean
 }
 
@@ -20,12 +23,13 @@ const emit = defineEmits<{
   (e: 'update:visible', value: boolean): void
 }>()
 
-const { activeTab, bookingGroups, tabItems, allBookingsSorted } = useBookingSection({
+const { activeTab, bookingGroups, tabItems } = useBookingSection({
   section: {
     id: 'day-bookings-modal',
     type: 'booking',
     content: { bookings: props.bookings },
   },
+  days: props.day ? [props.day] : undefined,
   readonly: true,
 }, () => {})
 
@@ -37,6 +41,27 @@ const cardComponents = {
   attraction: AttractionCard,
   other: OtherCard,
 }
+
+const dayTimelineEntries = computed(() => {
+  const entries = buildTimelineEntries(props.bookings, {
+    days: props.day ? [props.day] : undefined,
+  })
+  const selectedDate = props.day?.date?.split('T')[0]
+
+  if (!selectedDate)
+    return entries
+
+  return entries.filter((entry) => {
+    if (entry.booking.type !== 'flight' || !entry.segmentRange)
+      return true
+
+    const segments = entry.booking.data.segments.slice(entry.segmentRange.start, entry.segmentRange.end + 1)
+
+    return segments.some(seg =>
+      seg.departureDateTime?.startsWith(selectedDate)
+      || seg.arrivalDateTime?.startsWith(selectedDate))
+  })
+})
 
 function getCardComponent(type: Booking['type']) {
   return cardComponents[type]
@@ -55,10 +80,11 @@ function getCardComponent(type: Booking['type']) {
       <KitTabs v-if="tabItems.length > 0" v-model="activeTab" :items="tabItems">
         <template #timeline>
           <div class="bookings-grid">
-            <div v-for="booking in allBookingsSorted" :key="booking.id">
+            <div v-for="entry in dayTimelineEntries" :key="entry.id">
               <Component
-                :is="getCardComponent(booking.type)"
-                :booking="booking as any"
+                :is="getCardComponent(entry.booking.type)"
+                :booking="entry.booking as any"
+                v-bind="entry.booking.type === 'flight' && entry.segmentRange ? { segmentRange: entry.segmentRange } : {}"
                 :readonly="true"
               />
             </div>

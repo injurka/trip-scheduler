@@ -46,6 +46,7 @@ function handleSectionUpdate(updatedSectionData: TripSection) {
         :is="componentsMap[section.type]"
         v-if="componentsMap[section.type]"
         :section="section"
+        v-bind="section.type === TripSectionType.BOOKINGS ? { days } : {}"
         :readonly="uiStore.isViewMode"
         @update-section="handleSectionUpdate"
       />

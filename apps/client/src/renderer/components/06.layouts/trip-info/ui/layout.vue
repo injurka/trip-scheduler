@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Icon } from '@iconify/vue'
+import { useWindowScroll, useWindowSize } from '@vueuse/core'
 import { KitBottomSheet } from '~/components/01.kit/kit-bottom-sheet'
 import { KitDivider } from '~/components/01.kit/kit-divider'
 import { KitSkeleton } from '~/components/01.kit/kit-skeleton'
@@ -29,14 +30,15 @@ const {
   sections,
 } = useModuleStore(['plan', 'ui', 'routeGallery', 'memories', 'sections'])
 const { canEdit, isOwner } = useTripPermissions()
-const { mdAndDown } = useDisplay()
+const { mdAndDown, mdAndUp } = useDisplay()
 const toast = useToast()
+const { y: scrollY } = useWindowScroll()
+const { height: windowHeight } = useWindowSize()
 
 // @ts-expect-error используются в template
 const { mainNavigationRef, navigationWrapperRef } = layout
 const { isLoading: isTripLoading, fetchError } = storeToRefs(plan)
 const { isDaysPanelPinned, activeView, isParallelPlanView } = storeToRefs(ui)
-
 const sectionThemeColors: Partial<Record<TripSectionType, string>> = {
   [TripSectionType.BOOKINGS]: '#8b5cf6',
   [TripSectionType.FINANCES]: '#22c55e',
@@ -46,12 +48,12 @@ const sectionThemeColors: Partial<Record<TripSectionType, string>> = {
   [TripSectionType.DOCUMENTS]: '#6366f1',
   [TripSectionType.MAP]: '#10b981',
 }
-
 const directSectionThemeColors: Record<string, string> = {
   'overview': '#3b82f6',
   'trip-map': '#10b981',
   'daily-route': '#f59e0b',
 }
+const isDesktop = mdAndUp
 
 const dayId = computed(() => route.query.day as string)
 const isMapView = computed(() => route.query.section === 'map')
@@ -67,6 +69,22 @@ const isNotesView = computed(() => {
   const section = sections.sections.find(s => s.id === q || SECTION_TYPE_MAP[s.type] === q)
 
   return section?.type === TripSectionType.NOTES
+})
+const isScrolledPastThreshold = computed(() => {
+  if (typeof window === 'undefined' || typeof document === 'undefined')
+    return false
+
+  if (isNotesView.value || isMapView.value)
+    return false
+
+  const clientHeight = windowHeight.value || window.innerHeight || document.documentElement.clientHeight
+  const scrollHeight = Math.max(document.documentElement.scrollHeight, document.body.scrollHeight)
+  const maxScroll = scrollHeight - clientHeight
+
+  if (maxScroll <= 100)
+    return false
+
+  return (scrollY.value / maxScroll) >= 0.25
 })
 
 function handleReadOnlyClick() {
@@ -92,6 +110,12 @@ function getSectionThemeColor(id: string): string {
     return 'var(--fg-accent-color)'
 
   return sectionThemeColors[section.type] ?? 'var(--fg-accent-color)'
+}
+function scrollToTop() {
+  window.scrollTo({
+    top: 0,
+    behavior: 'smooth',
+  })
 }
 
 onBeforeUnmount(() => {
@@ -225,6 +249,25 @@ onBeforeUnmount(() => {
         </KitDivider>
 
         <slot />
+
+        <Transition name="scroll-top">
+          <div
+            v-if="isDesktop && isScrolledPastThreshold"
+            class="scroll-top-wrapper"
+          >
+            <KitTooltip text="Подняться вверх" placement="left">
+              <button
+                v-ripple
+                type="button"
+                class="scroll-top-btn"
+                aria-label="Подняться вверх"
+                @click="scrollToTop"
+              >
+                <Icon icon="mdi:arrow-up" />
+              </button>
+            </KitTooltip>
+          </div>
+        </Transition>
       </div>
     </div>
 
@@ -841,5 +884,70 @@ onBeforeUnmount(() => {
       left: 440px;
     }
   }
+}
+
+.scroll-top-wrapper {
+  position: fixed;
+  bottom: calc(28px + var(--safe-area-inset-bottom, 0px));
+  right: calc(32px + var(--safe-area-inset-right, 0px));
+  z-index: 25;
+
+  @include media-down(sm) {
+    display: none !important;
+  }
+}
+
+.scroll-top-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--r-full);
+  border: 1px solid rgba(var(--border-primary-color-rgb), 0.25);
+  background-color: rgba(var(--bg-secondary-color-rgb), 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  color: var(--fg-secondary-color);
+  box-shadow: var(--s-m);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.4rem;
+  cursor: pointer;
+  outline: none;
+  transition:
+    color 0.2s ease,
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    transform 0.2s ease;
+
+  &:hover {
+    color: var(--fg-accent-color);
+    background-color: var(--bg-hover-color);
+    border-color: var(--fg-accent-color);
+    box-shadow: var(--s-l);
+    transform: translateY(-2px);
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
+
+  &:focus-visible {
+    border-color: var(--fg-accent-color);
+    box-shadow: 0 0 0 2px rgba(var(--fg-accent-color-rgb), 0.35);
+  }
+}
+
+.scroll-top-enter-active,
+.scroll-top-leave-active {
+  transition:
+    opacity 0.25s ease,
+    transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.scroll-top-enter-from,
+.scroll-top-leave-to {
+  opacity: 0;
+  transform: translateY(12px) scale(0.9);
 }
 </style>

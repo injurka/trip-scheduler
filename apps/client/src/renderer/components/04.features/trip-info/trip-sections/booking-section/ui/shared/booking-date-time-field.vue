@@ -8,7 +8,7 @@ interface Props {
   icon?: string
   readonly: boolean
   placeholder?: string
-  type?: 'date' | 'datetime'
+  type?: 'date' | 'datetime' | 'time'
   showYear?: boolean
 }
 
@@ -24,6 +24,9 @@ const mask = computed(() => {
   if (props.type === 'datetime')
     return '##.##.#### ##:##'
 
+  if (props.type === 'time')
+    return '##:##'
+
   return '##.##.####'
 })
 const effectivePlaceholder = computed(() => {
@@ -33,6 +36,9 @@ const effectivePlaceholder = computed(() => {
   if (props.type === 'datetime')
     return 'ДД.ММ.ГГГГ ЧЧ:ММ'
 
+  if (props.type === 'time')
+    return 'ЧЧ:ММ'
+
   return 'ДД.ММ.ГГГГ'
 })
 const displayValue = computed({
@@ -40,14 +46,28 @@ const displayValue = computed({
     if (!modelValue.value)
       return ''
 
-    const date = new Date(modelValue.value)
+    if (props.type === 'time')
+      return normalizeTimeString(modelValue.value) ?? ''
 
-    if (Number.isNaN(date.getTime()))
+    const date = parseModelDate(modelValue.value, props.type)
+
+    if (!date)
       return ''
 
     return formatDateToDisplay(date, props.type)
   },
   set(newValue) {
+    if (props.type === 'time') {
+      const validTime = normalizeTimeString(newValue)
+
+      if (validTime)
+        modelValue.value = validTime
+      else if (!newValue)
+        modelValue.value = undefined
+
+      return
+    }
+
     const parsedDate = parseDisplayDate(newValue, props.type)
 
     if (parsedDate) {
@@ -62,9 +82,6 @@ const displayValue = computed({
         const minutes = String(parsedDate.getMinutes()).padStart(2, '0')
         isoString += `T${hours}:${minutes}:00`
       }
-      else {
-        isoString += `T00:00:00`
-      }
 
       modelValue.value = isoString
     }
@@ -77,9 +94,12 @@ const formattedValue = computed(() => {
   if (!modelValue.value)
     return props.placeholder
 
-  const date = new Date(modelValue.value)
+  if (props.type === 'time')
+    return normalizeTimeString(modelValue.value) ?? modelValue.value
 
-  if (Number.isNaN(date.getTime()))
+  const date = parseModelDate(modelValue.value, props.type)
+
+  if (!date)
     return modelValue.value
 
   const options: Intl.DateTimeFormatOptions = {
@@ -98,6 +118,25 @@ const formattedValue = computed(() => {
   return new Intl.DateTimeFormat('ru-RU', options).format(date)
 })
 
+function normalizeTimeString(value: string): string | null {
+  const match = value.trim().match(/^([01]\d|2[0-3]):([0-5]\d)(?::[0-5]\d)?$/)
+
+  return match ? `${match[1]}:${match[2]}` : null
+}
+
+function parseModelDate(value: string, type: 'date' | 'datetime'): Date | null {
+  if (type === 'date') {
+    const isoDay = value.match(/^(\d{4})-(\d{2})-(\d{2})/)
+
+    if (isoDay)
+      return createValidDate(isoDay[1], isoDay[2], isoDay[3])
+  }
+
+  const date = new Date(value)
+
+  return Number.isNaN(date.getTime()) ? null : date
+}
+
 function formatDateToDisplay(date: Date, type: 'date' | 'datetime'): string {
   const day = String(date.getDate()).padStart(2, '0')
   const month = String(date.getMonth() + 1).padStart(2, '0')
@@ -112,6 +151,7 @@ function formatDateToDisplay(date: Date, type: 'date' | 'datetime'): string {
 
   return `${day}.${month}.${year}`
 }
+
 function parseDisplayDate(dateString: string, type: 'date' | 'datetime'): Date | null {
   if (!dateString)
     return null
@@ -159,6 +199,10 @@ function createValidDate(
   const numericDay = Number(day)
   const numericHours = Number(hours)
   const numericMinutes = Number(minutes)
+
+  if (numericHours < 0 || numericHours > 23 || numericMinutes < 0 || numericMinutes > 59)
+    return null
+
   const date = new Date(
     numericYear,
     numericMonth,

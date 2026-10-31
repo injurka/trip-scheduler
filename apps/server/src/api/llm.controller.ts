@@ -1,8 +1,10 @@
 import type { Context } from 'hono'
+import type { ChecklistContextItem } from '~/services/llm/checklist-match.service'
 import { Hono } from 'hono'
 import { HTTPException } from 'hono/http-exception'
 import { authUtils } from '~/lib/auth.utils'
 import { bookingGenerationService } from '~/services/llm/booking-generation.service'
+import { checklistMatchService } from '~/services/llm/checklist-match.service'
 import { financesGenerationService } from '~/services/llm/finances-generation.service'
 
 const llmController = new Hono()
@@ -76,7 +78,82 @@ async function generateFinancesController(c: Context) {
   }
 }
 
+async function matchChecklistController(c: Context) {
+  const token = c.req.header('authorization')?.split(' ')[1]
+  const user = await authUtils.getUserFromToken(token)
+  if (!user)
+    throw new HTTPException(401, { message: 'Невалидный или истекший токен.' })
+
+  const formData = await c.req.formData()
+  const file = formData.get('file') as File | null
+  const query = formData.get('query') as string | null
+  const checklistItemsRaw = formData.get('checklistItems') as string | null
+
+  if (!file && (!query || !query.trim())) {
+    throw new HTTPException(400, { message: 'Пожалуйста, предоставьте фото или текстовый вопрос для проверки.' })
+  }
+
+  let checklistItems: ChecklistContextItem[] = []
+  if (checklistItemsRaw) {
+    try {
+      checklistItems = JSON.parse(checklistItemsRaw)
+    }
+    catch {
+      throw new HTTPException(400, { message: 'Невалидный формат списка задач чек-листа.' })
+    }
+  }
+
+  try {
+    const fileBuffer = file ? Buffer.from(await file.arrayBuffer()) : undefined
+
+    const result = await checklistMatchService.matchChecklistFromData({
+      userId: user.id,
+      fileBuffer,
+      fileName: file?.name,
+      mimeType: file?.type,
+      query,
+      checklistItems,
+    })
+
+    return c.json(result)
+  }
+  catch (error: any) {
+    console.error('Ошибка при AI-проверке чек-листа:', error)
+    throw new HTTPException(500, { message: error.message || 'Внутренняя ошибка при проверке чек-листа.' })
+  }
+}
+
+async function transcribeChecklistVoiceController(c: Context) {
+  const token = c.req.header('authorization')?.split(' ')[1]
+  const user = await authUtils.getUserFromToken(token)
+  if (!user)
+    throw new HTTPException(401, { message: 'Невалидный или истекший токен.' })
+
+  const formData = await c.req.formData()
+  const file = formData.get('file') as File | null
+
+  if (!file || !(file instanceof File)) {
+    throw new HTTPException(400, { message: 'Аудиофайл не найден в запросе.' })
+  }
+
+  try {
+    const fileBuffer = Buffer.from(await file.arrayBuffer())
+    const result = await checklistMatchService.transcribeVoiceNote({
+      userId: user.id,
+      fileBuffer,
+      mimeType: file.type,
+    })
+    return c.json(result)
+  }
+  catch (error: any) {
+    console.error('Ошибка при распознавании голосового сообщения:', error)
+    throw new HTTPException(500, { message: error.message || 'Не удалось распознать голосовое сообщение.' })
+  }
+}
+
 llmController.post('/booking/generate', generateBookingController)
 llmController.post('/finances/generate', generateFinancesController)
+llmController.post('/checklist/match', matchChecklistController)
+llmController.post('/checklist/transcribe', transcribeChecklistVoiceController)
 
 export { llmController }

@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import type { Booking, BookingSectionContent, BookingType } from '../models/types'
+import type { Day } from '~/shared/types/models/activity'
 import { Icon } from '@iconify/vue'
 import draggable from 'vuedraggable'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitTabs } from '~/components/01.kit/kit-tabs'
 import { useBookingSection } from '../composables'
-import { groupTimelineBookings } from '../lib/booking-timeline'
 import AttractionCard from './cards/attraction-card.vue'
 import CarCard from './cards/car-card.vue'
 import FlightCard from './cards/flight-card.vue'
@@ -21,6 +21,7 @@ interface Props {
     type: 'booking'
     content: BookingSectionContent
   }
+  days?: Day[]
   readonly: boolean
 }
 
@@ -33,8 +34,9 @@ const {
   activeTab,
   bookingGroups,
   tabItems,
-  allBookingsSorted,
+  timelineGroups,
   bookingHighlightMap,
+  timelineHighlightMap,
   addBooking,
   addCompletedBooking,
   deleteBooking,
@@ -54,8 +56,6 @@ const cardComponents = {
   attraction: AttractionCard,
   other: OtherCard,
 }
-
-const timelineGroups = computed(() => groupTimelineBookings(allBookingsSorted.value))
 
 function onAiSave(booking: Omit<Booking, 'id'>) {
   addCompletedBooking(booking)
@@ -116,9 +116,9 @@ function getCardComponent(type: Booking['type']) {
               <ol class="bookings-grid timeline-items">
                 <li
                   v-for="entry in group.entries"
-                  :key="entry.booking.id"
+                  :key="entry.id"
                   class="timeline-item"
-                  :class="[`timeline-tone-${entry.booking.type}`, { 'is-highlighted': bookingHighlightMap[entry.booking.id] }]"
+                  :class="[`timeline-tone-${entry.booking.type}`, { 'is-highlighted': timelineHighlightMap[entry.id] }]"
                 >
                   <div class="timeline-marker" aria-hidden="true">
                     <Icon :icon="entry.icon" />
@@ -129,13 +129,15 @@ function getCardComponent(type: Booking['type']) {
                       <time v-if="entry.time" :datetime="`${entry.date}T${entry.time}`">{{ entry.time }}</time>
                       <span v-else-if="entry.booking.type === 'hotel' && entry.date">Заезд</span>
                       <span v-else-if="entry.date">Время не указано</span>
+                      <span v-if="entry.sublabel" class="timeline-sublabel">{{ entry.sublabel }}</span>
                     </div>
                     <Component
                       :is="getCardComponent(entry.booking.type)"
                       :booking="entry.booking as any"
+                      v-bind="entry.booking.type === 'flight' && entry.segmentRange ? { segmentRange: entry.segmentRange } : {}"
                       :readonly="readonly"
                       :show-drag-handle="false"
-                      :highlight-status="bookingHighlightMap[entry.booking.id]"
+                      :highlight-status="timelineHighlightMap[entry.id]"
                       @delete="deleteBooking(entry.booking.id)"
                       @update:booking="updateBooking"
                     />
@@ -238,36 +240,48 @@ function getCardComponent(type: Booking['type']) {
   --timeline-gap: 1rem;
   display: flex;
   flex-direction: column;
+  gap: 1.75rem;
   padding: 0.5rem 0;
 }
 
 .timeline-day {
   position: relative;
 
-  &::before {
-    content: '';
-    position: absolute;
-    top: 1.25rem;
-    bottom: 0;
-    left: calc(var(--timeline-rail-width) / 2 - 1px);
-    width: 2px;
-    background: var(--border-secondary-color);
-  }
-
-  &:last-child::before {
-    bottom: 2rem;
+  & + & {
+    padding-top: 1.75rem;
+    border-top: 2px dashed var(--border-secondary-color);
   }
 }
 
 .timeline-date {
   position: relative;
+  z-index: 1;
   display: flex;
   align-items: center;
-  gap: var(--timeline-gap);
-  padding-bottom: 1rem;
+  gap: 0.85rem;
+  margin-bottom: 1.25rem;
+  padding: 0.65rem 0.9rem;
+  background: var(--bg-secondary-color);
+  border: 1px solid var(--border-primary-color);
+  border-left: 4px solid var(--fg-accent-color);
+  border-radius: var(--r-m);
+  box-shadow: var(--s-xs);
 }
 
-.timeline-date-marker,
+.timeline-date-marker {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.15rem;
+  height: 2.15rem;
+  flex-shrink: 0;
+  border-radius: var(--r-s);
+  background: rgba(var(--fg-accent-color-rgb), 0.12);
+  border: 1px solid rgba(var(--fg-accent-color-rgb), 0.25);
+  color: var(--fg-accent-color);
+  font-size: 1.15rem;
+}
+
 .timeline-marker {
   display: flex;
   align-items: center;
@@ -281,64 +295,82 @@ function getCardComponent(type: Booking['type']) {
   font-size: 1.1rem;
 }
 
-.timeline-date-marker {
-  color: var(--fg-secondary-color);
-}
-
 .timeline-date-text {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   flex-wrap: wrap;
-  column-gap: 0.75rem;
-  row-gap: 0.15rem;
+  column-gap: 0.65rem;
+  row-gap: 0.2rem;
   min-width: 0;
-  font-size: 1rem;
-  font-weight: 650;
+  font-size: 1.05rem;
+  font-weight: 700;
   color: var(--fg-primary-color);
 }
 
 .timeline-weekday {
-  font-size: 0.8rem;
-  font-weight: 400;
-  color: var(--fg-tertiary-color);
+  font-size: 0.78rem;
+  font-weight: 500;
+  text-transform: capitalize;
+  color: var(--fg-secondary-color);
+  background: var(--bg-tertiary-color);
+  padding: 0.1rem 0.55rem;
+  border-radius: var(--r-full);
 }
 
 .timeline-count {
+  margin-left: auto;
   font-size: 0.75rem;
-  color: var(--fg-tertiary-color);
+  font-weight: 600;
+  color: var(--fg-secondary-color);
+  background: var(--bg-primary-color);
   border: 1px solid var(--border-secondary-color);
   border-radius: var(--r-full);
-  padding: 0.1rem 0.45rem;
+  padding: 0.15rem 0.6rem;
+  white-space: nowrap;
 }
 
 .timeline-items {
   position: relative;
   list-style: none;
-  padding: 0 0 1.75rem;
+  padding: 0;
   margin: 0;
   gap: 1.25rem;
+
+  &::before {
+    content: '';
+    position: absolute;
+    z-index: 0;
+    top: -1.25rem;
+    bottom: 2rem;
+    left: calc(var(--timeline-rail-width) / 2 - 1px);
+    width: 2px;
+    background: var(--border-secondary-color);
+  }
 }
 
 .timeline-item {
   display: grid;
   grid-template-columns: var(--timeline-rail-width) minmax(0, 1fr);
   gap: var(--timeline-gap);
-  --timeline-tone: var(--fg-secondary-color);
+  --timeline-tone: #94a3b8;
 
   &.timeline-tone-flight {
-    --timeline-tone: var(--fg-info-color);
+    --timeline-tone: #3b82f6;
   }
   &.timeline-tone-hotel {
-    --timeline-tone: var(--fg-success-color);
+    --timeline-tone: #10b981;
   }
   &.timeline-tone-train {
-    --timeline-tone: var(--fg-accent-color);
+    --timeline-tone: #8b5cf6;
   }
   &.timeline-tone-car {
-    --timeline-tone: var(--fg-warning-color);
+    --timeline-tone: #f59e0b;
+  }
+  &.timeline-tone-other {
+    --timeline-tone: #94a3b8;
   }
   &.timeline-tone-attraction {
-    --timeline-tone: var(--fg-accent-color);
+    --timeline-tone: #ec4899;
   }
 
   &.is-highlighted .timeline-marker {
@@ -347,9 +379,12 @@ function getCardComponent(type: Booking['type']) {
 }
 
 .timeline-marker {
+  position: relative;
+  z-index: 1;
   margin-top: 1.75rem;
   color: var(--timeline-tone);
   background: var(--bg-secondary-color);
+  border-color: color-mix(in srgb, var(--timeline-tone) 40%, var(--border-secondary-color));
   box-shadow: 0 0 0 5px var(--bg-primary-color);
 }
 
@@ -417,15 +452,31 @@ function getCardComponent(type: Booking['type']) {
   font-weight: 600;
 }
 
+.timeline-sublabel {
+  color: var(--fg-tertiary-color);
+  font-weight: 500;
+}
+
 @include media-down(sm) {
   .bookings-timeline {
     --timeline-rail-width: 1.75rem;
     --timeline-gap: 0.65rem;
   }
 
+  .timeline-date {
+    padding: 0.55rem 0.75rem;
+    gap: 0.65rem;
+  }
+
+  .timeline-date-marker {
+    width: 1.85rem;
+    height: 1.85rem;
+    font-size: 1rem;
+  }
+
   .timeline-date-text {
-    flex-direction: column;
-    font-size: 0.9rem;
+    align-items: baseline;
+    font-size: 0.92rem;
   }
 
   .timeline-marker {

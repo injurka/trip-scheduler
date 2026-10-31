@@ -1,6 +1,11 @@
+import type { TimelineDayContext } from '../lib/booking-timeline'
 import type { Booking, BookingSectionContent, BookingType } from '../models/types'
 import { useDebounceFn } from '@vueuse/core'
 import { v4 as uuidv4 } from 'uuid'
+import { BOOKING_TYPES_CONFIG } from '../constants/booking-types'
+import { buildTimelineEntries, getTimelineEntryRealTimeRange, groupTimelineBookings } from '../lib/booking-timeline'
+
+export { BOOKING_TYPES_CONFIG }
 
 interface UseBookingSectionProps {
   section: {
@@ -8,32 +13,28 @@ interface UseBookingSectionProps {
     type: 'booking'
     content: BookingSectionContent
   }
+  days?: TimelineDayContext[]
   readonly: boolean
 }
-
-/**
- * Конфигурация для различных типов бронирований.
- * Определяет метки, иконки и заголовки по умолчанию.
- */
-export const BOOKING_TYPES_CONFIG = {
-  flight: { label: 'Авиаперелеты', icon: 'mdi:airplane', defaultTitle: 'Новый авиабилет' },
-  hotel: { label: 'Отели', icon: 'mdi:hotel', defaultTitle: 'Новый отель' },
-  train: { label: 'Поезда', icon: 'mdi:train', defaultTitle: 'Новый билет на поезд' },
-  car: { label: 'Авто', icon: 'mdi:car', defaultTitle: 'Новый автомобиль' },
-  attraction: { label: 'Места', icon: 'mdi:map-marker-star-outline', defaultTitle: 'Новое место' },
-  other: { label: 'Другое', icon: 'mdi:dots-horizontal-circle-outline', defaultTitle: 'Новое перемещение' },
-} as const
 
 interface BookingDateStrings {
   start?: string
   end?: string
 }
 
-function normalizeHotelCheckIn(checkInDate?: string): string | undefined {
+function normalizeHotelCheckIn(checkInDate?: string, checkInTime?: string): string | undefined {
   if (!checkInDate)
     return undefined
 
-  return checkInDate.includes('T') ? checkInDate : `${checkInDate}T14:00:00`
+  const datePart = checkInDate.split('T')[0]
+
+  if (checkInTime && /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(checkInTime.trim()))
+    return `${datePart}T${checkInTime.trim()}:00`
+
+  if (checkInDate.includes('T') && !checkInDate.includes('T00:00'))
+    return checkInDate
+
+  return `${datePart}T15:00:00`
 }
 
 function getBookingDateStrings(booking: Booking): BookingDateStrings {
@@ -41,7 +42,7 @@ function getBookingDateStrings(booking: Booking): BookingDateStrings {
     case 'flight':
       return getFlightBookingDateStrings(booking)
     case 'hotel':
-      return { start: normalizeHotelCheckIn(booking.data.checkInDate) }
+      return { start: normalizeHotelCheckIn(booking.data.checkInDate, booking.data.checkInTime) }
     case 'train':
       return { start: booking.data.departureDateTime, end: booking.data.arrivalDateTime }
     case 'car':
@@ -116,6 +117,32 @@ function getCurrentTimeZoneOffset(): string {
 
 export type HighlightStatus = 'active' | 'next' | 'closest' | null
 
+function buildRangeHighlightMap<T>(items: T[], getId: (item: T) => string, getRange: (item: T) => { start: number, end: number } | null): Record<string, HighlightStatus> {
+  const map: Record<string, HighlightStatus> = {}
+  const now = Date.now()
+
+  const highlightable = items
+    .map(item => ({ id: getId(item), range: getRange(item) }))
+    .filter((entry): entry is { id: string, range: { start: number, end: number } } => entry.range !== null)
+
+  const activeIndex = highlightable.findIndex(({ range }) => now >= range.start && now <= range.end)
+
+  if (activeIndex !== -1) {
+    map[highlightable[activeIndex].id] = 'active'
+
+    if (activeIndex + 1 < highlightable.length)
+      map[highlightable[activeIndex + 1].id] = 'next'
+  }
+  else {
+    const closest = highlightable.find(({ range }) => range.start > now)
+
+    if (closest)
+      map[closest.id] = 'closest'
+  }
+
+  return map
+}
+
 /**
  * Хук для управления логикой секции бронирований.
  * @param props - Входящие параметры компонента.
@@ -161,44 +188,17 @@ export function useBookingSection(props: UseBookingSectionProps, emit: (event: '
     })
   })
 
+  const timelineEntries = computed(() => buildTimelineEntries(bookings.value, { days: props.days }))
+  const timelineGroups = computed(() => groupTimelineBookings(bookings.value, { days: props.days }))
+
   const bookingHighlightMap = computed<Record<string, HighlightStatus>>(() => {
-    const map: Record<string, HighlightStatus> = {}
-    const now = Date.now()
+    const nonHotelBookings = allBookingsSorted.value.filter(b => b.type !== 'hotel')
 
-    const highlightableBookings = allBookingsSorted.value.filter((b) => {
-      if (b.type === 'hotel')
-        return false
+    return buildRangeHighlightMap(nonHotelBookings, b => b.id, getBookingTimeRange)
+  })
 
-      return getBookingTimeRange(b) !== null
-    })
-
-    const activeIndex = highlightableBookings.findIndex((b) => {
-      const range = getBookingTimeRange(b)
-
-      return range && now >= range.start && now <= range.end
-    })
-
-    if (activeIndex !== -1) {
-      const activeBooking = highlightableBookings[activeIndex]
-      map[activeBooking.id] = 'active'
-
-      if (activeIndex + 1 < highlightableBookings.length) {
-        map[highlightableBookings[activeIndex + 1].id] = 'next'
-      }
-    }
-    else {
-      const closestBooking = highlightableBookings.find((b) => {
-        const range = getBookingTimeRange(b)
-
-        return range && range.start > now
-      })
-
-      if (closestBooking) {
-        map[closestBooking.id] = 'closest'
-      }
-    }
-
-    return map
+  const timelineHighlightMap = computed<Record<string, HighlightStatus>>(() => {
+    return buildRangeHighlightMap(timelineEntries.value, entry => entry.id, getTimelineEntryRealTimeRange)
   })
 
   const tabItems = computed(() => {
@@ -312,7 +312,10 @@ export function useBookingSection(props: UseBookingSectionProps, emit: (event: '
     bookingGroups,
     tabItems,
     allBookingsSorted,
+    timelineEntries,
+    timelineGroups,
     bookingHighlightMap,
+    timelineHighlightMap,
     addBooking,
     addCompletedBooking,
     deleteBooking,

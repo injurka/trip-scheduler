@@ -11,12 +11,14 @@ interface Props {
   icon: string
   iconTone?: BookingIconTone
   readonly: boolean
+  titleReadonly?: boolean
   highlightStatus?: HighlightStatus
   showDragHandle?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
   iconTone: 'other',
+  titleReadonly: false,
   highlightStatus: null,
   showDragHandle: true,
 })
@@ -69,7 +71,7 @@ async function handleDelete() {
         <Icon :icon="icon" class="title-icon" :class="`is-${iconTone}`" />
 
         <span
-          v-if="readonly"
+          v-if="readonly || titleReadonly"
           class="card-title"
           :title="title"
         >

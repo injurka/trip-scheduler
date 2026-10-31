@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import type { ChecklistItem, ChecklistSectionContent, ChecklistTabConfig } from '../models/types'
+import type { ChecklistItem, ChecklistSectionContent, ChecklistTab, ChecklistTabConfig } from '../models/types'
 import { Icon } from '@iconify/vue'
-import { ref, watch } from 'vue'
+import { nextTick, ref, watch } from 'vue'
 import draggable from 'vuedraggable'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitDivider } from '~/components/01.kit/kit-divider'
@@ -9,6 +9,7 @@ import { KitInput } from '~/components/01.kit/kit-input'
 import { KitTabs } from '~/components/01.kit/kit-tabs'
 import { KitTooltip } from '~/components/01.kit/kit-tooltip'
 import { useChecklistSection } from '../composables'
+import ChecklistAiHelperModal from './checklist-ai-helper-modal.vue'
 import ChecklistGroupComponent from './checklist-group.vue'
 import ChecklistItemComponent from './checklist-item.vue'
 import ChecklistPresetsModal from './checklist-presets-modal.vue'
@@ -31,6 +32,7 @@ const emit = defineEmits<{
 const {
   items,
   groups,
+  tabs,
   activeTab,
   tabItems,
   currentTabConfig,
@@ -57,6 +59,7 @@ const {
 const newUngroupedItemText = ref('')
 const newUngroupedItemInputRef = ref<HTMLInputElement | null>(null)
 const isPresetsModalOpen = ref(false)
+const isAiHelperModalOpen = ref(false)
 const isTabEditDialogOpen = ref(false)
 const isNewTab = ref(false)
 const editingTab = ref<ChecklistTabConfig | null>(null)
@@ -104,6 +107,22 @@ function handleTabSave(tab: { id: string, name: string, icon: string }) {
     updateTab(tab)
   }
 }
+async function handleNavigateToItem(payload: { itemId: string, tabId: ChecklistTab }) {
+  activeTab.value = payload.tabId
+  searchQuery.value = ''
+  completionFilter.value = 'all'
+
+  await nextTick()
+  const el = document.querySelector(`[data-checklist-item-id="${payload.itemId}"]`) as HTMLElement | null
+
+  if (el) {
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    el.classList.add('is-ai-highlighted')
+    setTimeout(() => {
+      el.classList.remove('is-ai-highlighted')
+    }, 2500)
+  }
+}
 </script>
 
 <template>
@@ -124,6 +143,17 @@ function handleTabSave(tab: { id: string, name: string, icon: string }) {
                   class="search-input"
                 />
                 <div class="action-controls">
+                  <KitBtn
+                    v-if="items.length > 0"
+                    variant="tonal"
+                    size="sm"
+                    icon="mdi:sparkles"
+                    title="Проверить место или фото по чек-листу с помощью ИИ"
+                    @click="isAiHelperModalOpen = true"
+                  >
+                    <span class="btn-text">Проверить место</span>
+                  </KitBtn>
+
                   <KitBtn
                     v-if="!readonly"
                     variant="subtle"
@@ -315,6 +345,16 @@ function handleTabSave(tab: { id: string, name: string, icon: string }) {
       :is-new="isNewTab"
       @save="handleTabSave"
       @delete="deleteTab"
+    />
+
+    <ChecklistAiHelperModal
+      v-model:visible="isAiHelperModalOpen"
+      :items="items"
+      :groups="groups"
+      :tabs="tabs"
+      :readonly="readonly"
+      @update:item="updateItem"
+      @navigate-to-item="handleNavigateToItem"
     />
   </div>
 </template>

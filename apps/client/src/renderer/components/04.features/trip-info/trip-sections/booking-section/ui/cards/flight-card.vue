@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import type { Booking, FlightData, FlightSegment } from '../../models/types'
+import type { HighlightStatus } from '../../composables/use-booking-section'
+import type { BookingKindMeta } from '../../models/booking-kinds'
+import type { Booking, FlightData, FlightSegment, FlightSegmentRange } from '../../models/types'
 import type { GeoPlaceRef } from '~/shared/types/models/geo-place'
 import { Icon } from '@iconify/vue'
 import { useRoute } from 'vue-router'
@@ -11,6 +13,7 @@ import { useRequest } from '~/plugins/request'
 import BookingCardWrapper from '../shared/booking-card-wrapper.vue'
 import BookingDateTimeField from '../shared/booking-date-time-field.vue'
 import BookingField from '../shared/booking-field.vue'
+import BookingKindBadge from '../shared/booking-kind-badge.vue'
 import BookingSourceLink from '../shared/booking-source-link.vue'
 import BookingTextareaField from '../shared/booking-textarea-field.vue'
 import BookingPhotos from './components/booking-photos.vue'
@@ -18,10 +21,14 @@ import BookingPhotos from './components/booking-photos.vue'
 interface Props {
   booking: Booking & { type: 'flight' }
   readonly: boolean
+  highlightStatus?: HighlightStatus
+  segmentRange?: FlightSegmentRange
   showDragHandle?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
+  highlightStatus: null,
+  segmentRange: undefined,
   showDragHandle: true,
 })
 const emit = defineEmits<{
@@ -38,15 +45,59 @@ let cityHydrationSequence = 0
 const tripId = computed(() => (route?.params?.id as string) || tripPlanStore?.currentTripId || '')
 const photosList = computed<string[]>(() => props.booking.data.photos || props.booking.data.imageUrls || [])
 const segments = computed(() => props.booking.data.segments || [])
-const firstSegment = computed(() => segments.value[0])
-const lastSegment = computed(() => segments.value[segments.value.length - 1])
+const effectiveSegmentRange = computed<FlightSegmentRange>(() => {
+  const maxIndex = Math.max(0, segments.value.length - 1)
+
+  if (!props.segmentRange || segments.value.length === 0)
+    return { start: 0, end: maxIndex }
+
+  const start = Math.min(Math.max(0, props.segmentRange.start), maxIndex)
+  const end = Math.min(Math.max(start, props.segmentRange.end), maxIndex)
+
+  return { start, end }
+})
+const visibleSegments = computed(() => {
+  if (segments.value.length === 0)
+    return []
+
+  return segments.value.slice(effectiveSegmentRange.value.start, effectiveSegmentRange.value.end + 1)
+})
+const isPartialSegmentView = computed(() =>
+  segments.value.length > 1
+  && visibleSegments.value.length > 0
+  && visibleSegments.value.length < segments.value.length)
+const firstSegment = computed(() => visibleSegments.value[0])
+const lastSegment = computed(() => visibleSegments.value[visibleSegments.value.length - 1])
+const cardDisplayTitle = computed(() => {
+  if (!isPartialSegmentView.value)
+    return props.booking.title
+
+  return formatPartialRouteTitle(firstSegment.value, lastSegment.value) || props.booking.title
+})
+const segmentBadgeMeta = computed<BookingKindMeta | null>(() => {
+  if (!isPartialSegmentView.value)
+    return null
+
+  const { start, end } = effectiveSegmentRange.value
+  const total = segments.value.length
+  const stepText = start === end ? `${start + 1}/${total}` : `${start + 1}–${end + 1}/${total}`
+  const flightNo = start === end ? firstSegment.value?.flightNumber?.trim() : ''
+  const label = flightNo ? `${flightNo} · ${stepText}` : `Рейс ${stepText}`
+
+  return {
+    value: 'segment',
+    label,
+    icon: 'mdi:airplane-takeoff',
+    token: 'info',
+  }
+})
 const uniqueAirlines = computed(() => {
-  if (!segments.value || segments.value.length === 0)
+  if (!visibleSegments.value || visibleSegments.value.length === 0)
     return []
 
   const seen = new Set()
 
-  return segments.value
+  return visibleSegments.value
     .map(segment => ({
       iataCode: segment.airlineIataCode,
       name: segment.airline,
@@ -73,14 +124,14 @@ const totalDurationFormatted = computed(() => {
   return formatDuration(totalDurationMs.value)
 })
 const journeySegments = computed(() => {
-  if (totalDurationMs.value <= 0 || segments.value.length === 0)
+  if (totalDurationMs.value <= 0 || visibleSegments.value.length === 0)
     return []
 
   const journeyParts = []
   const totalMs = totalDurationMs.value
 
-  for (let i = 0; i < segments.value.length; i++) {
-    const segment = segments.value[i]
+  for (let i = 0; i < visibleSegments.value.length; i++) {
+    const segment = visibleSegments.value[i]
     const departureDate = createDateWithTimezone(segment.departureDateTime, segment.departureTimeZone)
     const arrivalDate = createDateWithTimezone(segment.arrivalDateTime, segment.arrivalTimeZone)
 
@@ -97,8 +148,8 @@ const journeySegments = computed(() => {
       })
     }
 
-    if (i < segments.value.length - 1) {
-      const nextSegment = segments.value[i + 1]
+    if (i < visibleSegments.value.length - 1) {
+      const nextSegment = visibleSegments.value[i + 1]
       const nextDepartureDate = createDateWithTimezone(nextSegment.departureDateTime, nextSegment.departureTimeZone)
 
       if (!nextDepartureDate)
@@ -163,6 +214,12 @@ watch(segments, async (currentSegments) => {
   selectedCityRefs.value = nextSelected
 }, { immediate: true, deep: true })
 
+function formatPartialRouteTitle(first?: FlightSegment, last?: FlightSegment): string | null {
+  const from = first?.departureCity || first?.departureAirport
+  const to = last?.arrivalCity || last?.arrivalAirport
+
+  return (from && to) ? `${from} → ${to}` : null
+}
 function updatePhotos(newPhotos: string[]) {
   emit('update:booking', {
     ...props.booking,
@@ -293,8 +350,8 @@ function getLayoverDuration(prevSegment: FlightSegment, currentSegment: FlightSe
 
   return formatDuration(durationMs)
 }
-function updateTitle(newTitle: string) {
-  emit('update:booking', { ...props.booking, title: newTitle })
+function updateTitle(newTitle?: string) {
+  emit('update:booking', { ...props.booking, title: newTitle ?? '' })
 }
 function updateDataField<K extends keyof FlightData>(key: K, value: FlightData[K]) {
   emit('update:booking', {
@@ -320,10 +377,12 @@ function updateSegmentField<K extends keyof FlightSegment>(segmentIndex: number,
 
 <template>
   <BookingCardWrapper
-    :title="booking.title"
+    :title="cardDisplayTitle"
     :icon="booking.icon"
     icon-tone="flight"
     :readonly="readonly"
+    :title-readonly="isPartialSegmentView"
+    :highlight-status="highlightStatus"
     :show-drag-handle="showDragHandle"
     @delete="$emit('delete')"
     @update:title="updateTitle"
@@ -333,6 +392,7 @@ function updateSegmentField<K extends keyof FlightSegment>(segmentIndex: number,
         <Icon icon="mdi:ticket-outline" />
         <span>{{ photosList.length }}</span>
       </div>
+      <BookingKindBadge v-if="segmentBadgeMeta" :meta="segmentBadgeMeta" />
     </template>
     <div v-if="firstSegment" class="card-content">
       <div class="time-info">
@@ -412,6 +472,16 @@ function updateSegmentField<K extends keyof FlightSegment>(segmentIndex: number,
 
     <template #details>
       <div class="details-grid">
+        <BookingField
+          v-if="isPartialSegmentView && !readonly"
+          :model-value="booking.title"
+          label="Название перелёта"
+          icon="mdi:format-title"
+          :readonly="readonly"
+          class="span-2"
+          @update:model-value="updateTitle"
+        />
+
         <template v-for="(segment, index) in segments" :key="segment.flightNumber || index">
           <div v-if="index > 0" class="layover-details span-2">
             <Icon icon="mdi:clock-outline" />
@@ -419,7 +489,10 @@ function updateSegmentField<K extends keyof FlightSegment>(segmentIndex: number,
             <span>{{ getLayoverDuration(segments[index - 1], segment) }}</span>
           </div>
 
-          <div class="segment-header span-2">
+          <div
+            class="segment-header span-2"
+            :class="{ 'is-active-segment': isPartialSegmentView && index >= effectiveSegmentRange.start && index <= effectiveSegmentRange.end }"
+          >
             <div class="segment-header-content">
               <div class="airline-logo-container-small">
                 <img
@@ -434,6 +507,12 @@ function updateSegmentField<K extends keyof FlightSegment>(segmentIndex: number,
                 </div>
               </div>
               <span>Рейс {{ index + 1 }}</span>
+              <span
+                v-if="isPartialSegmentView && index >= effectiveSegmentRange.start && index <= effectiveSegmentRange.end"
+                class="active-segment-pill"
+              >
+                Текущий сегмент
+              </span>
             </div>
 
             <div class="flight-number-container">
@@ -875,6 +954,24 @@ function updateSegmentField<K extends keyof FlightSegment>(segmentIndex: number,
   margin-bottom: 0.5rem;
   padding-bottom: 4px;
   border-bottom: 1px solid var(--border-secondary-color);
+
+  &.is-active-segment {
+    border-bottom-color: var(--fg-info-color);
+
+    .segment-header-content {
+      color: var(--fg-primary-color);
+    }
+  }
+}
+
+.active-segment-pill {
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 1px 7px;
+  border-radius: var(--r-full);
+  color: var(--fg-info-color);
+  border: 1px solid var(--fg-info-color);
+  background-color: var(--bg-primary-color);
 }
 
 .segment-header-content {
