@@ -15,6 +15,11 @@ export function mergeLlmActivitiesWithRawMarkdown(
   llmActs: ActivityPayload[],
   rawActs: ActivityPayload[],
 ): ActivityPayload[] {
+  // An explicit Markdown timeline is authoritative; LLM output may enrich it,
+  // but must not append alternative/duplicate activities or change its times.
+  if (rawActs.length === 0)
+    return [...llmActs].sort((a, b) => a.startTime.localeCompare(b.startTime))
+
   const merged: ActivityPayload[] = []
 
   for (let i = 0; i < rawActs.length; i++) {
@@ -36,13 +41,6 @@ export function mergeLlmActivitiesWithRawMarkdown(
     }
     else {
       merged.push(raw)
-    }
-  }
-
-  for (const llm of llmActs) {
-    const isAlreadyMatched = merged.some(m => m.startTime === llm.startTime || (m.title.toLowerCase().includes(llm.title.toLowerCase().slice(0, 10))))
-    if (!isAlreadyMatched) {
-      merged.push(llm)
     }
   }
 

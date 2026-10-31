@@ -55,3 +55,28 @@ describe('calendar presentation', () => {
     expect((events[0].end() as Date).toISOString()).toBe('2026-11-04T06:56:00.000Z')
   })
 })
+
+it('uses local itinerary times instead of adding timezone-shifted booking duplicates', () => {
+  const cases = [
+    { date: '2026-11-06', title: 'Перелёт CZ3097', start: '12:00', end: '14:15', type: 'flight', data: { segments: [{ departureDateTime: '2026-11-06T12:00:00', arrivalDateTime: '2026-11-06T14:15:00', departureTimeZone: '+08:00', arrivalTimeZone: '+08:00' }] } },
+    { date: '2026-11-11', title: 'Поезд 4187', start: '13:25', end: '13:46', type: 'train', data: { departureDateTime: '2026-11-11T13:25:00', arrivalDateTime: '2026-11-11T13:46:00', departureTimeZone: '+08:00', arrivalTimeZone: '+08:00' } },
+    { date: '2026-11-13', title: 'Поезд 637', start: '12:29', end: '13:48', type: 'train', data: { departureDateTime: '2026-11-13T12:29:00', arrivalDateTime: '2026-11-13T13:48:00', departureTimeZone: '+08:00', arrivalTimeZone: '+08:00' } },
+    { date: '2026-11-17', title: 'Автобус 7322', start: '09:10', end: '11:55', type: 'car', data: { pickupDateTime: '2026-11-17T09:10:00', dropoffDateTime: '2026-11-17T11:55:00', pickupTimeZone: '+08:00', dropoffTimeZone: '+08:00' } },
+  ]
+  for (const item of cases) {
+    const input = { trip, days: [{ id: 'day', date: item.date, title: 'Day', activities: [{ id: 'activity', title: item.title, startTime: item.start, endTime: item.end }] }], bookings: [{ id: 'booking', title: item.title, type: item.type, data: item.data }] }
+    const events = generateTripCalendar(input).events()
+    expect(events).toHaveLength(1)
+    expect(events[0].id()).toBe('act-activity')
+    expect(events[0].toString()).toContain(`DTSTART:${item.date.replaceAll('-', '')}T${item.start.replace(':', '')}00\r\n`)
+    expect(generateTripCalendar(input, { includeActivities: false }).events()).toHaveLength(1)
+  }
+})
+
+it('keeps flight segment identity when another segment is covered by an itinerary', () => {
+  const events = generateTripCalendar({ trip, days: [{ id: 'day', date: '2026-11-06', title: 'Day', activities: [{ id: 'act', title: 'Flight', startTime: '12:00', endTime: '14:15' }] }], bookings: [{ id: 'flight', title: 'Flight', type: 'flight', data: { segments: [
+    { departureDateTime: '2026-11-06T12:00:00+08:00', arrivalDateTime: '2026-11-06T14:15:00+08:00' },
+    { departureDateTime: '2026-11-07T00:15:00+08:00', arrivalDateTime: '2026-11-07T02:15:00+08:00' },
+  ] } }] }).events()
+  expect(events.map(event => event.id())).toEqual(['booking-flight-seg-1', 'act-act'])
+})

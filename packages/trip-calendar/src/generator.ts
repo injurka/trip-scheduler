@@ -28,10 +28,16 @@ export function generateTripCalendar(
     url: trip.url || undefined,
   })
 
-  // 1. Бронирования (перелеты, отели, поезда, авто и др.)
+  // A daily itinerary is the schedule of record. Booking timestamps are absolute
+  // instants and must not be mixed with (or duplicate) its local wall-clock plan.
+  const itineraryDates = new Set(includeActivities
+    ? days.filter(day => day.date && day.activities?.length).map(day => day.date!)
+    : [])
+
+  // Bookings fill dates without a scheduled itinerary; they remain available alone.
   if (includeBookings && bookings.length > 0) {
     for (const booking of bookings) {
-      addBookingEvents(calendar, booking, trip, options)
+      addBookingEvents(calendar, booking, trip, options, itineraryDates)
     }
   }
 

@@ -256,6 +256,30 @@ export function validateObsidianVault(context: ValidationScopeContext, startDate
 
       // Проверка шапки дня
       const dayIssues: ValidationIssue[] = []
+      const minuteOfDay = (clock: string) => {
+        const [hours, minutes] = clock.split(':').map(Number)
+        return hours * 60 + minutes
+      }
+      const timeline = activities.map((activity) => {
+        const start = minuteOfDay(activity.startTime)
+        let end = minuteOfDay(activity.endTime)
+        if (end < start)
+          end += 24 * 60
+        return { activity, start, end }
+      }).sort((a, b) => a.start - b.start)
+      for (let i = 0; i < timeline.length; i++) {
+        for (let j = i + 1; j < timeline.length && timeline[j].start < timeline[i].end; j++) {
+          const first = timeline[i].activity
+          const second = timeline[j].activity
+          dayIssues.push({
+            severity: 'warning',
+            category: 'timeline',
+            file: fileName,
+            message: `Пересечение активностей: ${first.startTime}–${first.endTime} «${first.title}» и ${second.startTime}–${second.endTime} «${second.title}».`,
+            recommendation: 'Проверьте исходные таймкоды. Импортер сохраняет указанное расписание и не исправляет его автоматически.',
+          })
+        }
+      }
       const hasFmHighlight = Boolean(dayFm.highlight || dayFm.description)
       const hasPhase = hasFmHighlight || />[ \t]*\*\*(?:Фаза тура|Фаза|Phase):\*\*/i.test(content)
       const hasHighlight = hasFmHighlight || />[ \t]*\*\*(?:Ключевой хайлайт|Хайлайт дня|Хайлайты|Хайлайт|Highlight):\*\*/i.test(content)

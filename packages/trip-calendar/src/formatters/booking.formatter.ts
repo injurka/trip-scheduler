@@ -28,12 +28,19 @@ export function addBookingEvents(
   booking: TripCalendarBooking,
   trip: TripCalendarTrip,
   options: TripCalendarOptions,
+  itineraryDates: ReadonlySet<string> = new Set(),
 ): void {
   const { type, data } = booking
+  if (type !== 'flight') {
+    const fields = data as Record<string, unknown> | undefined
+    const start = fields?.departureDateTime || fields?.pickupDateTime || fields?.dateTime || fields?.startDateTime || fields?.date
+    if (typeof start === 'string' && itineraryDates.has(start.slice(0, 10)))
+      return
+  }
 
   switch (type) {
     case 'flight':
-      formatFlight(calendar, booking, data as FlightData, trip, options)
+      formatFlight(calendar, booking, data as FlightData, trip, options, itineraryDates)
       break
     case 'hotel':
       // Hotel bookings describe accommodation, not scheduled activities.
@@ -63,6 +70,7 @@ function formatFlight(
   data: FlightData,
   trip: TripCalendarTrip,
   options: TripCalendarOptions,
+  itineraryDates: ReadonlySet<string>,
 ): void {
   const segments = data?.segments || []
   if (segments.length === 0) {
@@ -70,6 +78,8 @@ function formatFlight(
   }
 
   segments.forEach((seg, idx) => {
+    if (seg.departureDateTime && itineraryDates.has(seg.departureDateTime.slice(0, 10)))
+      return
     const start = parseIsoToDate(seg.departureDateTime, seg.departureTimeZone)
     if (!start)
       return

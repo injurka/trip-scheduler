@@ -101,7 +101,7 @@ const currentExportItems = computed<ExportItemOption[]>(() => {
       {
         key: 'includeBookings',
         label: 'Бронирования',
-        hint: 'Рейсы, поезда и билеты; отели — только из плана дня',
+        hint: 'Транспорт и билеты на дни без активностей; план дня имеет приоритет',
         icon: 'mdi:ticket-percent-outline',
       },
     ]
@@ -140,6 +140,9 @@ const currentExportItems = computed<ExportItemOption[]>(() => {
     },
   ]
 })
+const hasCalendarSummaryOverlap = computed(() => options.value.includeDaySummaries
+  && (options.value.includeActivityDetails || options.value.includeBookings))
+
 const selectedItemsCount = computed(() => {
   return currentExportItems.value.filter(item => options.value[item.key]).length
 })
@@ -660,6 +663,28 @@ function handleExport() {
             </div>
           </div>
         </div>
+        <div
+          v-if="selectedFormat === 'ics'"
+          class="calendar-export-notice"
+          :class="{ 'has-overlap': hasCalendarSummaryOverlap }"
+          role="status"
+        >
+          <Icon :icon="hasCalendarSummaryOverlap ? 'mdi:alert-outline' : 'mdi:information-outline'" />
+          <div>
+            <p v-if="hasCalendarSummaryOverlap">
+              Дни путешествия добавят целодневные сводки поверх отдельных событий.
+              Информация о маршруте будет повторяться. Для пошагового расписания отключите «Дни путешествия».
+            </p>
+            <p v-else>
+              Для пошагового расписания выберите «Активности и экскурсии».
+              «Дни путешествия» — отдельные целодневные сводки, а не шаги маршрута.
+            </p>
+            <p>
+              Бронирования дополняют даты без активностей. Состав экспорта применяется к файлу и ссылкам подписки.
+              После изменения выбора скопируйте новую ссылку: уже добавленная подписка сохранит прежний состав.
+            </p>
+          </div>
+        </div>
       </section>
 
       <!-- 3. Карточка синхронизации WebCal (для формата календаря) -->
@@ -913,6 +938,41 @@ function handleExport() {
   font-size: 0.775rem;
   line-height: 1.35;
   color: var(--fg-secondary-color);
+}
+
+.calendar-export-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid var(--border-secondary-color);
+  border-radius: var(--r-s);
+  color: var(--fg-secondary-color);
+  font-size: 0.8rem;
+  line-height: 1.5;
+
+  > svg {
+    flex-shrink: 0;
+    margin-top: 2px;
+    font-size: 1.1rem;
+  }
+
+  p {
+    margin: 0;
+
+    + p {
+      margin-top: 8px;
+    }
+  }
+
+  &.has-overlap {
+    border-color: var(--fg-accent-color);
+
+    > svg {
+      color: var(--fg-accent-color);
+    }
+  }
 }
 
 // Плитки состава данных
