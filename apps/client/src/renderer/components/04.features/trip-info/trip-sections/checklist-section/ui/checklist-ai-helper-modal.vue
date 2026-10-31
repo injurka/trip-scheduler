@@ -489,7 +489,7 @@ onBeforeUnmount(() => {
           </span>
         </p>
 
-        <!-- Тумблер-фильтр: Только невыполненные / Все задачи -->
+        <!-- Тумблер-фильтр: Невыполненные / Все задачи -->
         <div class="filter-toggle-bar">
           <span class="filter-label">
             <Icon icon="mdi:filter-variant" />
@@ -503,7 +503,7 @@ onBeforeUnmount(() => {
               @click="onlyPending = true"
             >
               <Icon icon="mdi:checkbox-blank-circle-outline" />
-              <span>Только невыполненные</span>
+              <span>Невыполненные</span>
               <span class="count-pill">{{ items.filter(i => !i.completed || (i.subtasks && i.subtasks.some(s => !s.completed))).length }}</span>
             </button>
             <button
@@ -564,6 +564,7 @@ onBeforeUnmount(() => {
           <KitInput
             v-model="userQuery"
             type="textarea"
+            size="sm"
             placeholder="Например: «Я в магазине Don Quijote, что мне тут нужно купить?» или «Посмотри меню, есть ли тут блюда из моего гастро-списка?»"
             :rows="3"
           />

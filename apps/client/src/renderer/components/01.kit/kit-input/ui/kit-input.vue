@@ -148,18 +148,27 @@ const id = `kit-input-${Math.random().toString(36).substring(2, 9)}`
     resize: vertical;
     padding-top: 10px;
     padding-bottom: 10px;
+    line-height: 1.45;
   }
 
   .kit-input-sm {
     min-height: 38px;
     padding: 10px;
     font-size: 0.875rem;
+
+    &::placeholder {
+      font-size: 0.8125rem;
+    }
   }
 
   .kit-input-md {
     min-height: 46px;
     padding: 12px;
-    font-size: 1rem;
+    font-size: 0.9375rem;
+
+    &::placeholder {
+      font-size: 0.85rem;
+    }
   }
 
   .kit-input-lg {

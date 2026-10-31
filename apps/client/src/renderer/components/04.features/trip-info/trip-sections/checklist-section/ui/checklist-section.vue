@@ -169,7 +169,7 @@ async function handleNavigateToItem(payload: { itemId: string, tabId: ChecklistT
                     :variant="completionFilter === 'all' ? 'subtle' : 'tonal'"
                     size="sm"
                     :icon="completionFilter === 'pending' ? 'mdi:eye-off-outline' : completionFilter === 'completed' ? 'mdi:check-all' : 'mdi:eye-outline'"
-                    :title="completionFilter === 'all' ? 'Все задачи. Нажмите, чтобы скрыть выполненные' : completionFilter === 'pending' ? 'Только невыполненные. Нажмите, чтобы показать выполненные' : 'Только выполненные. Нажмите, чтобы показать все задачи'"
+                    :title="completionFilter === 'all' ? 'Все задачи. Нажмите, чтобы скрыть выполненные' : completionFilter === 'pending' ? 'Невыполненные. Нажмите, чтобы показать выполненные' : 'Только выполненные. Нажмите, чтобы показать все задачи'"
                     @click="cycleCompletionFilter"
                   >
                     <span class="btn-text">{{ completionFilter === 'all' ? 'Все' : completionFilter === 'pending' ? 'Скрыть готовые' : 'Показать готовые' }}</span>

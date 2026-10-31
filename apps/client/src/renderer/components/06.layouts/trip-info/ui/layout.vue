@@ -77,14 +77,12 @@ const isScrolledPastThreshold = computed(() => {
   if (isNotesView.value || isMapView.value)
     return false
 
-  const clientHeight = windowHeight.value || window.innerHeight || document.documentElement.clientHeight
-  const scrollHeight = Math.max(document.documentElement.scrollHeight, document.body.scrollHeight)
-  const maxScroll = scrollHeight - clientHeight
+  const threshold = windowHeight.value || window.innerHeight || 0
 
-  if (maxScroll <= 100)
+  if (threshold <= 0)
     return false
 
-  return (scrollY.value / maxScroll) >= 0.25
+  return scrollY.value >= threshold
 })
 
 function handleReadOnlyClick() {
