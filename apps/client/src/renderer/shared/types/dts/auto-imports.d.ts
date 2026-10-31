@@ -23,6 +23,7 @@ declare global {
   const applyTerrain: typeof import('../../lib/map-styles-sources').applyTerrain
   const asyncComputed: typeof import('@vueuse/core').asyncComputed
   const autoResetRef: typeof import('@vueuse/core').autoResetRef
+  const base64ToUint8Array: typeof import('../../lib/thumbhash').base64ToUint8Array
   const breakpoints: typeof import('../../composables/use-display').breakpoints
   const calculateTripBoundingBox: typeof import('../../lib/tile-calc').calculateTripBoundingBox
   const checkMapTilerAvailability: typeof import('../../lib/map-styles-sources').checkMapTilerAvailability
@@ -76,6 +77,10 @@ declare global {
   const getLocalDate: typeof import('../../lib/date-time').getLocalDate
   const getMapStyle: typeof import('../../lib/map-styles-sources').getMapStyle
   const getMaplibreTransformRequest: typeof import('../../lib/map-tile-cache').getMaplibreTransformRequest
+  const getThumbHashApproximateAspectRatio: typeof import('../../lib/thumbhash').getThumbHashApproximateAspectRatio
+  const getThumbHashAspectRatio: typeof import('../../lib/thumbhash').getThumbHashAspectRatio
+  const getThumbHashAverageColor: typeof import('../../lib/thumbhash').getThumbHashAverageColor
+  const getThumbHashDataUrl: typeof import('../../lib/thumbhash').getThumbHashDataUrl
   const getTilesForBBox: typeof import('../../lib/tile-calc').getTilesForBBox
   const getTimeFromTimestamp: typeof import('../../lib/date-time').getTimeFromTimestamp
   const getTripDeepLinkUrl: typeof import('../../lib/deep-link').getTripDeepLinkUrl
@@ -431,6 +436,7 @@ declare module 'vue' {
     readonly applyTerrain: UnwrapRef<typeof import('../../lib/map-styles-sources')['applyTerrain']>
     readonly asyncComputed: UnwrapRef<typeof import('@vueuse/core')['asyncComputed']>
     readonly autoResetRef: UnwrapRef<typeof import('@vueuse/core')['autoResetRef']>
+    readonly base64ToUint8Array: UnwrapRef<typeof import('../../lib/thumbhash')['base64ToUint8Array']>
     readonly breakpoints: UnwrapRef<typeof import('../../composables/use-display')['breakpoints']>
     readonly calculateTripBoundingBox: UnwrapRef<typeof import('../../lib/tile-calc')['calculateTripBoundingBox']>
     readonly checkMapTilerAvailability: UnwrapRef<typeof import('../../lib/map-styles-sources')['checkMapTilerAvailability']>
@@ -484,6 +490,10 @@ declare module 'vue' {
     readonly getLocalDate: UnwrapRef<typeof import('../../lib/date-time')['getLocalDate']>
     readonly getMapStyle: UnwrapRef<typeof import('../../lib/map-styles-sources')['getMapStyle']>
     readonly getMaplibreTransformRequest: UnwrapRef<typeof import('../../lib/map-tile-cache')['getMaplibreTransformRequest']>
+    readonly getThumbHashApproximateAspectRatio: UnwrapRef<typeof import('../../lib/thumbhash')['getThumbHashApproximateAspectRatio']>
+    readonly getThumbHashAspectRatio: UnwrapRef<typeof import('../../lib/thumbhash')['getThumbHashAspectRatio']>
+    readonly getThumbHashAverageColor: UnwrapRef<typeof import('../../lib/thumbhash')['getThumbHashAverageColor']>
+    readonly getThumbHashDataUrl: UnwrapRef<typeof import('../../lib/thumbhash')['getThumbHashDataUrl']>
     readonly getTilesForBBox: UnwrapRef<typeof import('../../lib/tile-calc')['getTilesForBBox']>
     readonly getTimeFromTimestamp: UnwrapRef<typeof import('../../lib/date-time')['getTimeFromTimestamp']>
     readonly getTripDeepLinkUrl: UnwrapRef<typeof import('../../lib/deep-link')['getTripDeepLinkUrl']>

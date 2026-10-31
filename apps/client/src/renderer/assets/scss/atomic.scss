@@ -26,7 +26,6 @@
   display: flex;
   flex-direction: column;
   flex-grow: 1;
-  padding: 16px;
   padding-bottom: calc(var(--footer-height) + var(--safe-area-inset-bottom) + 16px);
   max-width: 1000px;
   min-height: 100%;
@@ -35,7 +34,7 @@
   background-color: rgba(var(--bg-primary-color-rgb), var(--content-bg-opacity));
   transition: background-color 0.3s ease;
 
-  @include media-down(sm) {
+  @include media-down(md) {
     padding: 16px 6px calc(var(--footer-height) + var(--safe-area-inset-bottom) + 12px);
   }
 

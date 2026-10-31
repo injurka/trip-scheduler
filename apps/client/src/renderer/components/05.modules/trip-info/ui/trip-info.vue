@@ -211,10 +211,6 @@ onUnmounted(() => {
   flex: 1;
   min-height: 0;
   width: 100%;
-
-  @include media-down(sm) {
-    padding: 0 4px;
-  }
 }
 
 :deep(.trip-info-async-wrapper) {
