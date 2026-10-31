@@ -6,7 +6,7 @@ services:
     networks:
       - prod-net
     environment:
-      VITE_APP_SERVER_URL: "${VITE_APP_SERVER_URL}"
+      VITE_APP_SERVER_URL: "${VITE_APP_SERVER_URL:-https://trip-scheduler-api.limited-dissolve.ru}"
     deploy:
       restart_policy:
         condition: any

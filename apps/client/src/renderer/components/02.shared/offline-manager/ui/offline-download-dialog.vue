@@ -442,7 +442,6 @@ function handleCancel() {
   &:hover:not(.is-disabled) {
     background: var(--bg-tertiary-color);
     border-color: var(--border-primary-color);
-    transform: translateY(-1px);
   }
 
   &:focus-visible:not(.is-disabled) {
@@ -471,7 +470,6 @@ function handleCancel() {
     border-radius: 10px;
     font-size: 1.3rem;
     flex-shrink: 0;
-    transition: transform 0.2s ease;
 
     &.type-media {
       background: rgba(139, 92, 246, 0.14);

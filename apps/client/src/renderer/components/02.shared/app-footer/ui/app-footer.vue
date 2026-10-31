@@ -352,11 +352,6 @@ onMounted(() => {
   &:hover:not(:disabled) {
     background-color: rgba(var(--accent-primary-color-rgb), 0.18);
     border-color: rgba(var(--accent-primary-color-rgb), 0.4);
-    transform: translateY(-1px);
-  }
-
-  &:active:not(:disabled) {
-    transform: translateY(0);
   }
 
   &:disabled {

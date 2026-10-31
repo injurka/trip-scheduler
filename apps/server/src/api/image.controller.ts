@@ -6,6 +6,7 @@ import sharp from 'sharp'
 import { db } from '~/../db'
 import { postMedia, posts, postWhitelist, tripImages, tripParticipants, trips } from '~/../db/schema'
 import { authUtils } from '~/lib/auth.utils'
+import { buildContentDisposition } from '~/lib/content-disposition'
 import { generateThumbHash } from '~/services/image-metadata.service'
 import {
   imageOutputSizeBytesHistogram,
@@ -102,11 +103,12 @@ imageController.get('/*', async (c) => {
     const isInline = ['pdf', 'txt', 'mp4', 'webm', 'mov', 'mkv', 'avi', 'ogg', 'ogv', 'mp3', 'wav'].includes(fileExt) || streamResult.contentType.startsWith('video/') || streamResult.contentType.startsWith('audio/')
     const disposition = isInline ? 'inline' : 'attachment'
 
+    const filename = filePath.split('/').pop() || `file.${fileExt || 'bin'}`
     const headers: Record<string, string> = {
       'Content-Type': streamResult.contentType,
       'Accept-Ranges': 'bytes',
       'Cache-Control': 'public, max-age=31536000, immutable',
-      'Content-Disposition': `${disposition}; filename="${filePath.split('/').pop() || `file.${fileExt || 'bin'}`}"`,
+      'Content-Disposition': buildContentDisposition(disposition, filename),
     }
 
     if (streamResult.contentLength)
@@ -133,11 +135,13 @@ imageController.get('/*', async (c) => {
     const isInline = fileExt === 'pdf' || fileExt === 'txt' || s3Result.contentType.startsWith('video/') || s3Result.contentType.startsWith('audio/') || ['mp4', 'webm', 'mov', 'mkv', 'avi', 'ogg'].includes(fileExt)
     const disposition = isInline ? 'inline' : 'attachment'
 
+    const fallbackFilename = filePath.split('/').pop() || `file.${fileExt || 'bin'}`
+
     return c.body(s3Result.buffer as any, 200, {
       'Content-Type': s3Result.contentType || 'application/octet-stream',
       'Accept-Ranges': 'bytes',
       'Cache-Control': 'public, max-age=31536000, immutable',
-      'Content-Disposition': `${disposition}; filename="${filePath.split('/').pop() || `file.${fileExt || 'bin'}`}"`,
+      'Content-Disposition': buildContentDisposition(disposition, fallbackFilename),
     })
   }
 

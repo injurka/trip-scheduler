@@ -3,6 +3,7 @@ import { generateTripCalendarIcs } from '@injurka/trip-calendar'
 import { Hono } from 'hono'
 import { HTTPException } from 'hono/http-exception'
 import { authUtils } from '~/lib/auth.utils'
+import { buildContentDisposition } from '~/lib/content-disposition'
 import { tripRepository } from '~/repositories/trip.repository'
 
 export const calendarController = new Hono()
@@ -83,15 +84,13 @@ async function handleCalendar(c: Context) {
     },
   )
 
-  // eslint-disable-next-line regexp/no-obscure-range
-  const sanitizedTitle = trip.title.replace(/[^a-zа-яё0-9]/gi, '_').toLowerCase()
-  const filename = `trip_${sanitizedTitle || 'calendar'}.ics`
+  const filename = `trip_${trip.title.trim().replace(/[\\/:*?"<>|\r\n]+/g, '_') || 'calendar'}.ics`
 
   return new Response(ics, {
     status: 200,
     headers: {
       'Content-Type': 'text/calendar; charset=utf-8',
-      'Content-Disposition': `inline; filename="${filename}"`,
+      'Content-Disposition': buildContentDisposition('inline', filename),
       'Cache-Control': 'no-cache, no-store, must-revalidate',
     },
   })

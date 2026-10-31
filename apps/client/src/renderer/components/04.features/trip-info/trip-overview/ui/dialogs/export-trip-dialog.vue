@@ -151,6 +151,12 @@ watch(() => props.trip.shareSlug, (nextSlug) => {
     resolvedShareSlug.value = nextSlug
 })
 
+watch(() => props.visible, (visible) => {
+  if (visible) {
+    void ensureCalendarIdentifier()
+  }
+}, { immediate: true })
+
 function toggleAllItems() {
   const nextVal = !isAllSelected.value
 

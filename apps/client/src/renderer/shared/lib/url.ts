@@ -126,9 +126,20 @@ export function getImageUrl(path: string | null | undefined, options?: ImageOpti
  * @param slugOrId - shareSlug (приоритетно) либо ID путешествия.
  */
 export function getTripCalendarUrl(slugOrId: string): string {
-  const base = (serverUrl || (typeof window !== 'undefined' ? window.location.origin : '')).replace(/\/+$/, '')
+  let base = serverUrl
 
-  return `${base}/api/trips/${encodeURIComponent(slugOrId)}/calendar.ics`
+  if (!base && typeof window !== 'undefined') {
+    if (window.location.hostname === 'trip-scheduler.limited-dissolve.ru') {
+      base = 'https://trip-scheduler-api.limited-dissolve.ru'
+    }
+    else {
+      base = window.location.origin
+    }
+  }
+
+  const normalizedBase = (base || 'https://trip-scheduler-api.limited-dissolve.ru').replace(/\/+$/, '')
+
+  return `${normalizedBase}/api/trips/${encodeURIComponent(slugOrId)}/calendar.ics`
 }
 
 /**

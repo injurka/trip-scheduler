@@ -139,13 +139,11 @@ function handleClick() {
   outline: none;
   transition:
     border-color 0.2s ease,
-    transform 0.2s ease,
     box-shadow 0.2s ease;
 
   &:hover {
     border-color: var(--border-primary-color);
     box-shadow: var(--s-m);
-    transform: translateY(-1px);
 
     .map-btn {
       color: var(--fg-accent-color);
