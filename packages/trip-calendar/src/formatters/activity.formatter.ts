@@ -1,18 +1,7 @@
 import type { ICalCalendar } from 'ical-generator'
 import type { TripCalendarActivity, TripCalendarDay, TripCalendarOptions, TripCalendarTrip } from '../types'
 import { ICalAlarmType } from 'ical-generator'
-
-function stripMarkdown(text: string): string {
-  if (!text)
-    return ''
-
-  return text
-    .replace(/\*\*(.*?)\*\*/g, '$1')
-    .replace(/\*(.*?)\*/g, '$1')
-    .replace(/\[(.*?)\]\(.*?\)/g, '$1')
-    .replace(/^#+\s/gm, '')
-    .trim()
-}
+import { calendarPlainText } from '../plain-text'
 
 function getTagEmoji(tag?: string | null): string {
   switch (tag) {
@@ -69,7 +58,7 @@ export function addActivityEvent(
   if (activity.sections && activity.sections.length > 0) {
     for (const section of activity.sections) {
       if (section.type === 'description' && section.text) {
-        descLines.push(stripMarkdown(section.text))
+        descLines.push(calendarPlainText(section.text))
       }
       else if (section.type === 'geolocation') {
         if (section.address) {

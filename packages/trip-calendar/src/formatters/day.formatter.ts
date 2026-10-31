@@ -1,17 +1,6 @@
 import type { ICalCalendar } from 'ical-generator'
 import type { TripCalendarDay, TripCalendarOptions, TripCalendarTrip } from '../types'
-
-function stripMarkdown(text: string): string {
-  if (!text)
-    return ''
-
-  return text
-    .replace(/\*\*(.*?)\*\*/g, '$1')
-    .replace(/\*(.*?)\*/g, '$1')
-    .replace(/\[(.*?)\]\(.*?\)/g, '$1')
-    .replace(/^#+\s/gm, '')
-    .trim()
-}
+import { calendarPlainText } from '../plain-text'
 
 export function addDayEvent(
   calendar: ICalCalendar,
@@ -32,7 +21,7 @@ export function addDayEvent(
   const descLines: string[] = []
 
   if (day.description)
-    descLines.push(stripMarkdown(day.description))
+    descLines.push(calendarPlainText(day.description))
 
   if (day.meta && day.meta.length > 0) {
     const metaStr = day.meta

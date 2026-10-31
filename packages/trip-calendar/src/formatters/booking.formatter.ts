@@ -11,11 +11,16 @@ import type {
   TripCalendarTrip,
 } from '../types'
 import { ICalAlarmType } from 'ical-generator'
+import { calendarPlainText } from '../plain-text'
 
-function parseIsoToDate(isoString?: string | null): Date | null {
+function parseIsoToDate(isoString?: string | null, offset?: string): Date | null {
   if (!isoString)
     return null
-  const date = new Date(isoString)
+  const hasZone = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(isoString)
+  const withOffset = !hasZone && /^\d{4}-\d{2}-\d{2}T/.test(isoString) && offset && /^[+-]\d{2}:\d{2}$/.test(offset)
+    ? `${isoString}${offset}`
+    : isoString
+  const date = new Date(withOffset)
   return Number.isNaN(date.getTime()) ? null : date
 }
 
@@ -73,11 +78,11 @@ function formatFlight(
   }
 
   segments.forEach((seg, idx) => {
-    const start = parseIsoToDate(seg.departureDateTime)
+    const start = parseIsoToDate(seg.departureDateTime, seg.departureTimeZone)
     if (!start)
       return
 
-    const end = parseIsoToDate(seg.arrivalDateTime) || new Date(start.getTime() + 2 * 60 * 60 * 1000)
+    const end = parseIsoToDate(seg.arrivalDateTime, seg.arrivalTimeZone) || new Date(start.getTime() + 2 * 60 * 60 * 1000)
 
     const flightNum = seg.flightNumber ? ` ${seg.flightNumber}` : ''
     const fromCity = seg.departureCity || seg.departureAirport || 'Вылет'
@@ -113,7 +118,7 @@ function formatFlight(
       start,
       end,
       summary,
-      description: descLines.join('\n').trim() || undefined,
+      description: calendarPlainText(descLines.join('\n')) || undefined,
       location: locationProp,
       url: data.sourceUrl || trip.url || undefined,
     })
@@ -135,15 +140,13 @@ function formatHotel(
   trip: TripCalendarTrip,
   options: TripCalendarOptions,
 ): void {
-  const checkIn = parseHotelDate(data?.checkInDate, data?.checkInTime || '14:00')
-  const checkOut = parseHotelDate(data?.checkOutDate, '12:00')
+  const checkIn = parseHotelDate(data?.checkInDate, data?.checkInTime || '00:00')
+  const checkOut = parseHotelDate(data?.checkOutDate, data?.checkOutTime || '00:00')
 
   if (!checkIn)
     return
 
-  const end = checkOut || new Date(checkIn.getTime() + 24 * 60 * 60 * 1000)
   const hotelName = data?.hotelName || booking.title || 'Отель'
-  const summary = `🏨 [Отель] ${hotelName}`
 
   const descLines: string[] = []
   if (data?.address)
@@ -170,23 +173,31 @@ function formatHotel(
     ? (data?.location ? { title: locTitle, geo: { lat: data.location.lat, lon: data.location.lon } } : locTitle)
     : undefined
 
-  const event = calendar.createEvent({
-    id: `booking-${booking.id}`,
-    start: checkIn,
-    end,
-    floating: true,
-    summary,
-    description: descLines.join('\n').trim() || undefined,
-    location: locationProp,
-    url: data?.sourceUrl || trip.url || undefined,
-  })
-
-  if (options.enableAlarms !== false) {
-    event.createAlarm({
-      type: ICalAlarmType.display,
-      trigger: 24 * 60 * 60, // за 24 часа
-      description: summary,
+  // A stay is reference information, not a busy event spanning every night.
+  const milestones = [
+    { id: `booking-${booking.id}`, start: checkIn, time: data?.checkInTime, label: 'Заселение' },
+    ...(checkOut && checkOut > checkIn
+      ? [{ id: `booking-${booking.id}-checkout`, start: checkOut, time: data?.checkOutTime, label: 'Выезд' }]
+      : []),
+  ]
+  for (const milestone of milestones) {
+    const summary = `🏨 ${milestone.label}: ${hotelName}`
+    const event = calendar.createEvent({
+      id: milestone.id,
+      start: milestone.start,
+      ...(milestone.time ? { end: new Date(milestone.start.getTime() + 30 * 60 * 1000) } : { allDay: true }),
+      floating: true,
+      summary,
+      description: calendarPlainText([
+        ...(!milestone.time ? ['Время не указано в бронировании.'] : []),
+        ...descLines,
+      ].join('\n')) || undefined,
+      location: locationProp,
+      url: data?.sourceUrl || trip.url || undefined,
     })
+    if (options.enableAlarms !== false && milestone.time) {
+      event.createAlarm({ type: ICalAlarmType.display, trigger: 60 * 60, description: summary })
+    }
   }
 }
 
@@ -197,11 +208,11 @@ function formatTrain(
   trip: TripCalendarTrip,
   options: TripCalendarOptions,
 ): void {
-  const start = parseIsoToDate(data?.departureDateTime)
+  const start = parseIsoToDate(data?.departureDateTime, data?.departureTimeZone)
   if (!start)
     return
 
-  const end = parseIsoToDate(data?.arrivalDateTime) || new Date(start.getTime() + 2 * 60 * 60 * 1000)
+  const end = parseIsoToDate(data?.arrivalDateTime, data?.arrivalTimeZone) || new Date(start.getTime() + 2 * 60 * 60 * 1000)
   const trainNum = data?.trainNumber ? ` ${data.trainNumber}` : ''
   const from = data?.departureStation || 'Отправление'
   const to = data?.arrivalStation || 'Прибытие'
@@ -235,7 +246,7 @@ function formatTrain(
     start,
     end,
     summary,
-    description: descLines.join('\n').trim() || undefined,
+    description: calendarPlainText(descLines.join('\n')) || undefined,
     location: locationProp,
     url: data?.sourceUrl || trip.url || undefined,
   })
@@ -256,11 +267,11 @@ function formatCar(
   trip: TripCalendarTrip,
   options: TripCalendarOptions,
 ): void {
-  const start = parseIsoToDate(data?.pickupDateTime)
+  const start = parseIsoToDate(data?.pickupDateTime, data?.pickupTimeZone)
   if (!start)
     return
 
-  const end = parseIsoToDate(data?.dropoffDateTime) || new Date(start.getTime() + 2 * 60 * 60 * 1000)
+  const end = parseIsoToDate(data?.dropoffDateTime, data?.dropoffTimeZone) || new Date(start.getTime() + 2 * 60 * 60 * 1000)
   const kind = data?.kind ? data.kind.toUpperCase() : 'АВТО'
   const label = data?.carModel || data?.company || booking.title
   const summary = `🚗 [${kind}] ${label}`
@@ -291,7 +302,7 @@ function formatCar(
     start,
     end,
     summary,
-    description: descLines.join('\n').trim() || undefined,
+    description: calendarPlainText(descLines.join('\n')) || undefined,
     location: locationProp,
     url: data?.sourceUrl || trip.url || undefined,
   })
@@ -342,7 +353,7 @@ function formatAttraction(
     start,
     end,
     summary,
-    description: descLines.join('\n').trim() || undefined,
+    description: calendarPlainText(descLines.join('\n')) || undefined,
     location: locationProp,
     url: data?.sourceUrl || trip.url || undefined,
   })
@@ -363,11 +374,11 @@ function formatOther(
   trip: TripCalendarTrip,
   options: TripCalendarOptions,
 ): void {
-  const start = parseIsoToDate(data?.startDateTime)
+  const start = parseIsoToDate(data?.startDateTime, data?.startTimeZone)
   if (!start)
     return
 
-  const end = parseIsoToDate(data?.endDateTime) || new Date(start.getTime() + 2 * 60 * 60 * 1000)
+  const end = parseIsoToDate(data?.endDateTime, data?.endTimeZone) || new Date(start.getTime() + 2 * 60 * 60 * 1000)
   const name = data?.name || booking.title
   const summary = `🚢 ${name}`
 
@@ -393,7 +404,7 @@ function formatOther(
     start,
     end,
     summary,
-    description: descLines.join('\n').trim() || undefined,
+    description: calendarPlainText(descLines.join('\n')) || undefined,
     location: locationProp,
     url: data?.sourceUrl || trip.url || undefined,
   })
@@ -426,7 +437,7 @@ function formatGeneric(
     start,
     end,
     summary: `📋 ${booking.title}`,
-    description: anyData.notes || undefined,
+    description: anyData.notes ? calendarPlainText(anyData.notes) : undefined,
     url: trip.url || undefined,
   })
 }

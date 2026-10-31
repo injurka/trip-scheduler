@@ -43,6 +43,7 @@ const selectedFormat = ref<ExportFormat>('text')
 const isExporting = ref(false)
 const options = ref({
   includeActivityDetails: true, // Текстовые заметки внутри активностей
+  includeDaySummaries: false, // Сводки дней календаря включаются отдельно
   includeDayMeta: true, // Мета-информация дня (бейджи)
   includeBookings: true, // Секция бронирований
   includeChecklist: true, // Секция чек-листа
@@ -92,7 +93,7 @@ const currentExportItems = computed<ExportItemOption[]>(() => {
         icon: 'mdi:clock-outline',
       },
       {
-        key: 'includeDayMeta',
+        key: 'includeDaySummaries',
         label: 'Дни путешествия',
         hint: 'Целодневные сводные события',
         icon: 'mdi:calendar-range-outline',
@@ -184,7 +185,12 @@ async function ensureCalendarIdentifier(): Promise<string> {
   return props.trip.id
 }
 async function resolveCalendarUrl(): Promise<string> {
-  return getTripCalendarUrl(await ensureCalendarIdentifier())
+  const url = new URL(getTripCalendarUrl(await ensureCalendarIdentifier()))
+  url.searchParams.set('days', options.value.includeDaySummaries ? '1' : '0')
+  url.searchParams.set('activities', options.value.includeActivityDetails ? '1' : '0')
+  url.searchParams.set('bookings', options.value.includeBookings ? '1' : '0')
+
+  return url.toString()
 }
 async function copyCalendarLink() {
   copy(await resolveCalendarUrl())
@@ -532,7 +538,7 @@ function handleExport() {
       }, {
         includeBookings: options.value.includeBookings,
         includeActivities: options.value.includeActivityDetails,
-        includeDaySummaries: options.value.includeDayMeta,
+        includeDaySummaries: options.value.includeDaySummaries,
         calendarName: trip.title,
       })
       mimeType = 'text/calendar;charset=utf-8'

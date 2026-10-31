@@ -39,6 +39,7 @@ export interface HotelData {
   checkInDate?: string
   checkOutDate?: string
   checkInTime?: string
+  checkOutTime?: string
   roomType?: string
   guests?: string
   confirmationNumber?: string
@@ -170,7 +171,7 @@ export interface TripCalendarInput {
 export interface TripCalendarOptions {
   /**
    * Включать ли дни поездки как all-day события (целодневные события-вехи)
-   * @default true
+   * @default false
    */
   includeDaySummaries?: boolean
 

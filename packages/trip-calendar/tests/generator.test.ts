@@ -99,7 +99,7 @@ describe('tripCalendarGenerator', () => {
       trip: sampleTrip,
       days: sampleDays,
       bookings: sampleBookings,
-    })
+    }, { includeDaySummaries: true })
 
     expect(ics).toContain('BEGIN:VCALENDAR')
     expect(ics).toContain('END:VCALENDAR')

@@ -16,7 +16,7 @@ export function generateTripCalendar(
 ): ICalCalendar {
   const { trip, days = [], bookings = [] } = input
   const {
-    includeDaySummaries = true,
+    includeDaySummaries = false,
     includeActivities = true,
     includeBookings = true,
     calendarName = trip.title,

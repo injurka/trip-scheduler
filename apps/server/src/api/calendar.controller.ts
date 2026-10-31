@@ -57,7 +57,7 @@ async function handleCalendar(c: Context) {
 
   const includeActivities = c.req.query('activities') !== '0' && c.req.query('activities') !== 'false'
   const includeBookings = c.req.query('bookings') !== '0' && c.req.query('bookings') !== 'false'
-  const includeDaySummaries = c.req.query('days') !== '0' && c.req.query('days') !== 'false'
+  const includeDaySummaries = c.req.query('days') === '1' || c.req.query('days') === 'true'
   const enableAlarms = c.req.query('alarms') !== '0' && c.req.query('alarms') !== 'false'
 
   const ics = generateTripCalendarIcs(
