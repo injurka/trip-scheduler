@@ -7,9 +7,7 @@ import { Icon } from '@iconify/vue'
 import { generateTripCalendarIcs } from '@injurka/trip-calendar'
 import { useClipboard } from '@vueuse/core'
 import { KitBtn } from '~/components/01.kit/kit-btn'
-import { KitCheckbox } from '~/components/01.kit/kit-checkbox'
 import { KitDialogWithClose } from '~/components/01.kit/kit-dialog-with-close'
-import { KitDivider } from '~/components/01.kit/kit-divider'
 import { useRequest } from '~/plugins/request'
 import { useToast } from '~/shared/composables/use-toast'
 import { EActivitySectionType } from '~/shared/types/models/activity'
@@ -22,6 +20,13 @@ interface Props {
   sections: TripSection[]
 }
 type ExportFormat = 'json' | 'text' | 'ics'
+interface FormatOption {
+  id: ExportFormat
+  label: string
+  badge: string
+  description: string
+  icon: string
+}
 
 const props = defineProps<Props>()
 const emit = defineEmits<{
@@ -40,19 +45,116 @@ const options = ref({
   includeChecklist: true, // Секция чек-листа
   includeFinances: true, // Секция финансов
 })
-const formats = [
-  { id: 'text', label: 'Plain Text', description: 'Читаемый текстовый формат. Удобно для заметок и мессенджеров.', icon: 'mdi:text-box-outline' },
-  { id: 'json', label: 'JSON', description: 'Структурированные данные. Подходит для резервного копирования.', icon: 'mdi:code-json' },
-  { id: 'ics', label: 'Календарь (.ics)', description: 'События для Apple Calendar, Google Calendar, Outlook с поддержкой WebCal-подписки.', icon: 'mdi:calendar-export' },
-]
 
+type OptionKey = keyof typeof options.value
+interface ExportItemOption {
+  key: OptionKey
+  label: string
+  hint: string
+  icon: string
+}
+
+const formats: FormatOption[] = [
+  {
+    id: 'text',
+    label: 'Plain Text',
+    badge: '.TXT',
+    description: 'Читаемый текстовый формат. Удобно для заметок и пересылки в мессенджерах.',
+    icon: 'mdi:text-box-outline',
+  },
+  {
+    id: 'json',
+    label: 'JSON',
+    badge: '.JSON',
+    description: 'Структурированные данные. Подходит для полного резервного копирования.',
+    icon: 'mdi:code-json',
+  },
+  {
+    id: 'ics',
+    label: 'Календарь',
+    badge: '.ICS',
+    description: 'События для Apple Calendar, Google Calendar, Outlook и WebCal.',
+    icon: 'mdi:calendar-month-outline',
+  },
+]
 const resolvedShareSlug = ref<string | null>(props.trip.shareSlug || null)
+
+const currentExportItems = computed<ExportItemOption[]>(() => {
+  if (selectedFormat.value === 'ics') {
+    return [
+      {
+        key: 'includeActivityDetails',
+        label: 'Активности и экскурсии',
+        hint: 'События с точным временем',
+        icon: 'mdi:clock-outline',
+      },
+      {
+        key: 'includeDayMeta',
+        label: 'Дни путешествия',
+        hint: 'Целодневные сводные события',
+        icon: 'mdi:calendar-range-outline',
+      },
+      {
+        key: 'includeBookings',
+        label: 'Бронирования',
+        hint: 'Рейсы, поезда и заселение в отели',
+        icon: 'mdi:ticket-percent-outline',
+      },
+    ]
+  }
+
+  return [
+    {
+      key: 'includeActivityDetails',
+      label: 'Заметки активностей',
+      hint: 'Тексты и описания внутри дел',
+      icon: 'mdi:text-box-search-outline',
+    },
+    {
+      key: 'includeDayMeta',
+      label: 'Мета-информация дня',
+      hint: 'Теги, бейджи и локации',
+      icon: 'mdi:tag-multiple-outline',
+    },
+    {
+      key: 'includeBookings',
+      label: 'Раздел «Бронирования»',
+      hint: 'Отели, транспорт и ваучеры',
+      icon: 'mdi:book-multiple-outline',
+    },
+    {
+      key: 'includeChecklist',
+      label: 'Раздел «Чек-лист»',
+      hint: 'Списки задач и сборов',
+      icon: 'mdi:format-list-checks',
+    },
+    {
+      key: 'includeFinances',
+      label: 'Раздел «Финансы»',
+      hint: 'Бюджет и список расходов',
+      icon: 'mdi:cash-multiple',
+    },
+  ]
+})
+const selectedItemsCount = computed(() => {
+  return currentExportItems.value.filter(item => options.value[item.key]).length
+})
+const isAllSelected = computed(() => {
+  return selectedItemsCount.value === currentExportItems.value.length
+})
 
 watch(() => props.trip.shareSlug, (nextSlug) => {
   if (nextSlug)
     resolvedShareSlug.value = nextSlug
 })
 
+function toggleAllItems() {
+  const nextVal = !isAllSelected.value
+
+  for (const item of currentExportItems.value) {
+    options.value[item.key] = nextVal
+  }
+}
 async function ensureCalendarIdentifier(): Promise<string> {
   if (resolvedShareSlug.value)
     return resolvedShareSlug.value
@@ -72,20 +174,17 @@ async function ensureCalendarIdentifier(): Promise<string> {
 
   return props.trip.id
 }
-
 async function copyCalendarLink() {
   const slugOrId = await ensureCalendarIdentifier()
   const url = `${window.location.origin}/api/trips/${slugOrId}/calendar.ics`
   copy(url)
   toast.success('Ссылка на календарь скопирована')
 }
-
 async function openWebcalSubscription() {
   const slugOrId = await ensureCalendarIdentifier()
   const url = `${window.location.origin}/api/trips/${slugOrId}/calendar.ics`.replace(/^https?:\/\//, 'webcal://')
   window.open(url, '_blank')
 }
-
 function stripMarkdown(text: string): string {
   if (!text)
     return ''
@@ -441,99 +540,147 @@ function handleExport() {
     :visible="visible"
     title="Экспорт путешествия"
     icon="mdi:export-variant"
-    :max-width="600"
+    description="Выберите формат и состав данных для сохранения на ваше устройство."
+    :max-width="580"
     @update:visible="emit('update:visible', $event)"
   >
     <div class="export-dialog-content">
-      <p class="description">
-        Выберите формат и состав данных для сохранения на ваше устройство.
-      </p>
-
-      <div class="formats-list">
-        <div
-          v-for="format in formats"
-          :key="format.id"
-          class="format-option"
-          :class="{ active: selectedFormat === format.id }"
-          @click="selectedFormat = format.id as ExportFormat"
-        >
-          <div class="radio-indicator">
-            <div v-if="selectedFormat === format.id" class="radio-dot" />
-          </div>
-          <div class="format-info">
-            <div class="format-header">
-              <Icon :icon="format.icon" class="format-icon" />
-              <span class="format-label">{{ format.label }}</span>
-            </div>
-            <p class="format-description">
-              {{ format.description }}
-            </p>
-          </div>
+      <!-- 1. Секция выбора формата -->
+      <section class="dialog-section">
+        <div class="section-header">
+          <span class="section-title">Формат файла</span>
         </div>
-      </div>
 
-      <KitDivider />
-
-      <div class="export-settings">
-        <h4 class="settings-title">
-          Состав экспорта
-        </h4>
-        <div class="settings-grid">
-          <KitCheckbox v-model="options.includeActivityDetails">
-            {{ selectedFormat === 'ics' ? 'Активности и экскурсии' : 'Содержимое активностей (заметки)' }}
-          </KitCheckbox>
-          <KitCheckbox v-model="options.includeDayMeta">
-            {{ selectedFormat === 'ics' ? 'Дни путешествия (целодневные события)' : 'Мета-информация дня' }}
-          </KitCheckbox>
-          <KitCheckbox v-model="options.includeBookings">
-            Раздел "Бронирования"
-          </KitCheckbox>
-          <KitCheckbox v-if="selectedFormat !== 'ics'" v-model="options.includeChecklist">
-            Раздел "Чек-лист"
-          </KitCheckbox>
-          <KitCheckbox v-if="selectedFormat !== 'ics'" v-model="options.includeFinances">
-            Раздел "Финансы"
-          </KitCheckbox>
-        </div>
-      </div>
-
-      <div v-if="selectedFormat === 'ics'" class="webcal-box">
-        <div class="webcal-header">
-          <Icon icon="mdi:calendar-sync" class="webcal-icon" />
-          <div class="webcal-titles">
-            <span class="webcal-title">Постоянная автосинхронизация (WebCal)</span>
-            <span class="webcal-subtitle">
-              Подпишитесь в Apple Calendar, Google Calendar или Outlook, чтобы изменения в поездке обновлялись автоматически.
-            </span>
-          </div>
-        </div>
-        <div class="webcal-actions">
-          <KitBtn
-            size="sm"
-            variant="outlined"
-            color="secondary"
-            @click="copyCalendarLink"
+        <div class="formats-grid">
+          <div
+            v-for="format in formats"
+            :key="format.id"
+            class="format-card"
+            :class="{ 'is-active': selectedFormat === format.id }"
+            role="button"
+            tabindex="0"
+            :aria-pressed="selectedFormat === format.id"
+            @click="selectedFormat = format.id"
+            @keydown.space.prevent="selectedFormat = format.id"
+            @keydown.enter.prevent="selectedFormat = format.id"
           >
-            <Icon icon="mdi:content-copy" />
-            Копировать ссылку
-          </KitBtn>
-          <KitBtn size="sm" variant="outlined" @click="openWebcalSubscription">
-            <Icon icon="mdi:calendar-plus" />
-            Подписаться
-          </KitBtn>
-        </div>
-      </div>
+            <div class="format-card-top">
+              <div class="format-icon-box">
+                <Icon :icon="format.icon" />
+              </div>
+              <span class="format-badge">{{ format.badge }}</span>
+            </div>
 
-      <div class="dialog-actions">
-        <KitBtn variant="outlined" color="secondary" @click="emit('update:visible', false)">
-          Отмена
-        </KitBtn>
-        <KitBtn :loading="isExporting" @click="handleExport">
-          <Icon icon="mdi:download-outline" />
-          Скачать
-        </KitBtn>
-      </div>
+            <div class="format-card-main">
+              <div class="format-title-row">
+                <span class="format-title">{{ format.label }}</span>
+                <Icon v-if="selectedFormat === format.id" icon="mdi:check-circle" class="format-active-icon" />
+              </div>
+              <p class="format-desc">
+                {{ format.description }}
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 2. Секция состава данных для экспорта -->
+      <section class="dialog-section">
+        <div class="section-header">
+          <div class="section-title-group">
+            <span class="section-title">Состав экспорта</span>
+            <span class="section-count">{{ selectedItemsCount }} из {{ currentExportItems.length }}</span>
+          </div>
+
+          <button
+            type="button"
+            class="section-action-btn"
+            @click="toggleAllItems"
+          >
+            {{ isAllSelected ? 'Снять все' : 'Выбрать все' }}
+          </button>
+        </div>
+
+        <div class="export-items-grid">
+          <div
+            v-for="item in currentExportItems"
+            :key="item.key"
+            class="export-item-tile"
+            :class="{ 'is-selected': options[item.key] }"
+            role="checkbox"
+            :aria-checked="options[item.key]"
+            tabindex="0"
+            @click="options[item.key] = !options[item.key]"
+            @keydown.space.prevent="options[item.key] = !options[item.key]"
+            @keydown.enter.prevent="options[item.key] = !options[item.key]"
+          >
+            <div class="tile-icon-box">
+              <Icon :icon="item.icon" />
+            </div>
+            <div class="tile-info">
+              <span class="tile-label">{{ item.label }}</span>
+              <span class="tile-hint">{{ item.hint }}</span>
+            </div>
+            <div class="tile-checkbox" :class="{ 'is-checked': options[item.key] }">
+              <Icon v-if="options[item.key]" icon="mdi:check" class="check-icon" />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 3. Карточка синхронизации WebCal (для формата календаря) -->
+      <section v-if="selectedFormat === 'ics'" class="dialog-section">
+        <div class="webcal-card">
+          <div class="webcal-content">
+            <div class="webcal-icon-box">
+              <Icon icon="mdi:calendar-sync" />
+            </div>
+            <div class="webcal-text">
+              <div class="webcal-title-row">
+                <span class="webcal-title">Синхронизация по ссылке (WebCal)</span>
+                <span class="webcal-badge">Live</span>
+              </div>
+              <p class="webcal-description">
+                Подпишитесь в Apple Calendar, Google Calendar или Outlook — изменения в путешествии обновятся автоматически.
+              </p>
+            </div>
+          </div>
+
+          <div class="webcal-actions">
+            <KitBtn
+              size="sm"
+              icon="mdi:calendar-plus"
+              @click="openWebcalSubscription"
+            >
+              Подписаться
+            </KitBtn>
+            <KitBtn
+              size="sm"
+              variant="outlined"
+              color="secondary"
+              icon="mdi:content-copy"
+              @click="copyCalendarLink"
+            >
+              Копировать ссылку
+            </KitBtn>
+          </div>
+        </div>
+      </section>
     </div>
+
+    <!-- Стандартизированный футер KitDialogWithClose -->
+    <template #footer>
+      <KitBtn variant="outlined" color="secondary" @click="emit('update:visible', false)">
+        Отмена
+      </KitBtn>
+      <KitBtn
+        icon="mdi:download-outline"
+        :disabled="isExporting || selectedItemsCount === 0"
+        @click="handleExport"
+      >
+        {{ selectedFormat === 'ics' ? 'Скачать .ics' : selectedFormat === 'json' ? 'Скачать .json' : 'Скачать .txt' }}
+      </KitBtn>
+    </template>
   </KitDialogWithClose>
 </template>
 
@@ -541,118 +688,72 @@ function handleExport() {
 .export-dialog-content {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
-  padding-top: 0.5rem;
+  gap: 20px;
+  padding: 4px 0 2px;
 }
 
-.description {
-  margin: 0;
-  color: var(--fg-secondary-color);
-  font-size: 0.95rem;
-  line-height: 1.5;
-}
-
-.formats-list {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
-
-  @include media-down(md) {
-    grid-template-columns: 1fr;
-  }
-}
-
-.format-option {
+.dialog-section {
   display: flex;
-  align-items: flex-start;
-  gap: 1rem;
-  padding: 1rem;
-  border: 1px solid var(--border-secondary-color);
-  border-radius: var(--r-m);
+  flex-direction: column;
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  min-height: 24px;
+}
+
+.section-title-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.section-title {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--fg-secondary-color);
+}
+
+.section-count {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--fg-accent-color);
+  background-color: color-mix(in srgb, var(--fg-accent-color) 12%, transparent);
+  padding: 1px 7px;
+  border-radius: var(--r-full);
+}
+
+.section-action-btn {
+  background: transparent;
+  border: none;
+  padding: 2px 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--fg-accent-color);
   cursor: pointer;
-  background-color: var(--bg-secondary-color);
-  transition: all 0.2s ease;
+  border-radius: var(--r-2xs, 4px);
+  transition:
+    background-color 0.15s ease,
+    opacity 0.15s ease;
 
   &:hover {
-    border-color: var(--border-primary-color);
     background-color: var(--bg-hover-color);
   }
 
-  &.active {
-    border-color: var(--fg-accent-color);
-    background-color: rgba(var(--fg-accent-color-rgb), 0.05);
-
-    .radio-indicator {
-      border-color: var(--fg-accent-color);
-    }
+  &:focus-visible {
+    outline: 2px solid var(--fg-accent-color);
   }
 }
 
-.radio-indicator {
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  border: 2px solid var(--border-primary-color);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  margin-top: 2px;
-  transition: border-color 0.2s ease;
-
-  .radio-dot {
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    background-color: var(--fg-accent-color);
-  }
-}
-
-.format-info {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-}
-
-.format-header {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.format-icon {
-  font-size: 1.2rem;
-  color: var(--fg-primary-color);
-}
-
-.format-label {
-  font-weight: 600;
-  color: var(--fg-primary-color);
-}
-
-.format-description {
-  margin: 0;
-  font-size: 0.8rem;
-  color: var(--fg-secondary-color);
-  line-height: 1.3;
-}
-
-.export-settings {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.settings-title {
-  margin: 0;
-  font-size: 0.95rem;
-  font-weight: 600;
-  color: var(--fg-primary-color);
-}
-
-.settings-grid {
+// Карточки форматов
+.formats-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(3, 1fr);
   gap: 12px;
 
   @include media-down(sm) {
@@ -660,42 +761,298 @@ function handleExport() {
   }
 }
 
-.webcal-box {
+.format-card {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
-  padding: 1rem;
+  gap: 10px;
+  padding: 14px;
   border-radius: var(--r-m);
-  border: 1px dashed var(--border-primary-color);
+  border: 1px solid var(--border-secondary-color);
   background-color: var(--bg-secondary-color);
+  cursor: pointer;
+  position: relative;
+  transition:
+    border-color 0.2s ease,
+    background-color 0.2s ease,
+    transform 0.15s ease,
+    box-shadow 0.2s ease;
+  user-select: none;
+  outline: none;
+
+  &:hover {
+    border-color: var(--border-primary-color);
+    background-color: var(--bg-hover-color);
+    transform: translateY(-1px);
+  }
+
+  &:focus-visible {
+    box-shadow: 0 0 0 2px var(--fg-accent-color);
+  }
+
+  &.is-active {
+    border-color: var(--fg-accent-color);
+    background-color: color-mix(in srgb, var(--fg-accent-color) 6%, var(--bg-secondary-color));
+    box-shadow: 0 0 0 1px var(--fg-accent-color);
+
+    .format-icon-box {
+      background-color: color-mix(in srgb, var(--fg-accent-color) 16%, transparent);
+      color: var(--fg-accent-color);
+    }
+
+    .format-badge {
+      background-color: color-mix(in srgb, var(--fg-accent-color) 18%, transparent);
+      color: var(--fg-accent-color);
+      border-color: color-mix(in srgb, var(--fg-accent-color) 30%, transparent);
+    }
+  }
 }
 
-.webcal-header {
+.format-card-top {
   display: flex;
-  align-items: flex-start;
-  gap: 0.75rem;
+  align-items: center;
+  justify-content: space-between;
 }
 
-.webcal-icon {
-  font-size: 1.4rem;
+.format-icon-box {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--r-s);
+  background-color: var(--bg-tertiary-color);
+  color: var(--fg-secondary-color);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.format-badge {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  font-family: monospace;
+  padding: 2px 6px;
+  border-radius: var(--r-2xs, 4px);
+  background-color: var(--bg-tertiary-color);
+  color: var(--fg-secondary-color);
+  border: 1px solid transparent;
+  letter-spacing: 0.04em;
+  transition: all 0.2s ease;
+}
+
+.format-card-main {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.format-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.format-title {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--fg-primary-color);
+  line-height: 1.25;
+}
+
+.format-active-icon {
+  font-size: 1.05rem;
   color: var(--fg-accent-color);
   flex-shrink: 0;
-  margin-top: 2px;
 }
 
-.webcal-titles {
+.format-desc {
+  margin: 0;
+  font-size: 0.775rem;
+  line-height: 1.35;
+  color: var(--fg-secondary-color);
+}
+
+// Плитки состава данных
+.export-items-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+
+  @include media-down(sm) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.export-item-tile {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: var(--r-s);
+  border: 1px solid var(--border-secondary-color);
+  background-color: var(--bg-secondary-color);
+  cursor: pointer;
+  user-select: none;
+  transition:
+    border-color 0.18s ease,
+    background-color 0.18s ease,
+    box-shadow 0.18s ease;
+  outline: none;
+
+  &:hover {
+    border-color: var(--border-primary-color);
+    background-color: var(--bg-hover-color);
+  }
+
+  &:focus-visible {
+    box-shadow: 0 0 0 2px var(--fg-accent-color);
+  }
+
+  &.is-selected {
+    border-color: color-mix(in srgb, var(--fg-accent-color) 45%, var(--border-secondary-color));
+    background-color: color-mix(in srgb, var(--fg-accent-color) 6%, var(--bg-secondary-color));
+
+    .tile-icon-box {
+      color: var(--fg-accent-color);
+      background-color: color-mix(in srgb, var(--fg-accent-color) 14%, transparent);
+    }
+  }
+
+  &:last-child:nth-child(odd) {
+    grid-column: span 2;
+
+    @include media-down(sm) {
+      grid-column: span 1;
+    }
+  }
+}
+
+.tile-icon-box {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--r-xs);
+  background-color: var(--bg-tertiary-color);
+  color: var(--fg-secondary-color);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.15rem;
+  flex-shrink: 0;
+  transition: all 0.18s ease;
+}
+
+.tile-info {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.tile-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--fg-primary-color);
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tile-hint {
+  font-size: 0.725rem;
+  color: var(--fg-secondary-color);
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tile-checkbox {
+  width: 18px;
+  height: 18px;
+  border-radius: var(--r-2xs, 4px);
+  border: 1.5px solid var(--border-primary-color);
+  background-color: var(--bg-primary-color);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all 0.18s ease;
+  font-size: 0.85rem;
+  color: var(--fg-inverted-color);
+
+  &.is-checked {
+    background-color: var(--fg-accent-color);
+    border-color: var(--fg-accent-color);
+  }
+}
+
+// Карточка WebCal
+.webcal-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: var(--r-m);
+  border: 1px solid var(--border-secondary-color);
+  background-color: var(--bg-secondary-color);
+  transition: border-color 0.2s ease;
+}
+
+.webcal-content {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.webcal-icon-box {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--r-s);
+  background-color: color-mix(in srgb, var(--fg-accent-color) 14%, transparent);
+  color: var(--fg-accent-color);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.35rem;
+  flex-shrink: 0;
+}
+
+.webcal-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  flex: 1;
+}
+
+.webcal-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .webcal-title {
-  font-weight: 600;
   font-size: 0.9rem;
+  font-weight: 600;
   color: var(--fg-primary-color);
 }
 
-.webcal-subtitle {
+.webcal-badge {
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 1px 6px;
+  border-radius: var(--r-full);
+  background-color: color-mix(in srgb, var(--fg-accent-color) 15%, transparent);
+  color: var(--fg-accent-color);
+}
+
+.webcal-description {
+  margin: 0;
   font-size: 0.8rem;
   color: var(--fg-secondary-color);
   line-height: 1.4;
@@ -703,20 +1060,9 @@ function handleExport() {
 
 .webcal-actions {
   display: flex;
-  gap: 0.5rem;
+  align-items: center;
+  gap: 8px;
   flex-wrap: wrap;
-  padding-left: 2.15rem;
-
-  @include media-down(sm) {
-    padding-left: 0;
-  }
-}
-
-.dialog-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.75rem;
-  padding-top: 1rem;
-  border-top: 1px solid var(--border-secondary-color);
+  padding-top: 2px;
 }
 </style>
