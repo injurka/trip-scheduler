@@ -50,7 +50,7 @@ const displayValue = computed(() => {
       <SliderTrack class="kit-slider-track">
         <SliderRange class="kit-slider-range" :class="`is-${color}`" />
       </SliderTrack>
-      <SliderThumb class="kit-slider-thumb" aria-label="Volume" />
+      <SliderThumb class="kit-slider-thumb" :aria-label="label || 'Slider'" />
     </SliderRoot>
   </div>
 </template>

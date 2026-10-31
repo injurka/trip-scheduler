@@ -13,7 +13,7 @@ import { createInProcessTransport } from './in-process.transport'
 export const GenerateAiTripInputSchema = z.object({
   country: z.string().min(2).max(80),
   startDate: z.union([z.date(), z.string()]),
-  days: z.number().int().min(1).max(15),
+  days: z.number().int().min(1).max(14),
   wishes: z.string().max(4000).optional(),
 })
 

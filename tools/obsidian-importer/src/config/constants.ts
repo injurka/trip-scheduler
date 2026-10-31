@@ -32,8 +32,8 @@ export const DEFAULT_TRIP_SECTIONS: Array<{ type: string, title: string, icon: s
 ]
 
 export const AIHUBMIX_MODELS: Array<{ title: string, value: string }> = [
-  { title: '🪶 Google Gemini 3.1 Flash Lite (Супер-быстрая и экономная)', value: 'gemini-3.1-flash-lite' },
   { title: '⚡ Google Gemini 3.5 Flash (Рекомендуется: быстрая, умная)', value: 'gemini-3.5-flash' },
+  { title: '🪶 Google Gemini 3.1 Flash Lite (Супер-быстрая и экономная)', value: 'gemini-3.1-flash-lite' },
   { title: '🤖 OpenAI GPT-5.6 Terra (Баланс цены и качества)', value: 'gpt-5.6-terra' },
   { title: '🚀 OpenAI GPT-5.6 Sol (Флагман OpenAI)', value: 'gpt-5.6-sol' },
   { title: '🛸 DeepSeek V4 Flash (Быстрая и дешёвая MoE)', value: 'deepseek-v4-flash-0731' },

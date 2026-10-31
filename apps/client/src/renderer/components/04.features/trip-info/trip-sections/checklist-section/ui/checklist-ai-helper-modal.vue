@@ -60,6 +60,10 @@ const QUICK_PROMPTS = [
   'Посмотри на меню/витрину: есть ли тут что-то из моего списка?',
   'Связано ли это место с моими планами и заметками?',
 ]
+const BOLD_REGEX = /\*\*(.*?)\*\*/g
+const ITALIC_REGEX = /\*(.*?)\*/g
+const CODE_REGEX = /`([^`]+)`/g
+const LINK_REGEX = /\[(.*?)\]\((https?:\/\/[^\s)]+)\)/g
 const isMediaRecording = ref(false)
 const recordingSeconds = ref(0)
 let recordingTimer: ReturnType<typeof setInterval> | null = null
@@ -153,6 +157,22 @@ watch(() => props.visible, (isOpen) => {
   }
 })
 
+function renderMarkdown(text?: string | null): string {
+  if (!text)
+    return ''
+
+  const escaped = text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+
+  return escaped
+    .replace(BOLD_REGEX, '<strong>$1</strong>')
+    .replace(ITALIC_REGEX, '<em>$1</em>')
+    .replace(CODE_REGEX, '<code>$1</code>')
+    .replace(LINK_REGEX, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>')
+    .replace(/\n/g, '<br>')
+}
 function getItemBreadcrumbMeta(item: ChecklistItem) {
   const tab = tabsById.value.get(item.type)
   const group = item.groupId ? groupsById.value.get(item.groupId) : undefined
@@ -164,7 +184,6 @@ function getItemBreadcrumbMeta(item: ChecklistItem) {
     groupIcon: group ? group.icon : null,
   }
 }
-
 function enrichMatchEntry(m: ChecklistMatchResponse['matches'][number], itemsMap: Map<string, ChecklistItem>) {
   const item = itemsMap.get(m.itemId)
 
@@ -619,9 +638,8 @@ onBeforeUnmount(() => {
               {{ matchResult.placeInfo }}
             </span>
           </div>
-          <p class="summary-text">
-            {{ matchResult.summary }}
-          </p>
+          <!-- eslint-disable-next-line vue/no-v-html -->
+          <p class="summary-text" v-html="renderMarkdown(matchResult.summary)" />
         </div>
 
         <!-- Список совпавших задач -->
@@ -643,10 +661,22 @@ onBeforeUnmount(() => {
                 </template>
               </div>
 
-              <span class="confidence-badge" :class="`confidence-${entry.confidence}`">
-                <Icon :icon="getConfidenceIcon(entry.confidence)" />
-                {{ getConfidenceLabel(entry.confidence) }}
-              </span>
+              <div class="match-status-row">
+                <span class="confidence-badge" :class="`confidence-${entry.confidence}`">
+                  <Icon :icon="getConfidenceIcon(entry.confidence)" />
+                  {{ getConfidenceLabel(entry.confidence) }}
+                </span>
+
+                <button
+                  type="button"
+                  class="goto-item-btn"
+                  title="Показать задачу в чек-листе"
+                  @click="handleNavigateToItem(entry.item)"
+                >
+                  <Icon icon="mdi:arrow-top-right" />
+                  <span>К задаче</span>
+                </button>
+              </div>
             </div>
 
             <div class="match-main-row">
@@ -657,9 +687,12 @@ onBeforeUnmount(() => {
                 @update:model-value="toggleMatchedItem(entry.item, !!$event)"
               />
               <div class="match-item-info">
-                <div class="match-item-title" :class="{ completed: entry.item.completed }">
-                  {{ entry.item.text }}
-                </div>
+                <!-- eslint-disable-next-line vue/no-v-html -->
+                <div
+                  class="match-item-title"
+                  :class="{ completed: entry.item.completed }"
+                  v-html="renderMarkdown(entry.item.text)"
+                />
                 <div v-if="entry.item.cost || entry.item.location" class="match-item-meta">
                   <span v-if="entry.item.cost" class="meta-pill cost-pill">
                     <Icon icon="mdi:cash" />
@@ -671,28 +704,22 @@ onBeforeUnmount(() => {
                   </span>
                 </div>
               </div>
-
-              <button
-                type="button"
-                class="goto-item-btn"
-                title="Показать задачу в чек-листе"
-                @click="handleNavigateToItem(entry.item)"
-              >
-                <Icon icon="mdi:arrow-top-right" />
-                <span>К задаче</span>
-              </button>
             </div>
 
             <!-- Пояснение от ИИ -->
             <div v-if="entry.reason" class="match-reason">
               <Icon icon="mdi:sparkles" class="reason-icon" />
-              <span>{{ entry.reason }}</span>
+              <!-- eslint-disable-next-line vue/no-v-html -->
+              <span class="match-reason-text" v-html="renderMarkdown(entry.reason)" />
             </div>
 
             <!-- Описание из заметки, если есть -->
-            <div v-if="entry.cleanDescription" class="match-item-description">
-              {{ entry.cleanDescription }}
-            </div>
+            <!-- eslint-disable-next-line vue/no-v-html -->
+            <div
+              v-if="entry.cleanDescription"
+              class="match-item-description"
+              v-html="renderMarkdown(entry.cleanDescription)"
+            />
 
             <!-- Подзадачи (subtasks), если есть -->
             <div v-if="entry.item.subtasks && entry.item.subtasks.length > 0" class="match-subtasks">
@@ -711,7 +738,8 @@ onBeforeUnmount(() => {
                   :readonly="!canCheckItems"
                   @update:model-value="toggleMatchedSubtask(entry.item, sub.id, !!$event)"
                 />
-                <span class="subtask-label">{{ sub.text }}</span>
+                <!-- eslint-disable-next-line vue/no-v-html -->
+                <span class="subtask-label" v-html="renderMarkdown(sub.text)" />
                 <span v-if="entry.matchedSubtaskSet.has(sub.id)" class="subtask-match-tag">
                   Есть здесь
                 </span>
@@ -1061,15 +1089,21 @@ onBeforeUnmount(() => {
 
 .match-card-top {
   display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.match-status-row {
+  display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 0.5rem;
-  flex-wrap: wrap;
 }
 
 .match-breadcrumb {
   display: inline-flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 0.25rem;
   font-size: 0.75rem;
   color: var(--fg-tertiary-color);
@@ -1087,10 +1121,13 @@ onBeforeUnmount(() => {
 .confidence-badge {
   display: inline-flex;
   align-items: center;
+  height: 20px;
+  box-sizing: border-box;
   gap: 0.25rem;
   font-size: 0.72rem;
   font-weight: 600;
-  padding: 2px 8px;
+  line-height: 1;
+  padding: 0 8px;
   border-radius: var(--r-full);
   background: var(--bg-tertiary-color);
   color: var(--fg-secondary-color);
@@ -1124,9 +1161,21 @@ onBeforeUnmount(() => {
 
 .match-item-title {
   font-size: 0.95rem;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--fg-primary-color);
   line-height: 1.35;
+
+  :deep(strong) {
+    font-weight: 600;
+    color: var(--fg-primary-color);
+  }
+
+  :deep(code) {
+    background: var(--bg-tertiary-color);
+    padding: 1px 4px;
+    border-radius: var(--r-xs);
+    font-size: 0.85em;
+  }
 
   &.completed {
     text-decoration: line-through;
@@ -1158,14 +1207,17 @@ onBeforeUnmount(() => {
 .goto-item-btn {
   display: inline-flex;
   align-items: center;
+  height: 20px;
+  box-sizing: border-box;
   gap: 0.25rem;
-  padding: 0.25rem 0.55rem;
-  border-radius: var(--r-s);
+  padding: 0 0.5rem;
+  border-radius: var(--r-full);
   border: 1px solid var(--border-secondary-color);
   background: var(--bg-primary-color);
   color: var(--fg-secondary-color);
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   font-weight: 500;
+  line-height: 1;
   cursor: pointer;
   flex-shrink: 0;
   transition: all 0.15s ease;
@@ -1193,6 +1245,28 @@ onBeforeUnmount(() => {
     color: var(--fg-accent-color);
     flex-shrink: 0;
     margin-top: 2px;
+  }
+}
+
+.match-reason-text,
+.match-item-description,
+.subtask-label,
+.summary-text {
+  :deep(strong) {
+    font-weight: 600;
+    color: var(--fg-primary-color);
+  }
+
+  :deep(code) {
+    background: var(--bg-tertiary-color);
+    padding: 1px 4px;
+    border-radius: var(--r-xs);
+    font-size: 0.85em;
+  }
+
+  :deep(a) {
+    color: var(--fg-accent-color);
+    text-decoration: underline;
   }
 }
 

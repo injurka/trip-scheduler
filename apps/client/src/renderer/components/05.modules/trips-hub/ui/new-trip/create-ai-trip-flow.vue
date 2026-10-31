@@ -7,7 +7,15 @@ import { KitDialogWithClose } from '~/components/01.kit/kit-dialog-with-close'
 import { KitInput } from '~/components/01.kit/kit-input'
 import { KitSlider } from '~/components/01.kit/kit-slider'
 import { CalendarPopover } from '~/components/02.shared/calendar-popover'
+import { formatDate } from '~/shared/lib/date-time'
 import { useAiTripGeneration } from '../../composables/use-ai-trip-generation'
+
+interface WishPreset {
+  id: string
+  label: string
+  icon: string
+  text: string
+}
 
 const emit = defineEmits<{
   (e: 'created', tripId: string): void
@@ -23,6 +31,8 @@ const {
   errorMessage,
   createdTripId,
   progress,
+  attempt,
+  attemptsTotal,
   stopPolling,
 } = useAiTripGeneration()
 
@@ -32,25 +42,25 @@ const days = ref(7)
 const wishes = ref('')
 const showCloseConfirm = ref(false)
 const logsBoxEl = ref<HTMLElement | null>(null)
-const wishPresets = [
-  { label: '🏖️ Море и пляж', text: 'Больше моря, пляжей и отдыха у воды' },
-  { label: '⛰️ Природа и горы', text: 'Акцент на природу: горы, треккинг, национальные парки' },
-  { label: '🍜 Гастрономия', text: 'Гастрономический акцент: стритфуд, локальная кухня, рынки' },
-  { label: '🏛️ История и музеи', text: 'Исторические места, храмы, музеи и культурное наследие' },
-  { label: '💻 Воркейшн', text: 'Совместить поездку с удаленной работой: стабильный интернет, рабочее место в отеле, работа во второй половине дня' },
-  { label: '🧒 С детьми', text: 'Путешествие с детьми: спокойный темп, развлечения для ребенка' },
-  { label: '💸 Бюджетно', text: 'Экономный вариант: бюджетное жилье, общественный транспорт' },
-  { label: '🧘 Спокойный темп', text: 'Спокойный ненасыщенный темп, меньше переездов, время на отдых' },
+const durationQuickOptions = [3, 5, 7, 14]
+const wishPresets: WishPreset[] = [
+  { id: 'beach', label: 'Море и пляж', icon: 'mdi:beach', text: 'Больше моря, пляжей и отдыха у воды' },
+  { id: 'nature', label: 'Природа и горы', icon: 'mdi:image-filter-hdr', text: 'Акцент на природу: горы, треккинг, национальные парки' },
+  { id: 'gastro', label: 'Гастрономия', icon: 'mdi:noodles', text: 'Гастрономический акцент: стритфуд, локальная кухня, рынки' },
+  { id: 'culture', label: 'История и музеи', icon: 'mdi:bank-outline', text: 'Исторические места, храмы, музеи и культурное наследие' },
+  { id: 'workation', label: 'Воркейшн', icon: 'mdi:laptop', text: 'Совместить поездку с удаленной работой: стабильный интернет, рабочее место в отеле, работа во второй половине дня' },
+  { id: 'kids', label: 'С детьми', icon: 'mdi:human-male-child', text: 'Путешествие с детьми: спокойный темп, развлечения для ребенка' },
+  { id: 'budget', label: 'Бюджетно', icon: 'mdi:wallet-outline', text: 'Экономный вариант: бюджетное жилье, общественный транспорт' },
+  { id: 'relaxed', label: 'Спокойный темп', icon: 'mdi:spa-outline', text: 'Спокойный ненасыщенный темп, меньше переездов, время на отдых' },
 ]
-const activePresets = ref<Set<string>>(new Set())
 
 const isFormValid = computed(() => country.value.trim().length >= 2)
 const isRunning = computed(() => phase.value === 'generating' || phase.value === 'importing')
 const phaseLabel = computed(() => {
   if (phase.value === 'importing')
-    return 'Импорт сгенерированных заметок в путешествие…'
+    return 'Импорт маршрута в расписание…'
 
-  return 'ИИ генерирует заметки путешествия…'
+  return 'ИИ проектирует ваше путешествие…'
 })
 const progressPercent = computed(() => {
   if (progress.value === null)
@@ -58,8 +68,13 @@ const progressPercent = computed(() => {
 
   return Math.min(100, Math.max(0, progress.value))
 })
-// 1xx progress → indeterminate; иначе точный процент
+const progressBarStyle = computed(() => ({
+  '--progress-width': `${progressPercent.value ?? 0}%`,
+}))
 const isProgressIndeterminate = computed(() => progress.value === null)
+const activePresetsCount = computed(() => {
+  return wishPresets.filter(preset => isPresetActive(preset)).length
+})
 
 // Автопрокрутка лога вниз по мере поступления записей
 watch(logs, async () => {
@@ -83,24 +98,69 @@ const startDate = computed({
       startDateIso.value = date.toDate('UTC').toISOString()
   },
 })
+const formattedStartDate = computed(() => {
+  const selected = startDate.value
 
-function togglePreset(preset: { label: string, text: string }) {
-  if (activePresets.value.has(preset.label)) {
-    activePresets.value.delete(preset.label)
-    wishes.value = wishes.value
-      .split('; ')
-      .filter(part => part !== preset.text)
-      .join('; ')
+  if (!selected)
+    return 'Выберите дату'
+
+  const iso = selected.toDate('UTC').toISOString()
+
+  return formatDate(iso, { day: 'numeric', month: 'short', year: 'numeric' })
+})
+const formattedStartWeekday = computed(() => {
+  const selected = startDate.value
+
+  if (!selected)
+    return ''
+
+  const iso = selected.toDate('UTC').toISOString()
+
+  return formatDate(iso, { weekday: 'short' })
+})
+const formattedDateRange = computed(() => {
+  const selected = startDate.value
+
+  if (!selected)
+    return ''
+
+  const end = selected.add({ days: Math.max(0, days.value - 1) })
+  const startIso = selected.toDate('UTC').toISOString()
+  const endIso = end.toDate('UTC').toISOString()
+
+  const startFormatted = formatDate(startIso, { day: 'numeric', month: 'short' })
+  const endFormatted = formatDate(endIso, { day: 'numeric', month: 'short' })
+
+  return startFormatted === endFormatted ? startFormatted : `${startFormatted} — ${endFormatted}`
+})
+
+function pluralizeDays(count: number): string {
+  const mod10 = count % 10
+  const mod100 = count % 100
+
+  if (mod10 === 1 && mod100 !== 11)
+    return `${count} день`
+
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14))
+    return `${count} дня`
+
+  return `${count} дней`
+}
+function isPresetActive(preset: WishPreset): boolean {
+  return wishes.value.includes(preset.text)
+}
+function togglePreset(preset: WishPreset) {
+  if (isPresetActive(preset)) {
+    const parts = wishes.value
+      .split(/;\s*/)
+      .map(part => part.trim())
+      .filter(part => part.length > 0 && part !== preset.text)
+    wishes.value = parts.join('; ')
   }
   else {
-    activePresets.value.add(preset.label)
-    wishes.value = wishes.value.trim().length > 0
-      ? `${wishes.value.trim().replace(/;$/, '')}; ${preset.text}`
-      : preset.text
+    const trimmed = wishes.value.trim().replace(/;\s*$/, '')
+    wishes.value = trimmed.length > 0 ? `${trimmed}; ${preset.text}` : preset.text
   }
-}
-function isPresetActive(label: string): boolean {
-  return activePresets.value.has(label)
 }
 function toStartDateString(): string {
   const selected = startDate.value ?? today(getLocalTimeZone())
@@ -108,6 +168,9 @@ function toStartDateString(): string {
   return selected.toDate('UTC').toISOString()
 }
 async function generate() {
+  if (!isFormValid.value || isRunning.value)
+    return
+
   showCloseConfirm.value = false
   await start({
     country: country.value.trim(),
@@ -167,63 +230,131 @@ function openTrip() {
   <KitDialogWithClose
     v-model:visible="visible"
     title="Путешествие через ИИ"
+    description="Опишите направление и предпочтения — ИИ составит детальный план по дням, бюджет и заметки"
     icon="mdi:auto-fix"
-    :max-width="500"
+    :max-width="540"
     :persistent="isRunning || showCloseConfirm"
     @update:visible="onVisibleChange"
   >
     <div class="ai-trip-flow">
       <template v-if="phase === 'idle' || phase === 'error'">
+        <!-- Направление -->
         <KitInput
           v-model="country"
-          label="Страна"
-          placeholder="Например, Япония"
-        />
-        <div class="date-and-days">
-          <div class="date-picker">
-            <label>Дата начала</label>
-            <CalendarPopover v-model="startDate">
-              <template #trigger>
-                <button class="date-trigger">
-                  {{ startDate?.toString() }}
+          label="Куда отправимся?"
+          icon="mdi:map-marker-radius-outline"
+          placeholder="Страна или регион — например, Япония"
+          @keydown.enter.prevent="generate"
+        >
+          <template v-if="country" #append>
+            <button
+              type="button"
+              class="icon-btn"
+              aria-label="Очистить направление"
+              @click="country = ''"
+            >
+              <Icon icon="mdi:close-circle" />
+            </button>
+          </template>
+        </KitInput>
+
+        <!-- Даты и длительность -->
+        <div class="schedule-card">
+          <div class="schedule-row">
+            <div class="date-field">
+              <span class="field-label">Дата старта</span>
+              <CalendarPopover v-model="startDate" :clearable="false">
+                <template #trigger>
+                  <button type="button" class="date-trigger">
+                    <Icon icon="mdi:calendar-month-outline" class="date-trigger-icon" />
+                    <span class="date-trigger-value">{{ formattedStartDate }}</span>
+                    <span v-if="formattedStartWeekday" class="date-trigger-weekday">
+                      {{ formattedStartWeekday }}
+                    </span>
+                  </button>
+                </template>
+              </CalendarPopover>
+            </div>
+
+            <div class="duration-field">
+              <KitSlider
+                v-model="days"
+                label="Длительность"
+                :min="1"
+                :max="14"
+                :value-formatter="pluralizeDays"
+                class="days-slider"
+              />
+              <div class="duration-presets">
+                <button
+                  v-for="d in durationQuickOptions"
+                  :key="d"
+                  type="button"
+                  class="duration-pill"
+                  :class="{ active: days === d }"
+                  @click="days = d"
+                >
+                  {{ d }} дн.
                 </button>
-              </template>
-            </CalendarPopover>
+              </div>
+            </div>
           </div>
-          <KitSlider
-            v-model="days"
-            label="Длительность"
-            :min="1"
-            :max="15"
-            class="days-slider"
-          />
+
+          <div class="schedule-summary">
+            <div class="summary-item">
+              <Icon icon="mdi:calendar-range" class="summary-icon" />
+              <span>Маршрут: <strong>{{ formattedDateRange }}</strong> ({{ pluralizeDays(days) }})</span>
+            </div>
+          </div>
         </div>
 
-        <KitInput
-          v-model="wishes"
-          type="textarea"
-          label="Пожелания (необязательно)"
-          placeholder="Что хотите увидеть, любимая еда, темп поездки, воркейшн и т.д."
-        />
+        <!-- Пожелания и акценты -->
+        <div class="wishes-section">
+          <div class="wishes-header">
+            <span class="field-label">Акценты и пожелания</span>
+            <span v-if="activePresetsCount > 0" class="presets-badge">
+              Выбрано: {{ activePresetsCount }}
+            </span>
+            <span v-else class="optional-hint">необязательно</span>
+          </div>
 
-        <div class="wish-presets">
-          <button
-            v-for="preset in wishPresets"
-            :key="preset.label"
-            type="button"
-            class="preset-chip"
-            :class="{ active: isPresetActive(preset.label) }"
-            @click="togglePreset(preset)"
-          >
-            {{ preset.label }}
-          </button>
+          <div class="wish-presets" role="group" aria-label="Быстрые акценты поездки">
+            <button
+              v-for="preset in wishPresets"
+              :key="preset.id"
+              type="button"
+              class="preset-chip"
+              :class="{ active: isPresetActive(preset) }"
+              :aria-pressed="isPresetActive(preset)"
+              @click="togglePreset(preset)"
+            >
+              <Icon :icon="preset.icon" class="preset-chip-icon" />
+              <span>{{ preset.label }}</span>
+              <Icon
+                v-if="isPresetActive(preset)"
+                icon="mdi:check"
+                class="preset-chip-check"
+              />
+            </button>
+          </div>
+
+          <KitInput
+            v-model="wishes"
+            type="textarea"
+            placeholder="Дополнительные детали: города мечты, любимая кухня, состав компании, бюджет или особые пожелания…"
+          />
         </div>
 
         <div
           v-if="phase === 'error'"
           class="error-box"
+          role="alert"
         >
-          {{ errorMessage || 'Произошла ошибка.' }}
+          <Icon icon="mdi:alert-circle-outline" class="error-box-icon" />
+          <div class="error-box-content">
+            <strong>Не удалось сгенерировать путешествие</strong>
+            <p>{{ errorMessage || 'Произошла непредвиденная ошибка. Попробуйте ещё раз.' }}</p>
+          </div>
         </div>
 
         <div class="flow-actions">
@@ -236,36 +367,84 @@ function openTrip() {
           </KitBtn>
           <KitBtn
             :disabled="!isFormValid || isRunning"
-            variant="tonal"
+            variant="solid"
+            color="primary"
             icon="mdi:auto-fix"
             @click="generate"
           >
-            Сгенерировать
+            Сгенерировать маршрут
           </KitBtn>
         </div>
       </template>
 
       <template v-else>
         <div class="progress-state">
-          <Icon
-            v-if="phase !== 'done'"
-            icon="mdi:loading"
-            class="spinner-icon"
-          />
-          <Icon
-            v-else
-            icon="mdi:check-circle"
-            class="success-icon"
-          />
-          <p class="phase-label">
-            {{ phase === 'done' ? 'Путешествие создано!' : phaseLabel }}
-          </p>
-          <p
-            v-if="stage"
-            class="stage-label"
-          >
-            {{ stage }}
-          </p>
+          <div class="status-visual" :class="{ 'is-done': phase === 'done' }">
+            <Icon
+              v-if="phase !== 'done'"
+              icon="mdi:loading"
+              class="spinner-icon"
+            />
+            <Icon
+              v-else
+              icon="mdi:check-circle"
+              class="success-icon"
+            />
+          </div>
+
+          <div class="status-headings">
+            <p class="phase-label">
+              {{ phase === 'done' ? 'Путешествие готово!' : phaseLabel }}
+            </p>
+            <p
+              v-if="stage"
+              class="stage-label"
+            >
+              {{ stage }}
+            </p>
+            <span
+              v-if="phase === 'generating' && attemptsTotal > 1 && attempt > 1"
+              class="attempt-badge"
+            >
+              <Icon icon="mdi:refresh" />
+              Попытка {{ attempt }} из {{ attemptsTotal }}
+            </span>
+          </div>
+
+          <!-- Пошаговый индикатор фаз -->
+          <div class="phase-steps">
+            <div
+              class="phase-step"
+              :class="{
+                'is-active': phase === 'generating',
+                'is-completed': phase === 'importing' || phase === 'done',
+              }"
+            >
+              <span class="phase-step-dot" />
+              <span class="phase-step-text">Генерация плана</span>
+            </div>
+            <div class="phase-step-line" :class="{ 'is-filled': phase === 'importing' || phase === 'done' }" />
+            <div
+              class="phase-step"
+              :class="{
+                'is-active': phase === 'importing',
+                'is-completed': phase === 'done',
+              }"
+            >
+              <span class="phase-step-dot" />
+              <span class="phase-step-text">Импорт заметок</span>
+            </div>
+            <div class="phase-step-line" :class="{ 'is-filled': phase === 'done' }" />
+            <div
+              class="phase-step"
+              :class="{
+                'is-completed': phase === 'done',
+              }"
+            >
+              <span class="phase-step-dot" />
+              <span class="phase-step-text">Готово</span>
+            </div>
+          </div>
 
           <div
             v-if="phase === 'generating' || phase === 'importing'"
@@ -275,7 +454,7 @@ function openTrip() {
             <div
               v-if="!isProgressIndeterminate"
               class="progress-bar"
-              :style="{ width: `${progressPercent}%` }"
+              :style="progressBarStyle"
             />
             <div
               v-else
@@ -293,13 +472,14 @@ function openTrip() {
               :key="i"
               class="log-line"
             >
-              {{ log }}
+              <span class="log-bullet">›</span>
+              <span class="log-text">{{ log }}</span>
             </div>
           </div>
 
           <div
             v-if="phase === 'done'"
-            class="flow-actions"
+            class="flow-actions is-full-width"
           >
             <KitBtn
               variant="outlined"
@@ -309,7 +489,8 @@ function openTrip() {
               Закрыть
             </KitBtn>
             <KitBtn
-              variant="tonal"
+              variant="solid"
+              color="primary"
               icon="mdi:compass-outline"
               @click="openTrip"
             >
@@ -321,21 +502,26 @@ function openTrip() {
             v-if="showCloseConfirm"
             class="close-confirm"
           >
-            <p class="close-confirm-text">
-              Генерация всё ещё идёт. Прервать и закрыть?
-            </p>
+            <div class="close-confirm-header">
+              <Icon icon="mdi:alert-outline" class="close-confirm-icon" />
+              <p class="close-confirm-text">
+                Генерация всё ещё идёт. Прервать процесс и закрыть окно?
+              </p>
+            </div>
             <div class="flow-actions">
               <KitBtn
                 variant="outlined"
                 color="secondary"
+                size="sm"
                 @click="showCloseConfirm = false"
               >
-                Продолжить
+                Продолжить ожидание
               </KitBtn>
               <KitBtn
-                variant="tonal"
+                variant="solid"
                 color="secondary"
-                icon="mdi:stop"
+                size="sm"
+                icon="mdi:stop-circle-outline"
                 @click="confirmAbort"
               >
                 Прервать
@@ -355,44 +541,180 @@ function openTrip() {
   gap: 20px;
 }
 
-.date-and-days {
-  display: flex;
-  gap: 16px;
-  align-items: flex-end;
-}
-
-.date-picker {
+.schedule-card {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  flex: 1;
+  gap: 14px;
+  padding: 14px;
+  background-color: var(--bg-secondary-color);
+  border: 1px solid var(--border-secondary-color);
+  border-radius: var(--r-m);
+}
 
-  label {
-    font-size: 0.875rem;
-    font-weight: 500;
+.schedule-row {
+  display: grid;
+  grid-template-columns: 1fr 1.25fr;
+  gap: 16px;
+  align-items: start;
+
+  @include media-down(sm) {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+}
+
+.field-label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--fg-secondary-color);
+}
+
+.date-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.date-trigger {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 12px;
+  background-color: var(--bg-primary-color);
+  border: 1px solid var(--border-secondary-color);
+  border-radius: var(--r-s);
+  color: var(--fg-primary-color);
+  font-size: 0.9375rem;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.2s ease;
+
+  @include hover {
+    border-color: var(--border-focus-color);
+  }
+
+  &-icon {
+    font-size: 1.125rem;
+    color: var(--fg-accent-color);
+    flex-shrink: 0;
+  }
+
+  &-value {
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  &-weekday {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    padding: 2px 6px;
+    border-radius: var(--r-2xs);
+    background-color: var(--bg-secondary-color);
     color: var(--fg-secondary-color);
   }
 }
 
-.days-slider {
-  flex: 1;
+.duration-field {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
-.date-trigger {
+.days-slider {
   width: 100%;
-  padding: 12px;
-  background-color: var(--bg-secondary-color);
-  border: 1px solid var(--border-secondary-color);
-  border-radius: var(--r-s);
-  color: var(--fg-primary-color);
-  font-size: 1rem;
-  text-align: left;
-  cursor: pointer;
-  transition: border-color 0.2s;
+}
 
-  &:hover {
+.duration-presets {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+}
+
+.duration-pill {
+  flex: 1;
+  padding: 4px 6px;
+  border-radius: var(--r-2xs);
+  background-color: var(--bg-primary-color);
+  border: 1px solid var(--border-secondary-color);
+  color: var(--fg-secondary-color);
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-align: center;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: all 0.15s ease;
+
+  @include hover {
     border-color: var(--border-focus-color);
+    color: var(--fg-primary-color);
   }
+
+  &.active {
+    background-color: var(--bg-accent-overlay-color);
+    border-color: var(--fg-accent-color);
+    color: var(--fg-accent-color);
+    font-weight: 600;
+  }
+}
+
+.schedule-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 10px;
+  border-top: 1px dashed var(--border-secondary-color);
+  font-size: 0.8125rem;
+  color: var(--fg-secondary-color);
+
+  .summary-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .summary-icon {
+    font-size: 1rem;
+    color: var(--fg-accent-color);
+  }
+
+  strong {
+    color: var(--fg-primary-color);
+    font-weight: 600;
+  }
+}
+
+.wishes-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.wishes-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.optional-hint {
+  font-size: 0.75rem;
+  color: var(--fg-tertiary-color);
+}
+
+.presets-badge {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: var(--r-full);
+  background-color: var(--bg-accent-overlay-color);
+  color: var(--fg-accent-color);
 }
 
 .wish-presets {
@@ -402,25 +724,48 @@ function openTrip() {
 }
 
 .preset-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   padding: 6px 12px;
   background-color: var(--bg-secondary-color);
   border: 1px solid var(--border-secondary-color);
-  border-radius: 999px;
+  border-radius: var(--r-full);
   font-size: 0.8125rem;
-  color: var(--fg-primary-color);
+  font-weight: 500;
+  color: var(--fg-secondary-color);
   cursor: pointer;
-  transition:
-    border-color 0.2s,
-    background-color 0.2s;
+  user-select: none;
+  transition: all 0.2s ease;
 
-  &:hover {
+  &-icon {
+    font-size: 1rem;
+    color: var(--fg-tertiary-color);
+    transition: color 0.2s ease;
+  }
+
+  &-check {
+    font-size: 0.875rem;
+    margin-left: 2px;
+  }
+
+  @include hover {
     border-color: var(--border-focus-color);
+    color: var(--fg-primary-color);
+
+    .preset-chip-icon {
+      color: var(--fg-accent-color);
+    }
   }
 
   &.active {
-    background-color: var(--bg-accent-color, var(--bg-secondary-color));
-    border-color: var(--border-focus-color);
-    color: var(--fg-accent-color, var(--fg-primary-color));
+    background-color: var(--bg-accent-overlay-color);
+    border-color: var(--fg-accent-color);
+    color: var(--fg-accent-color);
+
+    .preset-chip-icon {
+      color: var(--fg-accent-color);
+    }
   }
 }
 
@@ -430,73 +775,167 @@ function openTrip() {
   gap: 12px;
   padding-top: 16px;
   border-top: 1px solid var(--border-secondary-color);
+
+  &.is-full-width {
+    width: 100%;
+  }
 }
 
 .progress-state {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 12px;
-  padding: 12px 0;
+  gap: 16px;
+  padding: 12px 0 4px;
+}
+
+.status-visual {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background-color: var(--bg-accent-overlay-color);
+  border: 1px solid var(--border-accent-color);
+
+  &.is-done {
+    background-color: var(--bg-success-color);
+    border-color: var(--border-success-color);
+  }
 
   .spinner-icon {
-    width: 42px;
-    height: 42px;
-    animation: ai-trip-spin 1.2s linear infinite;
-    color: var(--fg-accent-color, var(--fg-primary-color));
+    width: 34px;
+    height: 34px;
+    animation: ai-trip-spin 1.1s linear infinite;
+    color: var(--fg-accent-color);
   }
 
   .success-icon {
-    width: 42px;
-    height: 42px;
-    color: var(--fg-success-color, #3fae6a);
+    width: 36px;
+    height: 36px;
+    color: var(--fg-success-color);
   }
+}
+
+.status-headings {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  text-align: center;
 
   .phase-label {
+    font-size: 1.0625rem;
     font-weight: 600;
-    text-align: center;
+    color: var(--fg-primary-color);
+    margin: 0;
   }
 
   .stage-label {
     font-size: 0.875rem;
     color: var(--fg-secondary-color);
-    text-align: center;
+    margin: 0;
   }
 
-  .attempt-label {
-    font-size: 0.8125rem;
-    color: var(--fg-secondary-color);
+  .attempt-badge {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
+    gap: 4px;
+    margin-top: 2px;
+    padding: 2px 10px;
+    border-radius: var(--r-full);
+    background-color: var(--bg-secondary-color);
+    border: 1px solid var(--border-secondary-color);
+    font-size: 0.75rem;
+    color: var(--fg-secondary-color);
+  }
+}
+
+.phase-steps {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  max-width: 380px;
+  gap: 8px;
+}
+
+.phase-step {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--fg-tertiary-color);
+  white-space: nowrap;
+
+  &-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background-color: var(--border-primary-color);
+    transition: all 0.25s ease;
+  }
+
+  &.is-active {
+    color: var(--fg-accent-color);
+    font-weight: 600;
+
+    .phase-step-dot {
+      background-color: var(--fg-accent-color);
+      box-shadow: 0 0 0 3px var(--bg-accent-overlay-color);
+    }
+  }
+
+  &.is-completed {
+    color: var(--fg-success-color);
+
+    .phase-step-dot {
+      background-color: var(--fg-success-color);
+    }
+  }
+}
+
+.phase-step-line {
+  flex: 1;
+  height: 2px;
+  min-width: 16px;
+  background-color: var(--border-secondary-color);
+  border-radius: var(--r-full);
+  transition: background-color 0.3s ease;
+
+  &.is-filled {
+    background-color: var(--fg-success-color);
   }
 }
 
 .progress-track {
   width: 100%;
   height: 8px;
-  border-radius: 999px;
+  border-radius: var(--r-full);
   background-color: var(--bg-secondary-color);
   overflow: hidden;
   position: relative;
 
   .progress-bar {
     height: 100%;
-    border-radius: 999px;
-    background-color: var(--fg-accent-color, var(--fg-primary-color));
+    width: var(--progress-width, 0%);
+    border-radius: var(--r-full);
+    background-color: var(--fg-accent-color);
     transition: width 0.3s ease;
   }
 
   &.indeterminate .indeterminate-bar {
     width: 35%;
-    background-color: var(--fg-accent-color, var(--fg-primary-color));
+    background-color: var(--fg-accent-color);
     animation: ai-trip-load 1.4s ease-in-out infinite;
   }
 }
 
 .logs-box {
   width: 100%;
-  max-height: 140px;
+  max-height: 150px;
   overflow-y: auto;
   padding: 10px 12px;
   background-color: var(--bg-secondary-color);
@@ -508,43 +947,94 @@ function openTrip() {
   text-align: left;
 
   .log-line {
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    padding: 2px 0;
-    line-height: 1.5;
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    padding: 3px 0;
+    line-height: 1.45;
 
     &:not(:last-child) {
       border-bottom: 1px dashed var(--border-secondary-color);
     }
   }
+
+  .log-bullet {
+    color: var(--fg-accent-color);
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+
+  .log-text {
+    word-break: break-word;
+  }
 }
 
 .close-confirm {
   width: 100%;
-  padding: 14px 16px;
+  padding: 12px 14px;
   border-radius: var(--r-s);
-  background-color: var(--bg-error-color, var(--bg-secondary-color));
-  border: 1px solid var(--border-error-color, var(--border-secondary-color));
+  background-color: var(--bg-error-color);
+  border: 1px solid var(--border-error-color);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 
-  .close-confirm-text {
-    font-size: 0.875rem;
-    text-align: center;
-    margin-bottom: 8px;
+  &-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  &-icon {
+    font-size: 1.25rem;
+    color: var(--fg-error-color);
+    flex-shrink: 0;
+  }
+
+  &-text {
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--fg-error-color);
+    margin: 0;
   }
 
   .flow-actions {
     border-top: none;
-    padding-top: 4px;
+    padding-top: 0;
   }
 }
 
 .error-box {
-  padding: 10px 12px;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
   border-radius: var(--r-s);
   background-color: var(--bg-error-color);
+  border: 1px solid var(--border-error-color);
   color: var(--fg-error-color);
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
+
+  &-icon {
+    font-size: 1.25rem;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+
+  &-content {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+
+    strong {
+      font-weight: 600;
+    }
+
+    p {
+      margin: 0;
+      opacity: 0.9;
+    }
+  }
 }
 
 @keyframes ai-trip-spin {
