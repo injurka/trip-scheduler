@@ -41,6 +41,16 @@
   },
   "plugins": {
     "deep-link": {
+      "mobile": [
+        {
+          "scheme": ["trip-scheduler"],
+          "appLink": false
+        },
+        {
+          "scheme": ["https", "http"],
+          "host": "trip-scheduler.limited-dissolve.ru"
+        }
+      ],
       "desktop": {
         "schemes": [
           "trip-scheduler"
