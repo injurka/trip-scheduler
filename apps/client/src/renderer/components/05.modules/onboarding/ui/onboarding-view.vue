@@ -1214,6 +1214,14 @@ function handleClose() {
       padding-top: 56px;
     }
   }
+
+  @media (max-width: 480px) {
+    padding: 16px 12px 48px;
+
+    &.is-modal {
+      padding-top: 52px;
+    }
+  }
 }
 
 .modal-close-btn {
@@ -1313,6 +1321,15 @@ function handleClose() {
   justify-content: center;
   gap: 10px;
   max-width: 880px;
+
+  @media (max-width: 600px) {
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+    max-width: 360px;
+    margin: 0 auto;
+    gap: 8px;
+  }
 }
 
 .stage-chip {
@@ -1338,6 +1355,11 @@ function handleClose() {
 
   .stage-icon {
     font-size: 1.1rem;
+    flex-shrink: 0;
+  }
+
+  .stage-text {
+    white-space: nowrap;
   }
 
   &:hover {
@@ -1350,6 +1372,19 @@ function handleClose() {
     color: var(--fg-accent-color);
     border-color: var(--fg-accent-color);
     background-color: rgba(255, 136, 86, 0.1);
+  }
+
+  @media (max-width: 600px) {
+    width: 100%;
+    box-sizing: border-box;
+    justify-content: flex-start;
+    padding: 10px 16px;
+    font-size: 0.85rem;
+
+    .stage-text {
+      flex: 1;
+      text-align: left;
+    }
   }
 }
 
@@ -1481,6 +1516,12 @@ function handleClose() {
     gap: 28px;
     padding: 24px;
   }
+
+  @media (max-width: 600px) {
+    padding: 16px 12px;
+    gap: 20px;
+    border-radius: 16px;
+  }
 }
 
 .step-content {
@@ -1581,6 +1622,12 @@ function handleClose() {
   padding: 20px;
   box-shadow: var(--s-md);
   user-select: none;
+  box-sizing: border-box;
+
+  @media (max-width: 600px) {
+    padding: 14px 10px;
+    border-radius: 14px;
+  }
 }
 
 // ==========================================
@@ -1624,6 +1671,10 @@ function handleClose() {
   display: flex;
   flex-direction: column;
   gap: 12px;
+
+  @media (max-width: 600px) {
+    gap: 10px;
+  }
 }
 
 .mockup-event-item {
@@ -1638,6 +1689,7 @@ function handleClose() {
     color: var(--fg-tertiary-color);
     width: 44px;
     padding-top: 4px;
+    flex-shrink: 0;
   }
 
   .event-dot {
@@ -1661,6 +1713,7 @@ function handleClose() {
 
   .event-card {
     flex: 1;
+    min-width: 0;
     background-color: rgba(var(--bg-primary-color-rgb), 0.6);
     border: 1px solid var(--border-secondary-color);
     border-radius: 12px;
@@ -1675,7 +1728,8 @@ function handleClose() {
   .event-card-header {
     display: flex;
     justify-content: space-between;
-    align-items: center;
+    align-items: flex-start;
+    gap: 8px;
     margin-bottom: 4px;
   }
 
@@ -1683,6 +1737,7 @@ function handleClose() {
     font-size: 0.9rem;
     font-weight: 600;
     color: var(--fg-primary-color);
+    line-height: 1.25;
   }
 
   .event-tag {
@@ -1691,6 +1746,8 @@ function handleClose() {
     border-radius: 4px;
     background-color: rgba(var(--bg-secondary-color-rgb), 0.9);
     color: var(--fg-secondary-color);
+    flex-shrink: 0;
+    white-space: nowrap;
 
     &.is-hiking-tag {
       background-color: rgba(59, 130, 246, 0.2);
@@ -1709,6 +1766,33 @@ function handleClose() {
     font-size: 0.8rem;
     color: var(--fg-secondary-color);
     margin: 0;
+    line-height: 1.35;
+  }
+
+  @media (max-width: 600px) {
+    gap: 8px;
+
+    .event-time {
+      width: 36px;
+      font-size: 0.72rem;
+      padding-top: 2px;
+    }
+
+    .event-dot {
+      margin-top: 7px;
+    }
+
+    .event-card {
+      padding: 8px 10px;
+    }
+
+    .event-name {
+      font-size: 0.84rem;
+    }
+
+    .event-note {
+      font-size: 0.74rem;
+    }
   }
 }
 
@@ -1781,10 +1865,13 @@ function handleClose() {
     display: flex;
     align-items: center;
     gap: 6px;
+    min-width: 0;
+    flex: 1;
 
     .hiking-icon {
       color: #60a5fa;
       font-size: 1.1rem;
+      flex-shrink: 0;
     }
   }
 }
@@ -1798,6 +1885,11 @@ function handleClose() {
   overflow: hidden;
   background: radial-gradient(circle at 75% 30%, #1e293b 0%, #0f172a 100%);
   border: 1px solid rgba(59, 130, 246, 0.3);
+
+  @media (max-width: 600px) {
+    height: 86px;
+    margin-top: 8px;
+  }
 }
 
 .pseudo-map-topo-bg {
@@ -1873,6 +1965,14 @@ function handleClose() {
   backdrop-filter: blur(4px);
   z-index: 3;
 
+  @media (max-width: 600px) {
+    bottom: 4px;
+    left: 4px;
+    right: 4px;
+    padding: 2px 6px;
+    font-size: 0.58rem;
+  }
+
   .map-badge {
     display: flex;
     align-items: center;
@@ -1902,6 +2002,11 @@ function handleClose() {
   border-radius: 10px;
   border: 1px solid var(--border-secondary-color);
   gap: 4px;
+
+  @media (max-width: 600px) {
+    padding: 3px;
+    gap: 3px;
+  }
 }
 
 .org-tab-btn {
@@ -1918,6 +2023,7 @@ function handleClose() {
   font-size: 0.75rem;
   font-weight: 600;
   cursor: pointer;
+  white-space: nowrap;
   transition: all 0.2s ease;
 
   &:hover {
@@ -1929,19 +2035,32 @@ function handleClose() {
     color: #27ae60;
     box-shadow: var(--s-sm);
   }
+
+  @media (max-width: 600px) {
+    padding: 6px 3px;
+    gap: 3px;
+    font-size: 0.68rem;
+
+    svg {
+      font-size: 0.85rem;
+    }
+  }
 }
 
 // Стабильный вьюпорт одинаковой высоты для всех табов — предотвращает прыжки верстки
 .org-tabs-viewport {
   position: relative;
-  min-height: 228px;
-  height: 228px;
+  min-height: 268px;
   display: flex;
   flex-direction: column;
+
+  @media (max-width: 600px) {
+    min-height: 275px;
+  }
 }
 
 .org-tab-content {
-  height: 100%;
+  flex: 1;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -2153,6 +2272,57 @@ function handleClose() {
   .t-seat {
     font-weight: 600;
     color: var(--fg-primary-color);
+  }
+}
+
+@media (max-width: 600px) {
+  .booking-item-card,
+  .transport-item-card {
+    padding: 8px 10px;
+  }
+
+  .booking-card-top {
+    .booking-hotel-name {
+      font-size: 0.875rem;
+    }
+    .booking-hotel-addr {
+      font-size: 0.68rem;
+    }
+  }
+
+  .booking-card-bottom {
+    font-size: 0.68rem;
+    padding-top: 4px;
+  }
+
+  .transport-route {
+    gap: 8px;
+
+    .t-point {
+      min-width: 44px;
+
+      .t-code {
+        font-size: 1.05rem;
+      }
+      .t-city {
+        font-size: 0.65rem;
+      }
+    }
+
+    .t-flight-track {
+      padding: 2px 2px 0;
+
+      .flight-track-meta {
+        font-size: 0.6rem;
+        gap: 3px;
+        margin-bottom: 2px;
+      }
+    }
+  }
+
+  .transport-meta-row {
+    font-size: 0.68rem;
+    padding-top: 4px;
   }
 }
 
@@ -2372,25 +2542,42 @@ function handleClose() {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 8px;
   padding-bottom: 8px;
   border-bottom: 1px solid var(--border-secondary-color);
 
   .memories-day-chip {
-    display: flex;
+    display: inline-flex;
     align-items: center;
     gap: 6px;
     font-size: 0.85rem;
     font-weight: 700;
     color: var(--fg-primary-color);
+    white-space: nowrap;
+    min-width: 0;
   }
 
   .memories-stats-tag {
-    display: flex;
+    display: inline-flex;
     align-items: center;
     gap: 4px;
     font-size: 0.75rem;
     color: #e879f9;
     font-weight: 600;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  @media (max-width: 600px) {
+    .memories-day-chip {
+      font-size: 0.78rem;
+      gap: 4px;
+    }
+
+    .memories-stats-tag {
+      font-size: 0.68rem;
+      gap: 3px;
+    }
   }
 }
 
@@ -2545,6 +2732,15 @@ function handleClose() {
     background-color: rgba(var(--bg-primary-color-rgb), 0.5);
     border-color: var(--border-secondary-color);
     padding: 8px 12px;
+  }
+
+  @media (max-width: 600px) {
+    padding: 8px 10px;
+    gap: 8px;
+
+    &.is-small {
+      padding: 6px 10px;
+    }
   }
 
   .note-quote-icon {
