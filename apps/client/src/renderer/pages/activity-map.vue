@@ -51,7 +51,7 @@ function handleModeChange(mode: 'list' | 'map') {
     overflow: hidden;
 
     :global(html.is-tauri) & {
-      padding-top: var(--header-height) !important;
+      padding-top: calc(var(--header-height) + var(--safe-area-inset-top)) !important;
     }
   }
 }

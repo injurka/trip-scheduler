@@ -51,7 +51,7 @@ import { ThemeManager } from '~/components/02.shared/theme-manager'
   // контент начинается и заканчивается с безопасными отступами. !important
   // перебивает scoped padding страниц (специфичность ничья 0,2,0, порядок в бандле ненадёжен)
   > :deep(.content-wrapper) {
-    padding-top: var(--header-height) !important;
+    padding-top: calc(var(--header-height) + var(--safe-area-inset-top)) !important;
     padding-bottom: calc(var(--footer-height) + var(--safe-area-inset-bottom) + 16px) !important;
 
     // Полноэкранный режим карты — в вебе отступ не нужен, но в Tauri он обязателен
@@ -60,7 +60,7 @@ import { ThemeManager } from '~/components/02.shared/theme-manager'
       padding-bottom: 0 !important;
 
       :global(html.is-tauri) & {
-        padding-top: var(--header-height) !important;
+        padding-top: calc(var(--header-height) + var(--safe-area-inset-top)) !important;
       }
     }
   }

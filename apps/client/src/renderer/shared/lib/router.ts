@@ -71,6 +71,7 @@ const routes: RouteRecordRaw[] = [
     path: AppRoutePaths.Root,
     name: AppRouteNames.Root,
     component: Root,
+    meta: { layout: 'empty' },
   },
   {
     path: AppRoutePaths.About,
@@ -264,6 +265,10 @@ const routes: RouteRecordRaw[] = [
 ]
 
 const scrollBehavior: RouterScrollBehavior = (to, from, savedPosition) => {
+  if (to.name === AppRouteNames.Root || to.path === AppRoutePaths.Root) {
+    return { top: 0, left: 0 }
+  }
+
   if (savedPosition) {
     return savedPosition
   }

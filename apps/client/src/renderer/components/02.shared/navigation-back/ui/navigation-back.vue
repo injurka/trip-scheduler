@@ -1,11 +1,17 @@
 <script setup lang="ts">
 import { useRouter } from 'vue-router'
 import { KitBtn } from '~/components/01.kit/kit-btn'
+import { AppRoutePaths } from '~/shared/constants/routes'
 
 const router = useRouter()
 
 function goBack() {
-  router.back()
+  if (typeof window !== 'undefined' && window.history.state?.back) {
+    router.back()
+  }
+  else {
+    void router.push(AppRoutePaths.Root)
+  }
 }
 </script>
 
