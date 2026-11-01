@@ -8,6 +8,7 @@ import { useAuthStore } from '~/shared/store/auth.store'
 const Root = () => import('~/pages/root.vue')
 const NotFound = () => import('~/pages/not-found.vue')
 const About = () => import('~/pages/about.vue')
+const Onboarding = () => import('~/pages/onboarding.vue')
 const UsefulLinks = () => import('~/pages/useful-links.vue')
 const Terms = () => import('~/pages/terms.vue')
 const Privacy = () => import('~/pages/privacy.vue')
@@ -75,6 +76,12 @@ const routes: RouteRecordRaw[] = [
     path: AppRoutePaths.About,
     name: AppRouteNames.About,
     component: About,
+  },
+  {
+    path: AppRoutePaths.Onboarding,
+    name: AppRouteNames.Onboarding,
+    component: Onboarding,
+    meta: { layout: 'default' },
   },
   {
     path: AppRoutePaths.UsefulLinks,

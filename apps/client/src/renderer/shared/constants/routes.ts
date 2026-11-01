@@ -1,6 +1,7 @@
 export enum AppRouteNames {
   Root = 'root',
   About = 'about',
+  Onboarding = 'onboarding',
   UsefulLinks = 'useful-links',
   Terms = 'terms',
   Privacy = 'privacy',
@@ -40,6 +41,7 @@ export enum AppRouteNames {
 export const AppRoutePaths = {
   Root: '/',
   About: '/about',
+  Onboarding: '/onboarding',
   UsefulLinks: '/useful-links',
   Terms: '/terms',
   Privacy: '/privacy',

@@ -32,6 +32,9 @@ function detectMobile() {
 function goToTrips() {
   router.push(AppRoutePaths.Trip.List)
 }
+function goToOnboarding() {
+  router.push(AppRoutePaths.Onboarding)
+}
 function goToUsefulLinks() {
   router.push(AppRoutePaths.UsefulLinks)
 }
@@ -106,13 +109,34 @@ onMounted(() => {
           <Icon icon="mdi:compass-rose" />
           <span>К моим путешествиям</span>
         </KitBtn>
+
+        <button class="learn-more-link" type="button" @click.stop="goToOnboarding">
+          Как устроен TripScheduler?
+        </button>
       </div>
     </div>
 
-    <button class="useful-links-button" @click="goToUsefulLinks">
-      <Icon icon="mdi:link-variant" class="link-icon" />
-      <span class="link-text">Полезные ссылки</span>
-    </button>
+    <div class="corner-actions">
+      <button
+        class="corner-action-btn"
+        type="button"
+        title="Гид по приложению"
+        @click="goToOnboarding"
+      >
+        <Icon icon="mdi:compass-outline" class="link-icon" />
+        <span class="link-text">Гид по приложению</span>
+      </button>
+
+      <button
+        class="corner-action-btn"
+        type="button"
+        title="Полезные ссылки"
+        @click="goToUsefulLinks"
+      >
+        <Icon icon="mdi:link-variant" class="link-icon" />
+        <span class="link-text">Полезные ссылки</span>
+      </button>
+    </div>
   </div>
 </template>
 
@@ -146,11 +170,17 @@ onMounted(() => {
   z-index: 0;
 }
 
-.useful-links-button {
+.corner-actions {
   position: fixed;
   bottom: 24px;
   right: 24px;
   z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.corner-action-btn {
   display: flex;
   align-items: center;
   height: 44px;
@@ -192,6 +222,22 @@ onMounted(() => {
       opacity: 1;
       margin-left: 4px;
     }
+  }
+}
+
+.learn-more-link {
+  margin-top: 14px;
+  background: none;
+  border: none;
+  color: var(--fg-tertiary-color);
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  text-decoration: underline;
+  transition: color 0.2s ease;
+
+  &:hover {
+    color: var(--fg-accent-color);
   }
 }
 

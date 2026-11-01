@@ -315,6 +315,7 @@
     "useNow": true,
     "useObjectUrl": true,
     "useOffsetPagination": true,
+    "useOnboarding": true,
     "useOnline": true,
     "usePageLeave": true,
     "usePagination": true,

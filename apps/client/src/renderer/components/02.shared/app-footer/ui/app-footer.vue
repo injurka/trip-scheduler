@@ -101,6 +101,9 @@ onMounted(() => {
           <router-link :to="{ name: AppRouteNames.BlogList }" class="legal-link">
             Блог
           </router-link>
+          <router-link :to="{ name: AppRouteNames.Onboarding }" class="legal-link">
+            Гид
+          </router-link>
         </nav>
       </div>
 
@@ -144,6 +147,16 @@ onMounted(() => {
               title="Полезные ссылки"
             >
               <Icon icon="mdi:link-variant" />
+            </router-link>
+          </KitTooltip>
+
+          <KitTooltip text="Гид по приложению">
+            <router-link
+              :to="{ name: AppRouteNames.Onboarding }"
+              class="icon-link"
+              title="Гид по приложению"
+            >
+              <Icon icon="mdi:compass-outline" />
             </router-link>
           </KitTooltip>
 
