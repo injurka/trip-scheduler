@@ -43,8 +43,11 @@ export function addActivityEvent(
   const startParsed = parseTimeToDate(dateStr, activity.startTime || '09:00')
   let endParsed = parseTimeToDate(dateStr, activity.endTime || activity.startTime || '10:00')
 
-  if (endParsed.getTime() <= startParsed.getTime()) {
-    // Если время окончания меньше или равно времени начала — добавляем 1 час
+  if (endParsed.getTime() < startParsed.getTime()) {
+    // A decreasing clock crosses midnight; retain the explicit end time.
+    endParsed = new Date(endParsed.getTime() + 24 * 60 * 60 * 1000)
+  }
+  else if (endParsed.getTime() === startParsed.getTime()) {
     endParsed = new Date(startParsed.getTime() + 60 * 60 * 1000)
   }
 

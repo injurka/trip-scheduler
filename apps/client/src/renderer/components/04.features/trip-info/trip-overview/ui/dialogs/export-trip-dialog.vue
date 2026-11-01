@@ -172,7 +172,7 @@ async function ensureCalendarIdentifier(): Promise<string> {
   if (resolvedShareSlug.value)
     return resolvedShareSlug.value
 
-  if (props.trip.visibility === 'private') {
+  try {
     const slug = await useRequest({
       key: `trip-export:share-slug:${props.trip.id}`,
       fn: db => db.trips.getOrCreateShareSlug(props.trip.id),
@@ -184,14 +184,26 @@ async function ensureCalendarIdentifier(): Promise<string> {
       return slug
     }
   }
+  catch {
+    // При ошибке или отсутствии авторизации откатываемся к trip.id
+  }
 
   return props.trip.id
 }
 async function resolveCalendarUrl(): Promise<string> {
   const url = new URL(getTripCalendarUrl(await ensureCalendarIdentifier()))
-  url.searchParams.set('days', options.value.includeDaySummaries ? '1' : '0')
-  url.searchParams.set('activities', options.value.includeActivityDetails ? '1' : '0')
-  url.searchParams.set('bookings', options.value.includeBookings ? '1' : '0')
+
+  if (options.value.includeDaySummaries) {
+    url.searchParams.set('days', '1')
+  }
+
+  if (!options.value.includeActivityDetails) {
+    url.searchParams.set('activities', '0')
+  }
+
+  if (!options.value.includeBookings) {
+    url.searchParams.set('bookings', '0')
+  }
 
   return url.toString()
 }
@@ -218,7 +230,7 @@ async function openWebcalSubscription() {
 }
 async function openGoogleCalendarSubscription() {
   const httpUrl = await resolveCalendarUrl()
-  const subscribeUrl = `https://calendar.google.com/calendar/r?cid=${encodeURIComponent(toWebcalUrl(httpUrl))}`
+  const subscribeUrl = `https://calendar.google.com/calendar/r?cid=${encodeURIComponent(httpUrl)}`
 
   await openExternalUrl(subscribeUrl)
 }

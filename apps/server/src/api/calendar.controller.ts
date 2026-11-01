@@ -85,17 +85,31 @@ async function handleCalendar(c: Context) {
   )
 
   const filename = `trip_${trip.title.trim().replace(/[\\/:*?"<>|\r\n]+/g, '_') || 'calendar'}.ics`
+  const bodyBytes = Buffer.from(ics, 'utf-8')
+  const etag = `"${Bun.hash(ics).toString(16)}"`
 
-  return new Response(ics, {
+  if (c.req.header('if-none-match') === etag) {
+    return new Response(null, {
+      status: 304,
+      headers: {
+        'ETag': etag,
+        'Cache-Control': 'no-cache, must-revalidate',
+      },
+    })
+  }
+
+  return new Response(c.req.method === 'HEAD' ? null : bodyBytes, {
     status: 200,
     headers: {
       'Content-Type': 'text/calendar; charset=utf-8',
+      'Content-Length': String(bodyBytes.byteLength),
       'Content-Disposition': buildContentDisposition('inline', filename),
-      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      'Cache-Control': 'no-cache, must-revalidate',
+      'ETag': etag,
     },
   })
 }
 
-calendarController.get('/:idOrSlug', handleCalendar)
-calendarController.get('/:idOrSlug/calendar', handleCalendar)
-calendarController.get('/:idOrSlug/calendar.ics', handleCalendar)
+calendarController.on(['GET', 'HEAD'], '/:idOrSlug', handleCalendar)
+calendarController.on(['GET', 'HEAD'], '/:idOrSlug/calendar', handleCalendar)
+calendarController.on(['GET', 'HEAD'], '/:idOrSlug/calendar.ics', handleCalendar)

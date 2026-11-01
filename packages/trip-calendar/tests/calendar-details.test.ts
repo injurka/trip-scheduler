@@ -80,3 +80,11 @@ it('keeps flight segment identity when another segment is covered by an itinerar
   ] } }] }).events()
   expect(events.map(event => event.id())).toEqual(['booking-flight-seg-1', 'act-act'])
 })
+
+it('preserves the exact end of an itinerary activity crossing midnight', () => {
+  const events = generateTripCalendar({ trip, days: [{ id: 'day', date: '2026-11-04', title: 'Day', activities: [
+    { id: 'late', title: 'Late transfer', startTime: '23:45', endTime: '00:15' },
+  ] }] }).events()
+  expect(events[0].toString()).toContain('DTSTART:20261104T234500\r\n')
+  expect(events[0].toString()).toContain('DTEND:20261105T001500\r\n')
+})
