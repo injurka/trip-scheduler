@@ -47,8 +47,11 @@ async function handleDelete(id: string, title: string) {
 }
 
 function handleUpdate(id: string) {
-  if (offlineStore.isTripDownloading(id))
+  if (offlineStore.isTripDownloading(id)) {
+    offlineStore.openProgressDialog(id)
+
     return
+  }
 
   const currentSaved = offlineStore.savedTrips[id]
   const hasCoordinates = currentSaved?.data
@@ -124,19 +127,34 @@ async function handleConfirmDownload(options: OfflineDownloadOptions) {
                 {{ item.imageCount }} файлов
               </span>
             </div>
-            <div v-if="offlineStore.isDownloading[item.id]" class="download-progress">
+            <div
+              v-if="offlineStore.isDownloading[item.id]"
+              class="download-progress"
+              role="button"
+              tabindex="0"
+              title="Нажмите, чтобы открыть статус загрузки"
+              @click.stop="offlineStore.openProgressDialog(item.id)"
+              @keydown.enter.stop="offlineStore.openProgressDialog(item.id)"
+            >
               <div class="progress-bar" :style="{ width: `${offlineStore.getDownloadProgress(item.id)}%` }" />
             </div>
-            <div v-if="offlineStore.isDownloading[item.id] && offlineStore.getDownloadStatus(item.id)?.statusText" class="download-status-text">
+            <div
+              v-if="offlineStore.isDownloading[item.id] && offlineStore.getDownloadStatus(item.id)?.statusText"
+              class="download-status-text"
+              role="button"
+              tabindex="0"
+              title="Нажмите, чтобы открыть статус загрузки"
+              @click.stop="offlineStore.openProgressDialog(item.id)"
+              @keydown.enter.stop="offlineStore.openProgressDialog(item.id)"
+            >
               {{ offlineStore.getDownloadStatus(item.id)?.statusText }}
             </div>
           </div>
 
           <div class="item-actions">
-            <KitTooltip text="Обновить данные">
+            <KitTooltip :text="offlineStore.isDownloading[item.id] ? 'Загрузка... Открыть статус' : 'Обновить данные'">
               <button
                 class="action-btn update"
-                :disabled="offlineStore.isDownloading[item.id]"
                 @click="handleUpdate(item.id)"
               >
                 <Icon icon="mdi:refresh" :class="{ spin: offlineStore.isDownloading[item.id] }" />
@@ -344,6 +362,7 @@ async function handleConfirmDownload(options: OfflineDownloadOptions) {
   border-radius: 2px;
   margin-top: 4px;
   overflow: hidden;
+  cursor: pointer;
 
   .progress-bar {
     height: 100%;
@@ -356,6 +375,11 @@ async function handleConfirmDownload(options: OfflineDownloadOptions) {
   font-size: 0.75rem;
   color: var(--fg-accent-color);
   margin-top: 2px;
+  cursor: pointer;
+
+  &:hover {
+    text-decoration: underline;
+  }
 }
 
 .spin {

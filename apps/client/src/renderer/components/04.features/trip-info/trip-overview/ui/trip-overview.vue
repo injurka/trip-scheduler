@@ -83,6 +83,7 @@ const menuActionHandlers: Record<string, () => void | Promise<void>> = {
   export_mapsme: exportToMapsMeFromMenu,
   save_offline: showOfflineDownloadDialog,
   update_offline: showOfflineDownloadDialog,
+  downloading: openOfflineProgressDialog,
 }
 
 const isEditable = computed(() => canEdit.value && !isViewMode.value)
@@ -437,6 +438,14 @@ async function exportToMapsMeFromMenu() {
 function showOfflineDownloadDialog() {
   isOfflineDownloadDialogVisible.value = true
 }
+function openOfflineProgressDialog() {
+  if (props.trip?.id) {
+    offlineStore.openProgressDialog(props.trip.id)
+  }
+  else {
+    offlineStore.openProgressDialog()
+  }
+}
 async function handleMenuAction(action: string) {
   await menuActionHandlers[action]?.()
 
@@ -493,7 +502,7 @@ async function handleConfirmOfflineDownload(options: OfflineDownloadOptions) {
                 :key="item.value"
                 class="kit-dropdown-item"
                 :class="{ 'is-destructive': item.isDestructive }"
-                :disabled="item.value === 'downloading' || item.value === 'deleting'"
+                :disabled="item.disabled || item.value === 'deleting'"
                 @click="handleMenuAction(item.value)"
               >
                 <Icon
@@ -565,10 +574,18 @@ async function handleConfirmOfflineDownload(options: OfflineDownloadOptions) {
                 </div>
               </KitTooltip>
 
-              <div v-if="isDownloading" class="status-pill status-pill--downloading">
-                <Icon icon="mdi:loading" class="spin-icon" />
-                <span>Загрузка {{ progress }}%</span>
-              </div>
+              <KitTooltip v-if="isDownloading" text="Нажмите, чтобы открыть статус загрузки">
+                <div
+                  role="button"
+                  tabindex="0"
+                  class="status-pill status-pill--downloading"
+                  @click="openOfflineProgressDialog"
+                  @keydown.enter="openOfflineProgressDialog"
+                >
+                  <Icon icon="mdi:loading" class="spin-icon" />
+                  <span>Загрузка {{ progress }}%</span>
+                </div>
+              </KitTooltip>
             </div>
 
             <!-- Мобильная кнопка показа тегов: справа от статусов -->
@@ -1084,6 +1101,25 @@ async function handleConfirmOfflineDownload(options: OfflineDownloadOptions) {
       color: #f472b6;
       background: rgba(236, 72, 153, 0.2);
       border: 1px solid rgba(244, 114, 182, 0.35);
+      cursor: pointer;
+      user-select: none;
+      transition:
+        opacity 0.2s,
+        transform 0.2s;
+
+      &:hover {
+        opacity: 0.9;
+        transform: translateY(-1px);
+      }
+
+      &:active {
+        transform: translateY(0);
+      }
+
+      &:focus-visible {
+        outline: 2px solid #f472b6;
+        outline-offset: 2px;
+      }
 
       .spin-icon {
         animation: spin 1s linear infinite;

@@ -6,14 +6,16 @@ import { useOfflineStore } from '~/shared/store/offline.store'
 
 const offlineStore = useOfflineStore()
 
-const isMinimized = ref(false)
-
 const activeDownloadId = computed(() => {
+  if (offlineStore.activeProgressTripId && (offlineStore.isDownloading[offlineStore.activeProgressTripId] || offlineStore.downloadStatus[offlineStore.activeProgressTripId])) {
+    return offlineStore.activeProgressTripId
+  }
+
   const ids = Object.keys(offlineStore.isDownloading)
 
   return ids.find(id => offlineStore.isDownloading[id])
 })
-const isVisible = computed(() => !!activeDownloadId.value && !isMinimized.value)
+const isVisible = computed(() => !!activeDownloadId.value && !offlineStore.isProgressMinimized)
 const downloadStatus = computed(() => {
   if (!activeDownloadId.value)
     return null
@@ -31,6 +33,9 @@ const tripTitle = computed(() => {
   if (!activeDownloadId.value)
     return 'Путешествие'
 
+  if (downloadStatus.value?.tripTitle)
+    return downloadStatus.value.tripTitle
+
   const saved = offlineStore.savedTrips[activeDownloadId.value]
 
   if (saved)
@@ -47,12 +52,13 @@ const statusText = computed(() => {
 
 watch(activeDownloadId, (newVal) => {
   if (!newVal) {
-    isMinimized.value = false
+    offlineStore.isProgressMinimized = false
+    offlineStore.activeProgressTripId = null
   }
 })
 
 function handleRunInBackground() {
-  isMinimized.value = true
+  offlineStore.minimizeProgressDialog()
 }
 </script>
 

@@ -37,6 +37,7 @@ export interface OfflineDownloadStatus {
   loaded: number
   stage: 'fetching' | 'caching' | 'completed' | 'error'
   statusText: string
+  tripTitle?: string
 }
 
 export interface IOfflineState {
@@ -45,6 +46,8 @@ export interface IOfflineState {
   downloadProgress: Record<string, number>
   downloadStatus: Record<string, OfflineDownloadStatus>
   isInitialized: boolean
+  isProgressMinimized: boolean
+  activeProgressTripId: string | null
 }
 
 function extractUrlsFromMarkdown(text: string | null | undefined): string[] {
@@ -427,7 +430,7 @@ function normalizeDownloadOptions(options?: OfflineDownloadOptions): Required<Of
   }
 }
 
-function setInitialDownloadStatus(state: IOfflineState, tripId: string) {
+function setInitialDownloadStatus(state: IOfflineState, tripId: string, tripTitle?: string) {
   state.isDownloading[tripId] = true
   state.downloadProgress[tripId] = 0
   state.downloadStatus[tripId] = {
@@ -436,6 +439,7 @@ function setInitialDownloadStatus(state: IOfflineState, tripId: string) {
     loaded: 0,
     stage: 'fetching',
     statusText: 'Подготовка данных и загрузка заметок...',
+    tripTitle,
   }
 }
 
@@ -572,6 +576,8 @@ export const useOfflineStore = defineStore('offline', {
     downloadProgress: {},
     downloadStatus: {},
     isInitialized: false,
+    isProgressMinimized: false,
+    activeProgressTripId: null,
   }),
 
   getters: {
@@ -612,13 +618,38 @@ export const useOfflineStore = defineStore('offline', {
       }
     },
 
+    openProgressDialog(tripId?: string) {
+      this.isProgressMinimized = false
+
+      if (tripId) {
+        this.activeProgressTripId = tripId
+      }
+      else {
+        const ids = Object.keys(this.isDownloading)
+        const active = ids.find(id => this.isDownloading[id])
+
+        if (active) {
+          this.activeProgressTripId = active
+        }
+      }
+    },
+
+    minimizeProgressDialog() {
+      this.isProgressMinimized = true
+    },
+
     async saveTripByIdForOffline(tripId: string, options?: OfflineDownloadOptions) {
-      if (this.isDownloading[tripId])
+      if (this.isDownloading[tripId]) {
+        this.openProgressDialog(tripId)
+
         return
+      }
 
       const toast = useToast()
 
       try {
+        this.isProgressMinimized = false
+        this.activeProgressTripId = tripId
         const tripData = await trpc.trip.getByIdWithDays.query({ tripId })
 
         if (!tripData) {
@@ -636,11 +667,16 @@ export const useOfflineStore = defineStore('offline', {
     },
 
     async saveTripForOffline(trip: TripWithDays, options?: OfflineDownloadOptions) {
-      if (this.isDownloading[trip.id])
+      if (this.isDownloading[trip.id]) {
+        this.openProgressDialog(trip.id)
+
         return
+      }
 
       const downloadOpts = normalizeDownloadOptions(options)
-      setInitialDownloadStatus(this, trip.id)
+      this.isProgressMinimized = false
+      this.activeProgressTripId = trip.id
+      setInitialDownloadStatus(this, trip.id, trip.title)
       const toast = useToast()
 
       try {
@@ -727,6 +763,7 @@ export const useOfflineStore = defineStore('offline', {
           loaded: 0,
           stage: 'error',
           statusText: 'Ошибка сохранения.',
+          tripTitle: trip.title,
         }
         toast.error('Ошибка при сохранении оффлайн.')
       }
@@ -735,6 +772,11 @@ export const useOfflineStore = defineStore('offline', {
           this.isDownloading[trip.id] = false
           delete this.downloadProgress[trip.id]
           delete this.downloadStatus[trip.id]
+
+          if (this.activeProgressTripId === trip.id) {
+            this.activeProgressTripId = null
+            this.isProgressMinimized = false
+          }
         }, 1200)
       }
     },
