@@ -107,7 +107,7 @@ onMounted(() => {
   <ConfigProvider :scroll-body="false">
     <OfflineBanner />
 
-    <component :is="layouts[layout]">
+    <component :is="layouts[layout]" :key="layout">
       <router-view v-slot="{ Component }">
         <transition v-if="transition" :name="transition" mode="out-in">
           <component :is="Component" />

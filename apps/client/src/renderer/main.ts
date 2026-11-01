@@ -41,6 +41,10 @@ async function initializeApp() {
     document.documentElement.classList.add('is-tauri')
   }
 
+  if (isMobileApp && typeof document !== 'undefined') {
+    document.documentElement.classList.add('is-mobile-app')
+  }
+
   addCollection(iconsBundle)
 
   const app = createApp(application)

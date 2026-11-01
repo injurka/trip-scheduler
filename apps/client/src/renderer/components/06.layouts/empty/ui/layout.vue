@@ -2,7 +2,7 @@
 import { useHead } from '@vueuse/head'
 import { useRoute } from 'vue-router'
 import { BackgroundEffects } from '~/components/02.shared/background-effects'
-import { AppRouteNames } from '~/shared/constants/routes'
+import { AppRouteNames, AppRoutePaths } from '~/shared/constants/routes'
 import { isMobileApp } from '~/shared/lib/env'
 
 const route = useRoute()
@@ -17,7 +17,7 @@ useHead({
 <template>
   <main
     class="main empty-layout"
-    :class="{ 'main--welcome-edge-to-edge': isMobileApp && route.name === AppRouteNames.Root }"
+    :class="{ 'main--welcome-edge-to-edge': isMobileApp && (route.name === AppRouteNames.Root || route.path === AppRoutePaths.Root) }"
   >
     <div v-if="isMobileApp" class="system-bar-top-scrim" aria-hidden="true" />
     <div class="main-content">
@@ -42,7 +42,7 @@ useHead({
   flex: 1;
   position: relative;
   overflow: clip;
-  padding-top: var(--safe-area-inset-top);
+  padding-top: 0;
   padding-bottom: var(--safe-area-inset-bottom);
   min-height: 100dvh;
   box-sizing: border-box;
