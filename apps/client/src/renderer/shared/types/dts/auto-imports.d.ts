@@ -74,6 +74,7 @@ declare global {
   const getCustomTileUrl: typeof import('../../lib/map-styles-sources').getCustomTileUrl
   const getDocumentLinkPath: typeof import('../../lib/document-link').getDocumentLinkPath
   const getEffectiveMapTilerKey: typeof import('../../lib/map-styles-sources').getEffectiveMapTilerKey
+  const getImageThumbhash: typeof import('../../lib/thumbhash').getImageThumbhash
   const getImageUrl: typeof import('../../lib/url').getImageUrl
   const getLocalDate: typeof import('../../lib/date-time').getLocalDate
   const getMapStyle: typeof import('../../lib/map-styles-sources').getMapStyle
@@ -491,6 +492,7 @@ declare module 'vue' {
     readonly getCustomTileUrl: UnwrapRef<typeof import('../../lib/map-styles-sources')['getCustomTileUrl']>
     readonly getDocumentLinkPath: UnwrapRef<typeof import('../../lib/document-link')['getDocumentLinkPath']>
     readonly getEffectiveMapTilerKey: UnwrapRef<typeof import('../../lib/map-styles-sources')['getEffectiveMapTilerKey']>
+    readonly getImageThumbhash: UnwrapRef<typeof import('../../lib/thumbhash')['getImageThumbhash']>
     readonly getImageUrl: UnwrapRef<typeof import('../../lib/url')['getImageUrl']>
     readonly getLocalDate: UnwrapRef<typeof import('../../lib/date-time')['getLocalDate']>
     readonly getMapStyle: UnwrapRef<typeof import('../../lib/map-styles-sources')['getMapStyle']>

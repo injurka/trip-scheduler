@@ -82,7 +82,12 @@ const heroVideoPoster = computed(() => {
         :poster="heroVideoPoster"
         :alt="heroMedia.originalName || 'Видео'"
       />
-      <KitImage v-if="heroMediaUrl" :src="heroMediaUrl" object-fit="cover" />
+      <KitImage
+        v-if="heroMediaUrl"
+        :src="heroMediaUrl"
+        :thumbhash="heroMedia ? getPostMediaVariants(heroMedia).thumbhash : undefined"
+        object-fit="cover"
+      />
     </div>
 
     <div class="hero-content" :class="{ 'is-wide': isWide }">

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { AspectRatio } from 'reka-ui'
+import { computed, nextTick, onBeforeUnmount, readonly, ref, watch } from 'vue'
 import smthWrongImage from '~/assets/images/smth-wrong.png'
 import { KitSkeleton } from '~/components/01.kit/kit-skeleton'
 import { getThumbHashAverageColor, getThumbHashDataUrl } from '~/shared/lib/thumbhash'
@@ -15,7 +16,7 @@ interface Props {
     medium?: string
     large?: string
     thumbhash?: string
-  } | Record<string, string> | null
+  } | null
   /**
    * Компактный Base64 ThumbHash для мгновенного плавного плейсхолдера.
    */
@@ -96,6 +97,12 @@ const resolvedVariants = computed(() => {
   }
 })
 const resolvedSrc = computed(() => resolveApiUrl(props.src))
+const imageSourceKey = computed(() => JSON.stringify([
+  resolvedSrc.value,
+  resolvedVariants.value.small,
+  resolvedVariants.value.medium,
+  resolvedVariants.value.large,
+]))
 const activeThumbhash = computed(() => props.thumbhash || props.variants?.thumbhash || null)
 const thumbHashDataUrl = computed(() => getThumbHashDataUrl(activeThumbhash.value))
 const thumbHashAvgColor = computed(() => getThumbHashAverageColor(activeThumbhash.value))
@@ -112,7 +119,7 @@ const imageStyle = computed(() => {
   }
 })
 
-watch(() => props.src, (newSrc) => {
+watch(imageSourceKey, () => {
   isLoading.value = true
   hasError.value = false
   isAborted.value = false
@@ -120,7 +127,7 @@ watch(() => props.src, (newSrc) => {
   cleanupObserver()
   clearLoadTimeout()
 
-  if (!newSrc) {
+  if (!props.src) {
     isLoading.value = false
 
     return
@@ -149,6 +156,7 @@ function handleLoad() {
     return
 
   clearLoadTimeout()
+  cleanupObserver()
   isLoading.value = false
   hasError.value = false
 }
@@ -157,6 +165,7 @@ function handleError() {
     return
 
   clearLoadTimeout()
+  cleanupObserver()
   isLoading.value = false
   hasError.value = true
 }
@@ -249,23 +258,20 @@ onBeforeUnmount(() => {
         </div>
       </transition>
 
-      <picture v-if="src && !isAborted" :key="retryCount">
+      <picture v-if="src && !isAborted" :key="`${imageSourceKey}:${retryCount}`">
         <source
           v-if="resolvedVariants.large"
           :srcset="resolvedVariants.large"
           media="(min-width: 1200px)"
-          type="image/webp"
         >
         <source
           v-if="resolvedVariants.medium"
           :srcset="resolvedVariants.medium"
           media="(min-width: 600px)"
-          type="image/webp"
         >
         <source
           v-if="resolvedVariants.small"
           :srcset="resolvedVariants.small"
-          type="image/webp"
         >
 
         <img

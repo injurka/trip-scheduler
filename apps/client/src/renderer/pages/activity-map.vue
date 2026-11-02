@@ -50,9 +50,13 @@ function handleModeChange(mode: 'list' | 'map') {
     max-height: 100%;
     overflow: hidden;
 
-    :global(html.is-tauri) & {
+    &.is-map-mode {
       padding-top: var(--header-height) !important;
     }
   }
+}
+
+:global(.is-tauri .content-wrapper.is-map-mode) {
+  padding-top: var(--header-height) !important;
 }
 </style>

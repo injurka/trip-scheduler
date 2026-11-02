@@ -170,8 +170,8 @@ export function readStoredTimelineMedia(media: PostMedia): TimelineMedia {
     media,
     capturedAt: value || filenameTime,
     source: getStoredMediaSource(value, filenameTime),
-    latitude: media.latitude ?? metadata.latitude,
-    longitude: media.longitude ?? metadata.longitude,
+    latitude: media.latitude ?? metadata.latitude ?? undefined,
+    longitude: media.longitude ?? metadata.longitude ?? undefined,
   }
 }
 

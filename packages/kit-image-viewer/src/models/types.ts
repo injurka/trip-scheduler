@@ -47,6 +47,7 @@ export interface ImageMetadataIptc {
 
 export interface ImageMetadata {
   timezoneOffset?: number
+  thumbhash?: string
   camera?: ImageMetadataCamera
   settings?: ImageMetadataSettings
   technical?: ImageMetadataTechnical
@@ -73,6 +74,7 @@ export interface IImageViewerImageMeta extends ImageMetadata {
 }
 
 export interface ImageViewerImageVariants {
+  thumbhash?: string
   small?: string
   medium?: string
   large?: string

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 import {
   base64ToUint8Array,
+  getImageThumbhash,
   getThumbHashAverageColor,
   getThumbHashDataUrl,
 } from '../src/renderer/shared/lib/thumbhash'
@@ -42,5 +43,20 @@ describe('thumbhash client utilities', () => {
 
     expect(getThumbHashAverageColor(null)).toBeNull()
     expect(getThumbHashAverageColor('invalid')).toBeNull()
+  })
+})
+
+describe('image ThumbHash selection', () => {
+  it('prefers the manifest hash over legacy metadata', () => {
+    expect(getImageThumbhash({ variants: { thumbhash: 'manifest' }, metadata: { thumbhash: 'legacy' } })).toBe('manifest')
+  })
+
+  it('uses legacy metadata when the manifest has no hash', () => {
+    expect(getImageThumbhash({ metadata: { thumbhash: 'legacy' } })).toBe('legacy')
+  })
+
+  it('returns null when image or placeholder data is absent', () => {
+    expect(getImageThumbhash(null)).toBeNull()
+    expect(getImageThumbhash({ variants: null, metadata: null })).toBeNull()
   })
 })

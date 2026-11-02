@@ -571,10 +571,11 @@ export const destinationReviews = pgTable('destination_reviews', {
   city: text('city'),
   geoPlaceId: uuid('geo_place_id').references(() => geoPlaces.id, { onDelete: 'restrict' }),
   coverUrl: text('cover_url'),
+  coverVariants: jsonb('cover_variants').$type<Record<string, string>>(),
   latitude: real('latitude').notNull(),
   longitude: real('longitude').notNull(),
   content: text('content'),
-  metrics: jsonb('metrics').$type<Record<string, number>>().notNull().default({}),
+  metrics: jsonb('metrics').$type<Record<string, number | string | null>>().notNull().default({}),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 }, t => ({

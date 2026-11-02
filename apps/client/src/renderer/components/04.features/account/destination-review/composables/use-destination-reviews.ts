@@ -360,7 +360,7 @@ export function useDestinationReviews(userId: string) {
   function getReviewEditContent(review: DestinationReview) {
     return {
       coverUrl: review.coverUrl || null,
-      coverVariants: (review as any).coverVariants || null,
+      coverVariants: review.coverVariants || null,
       content: review.content || '',
     }
   }
@@ -380,7 +380,7 @@ export function useDestinationReviews(userId: string) {
         'cover',
       ),
       onSuccess: (uploadedImage) => {
-        uploadedData = { url: uploadedImage.url, variants: (uploadedImage.variants as Record<string, string>) || {} }
+        uploadedData = { url: uploadedImage.url, variants: uploadedImage.variants || {} }
       },
       onError: ({ error }) => { toast.error(error.customMessage || 'Ошибка загрузки обложки') },
     })
@@ -389,7 +389,7 @@ export function useDestinationReviews(userId: string) {
   }
 
   function normalizePayload(source: ReviewFormState, coverUrl: string | null, coverVariants: Record<string, string> | null) {
-    const combinedMetrics: Record<string, any> = { ...source.metrics }
+    const combinedMetrics: Record<string, number | string | null> = { ...source.metrics }
 
     for (const [key, val] of Object.entries(source.metricComments || {})) {
       if (val)
@@ -418,14 +418,14 @@ export function useDestinationReviews(userId: string) {
       const uploaded = await uploadCoverImage(formFile.value)
 
       if (uploaded) {
-        finalCoverUrl = uploaded.variants?.medium || uploaded.url
+        finalCoverUrl = uploaded.url
         finalCoverVariants = uploaded.variants
       }
     }
 
     await useRequest({
       key: EDestinationReviewKeys.CREATE_REVIEW,
-      fn: db => db.destinationReviews.create(normalizePayload(form, finalCoverUrl, finalCoverVariants) as any),
+      fn: db => db.destinationReviews.create(normalizePayload(form, finalCoverUrl, finalCoverVariants)),
       onSuccess: () => {
         toast.success('Впечатление добавлено!')
         isCreateModalOpen.value = false
@@ -446,7 +446,7 @@ export function useDestinationReviews(userId: string) {
       const uploaded = await uploadCoverImage(editFormFile.value)
 
       if (uploaded) {
-        finalCoverUrl = uploaded.variants?.medium || uploaded.url
+        finalCoverUrl = uploaded.url
         finalCoverVariants = uploaded.variants
       }
     }

@@ -28,28 +28,12 @@ import { ThemeManager } from '~/components/02.shared/theme-manager'
   flex-direction: column;
   flex: 1;
   position: relative;
-  overflow: clip;
+  overflow-x: clip;
   min-height: 100dvh;
   box-sizing: border-box;
 
-  :global(html.is-mobile-app) &,
-  :global(html.is-tauri) & {
+  @media (max-width: 768px) {
     background-color: var(--bg-primary-color);
-  }
-
-  // Зона system bar (safe-area-top) в APK: заливаем цветом подложки страницы,
-  // иначе там просвечивает фон body/BackgroundEffects отдельной полосой
-  :global(html.is-mobile-app) &::before,
-  :global(html.is-tauri) &::before {
-    content: '';
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: var(--safe-area-inset-top);
-    background-color: var(--bg-primary-color);
-    pointer-events: none;
-    z-index: 6;
   }
 
   &:has(.is-map-mode) {
@@ -63,12 +47,17 @@ import { ThemeManager } from '~/components/02.shared/theme-manager'
   }
 }
 
+:global(.is-mobile-app .main),
+:global(.is-tauri .main) {
+  background-color: var(--bg-primary-color);
+}
+
 .main-content {
   height: 100%;
   display: flex;
   flex-grow: 1;
 
-  // Хедер и футер absolute (вне потока) — отступы от них лежат на корне страницы
+  // Хедер и футер absolute/fixed (вне потока) — отступы от них лежат на корне страницы
   // (.content-wrapper): фон страницы тянется до краев под хедером и футером,
   // контент начинается и заканчивается с безопасными отступами. !important
   // перебивает scoped padding страниц (специфичность ничья 0,2,0, порядок в бандле ненадёжен)
@@ -80,11 +69,11 @@ import { ThemeManager } from '~/components/02.shared/theme-manager'
     &.is-map-mode {
       padding-top: 0 !important;
       padding-bottom: 0 !important;
-
-      :global(html.is-tauri) & {
-        padding-top: var(--header-height) !important;
-      }
     }
   }
+}
+
+:global(.is-tauri .main-content > .content-wrapper.is-map-mode) {
+  padding-top: var(--header-height) !important;
 }
 </style>

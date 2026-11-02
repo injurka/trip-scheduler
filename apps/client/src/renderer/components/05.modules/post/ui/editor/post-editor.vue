@@ -572,6 +572,7 @@ onMounted(async () => {
             <KitImage
               v-if="coverUrl"
               :src="coverUrl"
+              :thumbhash="coverMedia ? getPostMediaVariants(coverMedia).thumbhash : undefined"
               object-fit="cover"
               class="cover-image"
             />
@@ -594,7 +595,7 @@ onMounted(async () => {
               :disabled="!selectedCoverIds.includes(media.id) && selectedCoverIds.length >= 5"
               @click="toggleCoverPhoto(media.id)"
             >
-              <KitImage :src="coverPhotoUrl(media)" :alt="media.originalName || 'Фото'" />
+              <KitImage :src="coverPhotoUrl(media)" :thumbhash="getPostMediaVariants(media).thumbhash" :alt="media.originalName || 'Фото'" />
               <span v-if="selectedCoverIds.includes(media.id)">{{ selectedCoverIds.indexOf(media.id) + 1 }}</span>
             </button>
           </div>
@@ -776,6 +777,7 @@ onMounted(async () => {
             <KitImage
               v-if="coverUrl"
               :src="coverUrl"
+              :thumbhash="coverMedia ? getPostMediaVariants(coverMedia).thumbhash : undefined"
               class="publication-cover"
               object-fit="cover"
             />

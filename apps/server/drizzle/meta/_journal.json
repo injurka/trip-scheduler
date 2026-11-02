@@ -148,6 +148,13 @@
       "when": 1793432581768,
       "tag": "0020_early_warlock",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1793609989747,
+      "tag": "0021_known_venom",
+      "breakpoints": true
     }
   ]
 }

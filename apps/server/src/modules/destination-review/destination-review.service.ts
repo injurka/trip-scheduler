@@ -46,7 +46,7 @@ export const destinationReviewService = {
     const newReview = await destinationReviewRepository.create({
       ...data,
       userId,
-    } as any)
+    })
 
     if (!newReview) {
       throw createTRPCError('INTERNAL_SERVER_ERROR', 'Не удалось сохранить впечатление.')
@@ -75,7 +75,7 @@ export const destinationReviewService = {
     }
 
     data = await canonicalizeSelectedCity(data, existing.geoPlaceId)
-    const updated = await destinationReviewRepository.update(id, data as any, userId)
+    const updated = await destinationReviewRepository.update(id, data, userId)
     if (!updated) {
       throw createTRPCError('NOT_FOUND', 'Впечатление не найдено или у вас нет прав на его редактирование.')
     }

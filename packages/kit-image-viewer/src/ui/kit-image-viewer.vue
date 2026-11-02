@@ -10,6 +10,7 @@ import {
   useImageViewerTransform,
   useImageViewerUi,
 } from '../composables'
+import { getThumbHashDataUrl } from '../lib/thumbhash'
 import ImageMetadataPanel from './kit-image-metadata-panel.vue'
 import KitVideoPlayer from './kit-video-player.vue'
 import KitViewerControls from './kit-viewer-controls.vue'
@@ -76,6 +77,9 @@ const isUiVisible = ref(true)
 const isMetadataLoading = ref(false)
 
 const currentImage = computed(() => props.images[props.currentIndex] ?? null)
+function getPlaceholderUrl(image: ImageViewerImage): string | undefined {
+  return getThumbHashDataUrl(image.variants?.thumbhash || image.meta?.thumbhash) ?? undefined
+}
 const hasMultipleImages = computed(() => props.images.length > 1)
 
 const paginationPromptDirection = ref<'next' | 'prev' | null>(null)
@@ -720,6 +724,13 @@ onUnmounted(() => {
                         ? { aspectRatio: `${images[i].meta?.width}/${images[i].meta?.height}` }
                         : undefined"
                     >
+                      <img
+                        v-if="!isVideoImage(images[i]) && !imageLoadStates[i]?.loaded && !imageLoadStates[i]?.error && getPlaceholderUrl(images[i])"
+                        :src="getPlaceholderUrl(images[i]) || undefined"
+                        class="viewer-thumbhash-placeholder"
+                        alt=""
+                        aria-hidden="true"
+                      >
                       <KitVideoPlayer
                         v-if="isVideoImage(images[i]) && i === currentIndex"
                         v-show="!imageLoadStates[i]?.error"
@@ -755,7 +766,7 @@ onUnmounted(() => {
 
                       <Transition name="loader-fade">
                         <div
-                          v-if="(!imageLoadStates[i]?.loaded && imageLoadStates[i]?.loader) || imageLoadStates[i]?.error"
+                          v-if="(!imageLoadStates[i]?.loaded && imageLoadStates[i]?.loader && (isVideoImage(images[i]) || !getPlaceholderUrl(images[i]))) || imageLoadStates[i]?.error"
                           class="placeholder-wrapper"
                           :class="{ 'is-error': imageLoadStates[i]?.error }"
                         >
@@ -877,7 +888,14 @@ onUnmounted(() => {
                           <div v-if="isVideoImage(item.image)" class="thumb-video-badge">
                             <Icon icon="mdi:play" />
                           </div>
-                          <div v-if="!loadedThumbnails.has(item.index)" class="thumb-skeleton">
+                          <img
+                            v-if="!loadedThumbnails.has(item.index) && getPlaceholderUrl(item.image)"
+                            :src="getPlaceholderUrl(item.image) || undefined"
+                            class="thumbnail-thumbhash-placeholder loaded"
+                            alt=""
+                            aria-hidden="true"
+                          >
+                          <div v-else-if="!loadedThumbnails.has(item.index)" class="thumb-skeleton">
                             <div class="thumb-skeleton-wave" />
                           </div>
                         </template>
@@ -1016,6 +1034,23 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   overflow: hidden;
+}
+
+.viewer-thumbhash-placeholder,
+.thumbnail-thumbhash-placeholder {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.viewer-thumbhash-placeholder {
+  object-fit: contain;
+}
+
+.thumbnail-thumbhash-placeholder {
+  object-fit: cover;
 }
 
 .image-slot {

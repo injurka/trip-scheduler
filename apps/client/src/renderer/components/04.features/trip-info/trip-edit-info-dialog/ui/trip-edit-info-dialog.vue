@@ -504,7 +504,11 @@ async function handleGenerateWeatherInDialog() {
         :class="{ selected: editableTrip.imageUrl === image.url }"
         @click="selectCover(image.url)"
       >
-        <KitImage :src="image.variants?.small || image.url" />
+        <KitImage
+          :src="image.variants?.small || image.url"
+          :variants="image.variants"
+          :thumbhash="image.variants?.thumbhash || image.metadata?.thumbhash"
+        />
       </div>
     </div>
     <p v-else class="no-images-text">

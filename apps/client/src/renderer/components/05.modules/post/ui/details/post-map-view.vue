@@ -203,7 +203,7 @@ const mapCenter = computed((): [number, number] => {
 const viewerImages = computed<ImageViewerImage[]>(() => photos.value.map(({ photo }) => ({
   url: photo.url,
   alt: photo.originalName || 'Фото',
-  meta: photo.metadata,
+  meta: photo.metadata ?? undefined,
   variants: getPostMediaVariants(photo),
 })))
 

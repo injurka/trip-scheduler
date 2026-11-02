@@ -12,6 +12,7 @@ import { KitInput } from '~/components/01.kit/kit-input'
 import { useRequest } from '~/plugins/request'
 import { useToast } from '~/shared/composables/use-toast'
 import { createAnalysisFrame, groupTimelineMedia, prepareGroupAnalysisFrame, readStoredTimelineMedia } from '../../../lib/media-timeline'
+import { getPostMediaVariants } from '../../../lib/media-variants'
 import { usePostDraftStore } from '../../../store/post-draft.store'
 import MediaLibraryPicker from './media-library-picker.vue'
 
@@ -468,6 +469,7 @@ async function apply() {
                 <KitImage
                   v-if="getGroupThumbnail(item)"
                   :src="getGroupThumbnail(item)"
+                  :thumbhash="item.media ? getPostMediaVariants(item.media).thumbhash : undefined"
                   alt=""
                   object-fit="cover"
                 />

@@ -1,0 +1,1 @@
+ALTER TABLE "destination_reviews" ADD COLUMN "cover_variants" jsonb;

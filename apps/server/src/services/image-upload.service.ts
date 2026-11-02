@@ -146,6 +146,7 @@ export class ImageUploadService {
 
     let processedBuffer = ctx.buffer
     let variants: Record<string, Buffer> = {}
+    let thumbhash: string | null = null
     const isVideo = ctx.file.type.startsWith('video/') || /\.(?:mp4|webm|mov|mkv|avi|ogg|quicktime)$/i.test(fileName)
     const isImage = !isVideo && (ctx.file.type.startsWith('image/') || /\.(?:jpg|jpeg|png|webp|avif|gif)$/i.test(fileName))
     const mediaType: 'image' | 'video' = isVideo ? 'video' : 'image'
@@ -155,7 +156,7 @@ export class ImageUploadService {
       try {
         if (entityType === 'avatar') {
           processedBuffer = await sharp(ctx.buffer).resize({ width: 400, height: 400, fit: 'cover' }).webp({ quality: 90 }).toBuffer()
-          const thumbhash = await generateThumbHash(processedBuffer)
+          thumbhash = await generateThumbHash(processedBuffer)
           if (thumbhash) {
             metadata.thumbhash = thumbhash
             metadata.metadata = { ...(metadata.metadata || {}), thumbhash }
@@ -163,6 +164,7 @@ export class ImageUploadService {
         }
         else {
           const metaResult = await extractAndStructureMetadata(ctx.buffer)
+          thumbhash = metaResult.metadata.metadata?.thumbhash ?? null
           metadata = { ...metadata, ...metaResult.metadata }
           metadata.metadata = {
             ...(metaResult.metadata?.metadata || {}),
@@ -197,9 +199,8 @@ export class ImageUploadService {
       }),
     )
 
-    const resolvedThumbhash = metadata.metadata?.thumbhash || metadata.thumbhash
-    if (resolvedThumbhash) {
-      variantUrls.thumbhash = resolvedThumbhash
+    if (thumbhash) {
+      variantUrls.thumbhash = thumbhash
     }
 
     const originalMime = entityType === 'avatar' ? 'image/webp' : ctx.file.type
@@ -410,7 +411,7 @@ export class ImageUploadService {
         }),
       )
 
-      const resolvedThumbhash = (metaResult.metadata?.metadata as any)?.thumbhash || (metaResult.metadata as any)?.thumbhash
+      const resolvedThumbhash = metaResult.metadata.metadata?.thumbhash
       if (resolvedThumbhash) {
         variantUrls.thumbhash = resolvedThumbhash
       }

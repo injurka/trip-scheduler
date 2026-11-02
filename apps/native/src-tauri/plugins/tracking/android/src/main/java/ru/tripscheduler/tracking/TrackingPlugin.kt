@@ -477,10 +477,15 @@ class TrackingPlugin(private val activity: Activity) : Plugin(activity) {
                 insetsController.isAppearanceLightStatusBars = !isDark
                 insetsController.isAppearanceLightNavigationBars = !isDark
 
-                val parsedStatusColor = parseColorSafely(statusBarColor)
-                if (parsedStatusColor != null) {
-                    window.statusBarColor = parsedStatusColor
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    window.isStatusBarContrastEnforced = false
+                    window.isNavigationBarContrastEnforced = false
                 }
+
+                // Статус-бар всегда прозрачный: приложение работает в режиме edge-to-edge,
+                // контент должен начинаться от самого верха экрана под статус-баром,
+                // без системных наложений или принудительных контрастных скримов.
+                window.statusBarColor = Color.TRANSPARENT
 
                 val parsedNavColor = parseColorSafely(navigationBarColor)
                 if (parsedNavColor != null) {

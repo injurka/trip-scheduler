@@ -264,6 +264,10 @@ const routes: RouteRecordRaw[] = [
   },
 ]
 
+if (typeof window !== 'undefined' && 'scrollRestoration' in window.history) {
+  window.history.scrollRestoration = 'manual'
+}
+
 const scrollBehavior: RouterScrollBehavior = (to, from, savedPosition) => {
   if (to.name === AppRouteNames.Root || to.path === AppRoutePaths.Root) {
     return { top: 0, left: 0 }
@@ -340,9 +344,19 @@ router.onError((error, to) => {
     reloadRouteAfterChunkFailure(to.fullPath)
 })
 
-router.afterEach(() => {
+router.afterEach((to) => {
   if (typeof window !== 'undefined') {
     sessionStorage.removeItem('chunk_reload_count')
+
+    if (to.name === AppRouteNames.Root || to.path === AppRoutePaths.Root) {
+      window.scrollTo(0, 0)
+
+      if (document.documentElement)
+        document.documentElement.scrollTop = 0
+
+      if (document.body)
+        document.body.scrollTop = 0
+    }
   }
 })
 

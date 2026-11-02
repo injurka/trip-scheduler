@@ -155,7 +155,11 @@ const viewerImages = computed<ImageViewerImage[]>(() => {
 
   return locatedPhotos.value.map(p => ({
     url: p.imageUrl,
-    variants: { small: p.thumbnailUrl, large: p.imageUrl },
+    variants: {
+      small: p.thumbnailUrl,
+      large: p.imageUrl,
+      ...(p.thumbhash ? { thumbhash: p.thumbhash } : {}),
+    },
     alt: p.title || p.comment || 'Фото дня',
     caption: p.comment || null,
     meta: {

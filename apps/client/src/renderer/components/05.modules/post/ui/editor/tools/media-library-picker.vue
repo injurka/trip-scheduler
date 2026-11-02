@@ -11,6 +11,7 @@ import { KitImage } from '~/components/01.kit/kit-image'
 import { KitInput } from '~/components/01.kit/kit-input'
 import { resolveApiUrl } from '~/shared/lib/url'
 import { readStoredTimelineMedia } from '../../../lib/media-timeline'
+import { getPostMediaVariants } from '../../../lib/media-variants'
 import { usePostDraftStore } from '../../../store/post-draft.store'
 
 interface Props {
@@ -388,6 +389,7 @@ onChange(async (files) => {
 
             <KitImage
               :src="getMediaThumbnail(media)"
+              :thumbhash="getPostMediaVariants(media).thumbhash"
               object-fit="cover"
               class="media-img"
             />

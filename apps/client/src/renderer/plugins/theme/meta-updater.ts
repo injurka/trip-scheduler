@@ -89,7 +89,7 @@ export function setupThemeColorMetaTagUpdater() {
       invoke('set_system_bars_theme', {
         payload: {
           isDark,
-          statusBarColor: newColor,
+          statusBarColor: 'transparent',
           navigationBarColor: newColor,
         },
       }).catch((e) => {

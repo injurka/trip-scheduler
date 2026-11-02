@@ -53,7 +53,7 @@ const METRIC_DESCRIPTIONS: Record<DestinationMetricKey, string> = {
 const numericMetrics = computed(() => {
   const res: Partial<Record<DestinationMetricKey, number>> = {}
 
-  for (const [k, v] of Object.entries((props.review.metrics as Record<string, any>) || {})) {
+  for (const [k, v] of Object.entries(props.review.metrics || {})) {
     if (typeof v === 'number' && !k.endsWith('_comment')) {
       res[k as DestinationMetricKey] = v
     }
@@ -89,7 +89,7 @@ const averageRating = computed(() => {
 const metricComments = computed(() => {
   const comments: Partial<Record<DestinationMetricKey, string>> = {}
 
-  for (const [key, value] of Object.entries((props.review.metrics as Record<string, any>) || {})) {
+  for (const [key, value] of Object.entries(props.review.metrics || {})) {
     if (key.endsWith('_comment')) {
       comments[key.replace('_comment', '') as DestinationMetricKey] = String(value)
     }
@@ -117,7 +117,7 @@ const flagSrc = computed(() => props.review.country?.flagUrl || '')
 const placeName = computed(() => `${props.review.city}, ${props.review.country?.name}`)
 
 const coverMediumUrl = computed(() => {
-  const variants = (props.review as any).coverVariants as Record<string, string> | undefined
+  const variants = props.review.coverVariants
   let src = props.review.coverUrl
 
   if (variants?.medium) {
@@ -163,6 +163,7 @@ function openExpanded() {
         <KitImage
           v-if="review.coverUrl"
           :src="coverMediumUrl"
+          :variants="review.coverVariants"
           class="bg-image"
           alt="Cover"
         />
@@ -247,6 +248,7 @@ function openExpanded() {
           <KitImage
             v-if="review.coverUrl"
             :src="review.coverUrl"
+            :variants="review.coverVariants"
             class="banner-image"
             alt="Cover"
           />

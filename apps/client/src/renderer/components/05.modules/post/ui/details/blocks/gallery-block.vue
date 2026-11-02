@@ -33,20 +33,19 @@ function firstAvailableUrl(...values: Array<string | null | undefined>): string 
   return values.find(Boolean) || ''
 }
 
-function getMetaValue(value: unknown, metadata: Record<string, any> | undefined, key: string) {
-  return value ?? metadata?.[key]
-}
-
 function getViewerMeta(img: PostMedia) {
+  const metadata = img.metadata ?? {}
+  const takenAt = img.takenAt ?? metadata.takenAt
+
   return {
-    ...(img.metadata || {}),
+    ...metadata,
     imageId: img.id,
     mediaType: img.type,
-    width: getMetaValue(img.width, img.metadata, 'width'),
-    height: getMetaValue(img.height, img.metadata, 'height'),
-    takenAt: getMetaValue(img.takenAt, img.metadata, 'takenAt'),
-    latitude: getMetaValue(img.latitude, img.metadata, 'latitude'),
-    longitude: getMetaValue(img.longitude, img.metadata, 'longitude'),
+    width: img.width ?? metadata.width,
+    height: img.height ?? metadata.height,
+    takenAt: takenAt instanceof Date ? takenAt.toISOString() : takenAt,
+    latitude: img.latitude ?? metadata.latitude,
+    longitude: img.longitude ?? metadata.longitude,
   }
 }
 

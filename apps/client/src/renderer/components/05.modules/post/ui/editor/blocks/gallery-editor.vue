@@ -81,7 +81,7 @@ function getEditorThumbUrl(img: PostMedia) {
             </div>
 
             <div class="image-preview" @click="openMarkEditor(element, index)">
-              <KitImage :src="getEditorThumbUrl(element)" object-fit="cover" />
+              <KitImage :src="getEditorThumbUrl(element)" :thumbhash="getPostMediaVariants(element).thumbhash" object-fit="cover" />
 
               <div v-if="element.type === 'video'" class="video-badge">
                 <Icon icon="mdi:play-circle" />

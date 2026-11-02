@@ -9,13 +9,13 @@ export const TripMediaSchema = z.object({
   createdAt: z.date(),
   tripId: z.string().optional(),
   placement: z.enum(['route', 'memories', 'notes', 'cover', 'content', 'documents']).optional(),
-  variants: z.any().nullable().optional(),
+  variants: z.record(z.string(), z.string()).nullable().optional(),
   takenAt: z.date().nullable().optional(),
   latitude: z.number().nullable().optional(),
   longitude: z.number().nullable().optional(),
   width: z.number().nullable().optional(),
   height: z.number().nullable().optional(),
-  metadata: z.any().nullable().optional(),
+  metadata: z.unknown().nullable().optional(),
 })
 
 export const TripImageSchema = TripMediaSchema

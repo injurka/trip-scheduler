@@ -1,3 +1,5 @@
+import type { ImageMetadata } from './trip'
+
 export interface PostStatsDetail {
   coverMediaIds?: string[]
   views: number
@@ -72,6 +74,17 @@ export interface PostMark {
   label: string
 }
 
+export interface PostMediaMetadata extends ImageMetadata {
+  variants?: Record<string, string>
+  latitude?: number | null
+  longitude?: number | null
+  takenAt?: string | null
+  capturedAt?: string
+  width?: number | null
+  height?: number | null
+  metadata?: { capturedAt?: string }
+}
+
 export interface PostMedia {
   id: string
   type: 'image' | 'video'
@@ -82,7 +95,7 @@ export interface PostMedia {
   originalName?: string
   width?: number
   height?: number
-  metadata?: any
+  metadata?: PostMediaMetadata | null
   variants?: Record<string, string> | null
   takenAt?: string | Date | null
   latitude?: number | null

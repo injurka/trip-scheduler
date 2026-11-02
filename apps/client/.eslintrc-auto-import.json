@@ -94,6 +94,7 @@
     "getCustomTileUrl": true,
     "getDocumentLinkPath": true,
     "getEffectiveMapTilerKey": true,
+    "getImageThumbhash": true,
     "getImageUrl": true,
     "getLocalDate": true,
     "getMapStyle": true,

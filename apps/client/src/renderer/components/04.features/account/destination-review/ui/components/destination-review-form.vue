@@ -124,6 +124,7 @@ async function submit() {
 
   try {
     let coverUrl: string | null = null
+    let coverVariants: Record<string, string> | null = null
 
     if (form.coverFile && auth.user?.id) {
       await useRequest({
@@ -134,7 +135,10 @@ async function submit() {
           'review',
           'cover',
         ),
-        onSuccess: (uploadedImage) => { coverUrl = uploadedImage.variants?.medium || uploadedImage.url },
+        onSuccess: (uploadedImage) => {
+          coverUrl = uploadedImage.url
+          coverVariants = uploadedImage.variants ?? null
+        },
         onError: ({ error }) => {
           toast.error(error.customMessage || 'Ошибка при загрузке обложки')
           throw error
@@ -150,6 +154,7 @@ async function submit() {
         geoPlaceId: form.geoPlaceId,
         city: form.city,
         coverUrl,
+        coverVariants,
         latitude: Number(form.latitude),
         longitude: Number(form.longitude),
         content: form.content || null,

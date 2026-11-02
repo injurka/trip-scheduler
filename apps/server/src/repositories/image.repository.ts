@@ -1,6 +1,7 @@
 import type { tripImagePlacementEnum } from '../../db/schema'
 import type { DocumentMetadata, TripDocument } from '~/models/image'
 import { and, eq, inArray } from 'drizzle-orm'
+import { measureDbQuery } from '~/lib/db-monitoring'
 import { db } from '../../db'
 
 import { highlights, tripImages, trips } from '../../db/schema'
@@ -16,6 +17,7 @@ export interface ImageMetadata {
   variants: Record<string, string> | null
   metadata: {
     orientation?: number
+    thumbhash?: string
     timezoneOffset?: number
     cameraMake?: string
     cameraModel?: string
@@ -42,10 +44,13 @@ const ROUTE_COLUMNS = {
   id: true,
   url: true,
   originalName: true,
+  mediaType: true,
   createdAt: true,
   sizeBytes: true,
   width: true,
   height: true,
+  variants: true,
+  metadata: true,
 } as const
 
 const FULL_COLUMNS = {
@@ -141,7 +146,7 @@ export const imageRepository = {
         width: metadata.width,
         height: metadata.height,
         variants: metadata.variants,
-        metadata: metadata.metadata ?? (metadata as any),
+        metadata: metadata.metadata,
       })
       .returning()
 
@@ -178,11 +183,11 @@ export const imageRepository = {
 
     const columnsToSelect = placement === 'route' ? ROUTE_COLUMNS : FULL_COLUMNS
 
-    const result = await db.query.tripImages.findMany({
+    const result = await measureDbQuery('tripImages', 'select', () => db.query.tripImages.findMany({
       where: and(...conditions),
       orderBy: (images, { desc }) => [desc(images.createdAt)],
       columns: columnsToSelect,
-    })
+    }))
 
     return result
   },

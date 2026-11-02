@@ -186,7 +186,7 @@ function onClickLocation() {
         >
           <KitImage
             :src="getMainImgUrl(media)"
-            :thumbhash="media.variants?.thumbhash || (media.metadata as any)?.thumbhash"
+            :thumbhash="getPostMediaVariants(media).thumbhash"
             :alt="media.originalName || post.title"
             object-fit="cover"
           />

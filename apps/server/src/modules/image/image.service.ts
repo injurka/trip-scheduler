@@ -1,4 +1,6 @@
 import type { tripImagePlacementEnum } from 'db/schema'
+import type { z } from 'zod'
+import type { TripMediaSchema } from './image.schemas'
 import type { DocumentMetadata } from '~/models/image'
 import type { EntityType } from '~/models/image-upload'
 import type { ImageMetadata } from '~/repositories/image.repository'
@@ -12,23 +14,7 @@ import { s3Service } from '~/services/s3.service'
 
 type Placement = (typeof tripImagePlacementEnum.enumValues)[number]
 
-interface ServiceImageResult {
-  id: string
-  tripId?: string
-  url: string
-  originalName: string
-  mediaType?: 'image' | 'video'
-  placement?: 'route' | 'memories' | 'content' | 'cover' | 'notes'
-  createdAt: Date
-  sizeBytes: number
-  width?: number | null
-  height?: number | null
-  metadata?: any | null
-  variants?: any | null
-  takenAt?: Date | null
-  latitude?: number | null
-  longitude?: number | null
-}
+type ServiceImageResult = z.infer<typeof TripMediaSchema>
 
 export const imageService = {
   async create(
@@ -67,18 +53,20 @@ export const imageService = {
         tripId: '',
         url: m.url,
         originalName: m.originalName,
+        mediaType: m.type,
         placement: 'content',
         createdAt: new Date(),
         sizeBytes: 0,
         width: m.width,
         height: m.height,
+        variants: m.variants,
         metadata: m.metadata,
       }))
     }
 
     if (entityType === 'blog') {
       try {
-        const targetPlacement = placement || 'content'
+        const targetPlacement = placement === 'cover' ? 'cover' : 'content'
         const imagesMap = new Map<string, ServiceImageResult>()
 
         const prefix = `blogs/${entityId}/${targetPlacement}/`
@@ -96,7 +84,7 @@ export const imageService = {
             tripId: '',
             url: obj.Key,
             originalName: fileName,
-            placement: targetPlacement as any,
+            placement: targetPlacement,
             createdAt: obj.LastModified || new Date(),
             sizeBytes: obj.Size || 0,
           })

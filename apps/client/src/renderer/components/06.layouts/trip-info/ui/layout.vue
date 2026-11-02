@@ -321,26 +321,17 @@ onBeforeUnmount(() => {
   min-height: 100dvh;
   box-sizing: border-box;
 
-  :global(html.is-mobile-app) &,
-  :global(html.is-tauri) & {
+  @media (max-width: 768px) {
     background-color: var(--bg-primary-color);
   }
+}
 
-  // Зона system bar (safe-area-top) в APK: заливаем цветом подложки страницы,
-  // иначе там просвечивает фон body/BackgroundEffects отдельной полосой
-  :global(html.is-mobile-app) &::before,
-  :global(html.is-tauri) &::before {
-    content: '';
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: var(--safe-area-inset-top);
-    background-color: var(--bg-primary-color);
-    pointer-events: none;
-    z-index: 6;
-  }
+:global(.is-mobile-app .main),
+:global(.is-tauri .main) {
+  background-color: var(--bg-primary-color);
+}
 
+.main {
   // Заметки занимают ровно высоту вьюпорта, скролл живёт внутри секции (дерево файлов, .editor-body).
   // Без явной высоты flex-элемент растягивается по контенту, `#app` (min-height: 100dvh) растёт вместе с ним,
   // и внутренние скролл-контейнеры остаются нерабочими (колесо "съедается" overscroll-behavior: contain).

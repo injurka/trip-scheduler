@@ -26,7 +26,7 @@ export function isVideoImage(img?: ImageViewerImage | null): boolean {
 
 export function resolveThumbnailUrl(image: ImageViewerImage, resolveUrl?: (url: string) => string): string {
   const v = image.variants
-  const rawUrl = v?.small || v?.thumbnail || v?.thumb || v?.preview || v?.medium || image.url || ''
+  const rawUrl = v?.thumbnail || v?.thumb || v?.preview || v?.small || v?.medium || image.url || ''
   return resolveUrl ? resolveUrl(rawUrl) : rawUrl
 }
 

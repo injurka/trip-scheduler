@@ -58,6 +58,7 @@ export interface TrackPhoto {
   comment?: string | null
   imageUrl: string
   thumbnailUrl: string
+  thumbhash?: string | null
   lat: number
   lng: number
   source: 'gps' | 'interpolated' | 'stop'

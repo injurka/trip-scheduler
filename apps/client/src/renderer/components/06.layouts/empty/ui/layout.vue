@@ -1,17 +1,10 @@
 <script lang="ts" setup>
-import { useHead } from '@vueuse/head'
 import { useRoute } from 'vue-router'
 import { BackgroundEffects } from '~/components/02.shared/background-effects'
 import { AppRouteNames, AppRoutePaths } from '~/shared/constants/routes'
 import { isMobileApp } from '~/shared/lib/env'
 
 const route = useRoute()
-
-useHead({
-  htmlAttrs: {
-    class: 'layout-empty',
-  },
-})
 </script>
 
 <template>
@@ -19,7 +12,11 @@ useHead({
     class="main empty-layout"
     :class="{ 'main--welcome-edge-to-edge': isMobileApp && (route.name === AppRouteNames.Root || route.path === AppRoutePaths.Root) }"
   >
-    <div v-if="isMobileApp" class="system-bar-top-scrim" aria-hidden="true" />
+    <div
+      v-if="isMobileApp && !(route.name === AppRouteNames.Root || route.path === AppRoutePaths.Root)"
+      class="system-bar-top-scrim"
+      aria-hidden="true"
+    />
     <div class="main-content">
       <slot />
     </div>
@@ -29,27 +26,25 @@ useHead({
 </template>
 
 <style scoped lang="scss">
-:global(html.layout-empty),
-:global(html:has(.empty-layout)),
-:global(body:has(.empty-layout)) {
-  scrollbar-gutter: auto !important;
-  overflow: hidden !important;
-}
-
-// Лейаут закреплён на весь вьюпорт (position: fixed; inset: 0), а не лежит в потоке документа:
-// после навигации со скроллируемой страницы WebView мог оставлять смещение потока,
-// и экран «съезжал» вниз с полосой фона сверху.
 .main {
   display: flex;
   flex-direction: column;
-  position: fixed;
-  inset: 0;
-  overflow-x: hidden;
-  overflow-y: auto;
-  overscroll-behavior: contain;
+  flex: 1;
+  position: relative;
+  overflow-x: clip;
+  min-height: 100dvh;
+  box-sizing: border-box;
   padding-top: 0;
   padding-bottom: var(--safe-area-inset-bottom);
-  box-sizing: border-box;
+
+  @media (max-width: 768px) {
+    background-color: var(--bg-primary-color);
+  }
+}
+
+:global(.is-mobile-app .empty-layout),
+:global(.is-tauri .empty-layout) {
+  background-color: var(--bg-primary-color);
 }
 
 .main--welcome-edge-to-edge {

@@ -31,7 +31,7 @@ const dynamicAspectRatio = computed(() => {
   return 4 / 5
 })
 const photoUrl = computed(() => {
-  const variants = props.photo.variants as Record<string, string> | undefined
+  const variants = props.photo.variants
   let src = props.photo.imageUrl
   const options: { q?: number } = {}
 
@@ -86,7 +86,7 @@ function toggleTooltip(e: Event) {
     <div class="media-wrap">
       <KitImage
         :src="photoUrl"
-        :variants="(photo.variants as Record<string, string> | undefined)"
+        :thumbhash="photo.variants?.thumbhash"
         :alt="locationName"
         :aspect-ratio="dynamicAspectRatio"
         class="highlight-image"

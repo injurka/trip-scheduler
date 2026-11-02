@@ -3,6 +3,7 @@ import type { DayData, DayPoint, TrackPhoto } from '../models/types'
 import type { ImageViewerImage } from '~/components/01.kit/kit-image-viewer'
 import type { Memory } from '~/shared/types/models/memory'
 import { computed, ref } from 'vue'
+import { getImageThumbhash } from '~/shared/lib/thumbhash'
 
 export interface UseDayTrackPhotosOptions {
   memories?: Ref<Memory[] | undefined>
@@ -178,8 +179,8 @@ function collectPhotos(
 }
 
 function createGalleryCandidate(image: ImageViewerImage, memoryMap: Map<string, Memory>): PhotoCandidate {
-  const meta = image.meta as Record<string, any> | undefined
-  const memoryId = meta?.memoryId || image.url
+  const meta = image.meta
+  const memoryId = typeof meta?.memoryId === 'string' ? meta.memoryId : image.url
   const memory = memoryMap.get(memoryId)
 
   return {
@@ -203,7 +204,7 @@ function createGalleryPhotoBase(
   image: ImageViewerImage,
   memory: Memory | undefined,
   memoryId: string,
-  meta: Record<string, any> | undefined,
+  meta: ImageViewerImage['meta'],
 ): TrackPhotoBase {
   return {
     id: memoryId,
@@ -212,10 +213,15 @@ function createGalleryPhotoBase(
     comment: getGalleryComment(memory, image),
     imageUrl: getGalleryImageUrl(image),
     thumbnailUrl: getGalleryThumbnailUrl(image),
+    thumbhash: getGalleryThumbhash(image, memory),
     tsUtc: getGalleryTimestamp(meta, memory),
     mediaType: image.mediaType === 'video' ? 'video' : 'image',
     originalMemory: memory,
   }
+}
+
+function getGalleryThumbhash(image: ImageViewerImage, memory?: Memory): string | null {
+  return getImageThumbhash({ variants: image.variants, metadata: image.meta }) || getImageThumbhash(memory?.image)
 }
 
 function getMemoryTitle(memory?: Memory): string {
@@ -234,7 +240,7 @@ function getGalleryThumbnailUrl(image: ImageViewerImage): string {
   return image.variants?.small || image.variants?.medium || image.url
 }
 
-function getGalleryTimestamp(meta: Record<string, any> | undefined, memory?: Memory): number {
+function getGalleryTimestamp(meta: ImageViewerImage['meta'], memory?: Memory): number {
   const timeValue = meta?.takenAt || memory?.timestamp || memory?.image?.takenAt
 
   return timeValue ? new Date(timeValue).getTime() : (memory ? new Date(memory.createdAt).getTime() : 0)
@@ -251,6 +257,7 @@ function createMemoryCandidate(memory: Memory): PhotoCandidate {
       comment: memory.comment || '',
       imageUrl: getMemoryImageUrl(image),
       thumbnailUrl: getMemoryThumbnailUrl(image),
+      thumbhash: getImageThumbhash(image),
       tsUtc: getMemoryTimestamp(memory),
       mediaType: getMemoryMediaType(image),
       originalMemory: memory,
