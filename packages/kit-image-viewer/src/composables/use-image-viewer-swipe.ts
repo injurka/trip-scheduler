@@ -73,14 +73,33 @@ export function useImageViewerSwipe(options: UseSwipeNavigationOptions) {
     }
   }
 
-  function handleTouchStart(event: TouchEvent) {
-    if (toValue(isZoomed) || images.value.length <= 1)
-      return
+  function cancelSwipe(withAnimation = translateX.value !== 0) {
+    if (moveRaf !== null) {
+      if (typeof window !== 'undefined' && window.cancelAnimationFrame)
+        window.cancelAnimationFrame(moveRaf)
+      else
+        clearTimeout(moveRaf)
+      moveRaf = null
+    }
+    pendingTranslateX = null
+    resetSwipe(withAnimation)
+    swipeState.value.isSwipe = false
+  }
 
+  function handleTouchStart(event: TouchEvent) {
     if (pendingSwipeAction) {
       flushPendingSwipe()
       resetSwipe() // мгновенно обнуляем translateX для начала нового свайпа
     }
+
+    if (event.touches.length !== 1) {
+      if (swipeState.value.isSwipe)
+        cancelSwipe()
+      return
+    }
+
+    if (toValue(isZoomed) || images.value.length <= 1)
+      return
 
     const touch = event.touches[0]
     swipeState.value = {
@@ -96,6 +115,11 @@ export function useImageViewerSwipe(options: UseSwipeNavigationOptions) {
   function handleTouchMove(event: TouchEvent) {
     if (!swipeState.value.isSwipe || toValue(isZoomed))
       return
+
+    if (event.touches.length !== 1) {
+      cancelSwipe()
+      return
+    }
 
     event.preventDefault()
     const touch = event.touches[0]
@@ -121,9 +145,14 @@ export function useImageViewerSwipe(options: UseSwipeNavigationOptions) {
       : setTimeout(update, 0) as unknown as number
   }
 
-  function handleTouchEnd() {
+  function handleTouchEnd(event?: TouchEvent) {
     if (!swipeState.value.isSwipe || toValue(isZoomed))
       return
+
+    if (event?.type === 'touchcancel' || (event && event.touches.length > 0)) {
+      cancelSwipe()
+      return
+    }
 
     if (moveRaf !== null) {
       if (typeof window !== 'undefined' && window.cancelAnimationFrame)
@@ -268,5 +297,6 @@ export function useImageViewerSwipe(options: UseSwipeNavigationOptions) {
     handleTouchStart,
     handleTouchMove,
     handleTouchEnd,
+    cancelSwipe,
   }
 }

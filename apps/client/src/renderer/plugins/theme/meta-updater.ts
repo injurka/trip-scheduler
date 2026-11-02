@@ -55,7 +55,7 @@ export function setupThemeColorMetaTagUpdater() {
       case 'light':
         return '#faf4f2'
       case 'dark':
-        return '#121314'
+        return '#1e1f20'
       case 'custom':
         return normalizeHexColor(themeStore.customThemePalette['bg-primary-color']) || '#faf4f2'
       default:

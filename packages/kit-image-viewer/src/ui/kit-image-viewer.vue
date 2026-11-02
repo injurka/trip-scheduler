@@ -209,7 +209,7 @@ function handleTouchMoveCombined(event: TouchEvent) {
 function handleTouchEndCombined(event: TouchEvent) {
   if (!props.enableTouch || isCurrentVideo.value)
     return
-  handleSwipeTouchEnd()
+  handleSwipeTouchEnd(event)
   handleTouchEnd(event)
 }
 
