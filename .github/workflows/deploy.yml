@@ -201,6 +201,8 @@ jobs:
     permissions:
       contents: write
     runs-on: ubuntu-latest
+    env:
+      ANDROID_NDK_VERSION: '26.3.11579264'
 
     steps:
       - name: Checkout
@@ -235,7 +237,26 @@ jobs:
           packages: 'platform-tools'
 
       - name: Install Android NDK r26d
-        run: sdkmanager "ndk;26.3.11579264"
+        shell: bash
+        run: |
+          ndk_path="${ANDROID_HOME:?}/ndk/${ANDROID_NDK_VERSION:?}"
+          for attempt in 1 2 3; do
+            if sdkmanager "ndk;$ANDROID_NDK_VERSION" \
+              && [ -f "$ndk_path/source.properties" ] \
+              && [ -x "$ndk_path/toolchains/llvm/prebuilt/linux-x86_64/bin/clang" ]; then
+              exit 0
+            fi
+
+            echo "::warning::NDK installation failed or is incomplete (attempt $attempt/3)"
+            # Discard the partial installation and staged download before retrying.
+            rm -rf -- "$ndk_path" "${ANDROID_HOME:?}/.temp"
+            if [ "$attempt" -lt 3 ]; then
+              sleep 10
+            fi
+          done
+
+          echo "::error::Failed to install Android NDK $ANDROID_NDK_VERSION after 3 attempts"
+          exit 1
 
       - name: Install Rust targets
         uses: dtolnay/rust-toolchain@stable
@@ -254,7 +275,7 @@ jobs:
       - name: Initialize Android project
         run: bun run --cwd apps/native tauri:android:init
         env:
-          NDK_HOME: ${{ env.ANDROID_HOME }}/ndk/26.3.11579264
+          NDK_HOME: ${{ env.ANDROID_HOME }}/ndk/${{ env.ANDROID_NDK_VERSION }}
 
       - name: Configure Android Permissions
         run: bun run --cwd apps/native configure:android
@@ -267,7 +288,7 @@ jobs:
       - name: Build Android APK (arm64-v8a)
         run: bun run --cwd apps/native tauri:android:build
         env:
-          NDK_HOME: ${{ env.ANDROID_HOME }}/ndk/26.3.11579264
+          NDK_HOME: ${{ env.ANDROID_HOME }}/ndk/${{ env.ANDROID_NDK_VERSION }}
           VITE_APP_VERSION: ${{ github.ref_name }}
           VITE_APP_SERVER_URL: ${{ secrets.VITE_APP_SERVER_URL || 'https://trip-scheduler-api.limited-dissolve.ru' }}
           VITE_APP_CLIENT_URL: https://trip-scheduler.limited-dissolve.ru
