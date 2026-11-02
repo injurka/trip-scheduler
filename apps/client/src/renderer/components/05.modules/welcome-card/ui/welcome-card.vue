@@ -153,7 +153,9 @@ onMounted(() => {
   height: 100%;
   min-height: 100%;
   padding: 16px;
-  animation: fadeIn 0.8s ease-out forwards;
+  // Только opacity: transform на предке делает его containing block для position: fixed
+  // (.corner-actions), и кнопки уезжали вместе с контентом за нижний край экрана
+  animation: fadeInOpacity 0.8s ease-out forwards;
   overflow: hidden;
   background: linear-gradient(160deg, var(--bg-primary-color) 0%, var(--bg-tertiary-color) 50%);
 
@@ -341,6 +343,15 @@ onMounted(() => {
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@keyframes fadeInOpacity {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
   }
 }
 

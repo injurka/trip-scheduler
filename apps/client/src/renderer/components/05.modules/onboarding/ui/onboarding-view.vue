@@ -1394,6 +1394,11 @@ function handleClose() {
   flex-direction: column;
   gap: 64px;
   margin-top: 20px;
+
+  @media (max-width: 768px) {
+    gap: 48px;
+    margin-top: 16px;
+  }
 }
 
 .step-card {
@@ -1405,6 +1410,17 @@ function handleClose() {
   @media (max-width: 900px) {
     flex-direction: column;
     gap: 16px;
+  }
+
+  @media (max-width: 768px) {
+    gap: 20px;
+    padding-bottom: 48px;
+    border-bottom: 1px solid var(--border-secondary-color);
+
+    &:last-child {
+      padding-bottom: 0;
+      border-bottom: none;
+    }
   }
 }
 
@@ -1517,10 +1533,19 @@ function handleClose() {
     padding: 24px;
   }
 
-  @media (max-width: 600px) {
-    padding: 16px 12px;
-    gap: 20px;
-    border-radius: 16px;
+  @media (max-width: 768px) {
+    padding: 0;
+    gap: 24px;
+    background: none;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+
+    &:hover {
+      border-color: transparent;
+    }
   }
 }
 
@@ -1697,7 +1722,7 @@ function handleClose() {
     height: 8px;
     border-radius: 50%;
     background-color: var(--border-primary-color);
-    margin-top: 9px;
+    margin-top: 12px;
     flex-shrink: 0;
 
     &.is-hiking-dot {

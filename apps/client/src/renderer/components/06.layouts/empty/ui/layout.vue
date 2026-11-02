@@ -36,15 +36,19 @@ useHead({
   overflow: hidden !important;
 }
 
+// Лейаут закреплён на весь вьюпорт (position: fixed; inset: 0), а не лежит в потоке документа:
+// после навигации со скроллируемой страницы WebView мог оставлять смещение потока,
+// и экран «съезжал» вниз с полосой фона сверху.
 .main {
   display: flex;
   flex-direction: column;
-  flex: 1;
-  position: relative;
-  overflow: clip;
+  position: fixed;
+  inset: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   padding-top: 0;
   padding-bottom: var(--safe-area-inset-bottom);
-  min-height: 100dvh;
   box-sizing: border-box;
 }
 
