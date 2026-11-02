@@ -47,7 +47,7 @@ async function handleAuthCallback(
   if (!token)
     return
 
-  const refreshToken = searchParams.get('refreshToken') || undefined
+  const refreshToken = searchParams.get('refreshToken') || ''
   authStore.saveTokens({ accessToken: token, refreshToken })
 
   try {

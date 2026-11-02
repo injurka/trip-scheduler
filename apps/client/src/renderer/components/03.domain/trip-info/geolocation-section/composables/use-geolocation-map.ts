@@ -1,4 +1,4 @@
-import type { Map as MapLibreMap } from 'maplibre-gl'
+import type { ExpressionSpecification, Map as MapLibreMap } from 'maplibre-gl'
 import type { Coordinate, GeolocationMapOptions, MapPoint, MapRoute, TransportMode } from '../models/types'
 import type { TileSourceId } from '~/shared/lib/map-styles-sources'
 import * as maplibregl from 'maplibre-gl'
@@ -508,7 +508,7 @@ export function useGeolocationMap() {
       },
     })
 
-    const normalLineWidth: any = [
+    const normalLineWidth: ExpressionSpecification = [
       'interpolate',
       ['linear'],
       ['zoom'],
@@ -519,7 +519,7 @@ export function useGeolocationMap() {
       16,
       5.5,
     ]
-    const hoverLineWidth: any = [
+    const hoverLineWidth: ExpressionSpecification = [
       'interpolate',
       ['linear'],
       ['zoom'],
@@ -997,7 +997,7 @@ export function useGeolocationMap() {
         marker.setDraggable(active)
       })
     },
-    on: (eventName: string, cb: any) => {
+    on: (eventName: string, cb: (event: { features: { getArray: () => Array<{ getId: () => string, getGeometry: () => { getCoordinates: () => Coordinate } }> } }) => void) => {
       if (eventName === 'modifyend') {
         return onPointDragEnd((pointId, coords) => {
           // Вызываем коллбэк в формате события

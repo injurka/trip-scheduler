@@ -1,3 +1,4 @@
+import type { KitDropdownItem } from '~/components/01.kit/kit-dropdown'
 import type { TripMedia } from '~/shared/types/models/trip'
 import { computed, reactive, ref, watch } from 'vue'
 import { useRequest, useRequestError, useRequestStatus } from '~/plugins/request'
@@ -254,7 +255,7 @@ export function useStorageModule() {
     return [{ value: '', label: 'Все расширения' }, ...extOptions]
   })
 
-  const placementsForFilter = [
+  const placementsForFilter: KitDropdownItem<'' | TripMediaPlacement>[] = [
     { value: '', label: 'Все секции' },
     { value: TripMediaPlacement.MEMORIES, label: 'Воспоминания' },
     { value: TripMediaPlacement.ROUTE, label: 'Маршрут' },

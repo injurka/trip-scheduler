@@ -1,4 +1,5 @@
 import type { Ref } from 'vue'
+import type { TimelineGroup } from '../../types'
 import type { ImageViewerImage } from '~/components/01.kit/kit-image-viewer'
 import type { CustomImageViewerImageMeta } from '~/components/05.modules/trip-info/lib/helpers'
 import type { IMemory } from '~/components/05.modules/trip-info/models/types'
@@ -9,7 +10,7 @@ import { useModuleStore } from '~/components/05.modules/trip-info/composables/us
 interface UseMemoryImageViewerProps {
   memory: IMemory
   galleryImages: ImageViewerImage[]
-  timelineGroups: any[]
+  timelineGroups: TimelineGroup[]
   isTimeEditing: Ref<boolean>
   isMorphed: Ref<boolean>
 }
@@ -29,7 +30,7 @@ function getMemoryImageDate(meta: CustomImageViewerImageMeta, memory?: IMemory):
   return new Date(baseDate.getTime() + meta.timezoneOffset * 60 * 1000)
 }
 
-function getMemoryActivityTitle(memoryId: string | undefined, groups?: any[]): string {
+function getMemoryActivityTitle(memoryId: string | undefined, groups?: TimelineGroup[]): string {
   if (!memoryId)
     return ''
 

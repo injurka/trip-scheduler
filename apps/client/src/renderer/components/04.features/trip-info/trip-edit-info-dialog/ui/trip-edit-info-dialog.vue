@@ -231,7 +231,7 @@ function handleSave() {
     const updatedValue = editableTrip.value[fieldKey]
 
     if (JSON.stringify(originalValue) !== JSON.stringify(updatedValue))
-      (updatedFields as any)[fieldKey] = updatedValue
+      Object.assign(updatedFields, { [fieldKey]: updatedValue })
   }
 
   if (hasCitiesChanged.value)
@@ -261,7 +261,7 @@ async function handleGenerateWeatherInDialog() {
       useToast().success('Климатический контекст подготовлен!')
     }
   }
-  catch (e: any) {
+  catch (e) {
     console.error('Failed to generate weather in dialog:', e)
     useToast().error('Не удалось получить данные о погоде.')
   }
@@ -431,6 +431,7 @@ async function handleGenerateWeatherInDialog() {
         placeholder="Добавьте тег"
         multiple
         creatable
+        :create-value="value => value"
       />
 
       <div class="field-group">

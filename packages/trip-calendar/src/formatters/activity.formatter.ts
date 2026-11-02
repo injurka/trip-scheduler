@@ -72,17 +72,16 @@ export function addActivityEvent(
           if (firstPoint.address && !locationTitle) {
             locationTitle = firstPoint.address
           }
-          if (firstPoint.lat && (firstPoint.lon || firstPoint.lng)) {
-            geo = {
-              lat: firstPoint.lat,
-              lon: (firstPoint.lon ?? firstPoint.lng) as number,
-            }
+          const lat = firstPoint.lat ?? firstPoint.coordinates?.[1]
+          const lon = firstPoint.lon ?? firstPoint.lng ?? firstPoint.coordinates?.[0]
+          if (typeof lat === 'number' && typeof lon === 'number') {
+            geo = { lat, lon }
           }
         }
       }
       else if (section.type === 'metro' && Array.isArray(section.rides)) {
         const rideDetails = section.rides
-          .map((r: any) => `${r.startStation} ➔ ${r.endStation} (${r.lineName || ''})`)
+          .map(r => `${r.startStation} ➔ ${r.endStation} (${r.lineName || ''})`)
           .join('\n  ')
         if (rideDetails) {
           descLines.push(`\nМетро:\n  ${rideDetails}`)
@@ -90,7 +89,7 @@ export function addActivityEvent(
       }
       else if (section.type === 'bus' && Array.isArray(section.rides)) {
         const busDetails = section.rides
-          .map((r: any) => `${r.from} ➔ ${r.to} (${r.route || ''})`)
+          .map(r => `${r.from} ➔ ${r.to} (${r.route || ''})`)
           .join('\n  ')
         if (busDetails) {
           descLines.push(`\nАвтобус:\n  ${busDetails}`)

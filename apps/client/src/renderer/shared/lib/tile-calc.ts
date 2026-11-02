@@ -1,3 +1,4 @@
+import { isRecord } from '@injurka/type-utils'
 /**
  * Утилиты для расчета координат и тайлов Slippy Map (X, Y, Z)
  */
@@ -27,7 +28,7 @@ export function lngLatToTile(lng: number, lat: number, zoom: number): { x: numbe
 /**
  * Расчет BoundingBox по точкам гео-секций, активностей и треков
  */
-export function calculateTripBoundingBox(trip: any): BoundingBox | null {
+export function calculateTripBoundingBox(trip: unknown): BoundingBox | null {
   let minLng = Infinity
   let minLat = Infinity
   let maxLng = -Infinity
@@ -49,54 +50,54 @@ export function calculateTripBoundingBox(trip: any): BoundingBox | null {
     pointsCount++
   }
 
-  const checkSection = (sec: any) => {
-    if (!sec)
+  const addCoordinate = (value: unknown) => {
+    if (Array.isArray(value) && typeof value[0] === 'number' && typeof value[1] === 'number')
+      addPoint(value[0], value[1])
+  }
+
+  const checkSection = (section: unknown) => {
+    if (!isRecord(section))
       return
 
-    const target = sec.content || sec
+    const target = isRecord(section.content) ? section.content : section
 
     if (Array.isArray(target.points)) {
-      target.points.forEach((p: any) => {
-        if (Array.isArray(p.coordinates) && p.coordinates.length >= 2) {
-          addPoint(p.coordinates[0], p.coordinates[1])
-        }
-      })
+      for (const point of target.points.filter(isRecord))
+        addCoordinate(point.coordinates)
     }
 
     if (Array.isArray(target.routes)) {
-      target.routes.forEach((r: any) => {
-        if (Array.isArray(r.points)) {
-          r.points.forEach((p: any) => {
-            if (Array.isArray(p.coordinates) && p.coordinates.length >= 2) {
-              addPoint(p.coordinates[0], p.coordinates[1])
-            }
-          })
+      for (const route of target.routes.filter(isRecord)) {
+        if (Array.isArray(route.points)) {
+          for (const point of route.points.filter(isRecord))
+            addCoordinate(point.coordinates)
         }
 
-        if (Array.isArray(r.geometry)) {
-          r.geometry.forEach((coord: any) => {
-            if (Array.isArray(coord) && coord.length >= 2) {
-              addPoint(coord[0], coord[1])
-            }
-          })
-        }
-      })
+        if (Array.isArray(route.geometry))
+          route.geometry.forEach(addCoordinate)
+      }
     }
 
-    if (Array.isArray(target.center) && target.center.length >= 2) {
-      addPoint(target.center[0], target.center[1])
-    }
+    addCoordinate(target.center)
   }
 
-  // Обход секций путешествия
-  trip.sections?.forEach(checkSection)
+  if (!isRecord(trip))
+    return null
 
-  // Обход дней и активностей
-  trip.days?.forEach((day: any) => {
-    day.activities?.forEach((act: any) => {
-      act.sections?.forEach(checkSection)
-    })
-  })
+  if (Array.isArray(trip.sections))
+    trip.sections.forEach(checkSection)
+
+  if (Array.isArray(trip.days)) {
+    for (const day of trip.days.filter(isRecord)) {
+      if (!Array.isArray(day.activities))
+        continue
+
+      for (const activity of day.activities.filter(isRecord)) {
+        if (Array.isArray(activity.sections))
+          activity.sections.forEach(checkSection)
+      }
+    }
+  }
 
   if (pointsCount === 0)
     return null

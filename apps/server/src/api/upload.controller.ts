@@ -1,5 +1,6 @@
 import type { Context } from 'hono'
 import type { EntityType } from '~/models/image-upload'
+import { getErrorMessage } from '@injurka/type-utils'
 import { HTTPException } from 'hono/http-exception'
 import { authUtils } from '~/lib/auth.utils'
 import { imageUploadService } from '~/services/image-upload.service'
@@ -31,7 +32,7 @@ export async function uploadFileController(c: Context) {
   const placement = formData.get('placement') as string | null
 
   const customMetadataStr = formData.get('metadata') as string | null
-  let customMetadata: Record<string, any> | undefined
+  let customMetadata: Record<string, unknown> | undefined
   if (customMetadataStr) {
     try {
       customMetadata = JSON.parse(customMetadataStr)
@@ -66,13 +67,13 @@ export async function uploadFileController(c: Context) {
 
     return c.json(result.dbRecord || { url: result.url, variants: result.variants })
   }
-  catch (error: any) {
+  catch (error) {
     console.error(`Upload error (${entityType}):`, error)
 
     if (error instanceof HTTPException)
       throw error
 
-    throw new HTTPException(500, { message: error.message || 'Внутренняя ошибка сервера.' })
+    throw new HTTPException(500, { message: getErrorMessage(error) || 'Внутренняя ошибка сервера.' })
   }
 }
 
@@ -109,11 +110,11 @@ export async function initiateMultipartUploadController(c: Context) {
 
     return c.json(result)
   }
-  catch (error: any) {
+  catch (error) {
     console.error(`Initiate multipart error (${entityType}):`, error)
     if (error instanceof HTTPException)
       throw error
-    throw new HTTPException(500, { message: error.message || 'Внутренняя ошибка сервера.' })
+    throw new HTTPException(500, { message: getErrorMessage(error) || 'Внутренняя ошибка сервера.' })
   }
 }
 
@@ -139,11 +140,11 @@ export async function uploadChunkController(c: Context) {
     const part = await imageUploadService.uploadChunk(key, uploadId, partNumber, chunkBuffer, user.id, user.role)
     return c.json(part)
   }
-  catch (error: any) {
+  catch (error) {
     console.error(`Upload chunk error (part ${partNumber}):`, error)
     if (error instanceof HTTPException)
       throw error
-    throw new HTTPException(500, { message: error.message || 'Ошибка загрузки чанка.' })
+    throw new HTTPException(500, { message: getErrorMessage(error) || 'Ошибка загрузки чанка.' })
   }
 }
 
@@ -183,11 +184,11 @@ export async function completeMultipartUploadController(c: Context) {
 
     return c.json(result.dbRecord || { url: result.url, variants: result.variants })
   }
-  catch (error: any) {
+  catch (error) {
     console.error(`Complete multipart error (${entityType}):`, error)
     if (error instanceof HTTPException)
       throw error
-    throw new HTTPException(500, { message: error.message || 'Ошибка завершения загрузки.' })
+    throw new HTTPException(500, { message: getErrorMessage(error) || 'Ошибка завершения загрузки.' })
   }
 }
 
@@ -210,7 +211,7 @@ export async function abortMultipartUploadController(c: Context) {
     await imageUploadService.abortMultipart(key, uploadId, user.id, user.role)
     return c.json({ success: true })
   }
-  catch (error: any) {
+  catch (error) {
     console.error(`Abort multipart error:`, error)
     return c.json({ success: false })
   }

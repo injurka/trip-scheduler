@@ -33,7 +33,7 @@ export const GetImagesByTripIdInputSchema = z.object({
 
 export const GetImagesByEntityInputSchema = z.object({
   entityId: z.string(),
-  entityType: z.enum(['trip', 'post', 'blog', 'avatar']),
+  entityType: z.enum(['trip', 'post', 'blog', 'avatar', 'review', 'highlight', 'user-cover']),
   placement: z.string().optional(),
 })
 

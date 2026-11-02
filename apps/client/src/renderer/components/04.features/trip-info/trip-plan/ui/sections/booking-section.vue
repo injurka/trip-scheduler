@@ -53,7 +53,7 @@ const currentBooking = computed<Booking | null>(() => {
   return content.bookings.find(b => b.id === props.section.bookingId) || null
 })
 
-function handleUpdateBooking(updatedBooking: any) {
+function handleUpdateBooking(updatedBooking: Booking) {
   if (!bookingSection.value)
     return
 
@@ -122,7 +122,7 @@ function goToBookingsSection() {
 
       <Component
         :is="cardComponents[currentBooking.type]"
-        :booking="currentBooking as any"
+        :booking="currentBooking"
         :readonly="readonly"
         :show-drag-handle="false"
         @update:booking="handleUpdateBooking"

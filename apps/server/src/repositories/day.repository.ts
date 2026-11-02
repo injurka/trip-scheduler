@@ -67,7 +67,7 @@ export const dayRepository = {
    */
   async update(id: string, details: DayUpdateInput) {
     const { date, ...rest } = details
-    const updatePayload: Record<string, any> = {
+    const updatePayload: Record<string, unknown> = {
       ...rest,
       updatedAt: new Date(),
     }

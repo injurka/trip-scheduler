@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { SignUpPayload } from '~/shared/types/models/auth'
 import { Icon } from '@iconify/vue'
+import { getErrorMessage } from '@injurka/type-utils'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitCheckbox } from '~/components/01.kit/kit-checkbox'
 import { KitInput } from '~/components/01.kit/kit-input'
@@ -107,8 +108,8 @@ async function submitSignUp() {
     step.value = 'verify'
     toast.success('Код подтверждения отправлен на вашу почту.')
   }
-  catch (error: any) {
-    toast.error(error.message || 'Произошла ошибка при отправке кода.')
+  catch (error) {
+    toast.error(getErrorMessage(error) || 'Произошла ошибка при отправке кода.')
   }
 }
 async function submitVerification() {
@@ -123,8 +124,8 @@ async function submitVerification() {
     })
     await router.push(AppRoutePaths.Trip.List)
   }
-  catch (error: any) {
-    toast.error(error.message || 'Произошла ошибка при подтверждении почты.')
+  catch (error) {
+    toast.error(getErrorMessage(error) || 'Произошла ошибка при подтверждении почты.')
   }
 }
 </script>

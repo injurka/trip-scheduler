@@ -115,7 +115,7 @@ function cancelRename(): void {
     :delay-on-touch-only="true"
     :touch-start-threshold="5"
     :class="{ 'is-empty': nodes.length === 0 && parentId }"
-    :style="nodes.length === 0 && parentId ? { '--empty-depth': `${depth * 16 + 8}px` } as any : {}"
+    :style="nodes.length === 0 && parentId ? { '--empty-depth': `${depth * 16 + 8}px` } : {}"
   >
     <template #item="{ element: node }">
       <div class="tree-node">

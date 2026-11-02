@@ -1,22 +1,24 @@
 import type { ActivitySectionGeolocation } from '~/components/03.domain/trip-info/geolocation-section/models/types'
 
-export enum EActivityTag {
-  TRANSPORT = 'transport',
-  WALK = 'walk',
-  FOOD = 'food',
-  ATTRACTION = 'attraction',
-  RELAX = 'relax',
-  ACTIVITY = 'activity',
-}
+export const EActivityTag = {
+  TRANSPORT: 'transport',
+  WALK: 'walk',
+  FOOD: 'food',
+  ATTRACTION: 'attraction',
+  RELAX: 'relax',
+  ACTIVITY: 'activity',
+} as const
+export type EActivityTag = typeof EActivityTag[keyof typeof EActivityTag]
 
-export enum EActivitySectionType {
-  DESCRIPTION = 'description',
-  GALLERY = 'gallery',
-  GEOLOCATION = 'geolocation',
-  METRO = 'metro',
-  BUS = 'bus',
-  BOOKING = 'booking',
-}
+export const EActivitySectionType = {
+  DESCRIPTION: 'description',
+  GALLERY: 'gallery',
+  GEOLOCATION: 'geolocation',
+  METRO: 'metro',
+  BUS: 'bus',
+  BOOKING: 'booking',
+} as const
+export type EActivitySectionType = typeof EActivitySectionType[keyof typeof EActivitySectionType]
 
 export interface ActivitySection {
   id: string
@@ -27,12 +29,12 @@ export interface ActivitySection {
 }
 
 export interface ActivitySectionText extends ActivitySection {
-  type: EActivitySectionType.DESCRIPTION
+  type: typeof EActivitySectionType.DESCRIPTION
   text: string
 }
 
 export interface ActivitySectionGallery extends ActivitySection {
-  type: EActivitySectionType.GALLERY
+  type: typeof EActivitySectionType.GALLERY
   imageUrls: string[]
 }
 
@@ -51,7 +53,7 @@ export interface MetroRide {
 }
 
 export interface ActivitySectionMetro extends ActivitySection {
-  type: EActivitySectionType.METRO
+  type: typeof EActivitySectionType.METRO
   mode: 'free' | 'city'
   systemId: string | null
   rides: MetroRide[]
@@ -72,12 +74,12 @@ export interface BusRide {
 }
 
 export interface ActivitySectionBus extends ActivitySection {
-  type: EActivitySectionType.BUS
+  type: typeof EActivitySectionType.BUS
   rides: BusRide[]
 }
 
 export interface ActivitySectionBooking extends ActivitySection {
-  type: EActivitySectionType.BOOKING
+  type: typeof EActivitySectionType.BOOKING
   bookingId: string
 }
 
@@ -96,11 +98,12 @@ export interface Activity {
   explanation?: string
 }
 
-export enum EActivityStatus {
-  NONE = 'none',
-  COMPLETED = 'completed',
-  SKIPPED = 'skipped',
-}
+export const EActivityStatus = {
+  NONE: 'none',
+  COMPLETED: 'completed',
+  SKIPPED: 'skipped',
+} as const
+export type EActivityStatus = typeof EActivityStatus[keyof typeof EActivityStatus]
 
 export interface DayMetaInfo {
   id: string

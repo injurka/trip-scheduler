@@ -1,5 +1,6 @@
 import type { z } from 'zod'
 import type { CreatePostInputSchema, ListPostsInputSchema, UpdatePostInputSchema } from './post.schemas'
+import type { UploadMetadata } from '~/models/image-upload'
 import { createTRPCError } from '~/lib/trpc'
 import { postRepository } from '~/repositories/post.repository'
 import { processStorageCleanup } from '~/services/storage-cleanup.service'
@@ -33,7 +34,7 @@ export const postService = {
     url: string,
     originalName: string,
     sizeBytes: number,
-    metadata: any,
+    metadata: UploadMetadata,
   ) {
     return await postRepository.createMedia({
       postId,

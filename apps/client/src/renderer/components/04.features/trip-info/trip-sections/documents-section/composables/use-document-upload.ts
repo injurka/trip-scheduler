@@ -29,7 +29,7 @@ export function useDocumentUpload(
       category: (metadata.category as DocumentCategory) ?? null,
       isFavorite: Boolean(metadata.isFavorite),
       note: metadata.note ?? null,
-      variants: res.variants || (metadata as any)?.variants || null,
+      variants: res.variants || (metadata)?.variants || null,
     }
   }
 

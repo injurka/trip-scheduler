@@ -80,8 +80,13 @@ const currentSort = computed({
   get: () => `${sortBy.key}-${sortBy.order}`,
   set: (val: string) => {
     const [k, o] = val.split('-')
-    sortBy.key = k as any
-    sortBy.order = o as any
+    const keys: Array<typeof sortBy.key> = ['originalName', 'trip.title', 'placement', 'createdAt', 'sizeBytes']
+    const key = keys.find(value => value === k)
+
+    if (key && (o === 'asc' || o === 'desc')) {
+      sortBy.key = key
+      sortBy.order = o
+    }
   },
 })
 // Квота хранилища
@@ -106,10 +111,10 @@ const activeFiltersCount = computed(() => {
   if (filters.placement)
     count++
 
-  if (filters.sizeMin !== null && filters.sizeMin !== undefined && filters.sizeMin !== ('' as any))
+  if (filters.sizeMin !== null && filters.sizeMin !== undefined)
     count++
 
-  if (filters.sizeMax !== null && filters.sizeMax !== undefined && filters.sizeMax !== ('' as any))
+  if (filters.sizeMax !== null && filters.sizeMax !== undefined)
     count++
 
   return count
@@ -464,7 +469,7 @@ onMounted(() => {
           <Icon icon="mdi:close" />
         </button>
         <button v-if="filters.placement" class="filter-chip" @click="filters.placement = ''">
-          <span>Секция: {{ formatPlacement(filters.placement as any) }}</span>
+          <span>Секция: {{ formatPlacement(filters.placement) }}</span>
           <Icon icon="mdi:close" />
         </button>
         <button v-if="filters.extension" class="filter-chip" @click="filters.extension = ''">

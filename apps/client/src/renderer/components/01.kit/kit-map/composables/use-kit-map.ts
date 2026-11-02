@@ -10,7 +10,7 @@ function getAvailableFont(map: maplibregl.Map): string[] {
 
   for (const layer of layers) {
     if (layer.type === 'symbol' && layer.layout && 'text-font' in layer.layout) {
-      const font = (layer.layout as Record<string, any>)['text-font']
+      const font = (layer.layout as Record<string, unknown>)['text-font']
 
       if (Array.isArray(font) && font.length) {
         return font

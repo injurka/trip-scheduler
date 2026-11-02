@@ -42,7 +42,7 @@ function collectReferencedPlaceIds(value: unknown, result: Set<string>): void {
 
 async function writeJson(target: DumpTarget, localPath: string, s3Key: string, data: unknown): Promise<void> {
   const json = JSON.stringify(data, null, 2)
-  const tasks: Promise<any>[] = []
+  const tasks: Promise<unknown>[] = []
 
   if (target === 'local' || target === 'both') {
     tasks.push(

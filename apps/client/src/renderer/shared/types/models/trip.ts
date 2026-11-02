@@ -1,93 +1,20 @@
-import type { RouterInput } from '../trpc'
+import type { RouterInput, RouterOutput } from '../trpc'
 import type { Day } from './activity'
 import type { TripCityRef } from './geo-place'
 
 // --- Типы, связанные с медиафайлами ---
 
-export enum TripMediaPlacement {
-  ROUTE = 'route',
-  MEMORIES = 'memories',
-  NOTES = 'notes',
-  DOCUMENTS = 'documents',
-}
+export const TripMediaPlacement = {
+  ROUTE: 'route',
+  MEMORIES: 'memories',
+  NOTES: 'notes',
+  DOCUMENTS: 'documents',
+} as const
+export type TripMediaPlacement = typeof TripMediaPlacement[keyof typeof TripMediaPlacement]
 
 export { TripMediaPlacement as TripImagePlacement }
 
-/**
- * Метаданные, относящиеся к GPS.
- */
-interface GpsMetadata {
-  altitude?: number // Высота над уровнем моря
-  speed?: number // Скорость движения
-  bearing?: number // Направление движения (курс)
-  destBearing?: number // Направление на точку назначения
-  gpsDate?: string // Дата и время по GPS
-}
-
-/**
- * Метаданные из IPTC блока (информация для прессы и описания).
- */
-interface IptcMetadata {
-  headline?: string // Заголовок
-  caption?: string // Подробное описание/подпись
-  keywords?: string[] // Ключевые слова
-  city?: string // Город
-  country?: string // Страна
-}
-
-/**
- * Всеобъемлющий интерфейс для поля metadata (JSONB).
- * Синхронизирован с бэкендом.
- */
-export interface ImageMetadata {
-  timezoneOffset?: number // Смещение временной зоны в минутах
-
-  camera?: {
-    make?: string // Производитель камеры
-    model?: string // Модель камеры
-    lens?: string // Модель объектива
-    serialNumber?: string // Серийный номер камеры
-  }
-
-  settings?: {
-    iso?: number // ISO
-    aperture?: number // Диафрагма (FNumber)
-    apertureValue?: number // Значение диафрагмы (APEX)
-    shutterSpeed?: string // Выдержка в виде строки (например, "1/250s")
-    exposureTime?: number // Выдержка в виде числа (в долях секунды)
-    focalLength?: number // Фокусное расстояние
-    focalLengthIn35mmFormat?: number // Фокусное расстояние в 35мм эквиваленте
-    exposureMode?: number // Режим экспозиции
-    whiteBalance?: number // Баланс белого
-    meteringMode?: number // Режим замера экспозиции
-    flash?: boolean // Была ли использована вспышка
-  }
-
-  technical?: {
-    format?: string // Формат файла (jpeg, heic и т.д.)
-    colorSpace?: string // Цветовое пространство (sRGB, Adobe RGB)
-    orientation?: number // Ориентация изображения
-    fileSize?: number // Размер файла в байтах
-    resolutionX?: number // Разрешение по горизонтали (DPI)
-    resolutionY?: number // Разрешение по вертикали (DPI)
-    resolutionUnit?: string // Единица измерения разрешения (например, 'inches')
-  }
-
-  software?: {
-    software?: string // Программа, в которой обработано фото
-    creator?: string // Инструмент создателя
-    copyright?: string // Информация об авторских правах
-    modifyDate?: string | Date // Дата последнего изменения файла (ISO string или Date)
-  }
-
-  gps?: GpsMetadata
-  iptc?: IptcMetadata
-
-  thumbhash?: string
-
-  // Поле для всех остальных данных, которые не были распарсены
-  rawExif?: Record<string, any>
-}
+export type ImageMetadata = NonNullable<RouterOutput['image']['getMetadata']>
 
 /**
  * Основная модель медиа (изображения/видео) на фронтенде.
@@ -128,27 +55,30 @@ export interface TripMedia {
 
 export type TripImage = TripMedia
 
-export enum TripStatus {
-  COMPLETED = 'completed',
-  PLANNED = 'planned',
-  DRAFT = 'draft',
-}
+export const TripStatus = {
+  COMPLETED: 'completed',
+  PLANNED: 'planned',
+  DRAFT: 'draft',
+} as const
+export type TripStatus = typeof TripStatus[keyof typeof TripStatus]
 
-export enum TripVisibility {
-  PUBLIC = 'public',
-  PRIVATE = 'private',
-}
+export const TripVisibility = {
+  PUBLIC: 'public',
+  PRIVATE: 'private',
+} as const
+export type TripVisibility = typeof TripVisibility[keyof typeof TripVisibility]
 
-export enum TripSectionType {
-  BOOKINGS = 'bookings',
-  FINANCES = 'finances',
-  CHECKLIST = 'checklist',
-  NOTES = 'notes',
-  DOCUMENTS = 'documents',
-  MAP = 'map',
-  CUSTOM = 'custom',
-  MEMORIES = 'memories',
-}
+export const TripSectionType = {
+  BOOKINGS: 'bookings',
+  FINANCES: 'finances',
+  CHECKLIST: 'checklist',
+  NOTES: 'notes',
+  DOCUMENTS: 'documents',
+  MAP: 'map',
+  CUSTOM: 'custom',
+  MEMORIES: 'memories',
+} as const
+export type TripSectionType = typeof TripSectionType[keyof typeof TripSectionType]
 
 export interface TripSection {
   id: string
@@ -156,7 +86,7 @@ export interface TripSection {
   type: TripSectionType
   title: string
   icon: string | null
-  content: unknown
+  content?: unknown
   order: number
   createdAt: string
   updatedAt: string

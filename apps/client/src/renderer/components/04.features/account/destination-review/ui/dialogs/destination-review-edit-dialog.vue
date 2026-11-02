@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { ReviewFormState } from '../../composables/use-destination-reviews'
 /* eslint-disable vue/no-mutating-props */
 import type { Country } from '~/shared/types/models/destination-review'
 import type { GeoPlaceRef } from '~/shared/types/models/geo-place'
@@ -19,7 +20,7 @@ import { METRIC_KEYS, METRIC_LABELS } from '../../composables/use-destination-re
 interface Props {
   visible: boolean
   countries: Country[]
-  form: any
+  form: ReviewFormState
   file: File | null
   isUploading: boolean
   isSubmitting: boolean
@@ -235,8 +236,8 @@ function getSliderColor(value: number) {
         >
           <template #item="{ item }">
             <img
-              v-if="(item as any).flagUrl"
-              :src="(item as any).flagUrl"
+              v-if="(item).flagUrl"
+              :src="(item).flagUrl"
               class="dropdown-flag"
               alt=""
             >

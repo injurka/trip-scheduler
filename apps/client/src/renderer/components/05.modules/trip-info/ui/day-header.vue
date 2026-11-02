@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { DayMetaInfo } from '~/shared/types/models/activity'
 import { Icon } from '@iconify/vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitMarkdownViewer } from '~/components/01.kit/kit-markdown-viewer'
@@ -17,7 +18,7 @@ const isDraft = computed(() => !selectedDay.value?.date)
 const dayNumber = computed(() => currentCalendarDayIndex.value + 1)
 const activitiesCount = computed(() => selectedDay.value?.activities?.length || 0)
 
-function updateDayDetails(details: { title?: string, description?: string, meta?: any[] }) {
+function updateDayDetails(details: { title?: string, description?: string, meta?: DayMetaInfo[] }) {
   store.plan.updateDayDetails(selectedDay.value!.id, details)
 }
 function handleDescriptionBlur(newDesc: string) {

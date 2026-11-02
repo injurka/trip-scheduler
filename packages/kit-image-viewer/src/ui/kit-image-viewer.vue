@@ -346,7 +346,7 @@ function handleImageError(index: number, event: Event) {
   }
 }
 
-function setRef(el: any, index: number) {
+function setRef(el: unknown, index: number) {
   if (index === props.currentIndex) {
     imageRef.value = el as HTMLImageElement
   }

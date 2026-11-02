@@ -16,6 +16,7 @@
         "@iconify-icons/mdi": "^2.0.0",
         "@injurka/finance-contract": "workspace:*",
         "@injurka/trip-calendar": "workspace:*",
+        "@injurka/type-utils": "workspace:*",
         "@internationalized/date": "^3.12.4",
         "@limiteddissolve/kit-image-viewer": "workspace:*",
         "@limiteddissolve/track-processing": "workspace:*",
@@ -126,6 +127,7 @@
         "@hono/trpc-server": "^0.4.2",
         "@injurka/finance-contract": "workspace:*",
         "@injurka/trip-calendar": "workspace:*",
+        "@injurka/type-utils": "workspace:*",
         "@limiteddissolve/obsidian-importer": "workspace:*",
         "@limiteddissolve/track-processing": "workspace:*",
         "@trpc/server": "^11.18.0",
@@ -210,6 +212,7 @@
       "devDependencies": {
         "@antfu/eslint-config": "9.5.1",
         "@iconify/vue": "^5.0.1",
+        "@injurka/type-utils": "workspace:*",
         "@types/node": "26.5.1",
         "@vitejs/plugin-vue": "^6.0.9",
         "eslint": "^10.10.0",
@@ -228,6 +231,17 @@
       "dependencies": {
         "ical-generator": "^11.1.3",
       },
+      "devDependencies": {
+        "@antfu/eslint-config": "9.5.1",
+        "@types/bun": "latest",
+        "eslint": "^10.10.0",
+        "eslint-plugin-format": "2.0.1",
+        "typescript": "6.0.3",
+      },
+    },
+    "packages/type-utils": {
+      "name": "@injurka/type-utils",
+      "version": "1.0.0",
       "devDependencies": {
         "@antfu/eslint-config": "9.5.1",
         "@types/bun": "latest",
@@ -807,6 +821,8 @@
     "@injurka/trip-scheduler-native": ["@injurka/trip-scheduler-native@workspace:apps/native"],
 
     "@injurka/trip-scheduler-server": ["@injurka/trip-scheduler-server@workspace:apps/server"],
+
+    "@injurka/type-utils": ["@injurka/type-utils@workspace:packages/type-utils"],
 
     "@internationalized/date": ["@internationalized/date@3.12.4", "", { "dependencies": { "@swc/helpers": "^0.5.0" } }, "sha512-M1dEn4c1U1HsSlaVR8upZtSqvXrTkHDfv18H01uCSJyjVLDxnBR38v/fMxecmlwXKR4i9HeZcmgQAPE6A+aGJQ=="],
 
@@ -3554,6 +3570,8 @@
 
     "@injurka/trip-calendar/@types/bun": ["@types/bun@1.4.4", "", { "dependencies": { "bun-types": "1.4.4" } }, "sha512-9wkRDXUXK124pEnAutE6n/l18j+i9GC5IAHK8TmX/2nlySETmky0OU6yL5U8pW1AoKh++AN9auDCr647BfurjQ=="],
 
+    "@injurka/type-utils/@types/bun": ["@types/bun@1.4.4", "", { "dependencies": { "bun-types": "1.4.4" } }, "sha512-9wkRDXUXK124pEnAutE6n/l18j+i9GC5IAHK8TmX/2nlySETmky0OU6yL5U8pW1AoKh++AN9auDCr647BfurjQ=="],
+
     "@isaacs/cliui/string-width": ["string-width@5.1.2", "", { "dependencies": { "eastasianwidth": "^0.2.0", "emoji-regex": "^9.2.2", "strip-ansi": "^7.0.1" } }, "sha512-HnLOCR3vjcY8beoNLtcjZ5/nxn2afmME6lhrDrebokqMap+XbeW8n9TXpPDOqdGK5qcI3oT0GKTW6wC7EMiVqA=="],
 
     "@isaacs/cliui/wrap-ansi": ["wrap-ansi@8.1.0", "", { "dependencies": { "ansi-styles": "^6.1.0", "string-width": "^5.0.1", "strip-ansi": "^7.0.1" } }, "sha512-si7QWI6zUMq56bESFvagtmzMdGOtoxfR+Sez11Mobfc7tm+VkUckk9bW2UeffTGVUbOksxmSw0AA2gs8g71NCQ=="],
@@ -4067,6 +4085,8 @@
     "@floating-ui/react-dom/@floating-ui/dom/@floating-ui/utils": ["@floating-ui/utils@0.2.11", "", {}, "sha512-RiB/yIh78pcIxl6lLMG0CgBXAZ2Y0eVHqMPYugu+9U0AeT6YBeiJpf7lbdJNIugFP5SIjwNRgo4DhR1Qxi26Gg=="],
 
     "@injurka/trip-calendar/@types/bun/bun-types": ["bun-types@1.4.4", "", { "dependencies": { "@types/node": "*", "undici-types": "*" } }, "sha512-yjrJh5oGX7mMPKGd19YXyIjmEuj4G4zNC30bs7PM9Az7NQ3ndF3j6hbeRdvJTRQEhJ/FYQwW0a2moweEi2hMxQ=="],
+
+    "@injurka/type-utils/@types/bun/bun-types": ["bun-types@1.4.4", "", { "dependencies": { "@types/node": "*", "undici-types": "*" } }, "sha512-yjrJh5oGX7mMPKGd19YXyIjmEuj4G4zNC30bs7PM9Az7NQ3ndF3j6hbeRdvJTRQEhJ/FYQwW0a2moweEi2hMxQ=="],
 
     "@isaacs/cliui/string-width/emoji-regex": ["emoji-regex@9.2.2", "", {}, "sha512-L18DaJsXSUk2+42pv8mLs5jJT2hqFkFE4j21wOmgbUqsZ2hL72NsUU785g9RXgo3s0ZNgVl42TiHp3ZtOv/Vyg=="],
 

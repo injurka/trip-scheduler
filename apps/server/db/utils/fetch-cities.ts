@@ -64,8 +64,8 @@ async function main() {
     const citiesToInsert: CitySeed[] = []
     let matchedCountriesCount = 0
 
-    myCountries.forEach((myCountry: any, index: number) => {
-      const countryNameEn = myCountry.name.common
+    myCountries.forEach((myCountry, index: number) => {
+      const countryNameEn = myCountry.name
 
       const generatedId = index + 1
 

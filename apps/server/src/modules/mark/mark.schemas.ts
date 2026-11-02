@@ -27,7 +27,7 @@ export const MarkOutputSchema = z.object({
   ownerId: z.string(),
   geom: z.object({
     type: z.literal('Point'),
-    bbox: z.any().nullable().optional(),
+    bbox: z.unknown().nullable().optional(),
     coordinates: z.tuple([z.number(), z.number()]),
   }),
   startAt: z.string().optional(),

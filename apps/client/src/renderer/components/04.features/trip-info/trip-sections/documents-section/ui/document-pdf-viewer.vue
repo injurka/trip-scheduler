@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { PDFDocumentProxy, RenderTask } from 'pdfjs-dist'
 import { Icon } from '@iconify/vue'
+import { getErrorMessage } from '@injurka/type-utils'
 import * as pdfjsLib from 'pdfjs-dist'
 import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue'
@@ -98,8 +99,8 @@ async function renderCurrentPage() {
     await currentRenderTask.promise
     currentRenderTask = null
   }
-  catch (err: any) {
-    if (err?.name === 'RenderingCancelledException') {
+  catch (err) {
+    if (err instanceof Error && err.name === 'RenderingCancelledException') {
       return
     }
 
@@ -151,9 +152,9 @@ async function loadPdf() {
 
     await fitToWidth()
   }
-  catch (err: any) {
+  catch (err) {
     console.error('[PdfViewer] Ошибка загрузки PDF:', err)
-    errorMessage.value = err?.message || 'Не удалось открыть PDF-файл'
+    errorMessage.value = getErrorMessage(err) || 'Не удалось открыть PDF-файл'
   }
   finally {
     isLoading.value = false

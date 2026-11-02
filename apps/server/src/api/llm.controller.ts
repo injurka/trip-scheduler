@@ -1,5 +1,6 @@
 import type { Context } from 'hono'
 import type { ChecklistContextItem } from '~/services/llm/checklist-match.service'
+import { getErrorMessage } from '@injurka/type-utils'
 import { Hono } from 'hono'
 import { HTTPException } from 'hono/http-exception'
 import { authUtils } from '~/lib/auth.utils'
@@ -37,9 +38,9 @@ async function generateBookingController(c: Context) {
     })
     return c.json(generatedData)
   }
-  catch (error: any) {
+  catch (error) {
     console.error('Ошибка при генерации бронирования:', error)
-    throw new HTTPException(500, { message: error.message || 'Внутренняя ошибка при обработке файла.' })
+    throw new HTTPException(500, { message: getErrorMessage(error) || 'Внутренняя ошибка при обработке файла.' })
   }
 }
 
@@ -72,9 +73,9 @@ async function generateFinancesController(c: Context) {
     })
     return c.json(generatedData)
   }
-  catch (error: any) {
+  catch (error) {
     console.error('Ошибка при генерации транзакций:', error)
-    throw new HTTPException(500, { message: error.message || 'Внутренняя ошибка при обработке данных.' })
+    throw new HTTPException(500, { message: getErrorMessage(error) || 'Внутренняя ошибка при обработке данных.' })
   }
 }
 
@@ -117,9 +118,9 @@ async function matchChecklistController(c: Context) {
 
     return c.json(result)
   }
-  catch (error: any) {
+  catch (error) {
     console.error('Ошибка при AI-проверке чек-листа:', error)
-    throw new HTTPException(500, { message: error.message || 'Внутренняя ошибка при проверке чек-листа.' })
+    throw new HTTPException(500, { message: getErrorMessage(error) || 'Внутренняя ошибка при проверке чек-листа.' })
   }
 }
 
@@ -145,9 +146,9 @@ async function transcribeChecklistVoiceController(c: Context) {
     })
     return c.json(result)
   }
-  catch (error: any) {
+  catch (error) {
     console.error('Ошибка при распознавании голосового сообщения:', error)
-    throw new HTTPException(500, { message: error.message || 'Не удалось распознать голосовое сообщение.' })
+    throw new HTTPException(500, { message: getErrorMessage(error) || 'Не удалось распознать голосовое сообщение.' })
   }
 }
 

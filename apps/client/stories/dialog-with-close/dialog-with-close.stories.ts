@@ -35,7 +35,7 @@ type Story = StoryObj<typeof meta>
 
 // Reusable render function to provide a button that opens the dialog
 function createRender(slotContent: string) {
-  return (args: any) => ({
+  return args => ({
     components: { KitDialogWithClose },
     setup() {
       const visible = ref(false)

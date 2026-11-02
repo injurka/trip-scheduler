@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { CreateBlogPostInput } from '~/shared/types/models/blog'
+import { getErrorMessage } from '@injurka/type-utils'
 import { useRouter } from 'vue-router'
 import { BlogEditor } from '~/components/05.modules/blog'
 import { useBlogStore } from '~/components/05.modules/blog/store/blog.store'
@@ -33,8 +34,8 @@ async function handleSave() {
       router.push({ name: AppRouteNames.BlogArticle, params: { slug: newPost.slug } })
     }
   }
-  catch (e: any) {
-    toast.error(e.message || 'Ошибка создания')
+  catch (e) {
+    toast.error(getErrorMessage(e) || 'Ошибка создания')
   }
 }
 

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { DisplayTrackPoint, TrackActivityType, TrackPoint, TrackSegment, TrackStop } from '../src'
 import { Icon } from '@iconify/vue'
+import { getErrorMessage } from '@injurka/type-utils'
 import { computed, ref, watch } from 'vue'
 import {
   catmullRomSpline,
@@ -252,8 +253,8 @@ function handleFileUpload(event: Event) {
       selectedScenarioId.value = 'custom'
       runPipeline()
     }
-    catch (err: any) {
-      showNotification(`Ошибка разбора файла: ${err.message}`)
+    catch (err) {
+      showNotification(`Ошибка разбора файла: ${getErrorMessage(err)}`)
     }
   }
   reader.readAsText(file)

@@ -74,7 +74,7 @@ interface ImageMetadata {
 
   thumbhash?: string
 
-  rawExif?: Record<string, any>
+  rawExif?: Record<string, unknown>
 }
 
 /**

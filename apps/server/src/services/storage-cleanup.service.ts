@@ -1,3 +1,4 @@
+import { isRecord } from '@injurka/type-utils'
 import { db } from 'db'
 import { postMedia, storageCleanupTasks } from 'db/schema'
 import { eq, lte } from 'drizzle-orm'
@@ -39,8 +40,8 @@ export async function executeStorageCleanup(task: Pick<CleanupTask, 'keys' | 'pr
     try {
       await s3Service.abortMultipartUpload(task.keys[0], task.uploadId)
     }
-    catch (error: any) {
-      if (error.name !== 'NoSuchUpload')
+    catch (error) {
+      if (!isRecord(error) || error.name !== 'NoSuchUpload')
         throw error
     }
   }

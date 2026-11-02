@@ -10,6 +10,7 @@ import type { Place, PlaceTag } from '~/shared/types/models/place'
 import type { CreatePostInput, ListPostsFilters, PostDetail, UpdatePostInput, WhitelistUser } from '~/shared/types/models/post'
 import type { CreateTripInput, ImageMetadata, Plan, Trip, TripMedia, TripMediaPlacement, TripSection, TripSectionType, TripStatus, TripWeatherData, TripWithDays, UpdateTripInput } from '~/shared/types/models/trip'
 import type { CreateHighlightInput, Highlight, UpdateHighlightInput } from '~/shared/types/models/user'
+import type { RouterInput, RouterOutput } from '~/shared/types/trpc'
 
 export type NoteType = 'folder' | 'markdown' | 'excalidraw'
 export type DocumentAccess = 'public' | 'private'
@@ -95,7 +96,7 @@ export interface IPostRepository {
   toggleSave: (params: { postId: string }) => Promise<{ isSaved: boolean }>
   toggleLike: (params: { postId: string }) => Promise<{ isLiked: boolean }>
   getUniqueTags: (params: { query?: string }) => Promise<string[]>
-  generateFromText: (params: { text: string }) => Promise<any>
+  generateFromText: (params: { text: string }) => Promise<RouterOutput['post']['generateFromText']>
   deleteMedia: (params: { id: string }) => Promise<{ success: boolean }>
   updateMediaPrivacy: (params: { mediaId: string, isPrivate: boolean }) => Promise<{ success: boolean }>
   addWhitelistUser: (params: { postId: string, userId: string }) => Promise<{ success: boolean }>
@@ -118,7 +119,7 @@ export interface MemoryNotificationDelivery {
 
 export interface INotificationRepository {
   checkTripSubscription: (tripId: string) => Promise<boolean>
-  subscribeToTrip: (payload: { tripId: string, subscription: any }) => Promise<void>
+  subscribeToTrip: (payload: { tripId: string, subscription: RouterInput['notification']['subscribeToTrip']['subscription'] }) => Promise<void>
   subscribeToTripWithPushToken: (payload: { tripId: string, token: string }) => Promise<void>
   registerPushToken: (token: string) => Promise<void>
   unregisterPushToken: (token: string) => Promise<void>
@@ -161,7 +162,7 @@ export interface TripListFilters {
 export interface GeneratedBooking {
   type: 'flight' | 'hotel' | 'train' | 'attraction'
   title: string
-  data: any
+  data: unknown
 }
 
 export interface GeneratedTransaction {
@@ -365,7 +366,7 @@ export interface IFileRepository {
     placement?: string | null,
     timestamp?: string | null,
     comment?: string | null,
-    metadata?: Record<string, any>,
+    metadata?: Record<string, unknown>,
   ) => Promise<TripMedia>
   uploadFileWithProgress: (
     file: File,
@@ -425,8 +426,8 @@ export interface IUserRepository {
 }
 
 export interface ITripSectionRepository {
-  create: (data: { tripId: string, type: TripSectionType, title: string, icon: string | null, content: any }) => Promise<TripSection>
-  update: (data: { id: string, title?: string | undefined, icon?: string | null | undefined, content?: any, expectedUpdatedAt?: string }) => Promise<TripSection>
+  create: (data: { tripId: string, type: TripSectionType, title: string, icon: string | null, content: unknown }) => Promise<TripSection>
+  update: (data: { id: string, title?: string | undefined, icon?: string | null | undefined, content?: unknown, expectedUpdatedAt?: string }) => Promise<TripSection>
   delete: (id: string) => Promise<TripSection>
 }
 
@@ -474,7 +475,7 @@ export interface GetUserReviewsParams {
   page?: number
   countryId?: string
   geoPlaceId?: string
-  sortBy?: string
+  sortBy?: RouterInput['destinationReview']['getUserReviews']['sortBy']
   sortOrder?: 'asc' | 'desc'
   selectedMetrics?: string[]
 }

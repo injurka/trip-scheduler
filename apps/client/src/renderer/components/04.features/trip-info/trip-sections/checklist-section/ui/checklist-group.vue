@@ -50,7 +50,7 @@ const displayGroupName = computed(() => {
   return cleaned || props.group.name
 })
 
-function handleUpdateGroup(key: keyof ChecklistGroup, value: any) {
+function handleUpdateGroup(key: keyof ChecklistGroup, value: unknown) {
   emit('update:group', { ...props.group, [key]: value })
 }
 

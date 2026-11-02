@@ -1,10 +1,6 @@
-import type {
-  FitBoundsOptions,
-  LngLatBoundsLike,
-  Map as MapLibreMap,
-  StyleSpecification,
-} from 'maplibre-gl'
+import type { DataDrivenPropertyValueSpecification, FitBoundsOptions, LngLatBoundsLike, Map as MapLibreMap, StyleSpecification } from 'maplibre-gl'
 import type { Ref } from 'vue'
+import { isRecord } from '@injurka/type-utils'
 import * as maplibregl from 'maplibre-gl'
 import { onUnmounted, readonly, ref, shallowRef } from 'vue'
 import { applyTerrain, ensureMaplibreWorkerReady, getMapStyle, OSM_STYLE } from '~/shared/lib/map-styles-sources'
@@ -135,17 +131,17 @@ function resolveMissingImage(map: maplibregl.Map, id: string) {
 }
 
 function registerMissingImageHandlers(map: maplibregl.Map) {
-  if (typeof (map as any).setMissingStyleImageResolver === 'function') {
-    ; (map as any).setMissingStyleImageResolver((id: string) => resolveMissingImage(map, id))
+  if (typeof (map).setMissingStyleImageResolver === 'function') {
+    ; (map).setMissingStyleImageResolver((id: string) => resolveMissingImage(map, id))
   }
 
-  map.on('styleimagemissing', (event: any) => {
+  map.on('styleimagemissing', (event) => {
     if (event?.id)
       resolveMissingImage(map, event.id)
   })
 }
 
-function sanitizeSliceExpression(expression: any): any {
+function sanitizeSliceExpression(expression: unknown): unknown {
   if (!Array.isArray(expression))
     return expression
 
@@ -167,7 +163,7 @@ function sanitizeRoadShieldColors(map: maplibregl.Map) {
       const expression = map.getPaintProperty('Road shields', property)
 
       if (expression)
-        map.setPaintProperty('Road shields', property, sanitizeSliceExpression(expression))
+        map.setPaintProperty('Road shields', property, sanitizeSliceExpression(expression) as DataDrivenPropertyValueSpecification<string>)
     })
   }
   catch {
@@ -203,14 +199,17 @@ function updateZoomClasses(map: maplibregl.Map, fallbackContainer: HTMLElement, 
   container.classList.toggle('map-zoom-close', zoom >= 14)
 }
 
-function isStyleLoadError(event: any): boolean {
-  const errorStatus = event?.error?.status
+function isStyleLoadError(event: unknown): boolean {
+  if (!isRecord(event))
+    return false
 
-  return event?.dataType === 'style' || [401, 403, 404].includes(errorStatus)
+  const errorStatus = isRecord(event.error) ? event.error.status : undefined
+
+  return event.dataType === 'style' || (typeof errorStatus === 'number' && [401, 403, 404].includes(errorStatus))
 }
 
 function shouldUseOsmFallback(
-  event: any,
+  event: unknown,
   map: maplibregl.Map,
   isReady: boolean,
   initialStyle: string | StyleSpecification,
@@ -231,7 +230,7 @@ function registerMapErrorHandler(
 ) {
   let hasRetriedWithOsm = false
 
-  map.on('error', (event: any) => {
+  map.on('error', (event) => {
     console.warn('[useBaseMap] Ошибка MapLibre:', event?.error?.message || event)
 
     if (!shouldUseOsmFallback(

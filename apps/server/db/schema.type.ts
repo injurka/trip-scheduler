@@ -1,3 +1,6 @@
+import type { z } from 'zod'
+import type { ActivitySectionSchema } from '../src/modules/activity/activity.schemas'
+
 interface ActivitySectionBase {
   id: string
   isAttached?: boolean
@@ -50,11 +53,7 @@ interface ActivitySectionGallery extends ActivitySectionBase {
   imageUrls: string[]
 }
 
-interface ActivitySectionGeolocation extends ActivitySectionBase {
-  type: 'geolocation'
-  points: any[]
-  routes: any[]
-}
+type ActivitySectionGeolocation = Extract<z.infer<typeof ActivitySectionSchema>, { type: 'geolocation' }>
 
 interface MetroRide {
   id: string

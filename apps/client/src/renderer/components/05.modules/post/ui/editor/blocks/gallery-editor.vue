@@ -19,7 +19,7 @@ const props = withDefaults(defineProps<IProps>(), {
 })
 const emit = defineEmits<{
   (e: 'update:images', images: PostMedia[]): void
-  (e: 'update:displayType', type: string): void
+  (e: 'update:displayType', type: NonNullable<IProps['displayType']>): void
 }>()
 
 const isLibraryOpen = ref(false)

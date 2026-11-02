@@ -1,11 +1,12 @@
 import type { IError } from '../lib/error-handler'
 import type { UseRequestOptions } from '../models/types'
+import { getErrorMessage, getErrorStatus, isRecord } from '@injurka/type-utils'
 import { useDataTimestamp } from '~/shared/composables/use-data-timestamp'
 import { createApiErrorHandler } from '../lib/error-handler'
 import { getDatabaseService } from '../lib/service'
 import { useRequestStore } from '../store/request.store'
 
-const pendingPromises = new Map<string, Promise<any | null>>()
+const pendingPromises = new Map<string, Promise<unknown | null>>()
 
 type NormalizedRequestOptions<T> = Omit<UseRequestOptions<T>, 'initialData' | 'force' | 'cache' | 'cancelPrevious' | 'abortOnUnmount' | 'onError'> & {
   initialData: T | null
@@ -24,30 +25,70 @@ function normalizeRequestOptions<T>(options: UseRequestOptions<T>, defaultErrorH
     cache: options.cache ?? false,
     cancelPrevious: options.cancelPrevious ?? true,
     abortOnUnmount: options.abortOnUnmount ?? false,
-    onError: options.onError ?? ((error: unknown) => defaultErrorHandler({ error: error as IError })),
+    onError: options.onError ?? defaultErrorHandler,
   }
 }
 
-function getServerErrorMessage(error: any): string | null {
-  const responseData = error.response?.data || error.data
+function getServerErrorMessage(error: unknown): string | null {
+  if (!isRecord(error))
+    return null
 
-  if (Array.isArray(responseData) && responseData[0]?.error?.message)
-    return responseData[0].error.message
+  const response = isRecord(error.response) ? error.response : undefined
+  const data = response?.data ?? error.data
+  const first = Array.isArray(data) ? data[0] : data
 
-  if (responseData?.error?.message)
-    return responseData.error.message
+  if (isRecord(first) && isRecord(first.error) && typeof first.error.message === 'string')
+    return first.error.message
 
   return null
 }
 
+function readString(value: Record<string, unknown>, key: string): string | undefined {
+  const field = value[key]
+
+  return typeof field === 'string' ? field : undefined
+}
+
+function readNumber(value: Record<string, unknown>, key: string): number | undefined {
+  const field = value[key]
+
+  return typeof field === 'number' ? field : undefined
+}
+
+function normalizeApiError(error: unknown, customMessage: string): IError {
+  const value = isRecord(error) ? error : {}
+  const data = isRecord(value.data) ? value.data : {}
+  const shape = isRecord(value.shape) ? value.shape : {}
+  const shapeData = isRecord(shape.data) ? shape.data : {}
+
+  return {
+    message: getErrorMessage(error),
+    customMessage,
+    statusCode: getErrorStatus(error),
+    data: {
+      httpStatus: readNumber(data, 'httpStatus'),
+      code: readString(data, 'code'),
+      description: readString(data, 'description'),
+      message: readString(data, 'message'),
+    },
+    shape: {
+      message: typeof shape.message === 'string' ? shape.message : customMessage,
+      data: {
+        httpStatus: readNumber(shapeData, 'httpStatus'),
+        code: readString(shapeData, 'code'),
+      },
+    },
+  }
+}
+
 async function handleRequestFailure(
-  error: any,
+  error: unknown,
   key: string,
   store: ReturnType<typeof useRequestStore>,
   onAbort: UseRequestOptions<unknown>['onAbort'],
   onError: NonNullable<UseRequestOptions<unknown>['onError']>,
 ): Promise<void> {
-  if (error.name === 'AbortError') {
+  if (error instanceof Error && error.name === 'AbortError') {
     store.setStatus(key, 'aborted')
     await onAbort?.()
 
@@ -55,14 +96,13 @@ async function handleRequestFailure(
   }
 
   const serverMessage = getServerErrorMessage(error)
-  const displayMessage = serverMessage || error.message || 'Произошла ошибка'
+  const displayMessage = serverMessage || getErrorMessage(error, 'Произошла ошибка')
 
   store.setError(key, displayMessage)
   store.setStatus(key, 'error')
   console.error(`[useRequest Error] (key: ${key}):`, displayMessage)
 
-  error.customMessage = displayMessage
-  await onError({ error })
+  await onError({ error: normalizeApiError(error, displayMessage) })
 }
 
 function recordRequestTimestamp(key: string, touch: (key: string) => void, peek: (key: string) => void): void {
@@ -99,13 +139,14 @@ export async function useRequest<T>(options: UseRequestOptions<T>): Promise<T | 
   }
 
   if (!force && pendingPromises.has(key))
-    return pendingPromises.get(key)!
+    return pendingPromises.get(key)! as Promise<T | null>
 
   if (cache && !force && store.statuses.get(key) === 'success' && store.cache.has(key)) {
     peek(key)
-    await onSuccess?.(toRaw(store.cache.get(key)))
+    const cached = toRaw(store.cache.get(key)) as T
+    await onSuccess?.(cached)
 
-    return toRaw(store.cache.get(key))
+    return cached
   }
 
   const controller = new AbortController()
@@ -135,7 +176,7 @@ export async function useRequest<T>(options: UseRequestOptions<T>): Promise<T | 
 
       return result
     }
-    catch (e: any) {
+    catch (e) {
       await handleRequestFailure(
         e,
         key,

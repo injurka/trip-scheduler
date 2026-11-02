@@ -43,7 +43,7 @@ export function useActivityTracking() {
     const reqId = ++activeRequestId
 
     try {
-      const res = await (trpc as any).tracking.getSummaries.query({ days: selectedDays.value })
+      const res = await (trpc).tracking.getSummaries.query({ days: selectedDays.value })
 
       if (reqId !== activeRequestId)
         return

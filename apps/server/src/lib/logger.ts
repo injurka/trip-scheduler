@@ -10,7 +10,7 @@ export enum LogType {
 
 export interface Log {
   message: string
-  value?: any
+  value?: unknown
   type: LogType
   createdAt?: Date
 }
@@ -32,12 +32,12 @@ export class Logger {
     console.log(`\x1B[2m${this.ts()}\x1B[0m \x1B[34mℹ\x1B[0m ${message}`)
   }
 
-  warn(message: string, value?: any) {
+  warn(message: string, value?: unknown) {
     this.logs.push({ message, value, type: LogType.Warn, createdAt: new Date() })
     console.warn(`\x1B[2m${this.ts()}\x1B[0m \x1B[33m⚠\x1B[0m ${message}`, value ?? '')
   }
 
-  error(message: string, value?: any) {
+  error(message: string, value?: unknown) {
     this.logs.push({ message, value, type: LogType.Error, createdAt: new Date() })
     console.error(`\x1B[2m${this.ts()}\x1B[0m \x1B[31m✖\x1B[0m ${message}`, value ?? '')
   }

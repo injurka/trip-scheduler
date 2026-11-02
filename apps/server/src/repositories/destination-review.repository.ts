@@ -1,3 +1,4 @@
+import type { SQL } from 'drizzle-orm'
 import type { z } from 'zod'
 import type { GetUserReviewsInputSchema } from '~/modules/destination-review/destination-review.schemas'
 import { and, desc, eq, sql } from 'drizzle-orm'
@@ -19,7 +20,7 @@ export const destinationReviewRepository = {
     return measureDbQuery('destinationReviews', 'select', async () => {
       const { userId, type, limit, page, countryId, geoPlaceId, sortBy, sortOrder, selectedMetrics } = input
       const offset = (page - 1) * limit
-      const conditions: any[] = [eq(destinationReviews.userId, userId)]
+      const conditions: SQL[] = [eq(destinationReviews.userId, userId)]
 
       if (type)
         conditions.push(eq(destinationReviews.type, type))

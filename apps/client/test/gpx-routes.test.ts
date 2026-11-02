@@ -16,10 +16,10 @@ describe('imported gpx tracks', () => {
     const fetchMock = mock(async () => {
       throw new Error('OSRM must not be called for imported tracks')
     })
-    globalThis.fetch = fetchMock as any
+    globalThis.fetch = Object.assign(fetchMock, { preconnect: originalFetch.preconnect })
 
     const addOrUpdateRoute = mock(() => {})
-    const state = useGeolocationRoutes(ref({ addOrUpdateRoute } as any))
+    const state = useGeolocationRoutes(ref({ addOrUpdateRoute, addOrUpdatePoint: mock(() => {}), removePoint: mock(() => {}), removeRoute: mock(() => {}) }))
 
     const geometry = [
       [121.507955, 23.922278],
@@ -39,7 +39,7 @@ describe('imported gpx tracks', () => {
       geometry,
       distance: 1234,
       duration: 3600,
-    }] as any)
+    }])
 
     expect(fetchMock).not.toHaveBeenCalled()
     expect(state.routes.value[0].geometry).toEqual(geometry)
@@ -53,7 +53,7 @@ describe('imported gpx tracks', () => {
       code: 'Ok',
       routes: [{ geometry: '_p~iF~ps|U_ulLnnqC_mqNvxq`@', distance: 9600, duration: 600 }],
     })))
-    globalThis.fetch = fetchMock as any
+    globalThis.fetch = Object.assign(fetchMock, { preconnect: originalFetch.preconnect })
 
     const state = useGeolocationRoutes(ref(undefined))
     await state.setInitialRoutes([{
@@ -65,7 +65,7 @@ describe('imported gpx tracks', () => {
       ],
       transportMode: 'foot',
       isVisible: true,
-    }] as any)
+    }])
 
     expect(fetchMock).toHaveBeenCalled()
     expect(state.routes.value[0].geometry).toBeDefined()

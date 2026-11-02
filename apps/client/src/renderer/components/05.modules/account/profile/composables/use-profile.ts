@@ -1,3 +1,5 @@
+import { getErrorMessage } from '@injurka/type-utils'
+
 function useProfile() {
   const store = useAppStore(['auth'])
   const toast = useToast()
@@ -38,8 +40,8 @@ function useProfile() {
       await store.auth.updateUser(payload)
       toast.success('Профиль успешно обновлен')
     }
-    catch (e: any) {
-      toast.error(e.message || 'Ошибка при обновлении профиля')
+    catch (e) {
+      toast.error(getErrorMessage(e) || 'Ошибка при обновлении профиля')
     }
     finally {
       isUpdatingProfile.value = false
@@ -55,8 +57,8 @@ function useProfile() {
     try {
       // TODO
     }
-    catch (e: any) {
-      toast.error(e.message || 'Ошибка при смене пароля')
+    catch (e) {
+      toast.error(getErrorMessage(e) || 'Ошибка при смене пароля')
     }
     finally {
       isChangingPassword.value = false
@@ -79,8 +81,8 @@ function useProfile() {
     try {
       // TODO
     }
-    catch (e: any) {
-      toast.error(e.message || 'Ошибка при удалении аккаунта')
+    catch (e) {
+      toast.error(getErrorMessage(e) || 'Ошибка при удалении аккаунта')
     }
     finally {
       isDeletingAccount.value = false

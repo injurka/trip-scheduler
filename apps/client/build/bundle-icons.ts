@@ -1,9 +1,10 @@
-/* eslint-disable no-console */
 import { promises as fs } from 'node:fs'
+/* eslint-disable no-console */
 import { createRequire } from 'node:module'
 import path from 'node:path'
 import process from 'node:process'
 import { getIcons } from '@iconify/utils'
+import { getErrorCode } from '@injurka/type-utils'
 
 const require = createRequire(import.meta.url)
 
@@ -66,7 +67,7 @@ async function bundle() {
   catch (error) {
     console.error('❌ Ошибка при сборке иконок:')
 
-    if (error instanceof Error && (error as any).code === 'MODULE_NOT_FOUND') {
+    if (getErrorCode(error) === 'MODULE_NOT_FOUND') {
       console.error('   Пакет @iconify-json/mdi не найден. Установите его: bun add -D @iconify-json/mdi')
     }
     else {

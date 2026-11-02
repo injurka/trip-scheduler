@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Icon } from '@iconify/vue'
+import { getErrorMessage } from '@injurka/type-utils'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitCheckbox } from '~/components/01.kit/kit-checkbox'
 import { KitInput } from '~/components/01.kit/kit-input'
@@ -67,8 +68,8 @@ async function submitSignIn() {
     const returnUrl = route.query.returnUrl as string
     await router.push(returnUrl || AppRoutePaths.Trip.List)
   }
-  catch (error: any) {
-    toast.error(error.message || 'Произошла ошибка при авторизации.')
+  catch (error) {
+    toast.error(getErrorMessage(error) || 'Произошла ошибка при авторизации.')
   }
 }
 

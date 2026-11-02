@@ -1,10 +1,12 @@
+import type { PgInsertValue, PgTable } from 'drizzle-orm/pg-core'
+import type { MOCK_METRO_DATA } from './mock/02.metro'
+import type { DumpMetro, DumpPost, DumpRow, DumpTrip, GeoCatalogDump } from './seed-types'
 /* eslint-disable no-console */
 import { createWriteStream } from 'node:fs'
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import process from 'node:process'
 import prompts from 'prompts'
-import { v4 as uuidv4 } from 'uuid'
 import { s3Service } from '../src/services/s3.service'
 import { db } from './index'
 import {
@@ -49,26 +51,16 @@ import {
 // ─────────────────────────────────────────────────────────────
 
 interface DumpData {
-  users: any[]
-  trips: any[]
-  posts: any[]
-  blogs: any[]
-  metro: any[]
-  marks?: any[]
-  highlights?: any[]
-  destinationReviews?: any[]
-  countries?: any[]
-  geoCatalog?: {
-    dumpFormatVersion: number
-    catalogMode: 'referenced-places'
-    catalogVersions?: any[]
-    catalogCountries?: any[]
-    places?: any[]
-    placeNames?: any[]
-    tripPlaces?: any[]
-    weatherCache?: any[]
-    resolutionAudit?: any[]
-  }
+  users: DumpRow<typeof users>[]
+  trips: DumpTrip[]
+  posts: DumpPost[]
+  blogs: DumpRow<typeof import('./schema').blogs>[]
+  metro: DumpMetro[]
+  marks?: DumpRow<typeof marks>[]
+  highlights?: Array<DumpRow<typeof highlights> & { country?: string }>
+  destinationReviews?: DumpRow<typeof destinationReviews>[]
+  countries?: DumpRow<typeof countries>[]
+  geoCatalog?: GeoCatalogDump
 }
 
 interface SelectedDump {
@@ -160,7 +152,7 @@ function validateGeoDumpReferences(
   }
 }
 
-function summarizeRecord(rec: Record<string, any>): string {
+function summarizeRecord(rec: Record<string, unknown>): string {
   const keys = Object.keys(rec)
   const parts: string[] = []
 
@@ -191,6 +183,8 @@ function toDate(value: string | Date | null | undefined): Date | null {
   return Number.isNaN(d.getTime()) ? null : d
 }
 
+function toDateString(value: string | Date): string
+function toDateString(value: string | Date | null | undefined): string | null
 function toDateString(value: string | Date | null | undefined): string | null {
   const d = toDate(value)
   return d ? d.toISOString().split('T')[0] : null
@@ -207,7 +201,7 @@ function formatDuration(ms: number): string {
 // При флаге --skip-mock не пытаемся импортировать вообще — сразу null.
 let skipMock = false
 
-async function loadMock<T = any>(fileName: string, exportName: string): Promise<T[] | null> {
+async function loadMock<T = unknown>(fileName: string, exportName: string): Promise<T[] | null> {
   if (skipMock)
     return null
 
@@ -221,10 +215,10 @@ async function loadMock<T = any>(fileName: string, exportName: string): Promise<
   }
 }
 
-async function safeInsert<T extends Record<string, any>>(
+async function safeInsert<Table extends PgTable>(
   label: string,
-  table: any,
-  rows: T[],
+  table: Table,
+  rows: PgInsertValue<Table>[],
 ): Promise<{ success: number, failed: number }> {
   if (rows.length === 0) {
     console.log(`   ⏭️  [${label}] нет данных`)
@@ -233,7 +227,7 @@ async function safeInsert<T extends Record<string, any>>(
 
   const columnCount = Object.keys(rows[0]).length
   const chunkSize = Math.max(1, Math.floor(MAX_PG_PARAMS / columnCount) - 10)
-  const chunks: T[][] = []
+  const chunks: PgInsertValue<Table>[][] = []
   for (let i = 0; i < rows.length; i += chunkSize)
     chunks.push(rows.slice(i, i + chunkSize))
 
@@ -273,7 +267,7 @@ async function safeInsert<T extends Record<string, any>>(
   }
 }
 
-async function insertGeoRows<T extends Record<string, any>>(label: string, table: any, rows: T[]): Promise<void> {
+async function insertGeoRows<Table extends PgTable>(label: string, table: Table, rows: PgInsertValue<Table>[]): Promise<void> {
   const result = await safeInsert(label, table, rows)
   if (result.failed > 0)
     throw new Error(`Geo restore stopped: ${result.failed} ${label} rows failed to insert`)
@@ -283,7 +277,7 @@ async function insertGeoRows<T extends Record<string, any>>(label: string, table
 // Валидаторы
 // ─────────────────────────────────────────────────────────────
 
-function validateTrip(trip: any, index: number): void {
+function validateTrip(trip: DumpRow<typeof trips>, index: number): void {
   const errors: string[] = []
   if (!trip.id)
     errors.push('нет id')
@@ -341,7 +335,7 @@ async function discoverAndSelectS3Dump(latest = false): Promise<string | null> {
   }
 }
 
-async function readJsonFilesFromS3Dir(prefix: string): Promise<any[]> {
+async function readJsonFilesFromS3Dir<T>(prefix: string): Promise<T[]> {
   const files = await s3Service.listFilesInFolder(prefix)
   const jsonFiles = files.filter(f => f.endsWith('.json'))
 
@@ -354,7 +348,7 @@ async function readJsonFilesFromS3Dir(prefix: string): Promise<any[]> {
   return items.flat()
 }
 
-async function readOptionalJsonFileFromS3(key: string): Promise<any | undefined> {
+async function readOptionalJsonFileFromS3<T>(key: string): Promise<T | undefined> {
   const folder = key.slice(0, key.lastIndexOf('/') + 1)
   const files = await s3Service.listFilesInFolder(folder)
   if (!files.includes(key))
@@ -370,15 +364,15 @@ async function readDumpFromS3(prefix: string): Promise<DumpData> {
 
   const [usersRaw, countriesRaw, marksRaw, trips, posts, blogs, metro, highlightsData, destinationReviewsData, geoCatalog] = await Promise.all([
     s3Service.getFileContent(`${basePath}users/all.json`).then(JSON.parse),
-    readJsonFilesFromS3Dir(`${basePath}countries/`),
-    readJsonFilesFromS3Dir(`${basePath}marks/`),
-    readJsonFilesFromS3Dir(`${basePath}trips/`),
-    readJsonFilesFromS3Dir(`${basePath}posts/`),
-    readJsonFilesFromS3Dir(`${basePath}blogs/`),
-    readJsonFilesFromS3Dir(`${basePath}metro/`),
-    readJsonFilesFromS3Dir(`${basePath}highlights/`),
-    readJsonFilesFromS3Dir(`${basePath}destination-reviews/`),
-    readOptionalJsonFileFromS3(`${basePath}geo/catalog.json`),
+    readJsonFilesFromS3Dir<DumpRow<typeof countries>>(`${basePath}countries/`),
+    readJsonFilesFromS3Dir<DumpRow<typeof marks>>(`${basePath}marks/`),
+    readJsonFilesFromS3Dir<DumpTrip>(`${basePath}trips/`),
+    readJsonFilesFromS3Dir<DumpPost>(`${basePath}posts/`),
+    readJsonFilesFromS3Dir<DumpRow<typeof import('./schema').blogs>>(`${basePath}blogs/`),
+    readJsonFilesFromS3Dir<DumpMetro>(`${basePath}metro/`),
+    readJsonFilesFromS3Dir<DumpRow<typeof highlights>>(`${basePath}highlights/`),
+    readJsonFilesFromS3Dir<DumpRow<typeof destinationReviews>>(`${basePath}destination-reviews/`),
+    readOptionalJsonFileFromS3<GeoCatalogDump>(`${basePath}geo/catalog.json`),
   ])
 
   const users = usersRaw
@@ -391,7 +385,7 @@ async function readDumpFromS3(prefix: string): Promise<DumpData> {
 // Чтение дампа из папочной структуры (ЛОКАЛЬНО)
 // ─────────────────────────────────────────────────────────────
 
-async function readJsonFilesFromDir(dir: string): Promise<any[]> {
+async function readJsonFilesFromDir<T>(dir: string): Promise<T[]> {
   let files: string[]
   try {
     files = await fs.readdir(dir)
@@ -413,7 +407,7 @@ async function readJsonFilesFromDir(dir: string): Promise<any[]> {
   return items.flat()
 }
 
-async function readOptionalJsonFileFromDir(filePath: string): Promise<any | undefined> {
+async function readOptionalJsonFileFromDir<T>(filePath: string): Promise<T | undefined> {
   let content: string
   try {
     content = await fs.readFile(filePath, 'utf-8')
@@ -432,15 +426,15 @@ async function readDumpFromFolder(folderPath: string): Promise<DumpData> {
 
   const [usersRaw, countriesRaw, marksRaw, trips, posts, blogs, metro, highlightsData, destinationReviewsData, geoCatalog] = await Promise.all([
     fs.readFile(path.join(folderPath, 'users', 'all.json'), 'utf-8').then(JSON.parse),
-    readJsonFilesFromDir(path.join(folderPath, 'countries')),
-    readJsonFilesFromDir(path.join(folderPath, 'marks')),
-    readJsonFilesFromDir(path.join(folderPath, 'trips')),
-    readJsonFilesFromDir(path.join(folderPath, 'posts')),
-    readJsonFilesFromDir(path.join(folderPath, 'blogs')),
-    readJsonFilesFromDir(path.join(folderPath, 'metro')),
-    readJsonFilesFromDir(path.join(folderPath, 'highlights')),
-    readJsonFilesFromDir(path.join(folderPath, 'destination-reviews')),
-    readOptionalJsonFileFromDir(path.join(folderPath, 'geo', 'catalog.json')),
+    readJsonFilesFromDir<DumpRow<typeof countries>>(path.join(folderPath, 'countries')),
+    readJsonFilesFromDir<DumpRow<typeof marks>>(path.join(folderPath, 'marks')),
+    readJsonFilesFromDir<DumpTrip>(path.join(folderPath, 'trips')),
+    readJsonFilesFromDir<DumpPost>(path.join(folderPath, 'posts')),
+    readJsonFilesFromDir<DumpRow<typeof import('./schema').blogs>>(path.join(folderPath, 'blogs')),
+    readJsonFilesFromDir<DumpMetro>(path.join(folderPath, 'metro')),
+    readJsonFilesFromDir<DumpRow<typeof highlights>>(path.join(folderPath, 'highlights')),
+    readJsonFilesFromDir<DumpRow<typeof destinationReviews>>(path.join(folderPath, 'destination-reviews')),
+    readOptionalJsonFileFromDir<GeoCatalogDump>(path.join(folderPath, 'geo', 'catalog.json')),
   ])
 
   const users = usersRaw
@@ -493,7 +487,7 @@ async function discoverAndSelectLocalDump(): Promise<SelectedDump | null> {
     return response.selected ?? null
   }
   catch (error) {
-    if (error instanceof Error && 'code' in error && (error as any).code === 'ENOENT')
+    if (error instanceof Error && 'code' in error && (error).code === 'ENOENT')
       return null
     throw error
   }
@@ -503,14 +497,14 @@ async function discoverAndSelectLocalDump(): Promise<SelectedDump | null> {
 // Секции восстановления
 // ─────────────────────────────────────────────────────────────
 
-async function restoreMetro(sourceMetro: any[]): Promise<void> {
+async function restoreMetro(sourceMetro: DumpMetro[]): Promise<void> {
   console.log('\n🚇 Восстановление данных Метро...')
 
   if (sourceMetro.length > 0) {
     console.log(`   📂 В дампе: ${sourceMetro.length} систем`)
     for (const system of sourceMetro) {
       await db.insert(metroSystems)
-        .values({ id: system.id, city: system.city, country: system.country, geoPlaceId: system.geoPlaceId ?? null })
+        .values({ id: system.id, city: system.city, country: system.country, geoPlaceId: 'geoPlaceId' in system && typeof system.geoPlaceId === 'string' ? system.geoPlaceId : null })
         .onConflictDoNothing()
 
       if (!Array.isArray(system.lines))
@@ -539,7 +533,7 @@ async function restoreMetro(sourceMetro: any[]): Promise<void> {
     console.log('   ✅ Метро из дампа восстановлено')
   }
   else {
-    const mockMetro = await loadMock('02.metro', 'MOCK_METRO_DATA')
+    const mockMetro = await loadMock<typeof MOCK_METRO_DATA[number]>('02.metro', 'MOCK_METRO_DATA')
     if (!mockMetro) {
       console.log('   ⏭️  В дампе нет данных метро, а моки недоступны — пропускаем')
       return
@@ -547,7 +541,7 @@ async function restoreMetro(sourceMetro: any[]): Promise<void> {
     console.log('   ⚠️  В дампе нет данных метро. Используем MOCK_METRO_DATA...')
     for (const system of mockMetro) {
       const [insertedSystem] = await db.insert(metroSystems)
-        .values({ id: system.id, city: system.city, country: system.country, geoPlaceId: system.geoPlaceId ?? null })
+        .values({ id: system.id, city: system.city, country: system.country, geoPlaceId: 'geoPlaceId' in system && typeof system.geoPlaceId === 'string' ? system.geoPlaceId : null })
         .returning()
 
       for (const line of system.lines) {
@@ -555,7 +549,7 @@ async function restoreMetro(sourceMetro: any[]): Promise<void> {
           .values({ id: line.id, systemId: insertedSystem.id, name: line.name, color: line.color, lineNumber: line.lineNumber })
           .returning()
 
-        const stationsToInsert = line.stations.map((s: any) => ({
+        const stationsToInsert = line.stations.map(s => ({
           id: s.id,
           systemId: insertedSystem.id,
           name: s.name,
@@ -563,7 +557,7 @@ async function restoreMetro(sourceMetro: any[]): Promise<void> {
         if (stationsToInsert.length > 0)
           await db.insert(metroStations).values(stationsToInsert).onConflictDoNothing()
 
-        const lineStationsToInsert = line.stations.map((s: any, idx: number) => ({
+        const lineStationsToInsert = line.stations.map((s, idx: number) => ({
           lineId: insertedLine.id,
           stationId: s.id,
           order: idx,
@@ -576,7 +570,7 @@ async function restoreMetro(sourceMetro: any[]): Promise<void> {
   }
 }
 
-async function restoreTrips(sourceTrips: any[]): Promise<void> {
+async function restoreTrips(sourceTrips: DumpTrip[]): Promise<void> {
   console.log('\n✈️  Восстановление путешествий...')
 
   const tripsToInsert: (typeof trips.$inferInsert)[] = []
@@ -611,7 +605,7 @@ async function restoreTrips(sourceTrips: any[]): Promise<void> {
       updatedAt: toDate(tripDetails.updatedAt) ?? new Date(),
     })
 
-    sections?.forEach((section: any) => {
+    sections?.forEach((section) => {
       if (!section.id || !section.tripId)
         console.warn(`   ⚠️  [TripSection] trip=${tripDetails.id}: секция без id/tripId`)
       sectionsToInsert.push({
@@ -621,13 +615,13 @@ async function restoreTrips(sourceTrips: any[]): Promise<void> {
       })
     })
 
-    participants?.forEach((p: any) => {
+    participants?.forEach((p) => {
       if (!p.tripId || !p.userId)
         console.warn(`   ⚠️  [TripParticipant] trip=${tripDetails.id}: участник без tripId/userId`)
       participantsToInsert.push(p)
     })
 
-    tripDays?.forEach((day: any) => {
+    tripDays?.forEach((day) => {
       const { activities: dayActivities, ...dayDetails } = day
       if (!day.id || !day.tripId)
         console.warn(`   ⚠️  [Day] trip=${tripDetails.id}: день без id/tripId`)
@@ -639,18 +633,16 @@ async function restoreTrips(sourceTrips: any[]): Promise<void> {
         updatedAt: toDate(dayDetails.updatedAt) ?? new Date(),
       })
 
-      dayActivities?.forEach((activity: any) => {
+      dayActivities?.forEach((activity) => {
         if (!activity.id || !activity.dayId)
           console.warn(`   ⚠️  [Activity] day=${day.id}: активность без id/dayId`)
         activitiesToInsert.push({
           ...activity,
-          createdAt: toDate(activity.createdAt) ?? new Date(),
-          updatedAt: toDate(activity.updatedAt) ?? new Date(),
         })
       })
     })
 
-    tripImagesData?.forEach((image: any) => {
+    tripImagesData?.forEach((image) => {
       imagesToInsert.push({
         ...image,
         createdAt: toDate(image.createdAt) ?? new Date(),
@@ -658,7 +650,7 @@ async function restoreTrips(sourceTrips: any[]): Promise<void> {
       })
     })
 
-    tripMemories?.forEach((memory: any) => {
+    tripMemories?.forEach((memory) => {
       memoriesToInsert.push({
         ...memory,
         timestamp: toDate(memory.timestamp),
@@ -692,7 +684,7 @@ async function restoreGeoCatalog(geoCatalog: DumpData['geoCatalog']): Promise<vo
   if (geoCatalog.dumpFormatVersion !== 1 || geoCatalog.catalogMode !== 'referenced-places')
     throw new Error('Неподдерживаемый формат geo/catalog.json; восстановление остановлено до импорта данных')
 
-  const versions = (geoCatalog.catalogVersions ?? []).map((version: any) => ({
+  const versions = (geoCatalog.catalogVersions ?? []).map(version => ({
     ...version,
     // This dump keeps app-referenced places, not the complete searchable world catalog.
     // Search stays unavailable until the pinned full catalog is imported again.
@@ -702,26 +694,26 @@ async function restoreGeoCatalog(geoCatalog: DumpData['geoCatalog']): Promise<vo
     createdAt: toDate(version.createdAt) ?? new Date(),
     updatedAt: toDate(version.updatedAt) ?? new Date(),
   }))
-  const catalogCountries = (geoCatalog.catalogCountries ?? []).map((country: any) => ({
+  const catalogCountries = (geoCatalog.catalogCountries ?? []).map(country => ({
     ...country,
     createdAt: toDate(country.createdAt) ?? new Date(),
     updatedAt: toDate(country.updatedAt) ?? new Date(),
   }))
-  const places = (geoCatalog.places ?? []).map((place: any) => ({
+  const places = (geoCatalog.places ?? []).map(place => ({
     ...place,
     createdAt: toDate(place.createdAt) ?? new Date(),
     updatedAt: toDate(place.updatedAt) ?? new Date(),
   }))
-  const names = (geoCatalog.placeNames ?? []).map((name: any) => ({
+  const names = (geoCatalog.placeNames ?? []).map(name => ({
     ...name,
     createdAt: toDate(name.createdAt) ?? new Date(),
   }))
-  const weatherCache = (geoCatalog.weatherCache ?? []).map((entry: any) => ({
+  const weatherCache = (geoCatalog.weatherCache ?? []).map(entry => ({
     ...entry,
     createdAt: toDate(entry.createdAt) ?? new Date(),
     updatedAt: toDate(entry.updatedAt) ?? new Date(),
   }))
-  const resolutionAudit = (geoCatalog.resolutionAudit ?? []).map((entry: any) => ({
+  const resolutionAudit = (geoCatalog.resolutionAudit ?? []).map(entry => ({
     ...entry,
     createdAt: toDate(entry.createdAt) ?? new Date(),
   }))
@@ -735,12 +727,12 @@ async function restoreGeoCatalog(geoCatalog: DumpData['geoCatalog']): Promise<vo
   await insertGeoRows('geoResolutionAudit', geoResolutionAudit, resolutionAudit)
 }
 
-async function restoreTripGeoPlaces(rows: any[] | undefined): Promise<void> {
+async function restoreTripGeoPlaces(rows: NonNullable<GeoCatalogDump['tripPlaces']> | undefined): Promise<void> {
   if (!rows?.length)
     return
   const normalized = rows
-    .filter((row: any) => Boolean(row.placeId))
-    .map(({ legacyLabel: _legacyLabel, status: _status, ...row }: any) => ({
+    .filter(row => Boolean(row.placeId))
+    .map(({ legacyLabel: _legacyLabel, status: _status, ...row }) => ({
       ...row,
       createdAt: toDate(row.createdAt) ?? new Date(),
       updatedAt: toDate(row.updatedAt) ?? new Date(),
@@ -748,7 +740,7 @@ async function restoreTripGeoPlaces(rows: any[] | undefined): Promise<void> {
   await insertGeoRows('tripGeoPlaces', tripGeoPlaces, normalized)
 }
 
-async function restorePosts(sourcePosts: any[]): Promise<void> {
+async function restorePosts(sourcePosts: DumpPost[]): Promise<void> {
   console.log('\n📝 Восстановление постов...')
 
   const postsToInsert: (typeof posts.$inferInsert)[] = []
@@ -765,7 +757,7 @@ async function restorePosts(sourcePosts: any[]): Promise<void> {
       updatedAt: toDate(postDetails.updatedAt) ?? new Date(),
     })
 
-    elements?.forEach((el: any) => {
+    elements?.forEach((el) => {
       elementsToInsert.push({
         ...el,
         createdAt: toDate(el.createdAt) ?? new Date(),
@@ -773,7 +765,7 @@ async function restorePosts(sourcePosts: any[]): Promise<void> {
       })
     })
 
-    media?.forEach((m: any) => {
+    media?.forEach((m) => {
       mediaToInsert.push({
         ...m,
         createdAt: toDate(m.createdAt) ?? new Date(),
@@ -781,7 +773,7 @@ async function restorePosts(sourcePosts: any[]): Promise<void> {
       })
     })
 
-    savedBy?.forEach((s: any) => {
+    savedBy?.forEach((s) => {
       savedPostsToInsert.push({
         ...s,
         createdAt: toDate(s.createdAt) ?? new Date(),
@@ -799,9 +791,9 @@ async function restorePosts(sourcePosts: any[]): Promise<void> {
   ])
 }
 
-async function restoreBlogs(sourceBlogs: any[]): Promise<void> {
+async function restoreBlogs(sourceBlogs: DumpRow<typeof import('./schema').blogs>[]): Promise<void> {
   console.log('\n📰 Восстановление блогов...')
-  const blogsToInsert = sourceBlogs.map((blog: any) => ({
+  const blogsToInsert = sourceBlogs.map(blog => ({
     ...blog,
     publishedAt: toDate(blog.publishedAt),
     createdAt: toDate(blog.createdAt) ?? new Date(),
@@ -845,8 +837,8 @@ async function seedFromJson(): Promise<void> {
       const origErr = console.error.bind(console)
       const origWarn = console.warn.bind(console)
 
-      const tee = (origFn: (...a: any[]) => void) =>
-        (...args: any[]) => {
+      const tee = (origFn: (...a: unknown[]) => void) =>
+        (...args: unknown[]) => {
           origFn(...args)
           if (logStream) {
             logStream.write(`${args.map(a => (typeof a === 'string' ? a : JSON.stringify(a))).join(' ')}\n`)
@@ -1040,8 +1032,8 @@ async function seedFromJson(): Promise<void> {
   console.log('\n⭐ Восстановление справочников...')
 
   const [subscriptionMock, llmMock] = await Promise.all([
-    loadMock('03.subscription', 'SUBSCRIPTION_MOCK'),
-    loadMock('04.llm', 'LLM_MOCK'),
+    loadMock<typeof plans.$inferInsert>('03.subscription', 'SUBSCRIPTION_MOCK'),
+    loadMock<typeof llmModels.$inferInsert>('04.llm', 'LLM_MOCK'),
   ])
   const plansData = (subscriptionMock ?? []).map(p => ({ ...p, id: Number(p.id) }))
 
@@ -1076,28 +1068,9 @@ async function seedFromJson(): Promise<void> {
   }
 
   // Страны (требуются для destinationReviews)
-  let countriesToInsert: any[] = []
-  if (Array.isArray(sourceCountries) && sourceCountries.length > 0) {
-    countriesToInsert = sourceCountries
-  }
-  else {
-    const countryMock = await loadMock('07.country', 'MOCK_COUNTRY_DATA')
-    countriesToInsert = (countryMock ?? []).map((c: any) => {
-      let rusName = ''
-      if (typeof c.name?.rus === 'string')
-        rusName = c.name.rus
-      else if (c.name?.rus?.common)
-        rusName = c.name.rus.common
-      else if (c.name?.rus?.official)
-        rusName = c.name.rus.official
-
-      const fallbackName = c.name?.common || c.name?.official || 'Неизвестная страна'
-      const finalName = rusName || fallbackName
-      const id = c.cca2 || c.cca3 || uuidv4()
-
-      return { id, name: finalName, flagUrl: c.flag || null }
-    }).filter(c => c.name !== 'Неизвестная страна' && c.name !== '')
-  }
+  const countriesToInsert = sourceCountries?.length
+    ? sourceCountries
+    : (await loadMock<typeof countries.$inferInsert>('07.country', 'MOCK_COUNTRY_DATA') ?? [])
 
   await Promise.all([
     plansData.length > 0
@@ -1119,10 +1092,10 @@ async function seedFromJson(): Promise<void> {
   // 5. Пользователи
   console.log('\n👤 Восстановление пользователей...')
   if (sourceUsers.length > 0) {
-    const usersToInsert = sourceUsers.map((user: any) => ({
+    const usersToInsert = sourceUsers.map(user => ({
       ...user,
       emailVerified: toDate(user.emailVerified),
-      llmCreditsPeriodStartDate: toDate(user.llmCreditsPeriodStartDate),
+      llmCreditsPeriodStartDate: toDate(user.llmCreditsPeriodStartDate) ?? new Date(),
       createdAt: toDate(user.createdAt) ?? new Date(),
       updatedAt: toDate(user.updatedAt) ?? new Date(),
     }))
@@ -1132,9 +1105,9 @@ async function seedFromJson(): Promise<void> {
   // 5.1 Highlights (Витрина)
   console.log('\n📸 Восстановление витрины (highlights)...')
   if (Array.isArray(sourceHighlights) && sourceHighlights.length > 0) {
-    const highlightsToInsert = sourceHighlights.map((h: any) => {
+    const highlightsToInsert = sourceHighlights.map((h) => {
       const { country, ...rest } = h
-      let cId = rest.countryId
+      let cId: string | undefined = rest.countryId
       if (!cId && country) {
         const found = countriesToInsert.find(c => c.name === country)
         cId = found?.id
@@ -1152,7 +1125,7 @@ async function seedFromJson(): Promise<void> {
   // 5.2 Destination Reviews (Впечатления)
   console.log('\n⭐ Восстановление впечатлений (destinationReviews)...')
   if (Array.isArray(sourceReviews) && sourceReviews.length > 0) {
-    const reviewsToInsert = sourceReviews.map((r: any) => ({
+    const reviewsToInsert = sourceReviews.map(r => ({
       ...r,
       createdAt: toDate(r.createdAt) ?? new Date(),
       updatedAt: toDate(r.updatedAt) ?? new Date(),
@@ -1163,7 +1136,7 @@ async function seedFromJson(): Promise<void> {
   // 6. Метки
   console.log('\n📍 Восстановление меток...')
   if (Array.isArray(sourceMarks) && sourceMarks.length > 0) {
-    const marksToInsert = sourceMarks.map((mark: any) => ({
+    const marksToInsert = sourceMarks.map(mark => ({
       ...mark,
       startAt: toDate(mark.startAt),
       createdAt: toDate(mark.createdAt) ?? new Date(),
@@ -1171,14 +1144,14 @@ async function seedFromJson(): Promise<void> {
     await safeInsert('marks', marks, marksToInsert)
   }
   else if (sourceUsers.length > 0) {
-    const marksMock = await loadMock('08.marks', 'MOCK_MARKS_DATA')
+    const marksMock = await loadMock<DumpRow<typeof marks>>('08.marks', 'MOCK_MARKS_DATA')
     if (!marksMock) {
       console.log('   ⏭️  Нет меток в дампе, а моки недоступны — пропускаем')
     }
     else {
       console.log('   ⚠️  Нет меток в дампе. Используем MOCK_MARKS_DATA...')
       const fallbackUserId = sourceUsers[0].id
-      const marksToInsert = marksMock.map((mark: any) => ({
+      const marksToInsert = marksMock.map(mark => ({
         ...mark,
         userId: fallbackUserId,
         startAt: toDate(mark.startAt),

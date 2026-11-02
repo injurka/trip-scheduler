@@ -1,10 +1,15 @@
-import type { MapRoute, TransportMode } from '../src/renderer/components/03.domain/trip-info/geolocation-section/models/types'
+import type { ActivitySectionGeolocation, MapRoute, TransportMode } from '../src/renderer/components/03.domain/trip-info/geolocation-section/models/types'
 import { flushPromises, mount } from '@vue/test-utils'
 import { describe, expect, it, vi } from 'vitest'
 import { defineComponent, h, onMounted, reactive, ref } from 'vue'
 import GeolocationRouteList from '../src/renderer/components/03.domain/trip-info/geolocation-section/ui/geolocation-route-list.vue'
 import GeolocationSection from '../src/renderer/components/03.domain/trip-info/geolocation-section/ui/geolocation-section.vue'
 
+vi.mock('@vueuse/core', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@vueuse/core')>()
+
+  return { ...actual, useIntersectionObserver: () => ({ stop: vi.fn() }) }
+})
 vi.mock('@iconify/vue', () => ({ Icon: defineComponent({ props: ['icon'], setup: props => () => h('i', { 'data-icon': props.icon }) }) }))
 vi.mock('~/components/01.kit/kit-btn', () => ({ KitBtn: defineComponent({ setup: () => () => h('button') }) }))
 vi.mock('~/components/01.kit/kit-tooltip', () => ({ KitTooltip: defineComponent({ setup: (_, { slots }) => () => slots.default?.() }) }))
@@ -70,6 +75,7 @@ vi.mock('../src/renderer/components/03.domain/trip-info/geolocation-section/ui/g
 }))
 
 it('persists Auto before the debounce and keeps the saved snapshot independent', async () => {
+  vi.stubGlobal('IntersectionObserver', undefined)
   const wrapper = mount(GeolocationSection, {
     props: {
       section: {
@@ -83,15 +89,17 @@ it('persists Auto before the debounce and keeps the saved snapshot independent',
           isVisible: true,
           points: [{ id: 'a', coordinates: [121.54, 25.15], type: 'start' }, { id: 'b', coordinates: [121.52, 25.08], type: 'end' }],
         }],
-      } as any,
+      },
     },
   })
   await flushPromises()
+  await vi.waitFor(() => expect(wrapper.findAll('.transport-btn').length).toBeGreaterThan(0))
   await wrapper.findAll('.transport-btn')[2].trigger('click')
-  const saved = wrapper.emitted('updateSection')?.[0]?.[0] as any
-  expect(saved.routes[0].transportMode).toBe('car')
+  const saved = wrapper.emitted<[ActivitySectionGeolocation]>('updateSection')?.[0]?.[0]
+  expect(saved!.routes[0].transportMode).toBe('car')
   expect(wrapper.get('.route-mode-icon').attributes('data-icon')).toBe('mdi:car')
   await wrapper.findAll('.transport-btn')[1].trigger('click')
-  expect(saved.routes[0].transportMode).toBe('car')
+  expect(saved!.routes[0].transportMode).toBe('car')
   wrapper.unmount()
+  vi.unstubAllGlobals()
 })

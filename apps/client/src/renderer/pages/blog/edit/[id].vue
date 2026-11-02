@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { CreateBlogPostInput } from '~/shared/types/models/blog'
 import { Icon } from '@iconify/vue'
+import { getErrorMessage } from '@injurka/type-utils'
 import { onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { BlogEditor } from '~/components/05.modules/blog'
@@ -32,8 +33,8 @@ async function handleSave() {
     toast.success('Статья обновлена')
     router.push({ name: AppRouteNames.BlogArticle, params: { slug: form.value.slug } })
   }
-  catch (e: any) {
-    toast.error(e.message || 'Ошибка обновления')
+  catch (e) {
+    toast.error(getErrorMessage(e) || 'Ошибка обновления')
   }
 }
 

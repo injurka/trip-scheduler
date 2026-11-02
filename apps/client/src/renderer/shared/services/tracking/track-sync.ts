@@ -90,7 +90,7 @@ async function syncOnce(): Promise<number> {
       break
     }
 
-    const result = await (trpc as any).tracking.ingestBatch.mutate({
+    const result = await (trpc).tracking.ingestBatch.mutate({
       points: points.map(toTrackingInput),
     }) as { accepted: string[], rejectedCount: number }
 

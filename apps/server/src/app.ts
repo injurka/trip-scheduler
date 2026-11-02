@@ -149,7 +149,7 @@ class Server {
         const res = await createOpenApiFetchHandler({
           endpoint: '/',
           router: appRouter,
-          createContext: () => createContext({} as any, c),
+          createContext: () => createContext({}, c),
           req: safeReq,
           onError: () => { },
         })

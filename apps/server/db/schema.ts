@@ -244,7 +244,7 @@ export const tripSections = pgTable('trip_sections', {
   type: tripSectionTypeEnum('type').notNull(),
   title: text('title').notNull(),
   icon: text('icon'),
-  content: jsonb('content').$type<any>().default('{}'),
+  content: jsonb('content').$type<unknown>().default('{}'),
   order: integer('order').notNull().default(0),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
@@ -355,7 +355,7 @@ export const llmTokenUsage = pgTable('llm_token_usage', {
   userIdIndex: index('llm_usage_user_id_idx').on(t.userId),
 }))
 
-export const commentParentTypeEnum = pgEnum('comment_parent_type', ['trip', 'day'])
+export const commentParentTypeEnum = pgEnum('comment_parent_type', ['trip', 'day', 'post'])
 
 export const comments = pgTable('comments', {
   id: uuid('id').primaryKey().defaultRandom(),

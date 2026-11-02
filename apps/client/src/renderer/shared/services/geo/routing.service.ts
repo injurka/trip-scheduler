@@ -140,8 +140,8 @@ class RoutingService {
 
       return result
     }
-    catch (error: any) {
-      if (error?.name === 'AbortError')
+    catch (error) {
+      if (error instanceof Error && error.name === 'AbortError')
         throw error
 
       console.warn('[RoutingService] Fallback to direct path:', error)

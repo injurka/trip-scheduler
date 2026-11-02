@@ -548,8 +548,8 @@ function handleExport() {
           cityRefs: trip.cityRefs,
           url: window.location.href,
         },
-        days: days as any,
-        bookings: bookings as any,
+        days,
+        bookings,
       }, {
         includeBookings: options.value.includeBookings,
         includeActivities: options.value.includeActivityDetails,

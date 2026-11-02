@@ -1,3 +1,4 @@
+import assert from 'node:assert/strict'
 import { describe, expect, it } from 'bun:test'
 import { enrichActivityWithMediaAndLocation } from '../lib/enricher'
 import { parseActivitiesFromMarkdown } from '../parsers/activity'
@@ -19,11 +20,12 @@ describe('Google directions transport modes', () => {
     * Ожидание и поездка.
     * _Путь до Jiantan_: [Google Maps: Yangmingshan Bus Terminal → Jiantan Station](${url})`)[0]
     const result = await enrichActivityWithMediaAndLocation(activity, new Map(), null, null, new Map(), new Map(), { geocode: false, uploadImages: false })
-    const geo = result.sections?.find(section => section.type === 'geolocation') as any
+    const geo = result.sections?.find(section => section.type === 'geolocation')
+    assert(geo)
     expect(geo.routes).toHaveLength(1)
-    expect(geo.routes[0].transportMode).toBe(mode)
+    expect(geo.routes[0].transportMode).toBe(mode as 'foot' | 'bike' | 'car' | 'transit')
     expect(geo.routes[0].points[0].externalUrl).toBe(url)
-    const descriptions = result.sections?.filter(section => section.type === 'description') as any[]
+    const descriptions = result.sections?.filter(section => section.type === 'description') ?? []
     expect(descriptions.map(section => section.text).join('')).toBe('* Ожидание и поездка.')
   })
 

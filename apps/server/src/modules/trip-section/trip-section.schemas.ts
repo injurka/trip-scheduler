@@ -3,14 +3,8 @@ import { z } from 'zod'
 // Определение enum, идентичного тому, что используется на клиенте.
 // Это необходимо для совместимости типов в tRPC.
 // Значения должны быть синхронизированы с `tripSectionTypeEnum` в `db/schema.ts`.
-export enum TripSectionType {
-  BOOKINGS = 'bookings',
-  FINANCES = 'finances',
-  CHECKLIST = 'checklist',
-  DOCUMENTS = 'documents',
-  NOTES = 'notes',
-  MEMORIES = 'memories',
-}
+export const TripSectionType = { BOOKINGS: 'bookings', FINANCES: 'finances', CHECKLIST: 'checklist', DOCUMENTS: 'documents', NOTES: 'notes', MEMORIES: 'memories' } as const
+export type TripSectionType = typeof TripSectionType[keyof typeof TripSectionType]
 
 export const TripSectionSchema = z.object({
   id: z.string().uuid(),
@@ -18,7 +12,7 @@ export const TripSectionSchema = z.object({
   type: z.nativeEnum(TripSectionType),
   title: z.string(),
   icon: z.string().nullable(),
-  content: z.any(),
+  content: z.unknown(),
   order: z.number(),
   createdAt: z.date(),
   updatedAt: z.date(),
@@ -30,7 +24,7 @@ export const CreateTripSectionInputSchema = TripSectionSchema.pick({
   title: true,
   icon: true,
 }).extend({
-  content: z.any().optional(),
+  content: z.unknown().optional(),
 })
 
 export const UpdateTripSectionInputSchema = TripSectionSchema.pick({

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { DisplayTrackPoint, TrackActivityType, TrackPoint, TrackSegment, TrackStop } from '../../src'
 import { Icon } from '@iconify/vue'
+import { getErrorMessage } from '@injurka/type-utils'
 import * as maplibregl from 'maplibre-gl'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import 'maplibre-gl/dist/maplibre-gl.css'
@@ -165,13 +166,13 @@ function initMap() {
       fitTrackBounds()
     })
 
-    map.on('error', (e: any) => {
+    map.on('error', (e) => {
       console.warn('MapLibre error notice:', e)
     })
   }
-  catch (err: any) {
+  catch (err) {
     console.error('Failed to init MapLibre:', err)
-    mapError.value = err?.message || 'WebGL / Map initialization error'
+    mapError.value = getErrorMessage(err) || 'WebGL / Map initialization error'
   }
 }
 
@@ -342,7 +343,7 @@ function updateMapData() {
   // 3. Segments
   const segSource = map.getSource('segments-track') as maplibregl.GeoJSONSource
   if (segSource) {
-    const features: any[] = []
+    const features: unknown[] = []
     if (props.segments && props.segments.length > 0) {
       for (const seg of props.segments) {
         features.push({

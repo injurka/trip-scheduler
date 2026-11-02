@@ -1,3 +1,4 @@
+import type { ActivityPayload, ActivitySection } from '../types'
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -5,8 +6,8 @@ import { expect, it } from 'bun:test'
 
 it('CLI links activity descriptions to private uploaded documents', async () => {
   const directory = mkdtempSync(join(tmpdir(), 'document-links-cli-'))
-  const activities: any[] = []
-  const uploads: any[] = []
+  const activities: Array<ActivityPayload & { sections: ActivitySection[] }> = []
+  const uploads: Array<{ access: string }> = []
   const id = '00000000-0000-4000-8000-000000000001'
   const server = Bun.serve({ hostname: '127.0.0.1', port: 0, async fetch(request) {
     const path = new URL(request.url).pathname
@@ -21,7 +22,7 @@ it('CLI links activity descriptions to private uploaded documents', async () => 
     }
     if (request.method === 'GET')
       return Response.json(path.includes('details') ? { sections: [] } : [])
-    const body = await request.json() as any
+    const body = await request.json()
     if (path === '/activities')
       activities.push(body)
     return Response.json({ ...body, id })
@@ -38,7 +39,7 @@ it('CLI links activity descriptions to private uploaded documents', async () => 
     expect({ code, errors: code ? stdout + stderr : '' }).toEqual({ code: 0, errors: '' })
     expect(uploads).toHaveLength(1)
     expect(uploads[0].access).toBe('private')
-    const description = activities[0].sections.find((section: any) => section.type === 'description').text
+    const description = activities[0].sections.find(section => section.type === 'description')?.text
     expect(description).toContain(`[Ваучер с QR-кодом](#trip-document=${encodeURIComponent(`trips/${id}/documents/voucher.pdf`)})`)
     expect(description).toContain('Баланс 200 TWD.')
     expect(description).not.toContain('test-token')

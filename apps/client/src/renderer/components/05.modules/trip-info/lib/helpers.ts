@@ -86,7 +86,7 @@ export function tripMediaToViewerImage(media: TripMedia): ImageViewerImage {
   return {
     url: getMediaViewerUrl(media),
     mediaType: media.mediaType || 'image',
-    variants: media.variants as any,
+    variants: media.variants,
     alt: getMediaViewerAlt(media),
     caption: media.metadata?.iptc?.caption,
     meta: getMediaViewerMeta(media),
@@ -182,7 +182,7 @@ const ClientTagSynonyms: Record<string, EActivityTag> = {
   excursion: EActivityTag.ACTIVITY,
 }
 
-export function sanitizeActivityTag(tag: any): EActivityTag {
+export function sanitizeActivityTag(tag: unknown): EActivityTag {
   if (typeof tag === 'string') {
     const lower = tag.trim().toLowerCase()
 
@@ -198,7 +198,7 @@ export function sanitizeActivityTag(tag: any): EActivityTag {
   return EActivityTag.ACTIVITY
 }
 
-export function sanitizeTimeString(timeStr: any): string {
+export function sanitizeTimeString(timeStr: unknown): string {
   if (!timeStr || typeof timeStr !== 'string') {
     return '00:00'
   }

@@ -1,6 +1,7 @@
 import { createSelectSchema } from 'drizzle-zod'
 import { z } from 'zod'
 import { postElements, postMedia, posts } from '~/../db/schema'
+import { ImageMetadataSchema } from '../image/image-metadata.schema'
 import { UserSchema } from '../user/user.schemas'
 
 const PostContentBlockBaseSchema = z.object({
@@ -71,6 +72,7 @@ export const PostStatsDetailSchema = z.object({
 })
 
 export const PostMediaSchema = createSelectSchema(postMedia).extend({
+  metadata: z.unknown().pipe(ImageMetadataSchema).nullable(),
   hasAccess: z.boolean().optional().default(true),
 })
 export const PostElementSchema = createSelectSchema(postElements).extend({

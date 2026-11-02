@@ -121,15 +121,15 @@ export interface TripCalendarBooking {
   id: string
   title: string
   type: 'flight' | 'hotel' | 'train' | 'car' | 'attraction' | 'other' | string
-  data: FlightData | HotelData | TrainData | CarData | AttractionData | OtherData | Record<string, any>
+  data: FlightData | HotelData | TrainData | CarData | AttractionData | OtherData | Record<string, unknown>
 }
 
 export interface TripCalendarActivitySection {
   type: string
   text?: string
   address?: string
-  points?: Array<{ lat: number, lng?: number, lon?: number, label?: string, address?: string }>
-  [key: string]: any
+  points?: Array<{ lat?: number, lng?: number, lon?: number, coordinates?: [number, number], label?: string, address?: string | null }>
+  rides?: Array<{ startStation?: string, endStation?: string, lineName?: string, from?: string, to?: string, route?: string }>
 }
 
 export interface TripCalendarActivity {

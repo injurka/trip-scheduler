@@ -1,3 +1,4 @@
+import assert from 'node:assert/strict'
 import { describe, expect, it } from 'bun:test'
 import { enrichActivityWithMediaAndLocation } from '../lib/enricher'
 import { parseActivitiesFromMarkdown } from '../parsers/activity'
@@ -46,7 +47,8 @@ describe('markdown links with unbalanced look but balanced parentheses in URL', 
   it('enrichment keeps the imported route with mode from the (авто) label', async () => {
     const activity = parseActivitiesFromMarkdown(`* **14:15 - 14:55** — Автобус № 102 из Анпина в центр Тайнаня:\n    * *Поездка на автобусе:* Посадка на городской автобус № 102.\n    * _Маршрут на карте (авто)_: [Google Maps: Tianfei Village ➔ Confucius Temple](${TAINAN_BUS_URL})`)[0]
     const result = await enrichActivityWithMediaAndLocation(activity, new Map(), null, null, new Map(), new Map(), { geocode: false, uploadImages: false })
-    const geo = result.sections?.find(section => section.type === 'geolocation') as any
+    const geo = result.sections?.find(section => section.type === 'geolocation')
+    assert(geo)
     expect(geo.routes).toHaveLength(1)
     expect(geo.routes[0].transportMode).toBe('car')
     expect(geo.routes[0].points).toHaveLength(2)

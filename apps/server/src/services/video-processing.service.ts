@@ -38,8 +38,8 @@ class VideoProcessingService {
         filePath,
       ])
 
-      const data = JSON.parse(stdout)
-      const videoStream = data.streams?.find((s: any) => s.width && s.height) || data.streams?.[0] || {}
+      const data: { streams?: Array<{ width?: string, height?: string, duration?: string, codec_name?: string, tags?: { rotate?: string } }>, format?: { duration?: string, bit_rate?: string } } = JSON.parse(stdout)
+      const videoStream = data.streams?.find(s => s.width && s.height) || data.streams?.[0] || {}
       const format = data.format || {}
 
       let duration = Number.parseFloat(videoStream.duration || format.duration || '0')
@@ -214,7 +214,7 @@ class VideoProcessingService {
 
       if (existingTripImage) {
         const currentVariants = (existingTripImage.variants as Record<string, string>) || {}
-        const currentMeta = (existingTripImage.metadata as Record<string, any>) || {}
+        const currentMeta = (existingTripImage.metadata as Record<string, unknown>) || {}
 
         const newVariants: Record<string, string> = {
           ...currentVariants,
@@ -248,7 +248,7 @@ class VideoProcessingService {
 
         if (existingPostMedia) {
           const currentVariants = (existingPostMedia.variants as Record<string, string>) || {}
-          const currentMeta = (existingPostMedia.metadata as Record<string, any>) || {}
+          const currentMeta = (existingPostMedia.metadata as Record<string, unknown>) || {}
 
           const newVariants: Record<string, string> = {
             ...currentVariants,

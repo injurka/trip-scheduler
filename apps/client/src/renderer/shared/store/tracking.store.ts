@@ -1,4 +1,5 @@
 import type { TrackingStatus, TrackingTelemetry } from '../services/tracking/geotrack-client'
+import { getErrorMessage } from '@injurka/type-utils'
 import { defineStore } from 'pinia'
 import {
   geotrack,
@@ -120,7 +121,7 @@ export const useTrackingStore = defineStore('tracking', {
           this.isSupported = false
         }
         else {
-          const msg = e instanceof Error ? e.message : String(e)
+          const msg = e instanceof Error ? getErrorMessage(e) : String(e)
           this.lastError = msg
 
           if (msg.toLowerCase().includes('запрещ') || msg.toLowerCase().includes('denied')) {
@@ -167,7 +168,7 @@ export const useTrackingStore = defineStore('tracking', {
         return false
       }
       catch (e) {
-        const msg = e instanceof Error ? e.message : String(e)
+        const msg = e instanceof Error ? getErrorMessage(e) : String(e)
         this.lastError = msg
         this.hasPermissionDenied = true
 
@@ -182,7 +183,7 @@ export const useTrackingStore = defineStore('tracking', {
 
       try {
         const actionPromise = enable ? geotrack.start() : geotrack.stop()
-        let timeoutTimer: any
+        let timeoutTimer: ReturnType<typeof setTimeout> | undefined
         const timeoutPromise = new Promise<never>((_, reject) => {
           timeoutTimer = setTimeout(() => reject(new Error(enable ? 'Превышено время ожидания запуска трекинга' : 'Превышено время ожидания остановки трекинга')), 8000)
         })
@@ -206,7 +207,7 @@ export const useTrackingStore = defineStore('tracking', {
         }
       }
       catch (e) {
-        const msg = e instanceof Error ? e.message : String(e)
+        const msg = e instanceof Error ? getErrorMessage(e) : String(e)
         this.lastError = msg
 
         if (msg.toLowerCase().includes('запрещ') || msg.toLowerCase().includes('denied')) {
@@ -241,8 +242,8 @@ export const useTrackingStore = defineStore('tracking', {
 
         return synced
       }
-      catch (e: any) {
-        const raw = e instanceof Error ? e.message : String(e)
+      catch (e) {
+        const raw = e instanceof Error ? getErrorMessage(e) : String(e)
         let msg = raw
 
         if (raw.includes('UNAUTHORIZED') || raw.includes('Not authenticated')) {

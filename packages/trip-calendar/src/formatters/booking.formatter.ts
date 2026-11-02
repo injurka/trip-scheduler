@@ -358,20 +358,21 @@ function formatGeneric(
   trip: TripCalendarTrip,
   _options: TripCalendarOptions,
 ): void {
-  const anyData = (booking.data || {}) as Record<string, any>
-  const dateStr = anyData.dateTime || anyData.departureDateTime || anyData.startDateTime || anyData.date
+  const data = booking.data as Record<string, unknown>
+  const stringField = (key: string): string | undefined => typeof data[key] === 'string' ? data[key] : undefined
+  const dateStr = stringField('dateTime') || stringField('departureDateTime') || stringField('startDateTime') || stringField('date')
   const start = parseIsoToDate(dateStr)
   if (!start)
     return
 
-  const end = parseIsoToDate(anyData.arrivalDateTime || anyData.endDateTime) || new Date(start.getTime() + 60 * 60 * 1000)
+  const end = parseIsoToDate(stringField('arrivalDateTime') || stringField('endDateTime')) || new Date(start.getTime() + 60 * 60 * 1000)
 
   calendar.createEvent({
     id: `booking-${booking.id}`,
     start,
     end,
     summary: `📋 ${booking.title}`,
-    description: anyData.notes ? calendarPlainText(anyData.notes) : undefined,
+    description: typeof data.notes === 'string' ? calendarPlainText(data.notes) : undefined,
     url: trip.url || undefined,
   })
 }

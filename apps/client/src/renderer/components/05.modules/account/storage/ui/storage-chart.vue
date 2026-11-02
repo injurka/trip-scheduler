@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { TooltipItem } from 'chart.js'
 import { Icon } from '@iconify/vue'
 import { useWindowSize } from '@vueuse/core'
 import { ArcElement, Chart as ChartJS, Legend, Title, Tooltip } from 'chart.js'
@@ -40,7 +41,7 @@ const chartOptions = computed(() => ({
     },
     tooltip: {
       callbacks: {
-        label(context: any) {
+        label(context: TooltipItem<'doughnut'>) {
           let label = context.dataset.label || ''
 
           if (label)

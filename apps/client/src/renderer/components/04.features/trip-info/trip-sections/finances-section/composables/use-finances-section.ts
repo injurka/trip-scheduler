@@ -27,7 +27,7 @@ interface UseFinancesSectionProps {
   readonly: boolean
 }
 
-export function useFinancesSection(props: UseFinancesSectionProps, emit: (event: 'updateSection', payload: any) => void) {
+export function useFinancesSection(props: UseFinancesSectionProps, emit: (event: 'updateSection', payload: unknown) => void) {
   const confirm = useConfirm()
   const content = computed(() => props.section.content)
 

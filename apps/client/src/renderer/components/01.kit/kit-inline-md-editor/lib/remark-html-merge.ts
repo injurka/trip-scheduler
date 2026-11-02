@@ -1,5 +1,7 @@
 import { $remark } from '@milkdown/utils'
 
+interface HtmlAstNode { type: string, value?: string, title?: string | null, url?: string, children?: HtmlAstNode[] }
+
 const VOID_TAGS = new Set([
   'area',
   'base',
@@ -49,17 +51,17 @@ function escapeHtml(str: string): string {
     .replace(/"/g, '&quot;')
 }
 
-function stringifyChildren(node: any): string {
+function stringifyChildren(node: HtmlAstNode): string {
   return (node.children || []).map(stringifyAstNode).join('')
 }
 
-function stringifyLink(node: any): string {
+function stringifyLink(node: HtmlAstNode): string {
   const titleAttribute = node.title ? ` title="${escapeHtml(node.title)}"` : ''
 
   return `<a href="${escapeHtml(node.url || '')}"${titleAttribute}>${stringifyChildren(node)}</a>`
 }
 
-const astNodeRenderers: Record<string, (node: any) => string> = {
+const astNodeRenderers: Record<string, (node: HtmlAstNode) => string> = {
   text: node => escapeHtml(node.value || ''),
   html: node => node.value || '',
   inlineCode: node => `<code>${escapeHtml(node.value || '')}</code>`,
@@ -69,7 +71,7 @@ const astNodeRenderers: Record<string, (node: any) => string> = {
   link: stringifyLink,
 }
 
-function stringifyFallbackAstNode(node: any): string {
+function stringifyFallbackAstNode(node: HtmlAstNode): string {
   if (node.value)
     return escapeHtml(node.value)
 
@@ -79,7 +81,7 @@ function stringifyFallbackAstNode(node: any): string {
   return ''
 }
 
-function stringifyAstNode(node: any): string {
+function stringifyAstNode(node: HtmlAstNode): string {
   if (!node)
     return ''
 
@@ -88,7 +90,7 @@ function stringifyAstNode(node: any): string {
   return renderer ? renderer(node) : stringifyFallbackAstNode(node)
 }
 
-function mergeInlineHtmlAt(children: any[], startIndex: number): { node: any, nextIndex: number } | null {
+function mergeInlineHtmlAt(children: HtmlAstNode[], startIndex: number): { node: HtmlAstNode, nextIndex: number } | null {
   const child = children[startIndex]
   const stack: string[] = []
   updateStackWithHtml(child.value || '', stack)
@@ -119,8 +121,8 @@ function mergeInlineHtmlAt(children: any[], startIndex: number): { node: any, ne
   return null
 }
 
-function mergeInlineHtmlInNodeList(children: any[]): any[] {
-  const result: any[] = []
+function mergeInlineHtmlInNodeList(children: HtmlAstNode[]): HtmlAstNode[] {
+  const result: HtmlAstNode[] = []
   let index = 0
 
   while (index < children.length) {
@@ -143,7 +145,7 @@ function mergeInlineHtmlInNodeList(children: any[]): any[] {
   return result
 }
 
-function transformTree(node: any) {
+function transformTree(node: HtmlAstNode) {
   if (!node)
     return
 
@@ -156,6 +158,6 @@ function transformTree(node: any) {
   }
 }
 
-export const remarkHtmlMergePlugin = $remark('remarkHtmlMerge', () => () => (tree: any) => {
+export const remarkHtmlMergePlugin = $remark('remarkHtmlMerge', () => () => (tree) => {
   transformTree(tree)
 })

@@ -718,7 +718,7 @@ export function validateObsidianVault(context: ValidationScopeContext, startDate
 
   // 8. Города и теги
   const mainText = rootNoteContent || ''
-  const cities = extractCities(mainText, daySummaries as any)
+  const cities = extractCities(mainText, daySummaries)
   const tags = extractTags(mainText)
 
   if (cities.length === 0) {

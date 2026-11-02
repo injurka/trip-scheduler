@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { TripMedia } from '~/shared/types/models/trip'
 import { Icon } from '@iconify/vue'
 import { useClipboard } from '@vueuse/core'
 import { computed, ref } from 'vue'
@@ -99,14 +100,14 @@ function getFullUrl(url: string) {
   return resolveApiUrl(url)
 }
 
-function copyMarkdownLink(image: any) {
+function copyMarkdownLink(image: TripMedia) {
   const fullUrl = getFullUrl(image.url)
   const md = `![${image.originalName || 'image'}](${fullUrl})`
   copy(md)
   toast.info('Markdown-ссылка скопирована')
 }
 
-function insertToEditor(image: any) {
+function insertToEditor(image: TripMedia) {
   const fullUrl = getFullUrl(image.url)
   const markdown = `![${image.originalName || 'image'}](${fullUrl})`
   emit('insert', markdown)

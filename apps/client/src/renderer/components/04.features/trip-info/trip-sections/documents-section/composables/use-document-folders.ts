@@ -17,7 +17,7 @@ interface UseDocumentFoldersProps {
 
 export function useDocumentFolders(
   props: UseDocumentFoldersProps,
-  emit: (event: 'updateSection', payload: any) => void,
+  emit: (event: 'updateSection', payload: unknown) => void,
   documents: Ref<DocumentFile[]>,
   searchQuery: Ref<string>,
   selectedCategory: Ref<DocumentCategory>,

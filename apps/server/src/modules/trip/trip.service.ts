@@ -229,7 +229,7 @@ export const tripService = {
         : new Date().getMonth() + 1
 
       const cachedWeather = await weatherGenerationService.getCachedWeatherForPlaces(updatedTrip.cityRefs, month)
-      const currentWeather = (updatedTrip.weatherByPlaceId || {}) as Record<string, any>
+      const currentWeather = (updatedTrip.weatherByPlaceId || {})
       let hasChanges = false
       const mergedWeather = { ...currentWeather }
 

@@ -1,22 +1,41 @@
 import type { IPostRepository } from '../model/types'
-import type { CreatePostInput, ListPostsFilters, UpdatePostInput } from '~/shared/types/models/post'
+import type { CreatePostInput, ListPostsFilters, PostDetail, UpdatePostInput } from '~/shared/types/models/post'
+import type { RouterOutput } from '~/shared/types/trpc'
 import { trpc } from '~/shared/services/trpc/trpc.service'
+
+export function normalizePost(post: RouterOutput['post']['getById']): PostDetail {
+  return {
+    ...post,
+    description: post.description ?? undefined,
+    country: post.country ?? undefined,
+    latitude: post.latitude ?? 0,
+    longitude: post.longitude ?? 0,
+    media: (post.media ?? []).map(media => ({
+      ...media,
+      width: media.width ?? undefined,
+      height: media.height ?? undefined,
+    })),
+    elements: (post.elements ?? []).map(element => ({ ...element, title: element.title ?? undefined })),
+  }
+}
 
 export class PostRepository implements IPostRepository {
   async list(filters: ListPostsFilters) {
-    return trpc.post.list.query(filters)
+    const result = await trpc.post.list.query(filters)
+
+    return { ...result, items: result.items.map(normalizePost) }
   }
 
   async getById(params: { id: string }) {
-    return trpc.post.getById.query(params)
+    return normalizePost(await trpc.post.getById.query(params))
   }
 
   async create(data: CreatePostInput) {
-    return trpc.post.create.mutate(data)
+    return normalizePost(await trpc.post.create.mutate(data))
   }
 
   async update(params: { id: string, data: Partial<UpdatePostInput> }) {
-    return trpc.post.update.mutate(params)
+    return normalizePost(await trpc.post.update.mutate(params))
   }
 
   async delete(params: { id: string }) {

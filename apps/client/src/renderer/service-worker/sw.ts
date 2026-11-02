@@ -52,7 +52,7 @@ registerRoute(({ request, url }) => request.destination === 'image' || url.pathn
   catch {
   }
 
-  return runtimeImageStrategy.handle({ event, request, url } as any)
+  return runtimeImageStrategy.handle({ event, request, url })
 })
 
 if (import.meta.env.PROD) {

@@ -661,7 +661,7 @@ export function parseObsidianTripFolder(tripPath: string, startDateStr?: string)
   }
 }
 
-export function extractCities(mainText: string, parsedDays: ParsedDay[] = []): string[] {
+export function extractCities(mainText: string, parsedDays: Array<Pick<ParsedDay, 'fileName'>> = []): string[] {
   const explicitCities = parseTripFrontmatter(mainText).cities
   if (explicitCities?.length)
     return explicitCities

@@ -2,6 +2,7 @@ import type { ImporterConfig } from '../types'
 import { existsSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import process from 'node:process'
+import { getErrorMessage } from '../lib/value-guards'
 import {
   AIHUBMIX_MODELS,
   DEFAULT_AIHUBMIX_MODEL,
@@ -60,8 +61,8 @@ export function loadImporterConfig(customPath?: string): ImporterConfig {
         }
         return activeConfig
       }
-      catch (err: any) {
-        console.warn(`[Config] Предупреждение: не удалось прочитать конфиг ${p}: ${err.message}`)
+      catch (err) {
+        console.warn(`[Config] Предупреждение: не удалось прочитать конфиг ${p}: ${getErrorMessage(err)}`)
       }
     }
   }

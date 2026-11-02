@@ -1,5 +1,7 @@
+import type { SQL } from 'drizzle-orm'
 import type { z } from 'zod'
 import type { GetUserHighlightsInputSchema } from '~/modules/user/user.schemas'
+import { isRecord } from '@injurka/type-utils'
 import { and, desc, eq, gte, inArray, lte, sql } from 'drizzle-orm'
 import { v4 as uuidv4 } from 'uuid'
 import { db } from '~/../db'
@@ -19,7 +21,7 @@ export const highlightRepository = {
     return measureDbQuery('highlights', 'select', async () => {
       const { userId, limit, page, cityIds, startDate, endDate } = input
       const offset = (page - 1) * limit
-      const conditions: any[] = [eq(highlights.userId, userId)]
+      const conditions: SQL[] = [eq(highlights.userId, userId)]
 
       if (cityIds && cityIds.length > 0) {
         conditions.push(inArray(highlights.geoPlaceId, cityIds))
@@ -56,10 +58,10 @@ export const highlightRepository = {
         let h = item.height
 
         if (!w || !h) {
-          const meta = item.metadata as any
-          if (meta?.width)
+          const meta = isRecord(item.metadata) ? item.metadata : {}
+          if (typeof meta.width === 'number')
             w = meta.width
-          if (meta?.height)
+          if (typeof meta.height === 'number')
             h = meta.height
         }
 

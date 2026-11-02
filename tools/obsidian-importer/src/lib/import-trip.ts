@@ -1,6 +1,7 @@
 import type { FinancesSectionContent } from '../types'
 import type { UploadedDocumentLink } from './document-links'
-import type { ImportGeoPlace, ImportGeoResolution, Transport } from './transport'
+import type { ImportSectionContent } from './section-content'
+import type { ImportDocument, ImportGeoPlace, ImportGeoResolution, ImportTripSection, Transport } from './transport'
 import process from 'node:process'
 import { colors } from '../config/colors'
 import { DEFAULT_TRIP_SECTIONS } from '../config/constants'
@@ -24,6 +25,8 @@ import { buildImageIndex } from './image-indexer'
 import { batchUploadTripImages, collectTripImagePaths } from './image-uploader'
 import { generateActivitiesViaDirectLlm, mergeLlmActivitiesWithRawMarkdown } from './llm'
 import { createMetroActivityResolver } from './metro-resolver'
+import { readDocumentFolders } from './section-content'
+import { getErrorMessage } from './value-guards'
 
 /**
  * Programmatic-ядро импорта: приводит папку Obsidian-вольта к данным Trip Scheduler
@@ -141,8 +144,8 @@ export interface ImportCoreResult {
 }
 
 function safeCall(fn: () => Promise<unknown>, log?: (message: string) => void, label = ''): Promise<void> {
-  return fn().then(() => undefined).catch((err: any) => {
-    log?.(`⚠ ${label}: ${err?.message || err}`)
+  return fn().then(() => undefined).catch((err) => {
+    log?.(`⚠ ${label}: ${getErrorMessage(err) || err}`)
     throw err
   })
 }
@@ -191,8 +194,8 @@ export async function importTripFolderCore(
       try {
         coverImageUrl = await transport.uploadImage(createdTrip.id, tripData.coverImagePath, 'route')
       }
-      catch (err: any) {
-        log?.(`⚠ Загрузка обложки: ${err?.message || err}`)
+      catch (err) {
+        log?.(`⚠ Загрузка обложки: ${getErrorMessage(err) || err}`)
         throw err
       }
     }
@@ -262,7 +265,7 @@ export async function importTripFolderCore(
     let sectionsCreated = 0
     if (importSections) {
       progress?.('sections', 'Наполнение разделов-вкладок')
-      let existingSections: Array<{ id: string, type: string, title: string }> = []
+      let existingSections: ImportTripSection[] = []
       try {
         const details = await transport.getTripDetails(createdTrip.id)
         if (Array.isArray(details?.sections))
@@ -276,7 +279,7 @@ export async function importTripFolderCore(
       for (const sec of DEFAULT_TRIP_SECTIONS) {
         try {
           const existingSec = existingSections.find(s => s.type === sec.type)
-          let sectionContent: any
+          let sectionContent: ImportSectionContent | undefined
 
           if (sec.type === 'bookings') {
             sectionContent = tripData.bookingsContent && tripData.bookingsContent.bookings.length > 0 ? tripData.bookingsContent : undefined
@@ -286,15 +289,15 @@ export async function importTripFolderCore(
           }
           else if (sec.type === 'finances') {
             sectionContent = tripData.financesContent?.transactions?.length
-              ? mergeFinancesContent((existingSec as any)?.content, tripData.financesContent)
+              ? mergeFinancesContent((existingSec)?.content, tripData.financesContent)
               : undefined
           }
           else if (sec.type === 'documents') {
-            const existingFolders = Array.isArray((existingSec as any)?.content?.folders) ? (existingSec as any).content.folders : []
+            const existingFolders = readDocumentFolders(existingSec?.content)
             const newFolders = tripData.documentsContent?.folders || []
             const mergedFolders = [...existingFolders]
             for (const nf of newFolders) {
-              if (!mergedFolders.some((ef: any) => ef.name.trim().toLowerCase() === nf.name.trim().toLowerCase())) {
+              if (!mergedFolders.some(ef => ef.name.trim().toLowerCase() === nf.name.trim().toLowerCase())) {
                 mergedFolders.push(nf)
               }
             }
@@ -321,8 +324,8 @@ export async function importTripFolderCore(
           }
           sectionsCreated++
         }
-        catch (err: any) {
-          log?.(`⚠ Раздел «${sec.title}»: ${err.message}`)
+        catch (err) {
+          log?.(`⚠ Раздел «${sec.title}»: ${getErrorMessage(err)}`)
           throw err
         }
       }
@@ -384,8 +387,8 @@ export async function importTripFolderCore(
             }), log, `day.meta дня ${day.dayNumber}`)
           }
         }
-        catch (err: any) {
-          log?.(`⚠ День ${day.dayNumber}: ${err.message}`)
+        catch (err) {
+          log?.(`⚠ День ${day.dayNumber}: ${getErrorMessage(err)}`)
           throw err
         }
       }
@@ -419,14 +422,14 @@ export async function importTripFolderCore(
               })
               notesCreated++
             }
-            catch (fileErr: any) {
-              log?.(`⚠ Файл ${file.title}: ${fileErr.message}`)
+            catch (fileErr) {
+              log?.(`⚠ Файл ${file.title}: ${getErrorMessage(fileErr)}`)
               throw fileErr
             }
           }
         }
-        catch (folderErr: any) {
-          log?.(`⚠ Папка ${folder.folderName}: ${folderErr.message}`)
+        catch (folderErr) {
+          log?.(`⚠ Папка ${folder.folderName}: ${getErrorMessage(folderErr)}`)
           throw folderErr
         }
       }
@@ -444,8 +447,8 @@ export async function importTripFolderCore(
           })
           notesCreated++
         }
-        catch (err: any) {
-          log?.(`⚠ Заметка ${rootNote.title}: ${err.message}`)
+        catch (err) {
+          log?.(`⚠ Заметка ${rootNote.title}: ${getErrorMessage(err)}`)
           throw err
         }
       }
@@ -461,10 +464,8 @@ export async function importTripFolderCore(
       let currentSectionFolders: Array<{ id: string, name: string }> = []
       try {
         const details = await transport.getTripDetails(createdTrip.id)
-        const docSec: any = details?.sections?.find((s: any) => s.type === 'documents')
-        if (Array.isArray(docSec?.content?.folders)) {
-          currentSectionFolders = docSec.content.folders
-        }
+        const docSec = details?.sections?.find(s => s.type === 'documents')
+        currentSectionFolders = readDocumentFolders(docSec?.content)
       }
       catch {
         currentSectionFolders = []
@@ -484,7 +485,7 @@ export async function importTripFolderCore(
         }
       }
 
-      let existingDocs: any[] = []
+      let existingDocs: ImportDocument[] = []
       if (transport.listDocuments) {
         try {
           existingDocs = await transport.listDocuments(createdTrip.id)
@@ -538,8 +539,8 @@ export async function importTripFolderCore(
           const accessLabel = doc.access === 'private' ? 'личный/private' : 'публичный/public'
           log?.(`  ✔ Загружен документ: ${doc.fileName} (${accessLabel})`)
         }
-        catch (docErr: any) {
-          log?.(`⚠ Ошибка загрузки документа «${doc.fileName}»: ${docErr.message || docErr}`)
+        catch (docErr) {
+          log?.(`⚠ Ошибка загрузки документа «${doc.fileName}»: ${getErrorMessage(docErr) || docErr}`)
         }
       }
     }
@@ -579,8 +580,8 @@ export async function importTripFolderCore(
                   throw new Error('LLM не вернул распознанных активностей')
                 }
               }
-              catch (directErr: any) {
-                log?.(`Прямой LLM для дня ${day.dayNumber}: ${directErr.message}, пробую серверный`)
+              catch (directErr) {
+                log?.(`Прямой LLM для дня ${day.dayNumber}: ${getErrorMessage(directErr)}, пробую серверный`)
               }
             }
 
@@ -599,8 +600,8 @@ export async function importTripFolderCore(
                   throw new Error('Пустой ответ от сервера')
                 }
               }
-              catch (serverLlmErr: any) {
-                log?.(`Серверный LLM для дня ${day.dayNumber}: ${serverLlmErr.message}, использую встроенный парсер`)
+              catch (serverLlmErr) {
+                log?.(`Серверный LLM для дня ${day.dayNumber}: ${getErrorMessage(serverLlmErr)}, использую встроенный парсер`)
               }
             }
 
@@ -686,8 +687,8 @@ export async function importTripFolderCore(
             })
             activitiesCreated++
           }
-          catch (actErr: any) {
-            log?.(`⚠ Активность «${act.title}»: ${actErr.message}`)
+          catch (actErr) {
+            log?.(`⚠ Активность «${act.title}»: ${getErrorMessage(actErr)}`)
             throw actErr
           }
         }
@@ -716,8 +717,8 @@ export async function importTripFolderCore(
         await transport.deleteTrip(createdTrip.id)
         log?.(`Удалено незавершенное путешествие ${createdTrip.id}`)
       }
-      catch (cleanupError: any) {
-        log?.(`⚠ Не удалось удалить незавершенное путешествие: ${cleanupError?.message || cleanupError}`)
+      catch (cleanupError) {
+        log?.(`⚠ Не удалось удалить незавершенное путешествие: ${getErrorMessage(cleanupError) || cleanupError}`)
       }
     }
     throw error

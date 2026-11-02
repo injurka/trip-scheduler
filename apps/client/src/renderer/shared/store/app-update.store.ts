@@ -1,4 +1,5 @@
 import type { UnlistenFn } from '@tauri-apps/api/event'
+import { getErrorMessage } from '@injurka/type-utils'
 import { invoke } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
 import { compareVersions } from 'compare-versions'
@@ -392,10 +393,10 @@ export const useAppUpdateStore = defineStore('appUpdate', {
           await this.installUpdate()
         }
       }
-      catch (err: any) {
+      catch (err) {
         console.error('[AppUpdate] Ошибка при загрузке обновления:', err)
         this.isDownloading = false
-        this.downloadError = typeof err === 'string' ? err : (err?.message || 'Не удалось загрузить обновление')
+        this.downloadError = typeof err === 'string' ? err : (getErrorMessage(err) || 'Не удалось загрузить обновление')
         toastStore.error(`Ошибка загрузки: ${this.downloadError}`)
       }
       finally {
@@ -418,9 +419,9 @@ export const useAppUpdateStore = defineStore('appUpdate', {
 
         await invoke('install_app_update', { path: this.downloadedFilePath })
       }
-      catch (e: any) {
+      catch (e) {
         console.error('[AppUpdate] Ошибка установки обновления:', e)
-        const msg = typeof e === 'string' ? e : (e?.message || 'Ошибка установки обновления')
+        const msg = typeof e === 'string' ? e : (getErrorMessage(e) || 'Ошибка установки обновления')
         toastStore.error(msg)
       }
       finally {

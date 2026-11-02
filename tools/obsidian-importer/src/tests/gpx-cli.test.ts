@@ -1,3 +1,4 @@
+import type { ActivityPayload, ActivitySection } from '../types'
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -5,7 +6,7 @@ import { expect, it } from 'bun:test'
 
 it('imports a GPX route through the CLI, even with images and geocoding disabled', async () => {
   const directory = mkdtempSync(join(tmpdir(), 'gpx-cli-'))
-  const activities: any[] = []
+  const activities: Array<ActivityPayload & { sections: ActivitySection[] }> = []
   const id = '00000000-0000-4000-8000-000000000001'
   const server = Bun.serve({
     hostname: '127.0.0.1',
@@ -18,7 +19,7 @@ it('imports a GPX route through the CLI, even with images and geocoding disabled
         return Response.json({ status: 'resolved', place: { id: '00000000-0000-4000-8000-000000000002', name: 'Walk' } })
       if (request.method === 'GET')
         return Response.json(path.includes('details') ? { sections: [] } : [])
-      const body = await request.json() as any
+      const body = await request.json()
       if (path === '/activities')
         activities.push(body)
       return Response.json({ ...body, id })
@@ -62,11 +63,11 @@ it('imports a GPX route through the CLI, even with images and geocoding disabled
     ])
     expect({ code, errors: code ? stdout + stderr : '' }).toEqual({ code: 0, errors: '' })
     expect(activities).toHaveLength(1)
-    const geo = activities[0].sections.find((section: any) => section.type === 'geolocation')
+    const geo = activities[0].sections.find(section => section.type === 'geolocation')
     expect(geo?.routes).toHaveLength(1)
-    expect(geo.routes[0]).toMatchObject({ title: 'Тропа', transportMode: 'foot', isVisible: true })
-    expect(geo.routes[0].geometry).toEqual([[121, 25], [121.01, 25.01]])
-    expect(geo.routes[0].points.map((point: any) => [point.address, point.type])).toEqual([
+    expect(geo!.routes[0]).toMatchObject({ title: 'Тропа', transportMode: 'foot', isVisible: true })
+    expect(geo!.routes[0].geometry).toEqual([[121, 25], [121.01, 25.01]])
+    expect(geo!.routes[0].points.map(point => [point.address, point.type])).toEqual([
       ['Начало трека', 'start'],
       ['Peak', 'via'],
       ['Конец трека', 'end'],

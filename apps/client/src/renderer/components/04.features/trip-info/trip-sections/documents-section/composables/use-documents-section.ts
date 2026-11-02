@@ -22,7 +22,7 @@ interface UseDocumentsSectionProps {
   readonly: boolean
 }
 
-export function useDocumentsSection(props: UseDocumentsSectionProps, emit: (event: 'updateSection', payload: any) => void) {
+export function useDocumentsSection(props: UseDocumentsSectionProps, emit: (event: 'updateSection', payload: unknown) => void) {
   const confirm = useConfirm()
   const toast = useToast()
   const offlineStore = useOfflineStore()
@@ -43,7 +43,7 @@ export function useDocumentsSection(props: UseDocumentsSectionProps, emit: (even
       category: (d.metadata.category as DocumentCategory) ?? null,
       isFavorite: Boolean(d.metadata.isFavorite),
       note: d.metadata.note ?? null,
-      variants: d.variants || (d.metadata as any)?.variants || null,
+      variants: d.variants || (d.metadata)?.variants || null,
     }
   }
 

@@ -17,7 +17,7 @@ export const notificationRepository = {
       })
       .onConflictDoUpdate({
         target: pushSubscriptions.endpoint,
-        set: { userId, keys: subscription.keys as any, updatedAt: new Date() },
+        set: { userId, keys: subscription.keys, updatedAt: new Date() },
       })
   },
 

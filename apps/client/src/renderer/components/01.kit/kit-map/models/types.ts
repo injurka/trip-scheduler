@@ -11,7 +11,7 @@ export interface KitMapRoute {
   geometry?: [number, number][]
   color?: string
   isDirect?: boolean
-  points?: any[]
+  points?: unknown[]
   isVisible?: boolean
 }
 
@@ -20,7 +20,7 @@ export interface MapMarker {
   title?: string
   coords: LocationCoords
   imageUrl?: string
-  payload?: any
+  payload?: unknown
   color?: string
   pointType?: 'start' | 'via' | 'end' | 'connect' | 'poi'
   shape?: 'pin' | 'circle'

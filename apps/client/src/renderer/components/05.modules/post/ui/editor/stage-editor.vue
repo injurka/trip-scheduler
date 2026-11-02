@@ -85,7 +85,7 @@ function getBlockTitle(type: TimelineBlockType) {
                 :value="'day' in stage ? stage.day : 1"
                 type="number"
                 class="bare-input"
-                @input="e => store.updateStage(stage.id, { day: Number((e.target as HTMLInputElement).value) } as any)"
+                @input="e => store.updateStage(stage.id, { day: Number((e.target as HTMLInputElement).value) })"
               >
             </div>
           </KitTooltip>
@@ -152,7 +152,7 @@ function getBlockTitle(type: TimelineBlockType) {
                   :images="block.images"
                   :display-type="block.displayType"
                   @update:images="(val: PostMedia[]) => store.updateBlock(stage.id, block.id, { images: val })"
-                  @update:display-type="(val: string) => store.updateBlock(stage.id, block.id, { displayType: val as any })"
+                  @update:display-type="val => store.updateBlock(stage.id, block.id, { displayType: val })"
                 />
                 <KitInput
                   :model-value="block.comment"

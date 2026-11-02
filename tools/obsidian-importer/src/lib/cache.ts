@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { getErrorMessage, isRecord } from './value-guards'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const CACHE_DIR = resolve(__dirname, '../../.cache')
@@ -48,8 +49,8 @@ export function loadGeocodeCache(): Map<string, [number, number]> {
       }
     }
   }
-  catch (err: any) {
-    console.warn(`[Cache] Предупреждение: не удалось прочитать кеш геокодирования: ${err.message}`)
+  catch (err) {
+    console.warn(`[Cache] Предупреждение: не удалось прочитать кеш геокодирования: ${getErrorMessage(err)}`)
   }
   return new Map()
 }
@@ -60,8 +61,8 @@ export function saveGeocodeCache(cache: Map<string, [number, number]>): void {
     const obj = Object.fromEntries(cache)
     writeFileSync(GEOCODE_CACHE_FILE, JSON.stringify(obj, null, 2), 'utf-8')
   }
-  catch (err: any) {
-    console.warn(`[Cache] Ошибка сохранения кеша геокодирования: ${err.message}`)
+  catch (err) {
+    console.warn(`[Cache] Ошибка сохранения кеша геокодирования: ${getErrorMessage(err)}`)
   }
 }
 
@@ -72,14 +73,14 @@ export function loadLlmCache(): Map<string, LlmCacheEntry> {
       const parsed = JSON.parse(raw)
       if (parsed && typeof parsed === 'object') {
         const entries = Object.entries(parsed).filter(
-          ([, v]: any) => v && Array.isArray(v.activities),
+          ([, v]) => isRecord(v) && Array.isArray(v.activities),
         ) as Array<[string, LlmCacheEntry]>
         return new Map(entries)
       }
     }
   }
-  catch (err: any) {
-    console.warn(`[Cache] Предупреждение: не удалось прочитать кеш ИИ: ${err.message}`)
+  catch (err) {
+    console.warn(`[Cache] Предупреждение: не удалось прочитать кеш ИИ: ${getErrorMessage(err)}`)
   }
   return new Map()
 }
@@ -90,8 +91,8 @@ export function saveLlmCache(cache: Map<string, LlmCacheEntry>): void {
     const obj = Object.fromEntries(cache)
     writeFileSync(LLM_CACHE_FILE, JSON.stringify(obj, null, 2), 'utf-8')
   }
-  catch (err: any) {
-    console.warn(`[Cache] Ошибка сохранения кеша ИИ: ${err.message}`)
+  catch (err) {
+    console.warn(`[Cache] Ошибка сохранения кеша ИИ: ${getErrorMessage(err)}`)
   }
 }
 
@@ -114,14 +115,14 @@ export function loadImageUploadCache(): Map<string, ImageCacheEntry> {
       const parsed = JSON.parse(raw)
       if (parsed && typeof parsed === 'object') {
         const entries = Object.entries(parsed).filter(
-          ([, v]: any) => v && typeof v.url === 'string' && typeof v.size === 'number' && typeof v.tripId === 'string',
+          ([, v]) => isRecord(v) && typeof v.url === 'string' && typeof v.size === 'number' && typeof v.tripId === 'string',
         ) as Array<[string, ImageCacheEntry]>
         return new Map(entries)
       }
     }
   }
-  catch (err: any) {
-    console.warn(`[Cache] Предупреждение: не удалось прочитать кеш загрузки картинок: ${err.message}`)
+  catch (err) {
+    console.warn(`[Cache] Предупреждение: не удалось прочитать кеш загрузки картинок: ${getErrorMessage(err)}`)
   }
   return new Map()
 }
@@ -132,8 +133,8 @@ export function saveImageUploadCache(cache: Map<string, ImageCacheEntry>): void 
     const obj = Object.fromEntries(cache)
     writeFileSync(IMAGE_CACHE_FILE, JSON.stringify(obj, null, 2), 'utf-8')
   }
-  catch (err: any) {
-    console.warn(`[Cache] Ошибка сохранения кеша картинок: ${err.message}`)
+  catch (err) {
+    console.warn(`[Cache] Ошибка сохранения кеша картинок: ${getErrorMessage(err)}`)
   }
 }
 

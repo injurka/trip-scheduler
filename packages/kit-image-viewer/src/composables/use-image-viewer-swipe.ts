@@ -1,4 +1,4 @@
-import type { MaybeRefOrGetter, Ref } from 'vue'
+import type { CSSProperties, MaybeRefOrGetter, Ref } from 'vue'
 import type { ImageQuality, ImageViewerImage } from '../models/types'
 import { tryOnUnmounted } from '@vueuse/core'
 import { computed, nextTick, ref, toValue, watch } from 'vue'
@@ -259,7 +259,7 @@ export function useImageViewerSwipe(options: UseSwipeNavigationOptions) {
 
   const currentImageStyle = computed(() => {
     const progress = Math.abs(swipeProgress.value)
-    const style: Record<string, any> = {}
+    const style: CSSProperties = {}
 
     if (progress > 0 || isAnimating.value) {
       const opacity = 1 - progress * 0.3

@@ -25,7 +25,8 @@
     "--------------------------------< LINT & FORMAT >---------------------------------": "",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "typecheck": "bunx tsc --noEmit"
+    "typecheck": "bunx tsc --noEmit",
+    "build:types": "bun run scripts/build-api-types.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1131.0",
@@ -33,6 +34,7 @@
     "@hono/trpc-server": "^0.4.2",
     "@injurka/finance-contract": "workspace:*",
     "@injurka/trip-calendar": "workspace:*",
+    "@injurka/type-utils": "workspace:*",
     "@limiteddissolve/obsidian-importer": "workspace:*",
     "@limiteddissolve/track-processing": "workspace:*",
     "@trpc/server": "^11.18.0",

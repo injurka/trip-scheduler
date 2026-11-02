@@ -45,7 +45,7 @@ function handleTileApplied(sourceId: 'custom' | 'maptilerStreets') {
   emit('update:activeLayerId', sourceId)
   emit('tileSettingsApplied', sourceId)
 }
-function handleLayerSelect(val: any) {
+function handleLayerSelect(val: unknown) {
   if (val === 'configure_custom') {
     isTileSettingsOpen.value = true
 

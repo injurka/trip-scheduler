@@ -1,6 +1,6 @@
 import { createSelectSchema } from 'drizzle-zod'
 import { z } from 'zod'
-import { countries, destinationReviews } from '~/../db/schema'
+import { countries, destinationReviews, geoPlaces } from '~/../db/schema'
 
 // --- Output Schemas ---
 export const CountrySchema = createSelectSchema(countries)
@@ -15,6 +15,7 @@ const MetricsRecordSchema = z.record(
 
 export const DestinationReviewSchema = BaseDestinationReviewSchema.extend({
   country: CountrySchema.optional().nullable(),
+  geoPlace: createSelectSchema(geoPlaces).optional().nullable(),
 
   metrics: z.preprocess(
     (val) => {

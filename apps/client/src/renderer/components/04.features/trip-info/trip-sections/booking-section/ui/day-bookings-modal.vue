@@ -83,7 +83,7 @@ function getCardComponent(type: Booking['type']) {
             <div v-for="entry in dayTimelineEntries" :key="entry.id">
               <Component
                 :is="getCardComponent(entry.booking.type)"
-                :booking="entry.booking as any"
+                :booking="entry.booking"
                 v-bind="entry.booking.type === 'flight' && entry.segmentRange ? { segmentRange: entry.segmentRange } : {}"
                 :readonly="true"
               />
@@ -96,7 +96,7 @@ function getCardComponent(type: Booking['type']) {
             <div v-for="booking in bookingGroups[tab.id]" :key="booking.id">
               <Component
                 :is="getCardComponent(booking.type)"
-                :booking="booking as any"
+                :booking="booking"
                 :readonly="true"
               />
             </div>

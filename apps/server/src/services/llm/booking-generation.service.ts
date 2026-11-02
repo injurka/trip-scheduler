@@ -1,6 +1,7 @@
 import type { AiRequestPrompts } from '~/lib/llm'
 import { TRPCError } from '@trpc/server'
 import { PDFParse } from 'pdf-parse'
+import { z } from 'zod'
 import { AI_MODELS, createAiChatRequest, DEFAULT_AI_MODEL, parseJsonWithAiRepair } from '~/lib/llm'
 import { llmUsageRepository } from '~/repositories/llm-usage.repository'
 import { quotaService } from '~/services/quota.service'
@@ -229,12 +230,12 @@ async function generateBookingFromFile({ userId, fileBuffer, fileName, bookingTy
     throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'ИИ не вернул результат.' })
   }
 
-  const parsedData = await parseJsonWithAiRepair<any>(jsonResponse, {
+  const parsedData = await parseJsonWithAiRepair(jsonResponse, {
     userId,
     model: modelId,
     operation: 'bookingGeneration',
     customInstructions: `The output must be a valid booking JSON object for booking type "${bookingType}".`,
-    validate: data => Boolean(data && typeof data === 'object' && !Array.isArray(data)),
+    schema: z.record(z.string(), z.unknown()),
   })
 
   return parsedData

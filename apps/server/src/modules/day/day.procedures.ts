@@ -86,7 +86,7 @@ export const dayProcedures = {
       },
     })
     .input(GenerateTemplateInputSchema)
-    .output(z.array(z.any()))
+    .output(z.array(z.unknown()))
     .mutation(async ({ input, ctx }) => {
       await dayService.getByIdForGeneration(input.dayId, ctx.user.id, ctx.user.role)
       return templateGenerationService.generateTemplate(ctx.user.id, input.currentActivities, input.prompt, input.canvasNote, input.daysContext)

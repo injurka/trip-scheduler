@@ -2,6 +2,7 @@
 import type { TripCityRef } from '~/shared/types/models/geo-place'
 import type { TripWeatherData, TripWeatherPayload } from '~/shared/types/models/trip'
 import { Icon } from '@iconify/vue'
+import { getErrorMessage } from '@injurka/type-utils'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitDropdown } from '~/components/01.kit/kit-dropdown'
 import { useTripPlanStore } from '~/components/04.features/trip-info/trip-plan'
@@ -154,9 +155,9 @@ async function handleGenerateWeather(forceRefresh = false) {
       emit('weatherUpdated', { weatherByPlaceId: res.weatherByPlaceId })
     }
   }
-  catch (e: any) {
+  catch (e) {
     console.error('Weather generation error:', e)
-    errorMessage.value = e.message || 'Произошла ошибка при генерации погоды.'
+    errorMessage.value = getErrorMessage(e) || 'Произошла ошибка при генерации погоды.'
   }
   finally {
     isGeneratingLocal.value = false
@@ -174,9 +175,9 @@ async function handleGenerateAllCities(forceRefresh = false) {
       emit('weatherUpdated', { weatherByPlaceId: res.weatherByPlaceId })
     }
   }
-  catch (e: any) {
+  catch (e) {
     console.error('Weather generation error:', e)
-    errorMessage.value = e.message || 'Произошла ошибка при генерации погоды.'
+    errorMessage.value = getErrorMessage(e) || 'Произошла ошибка при генерации погоды.'
   }
   finally {
     isGeneratingLocal.value = false

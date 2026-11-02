@@ -16,11 +16,11 @@ export enum EPostRequestKeys {
   GENERATE = 'post:generate',
 }
 
-function getRouteStart(route: PostElement['content'][number]['route']): string {
+function getRouteStart(route: Extract<PostElement['content'][number], { type: 'route' }>['route']): string {
   return route.from || route.points?.[0]?.label || 'Начало'
 }
 
-function getRouteEnd(route: PostElement['content'][number]['route']): string {
+function getRouteEnd(route: Extract<PostElement['content'][number], { type: 'route' }>['route']): string {
   return route.to || route.points?.[route.points.length - 1]?.label || 'Конец'
 }
 
@@ -34,11 +34,11 @@ function transformRouteBlock(contentBlock: Extract<PostElement['content'][number
     to: getRouteEnd(route),
     distance: route.distance || '',
     duration: route.duration || '',
-    distanceMeters: (route as any).distanceMeters || 0,
+    distanceMeters: (route).distanceMeters || 0,
     transport: route.transport || 'walk',
     points: route.points || [],
     geometry: route.geometry || [],
-  } as any
+  }
 }
 
 function transformContentBlock(contentBlock: PostElement['content'][number], allMedia: PostMedia[]): TimelineBlock {

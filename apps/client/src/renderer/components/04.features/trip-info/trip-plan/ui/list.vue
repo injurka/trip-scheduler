@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { IActivity } from '~/components/05.modules/trip-info/models/types'
 import { Icon } from '@iconify/vue'
+import { getErrorMessage } from '@injurka/type-utils'
 import draggable from 'vuedraggable'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { useModuleStore } from '~/components/05.modules/trip-info/composables/use-trip-info-module'
@@ -84,7 +85,7 @@ function buildDaysContext(excludeDayId: string) {
       description: d.description ?? null,
       activitiesSummary: d.activities
         .filter(a => !a.id.startsWith('new-ai-'))
-        .map(a => ({ startTime: a.startTime, endTime: a.endTime, title: a.title, tag: a.tag })),
+        .map(a => ({ startTime: a.startTime, endTime: a.endTime, title: a.title, tag: a.tag ?? 'activity' })),
     }))
 }
 async function handleGlobalGenerate({ prompt, useDaysContext, useCanvasAsRef }: { prompt: string, useDaysContext: boolean, useCanvasAsRef: boolean }) {
@@ -104,9 +105,9 @@ async function handleGlobalGenerate({ prompt, useDaysContext, useCanvasAsRef }: 
 
     applyGlobalGenerateResults(updatedActivities as IActivity[])
   }
-  catch (error: any) {
+  catch (error) {
     console.error('Global template generation failed:', error)
-    toast.error(error?.message || 'Ошибка генерации')
+    toast.error(getErrorMessage(error) || 'Ошибка генерации')
   }
   finally {
     isGeneratingGlobal.value = false
@@ -154,9 +155,9 @@ async function handleActivityAiEdit(activity: IActivity, prompt: string) {
       setActivityDraft(activity.id, { ...updatedActivity, id: activity.id })
     }
   }
-  catch (error: any) {
+  catch (error) {
     console.error('Activity AI edit failed:', error)
-    toast.error(error?.message || 'Ошибка обновления')
+    toast.error(getErrorMessage(error) || 'Ошибка обновления')
   }
   finally {
     generatingActivityId.value = null

@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import type { KitDropdownItem } from '~/components/01.kit/kit-dropdown'
 import type { MapRoute } from '~/components/03.domain/trip-info/geolocation-section'
+import type { ActivitySectionGeolocation, MapPoint } from '~/components/03.domain/trip-info/geolocation-section/models/types'
 import type { IDay } from '~/components/04.features/trip-info/trip-plan/models/types'
 import type { OfflineDownloadOptions } from '~/shared/store/offline.store'
 import type { Trip, TripSection, TripWeatherPayload } from '~/shared/types/models/trip'
 import { Icon } from '@iconify/vue'
+import { getErrorMessage } from '@injurka/type-utils'
 import { DropdownMenuItem } from 'reka-ui'
 import { KitAnimatedTooltip } from '~/components/01.kit/kit-animated-tooltip'
 import { KitAvatar } from '~/components/01.kit/kit-avatar'
@@ -190,7 +192,7 @@ const attractionCount = computed(() => {
   }, 0)
 })
 const allGeoSections = computed(() => {
-  const sections: { section: any, activityTag: string | null }[] = []
+  const sections: { section: ActivitySectionGeolocation, activityTag: string | null }[] = []
   props.days.forEach((day) => {
     day.activities.forEach((activity) => {
       activity.sections?.forEach((section) => {
@@ -203,9 +205,9 @@ const allGeoSections = computed(() => {
 
   return sections
 })
-const allPoints = computed<any[]>(() =>
+const allPoints = computed<MapPoint[]>(() =>
   allGeoSections.value.flatMap(s =>
-    (s.section.points || []).map((p: any) => ({ ...p, activityTag: s.activityTag }))))
+    (s.section.points || []).map(p => ({ ...p, activityTag: s.activityTag }))))
 const allRoutes = computed<MapRoute[]>(() =>
   allGeoSections.value.flatMap(s => s.section.routes || []))
 const hasCoordinates = computed(() => {
@@ -430,9 +432,9 @@ async function exportToMapsMeFromMenu() {
       toast.success('Файл успешно подготовлен и скачан')
     }
   }
-  catch (error: any) {
+  catch (error) {
     console.error('Ошибка экспорта в Maps.me:', error)
-    toast.error(error?.message || 'Произошла ошибка при экспорте гео-данных')
+    toast.error(getErrorMessage(error) || 'Произошла ошибка при экспорте гео-данных')
   }
 }
 function showOfflineDownloadDialog() {

@@ -1,8 +1,11 @@
 import type { Transport } from '@limiteddissolve/obsidian-importer'
 import type { z } from 'zod'
 import type { CreateActivityInputSchema } from '~/modules/activity/activity.schemas'
+import { isRecord } from '@injurka/type-utils'
+import { DayMetaInfoSchema } from '~/modules/day/day.schemas'
 import { geoService } from '~/modules/geo/geo.service'
 import { metroService } from '~/modules/metro/metro.service'
+import { TripSectionSchema } from '~/modules/trip-section/trip-section.schemas'
 import { tripService } from '~/modules/trip/trip.service'
 import { activityRepository } from '~/repositories/activity.repository'
 import { dayRepository } from '~/repositories/day.repository'
@@ -29,15 +32,17 @@ async function bestEffortEnrichFlightBookings(content: unknown): Promise<unknown
   if (!content || typeof content !== 'object' || Array.isArray(content))
     return content
 
-  const record = content as Record<string, any>
+  const record = content as Record<string, unknown>
   if (!Array.isArray(record.bookings))
     return content
 
   for (const booking of record.bookings) {
-    if (booking?.type !== 'flight' || !Array.isArray(booking?.data?.segments))
+    if (!isRecord(booking) || booking.type !== 'flight' || !isRecord(booking.data) || !Array.isArray(booking.data.segments))
       continue
 
     for (const segment of booking.data.segments) {
+      if (!isRecord(segment))
+        continue
       for (const [cityKey, idKey] of [
         ['departureCity', 'departureCityId'],
         ['arrivalCity', 'arrivalCityId'],
@@ -98,11 +103,11 @@ export function createInProcessTransport(userId: string): Transport {
     },
 
     async updateTrip(id, details) {
-      const nextDetails = { ...(details as Record<string, any>) }
+      const nextDetails = { ...details }
       if (typeof nextDetails.shareSlug === 'string') {
         nextDetails.shareSlug = await ensureUniqueShareSlug(nextDetails.shareSlug, id)
       }
-      await tripService.update(id, nextDetails as any, userId, 'user')
+      await tripService.update(id, nextDetails, userId, 'user')
     },
 
     async deleteTrip(id) {
@@ -110,11 +115,11 @@ export function createInProcessTransport(userId: string): Transport {
     },
 
     async getTripDetails(tripId) {
-      const trip = await tripRepository.getById(tripId) as any
+      const trip = await tripRepository.getById(tripId)
       if (!trip)
         return null
       return {
-        sections: (trip.sections || []).map((s: any) => ({ id: s.id, type: String(s.type), title: s.title })),
+        sections: (trip.sections || []).map(s => ({ id: s.id, type: String(s.type), title: s.title })),
       }
     },
 
@@ -134,7 +139,7 @@ export function createInProcessTransport(userId: string): Transport {
     },
 
     async updateDay(id, details) {
-      await dayRepository.update(id, details as any)
+      await dayRepository.update(id, { ...details, meta: details.meta?.map(value => DayMetaInfoSchema.parse(value)) })
     },
 
     async deleteDay(id) {
@@ -152,7 +157,7 @@ export function createInProcessTransport(userId: string): Transport {
 
       await tripSectionRepository.create({
         tripId: payload.tripId,
-        type: payload.type as any,
+        type: TripSectionSchema.shape.type.parse(payload.type),
         title: payload.title,
         icon: payload.icon ?? null,
         content: enrichedContent ?? null,
@@ -168,7 +173,7 @@ export function createInProcessTransport(userId: string): Transport {
       if (payload.content !== undefined) {
         update.content = await bestEffortEnrichFlightBookings(payload.content)
       }
-      await tripSectionRepository.update(id, update as any)
+      await tripSectionRepository.update(id, update)
     },
 
     async createNote(payload) {
@@ -177,7 +182,7 @@ export function createInProcessTransport(userId: string): Transport {
     },
 
     async updateNote(id, payload) {
-      await noteRepository.update(id, payload as any)
+      await noteRepository.update(id, payload)
     },
   }
 }

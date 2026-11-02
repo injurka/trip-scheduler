@@ -108,7 +108,7 @@ const tabItems = computed<TabItem[]>(() => {
 })
 // Генерируем стиль для интерактивного превью обложки
 const previewHeaderStyle = computed(() => {
-  const targetCoverUrl = coverPreviewUrl.value || resolveApiUrl((user.value as any)?.coverUrl)
+  const targetCoverUrl = coverPreviewUrl.value || resolveApiUrl((user.value)?.coverUrl)
 
   if (targetCoverUrl) {
     return {

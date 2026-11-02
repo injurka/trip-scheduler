@@ -7,6 +7,7 @@ import type {
 } from '../models/types'
 import type { ChecklistMatchResponse } from '~/shared/services/api/model/types'
 import { Icon } from '@iconify/vue'
+import { getErrorMessage } from '@injurka/type-utils'
 import { useSpeechRecognition } from '@vueuse/core'
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
@@ -136,11 +137,11 @@ watch(speech.result, (transcript) => {
     ? `${textBeforeSpeech} ${cleanTranscript}`
     : cleanTranscript
 })
-watch(speech.error, (err: any) => {
+watch(speech.error, (err) => {
   if (!err)
     return
 
-  const errorCode = err.error || ''
+  const errorCode = 'error' in err ? err.error : ''
 
   if (errorCode === 'not-allowed' || errorCode === 'service-not-allowed') {
     toast.error('Доступ к микрофону или распознаванию речи запрещен в настройках браузера.')
@@ -250,8 +251,8 @@ async function handleRecordedAudioStop(mimeType: string) {
 
     appendTranscribedText(res?.text)
   }
-  catch (e: any) {
-    toast.error(e.message || 'Не удалось преобразовать голос в текст.')
+  catch (e) {
+    toast.error(getErrorMessage(e) || 'Не удалось преобразовать голос в текст.')
   }
 }
 async function startMediaRecorderFallback() {
@@ -411,9 +412,9 @@ async function handleCheckChecklist() {
 
     matchResult.value = response
   }
-  catch (e: any) {
+  catch (e) {
     console.error('AI checklist match error:', e)
-    errorText.value = e.message || 'Произошла ошибка при проверке чек-листа.'
+    errorText.value = getErrorMessage(e) || 'Произошла ошибка при проверке чек-листа.'
   }
 }
 function toggleMatchedItem(item: ChecklistItem, completed: boolean) {

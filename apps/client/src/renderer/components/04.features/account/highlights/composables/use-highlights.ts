@@ -26,7 +26,11 @@ export interface HighlightDateRange {
   end: CalendarDate | null
 }
 
-type HighlightFormState = Partial<CreateHighlightInput>
+export interface HighlightFormState extends Omit<Partial<CreateHighlightInput>, 'geoPlaceId' | 'city' | 'countryId'> {
+  geoPlaceId: string | null
+  city: string
+  countryId: string
+}
 
 export interface UploadResult {
   url: string
@@ -679,7 +683,10 @@ export function useHighlights() {
   }
 
   function normalizeHighlightIdentity(source: HighlightFormState): Pick<CreateHighlightInput, 'imageUrl' | 'countryId' | 'geoPlaceId'> {
-    return { imageUrl: source.imageUrl || '', countryId: source.countryId || '', geoPlaceId: source.geoPlaceId || null }
+    if (!source.geoPlaceId)
+      throw new Error('Выберите город из справочника.')
+
+    return { imageUrl: source.imageUrl || '', countryId: source.countryId, geoPlaceId: source.geoPlaceId }
   }
 
   function normalizeHighlightText(source: HighlightFormState): Pick<CreateHighlightInput, 'city' | 'address' | 'comment'> {

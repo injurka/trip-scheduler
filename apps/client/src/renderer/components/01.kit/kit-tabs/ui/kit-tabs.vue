@@ -6,7 +6,7 @@ import { KitViewSwitcher } from '~/components/01.kit/kit-view-switcher'
 
 export interface TabItem<T extends string | number = string | number> extends ViewSwitcherItem<T> {
   component?: Component
-  props?: Record<string, any>
+  props?: Record<string, unknown>
 }
 
 export interface Props<T extends string | number> {

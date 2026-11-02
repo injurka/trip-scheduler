@@ -1,4 +1,6 @@
 import type { AiRequestPrompts } from '~/lib/llm'
+import type { GenerateTemplateInputSchema } from '~/modules/day/day.schemas'
+import { isRecord } from '@injurka/type-utils'
 import { TRPCError } from '@trpc/server'
 import { z } from 'zod'
 import { AI_MODELS, createAiChatRequest, DEFAULT_AI_MODEL, parseJsonWithAiRepair } from '~/lib/llm'
@@ -10,7 +12,7 @@ export type ActivityTag = (typeof VALID_ACTIVITY_TAGS)[number]
 
 const TIME_REGEX = /^(?:[01]\d|2[0-3]):[0-5]\d$/
 
-export function normalizeTimeString(timeStr: any): string {
+export function normalizeTimeString(timeStr: unknown): string {
   if (!timeStr || typeof timeStr !== 'string') {
     return '00:00'
   }
@@ -131,7 +133,7 @@ const TagSynonymsMap: Record<string, ActivityTag> = {
   'event': 'activity',
 }
 
-export function sanitizeTag(tag: any): ActivityTag {
+export function sanitizeTag(tag: unknown): ActivityTag {
   if (typeof tag !== 'string') {
     return 'activity'
   }
@@ -176,40 +178,33 @@ export const AiTemplateResponseSchema = z.union([
   z.array(AiActivitySchema),
 ])
 
-export function normalizeActivities(raw: any, fallbackDayId?: string): any[] {
-  const items = Array.isArray(raw) ? raw : (raw?.activities || [])
-  if (!Array.isArray(items)) {
+export function normalizeActivities(raw: unknown, fallbackDayId?: string): Array<z.infer<typeof AiActivitySchema>> {
+  const items: unknown = Array.isArray(raw) ? raw : (isRecord(raw) ? raw.activities : [])
+  if (!Array.isArray(items))
     return []
-  }
 
-  return items.map((item: any) => {
-    const rawTag = item.tag
-    const validTag = VALID_ACTIVITY_TAGS.includes(rawTag) ? rawTag : sanitizeTag(rawTag)
-    const startTime = normalizeTimeString(item.startTime)
-    const endTime = normalizeTimeString(item.endTime)
-    const id = (typeof item.id === 'string' && item.id.trim()) ? item.id : crypto.randomUUID()
-    const dayId = item.dayId || fallbackDayId || undefined
-
+  return items.filter(isRecord).map((item) => {
+    const validTag = VALID_ACTIVITY_TAGS.find(tag => tag === item.tag) ?? sanitizeTag(item.tag)
     const sections = Array.isArray(item.sections)
-      ? item.sections.map((sec: any) => ({
+      ? item.sections.filter(isRecord).map(sec => AiSectionSchema.parse({
           ...sec,
-          id: (typeof sec.id === 'string' && sec.id.trim()) ? sec.id : crypto.randomUUID(),
-          type: sec.type || 'description',
+          id: typeof sec.id === 'string' && sec.id.trim() ? sec.id : crypto.randomUUID(),
+          type: typeof sec.type === 'string' ? sec.type : 'description',
           text: typeof sec.text === 'string' ? sec.text : '',
         }))
       : []
 
-    return {
+    return AiActivitySchema.parse({
       ...item,
-      id,
-      dayId,
-      startTime,
-      endTime,
-      title: item.title || 'Активность',
+      id: typeof item.id === 'string' && item.id.trim() ? item.id : crypto.randomUUID(),
+      dayId: typeof item.dayId === 'string' ? item.dayId : fallbackDayId,
+      startTime: normalizeTimeString(item.startTime),
+      endTime: normalizeTimeString(item.endTime),
+      title: typeof item.title === 'string' && item.title ? item.title : 'Активность',
       tag: validTag,
-      explanation: item.explanation || undefined,
+      explanation: typeof item.explanation === 'string' ? item.explanation : undefined,
       sections,
-    }
+    })
   })
 }
 
@@ -276,16 +271,10 @@ If the user asks to add an attached banner/pill/callout to an activity, set "isA
 export const templateGenerationService = {
   async generateTemplate(
     userId: string,
-    currentActivities: any[],
+    currentActivities: z.infer<typeof GenerateTemplateInputSchema>['currentActivities'],
     prompt: string,
     canvasNote?: string | null,
-    daysContext?: Array<{
-      dayNumber: number
-      date: string
-      title: string
-      description?: string | null
-      activitiesSummary: Array<{ startTime: string, endTime: string, title: string, tag: string }>
-    }> | null,
+    daysContext?: z.infer<typeof GenerateTemplateInputSchema>['daysContext'],
   ) {
     await quotaService.checkLlmCreditQuota(userId)
 
@@ -367,7 +356,7 @@ CRITICAL RULES:
 - "tag" MUST be strictly one of: "transport", "walk", "food", "attraction", "relax", "activity". No other words or translations are allowed.
 - "startTime" and "endTime" MUST be "HH:mm" with 2 digits for hours (e.g. "08:00", "00:30").`
 
-    const parsedData = await parseJsonWithAiRepair<any>(jsonResponse, {
+    const parsedData = await parseJsonWithAiRepair(jsonResponse, {
       userId,
       model: modelId,
       operation: 'templateGeneration',

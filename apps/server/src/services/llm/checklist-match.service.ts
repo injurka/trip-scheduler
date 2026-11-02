@@ -1,5 +1,6 @@
 import type { AiRequestPrompts } from '~/lib/llm'
 import { TRPCError } from '@trpc/server'
+import { z } from 'zod'
 import { AI_MODELS, createAiChatRequest, DEFAULT_AI_MODEL, parseJsonWithAiRepair } from '~/lib/llm'
 import { llmUsageRepository } from '~/repositories/llm-usage.repository'
 import { quotaService } from '~/services/quota.service'
@@ -148,7 +149,7 @@ async function matchChecklistFromData({
     if (!Array.isArray(prompts.user)) {
       prompts.user = [{ type: 'text', text: prompts.user as string }]
     }
-    ;(prompts.user as any[]).push({
+    ;(prompts.user as unknown[]).push({
       type: 'image_url',
       image_url: {
         url: `data:${resolvedMime};base64,${fileBuffer.toString('base64')}`,
@@ -196,12 +197,16 @@ async function matchChecklistFromData({
     model: modelId,
     operation: 'checklistMatch',
     customInstructions: 'The output must be a valid JSON object with fields: "placeInfo" (optional string), "summary" (string), and "matches" (array of objects with "itemId", "confidence", "reason", and optional "matchedSubtaskIds").',
-    validate: data => Boolean(
-      data
-      && typeof data === 'object'
-      && typeof data.summary === 'string'
-      && Array.isArray(data.matches),
-    ),
+    schema: z.object({
+      placeInfo: z.string().optional(),
+      summary: z.string(),
+      matches: z.array(z.object({
+        itemId: z.string(),
+        confidence: z.enum(['exact', 'high', 'possible']).catch('possible'),
+        reason: z.string(),
+        matchedSubtaskIds: z.array(z.string()).optional(),
+      })),
+    }),
   })
 
   const sanitizedMatches: ChecklistMatchItemResult[] = (parsedData.matches || [])
@@ -252,7 +257,7 @@ async function transcribeVoiceNote({
         image_url: {
           url: `data:${resolvedMime};base64,${fileBuffer.toString('base64')}`,
         },
-      } as any,
+      },
     ],
   }
 
@@ -289,7 +294,7 @@ async function transcribeVoiceNote({
     userId,
     model: modelId,
     operation: 'checklistVoiceTranscribe',
-    validate: data => Boolean(data && typeof data.text === 'string'),
+    schema: z.object({ text: z.string() }),
   })
 
   return { text: parsed.text.trim() }

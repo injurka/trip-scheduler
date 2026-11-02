@@ -1,9 +1,9 @@
-import type { TripImage } from '~/models/image'
+import type { ImageMetadata } from '~/repositories/image.repository'
 import exifr from 'exifr'
 import sharp from 'sharp'
 import { rgbaToThumbHash } from 'thumbhash'
 
-type ExtractedImageData = Omit<TripImage, 'id' | 'tripId' | 'url' | 'placement' | 'createdAt' | 'variants'>
+type ExtractedImageData = Omit<ImageMetadata, 'variants'>
 
 interface Params {
   metadata: Partial<ExtractedImageData>

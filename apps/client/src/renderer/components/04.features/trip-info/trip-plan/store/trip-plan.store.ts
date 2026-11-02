@@ -1,6 +1,6 @@
-/* eslint-disable no-console */
 import type { IActivity, IDay } from '../models/types'
-import type { Trip, TripSection, UpdateTripInput } from '~/shared/types/models/trip'
+/* eslint-disable no-console */
+import type { Trip, TripSection, TripWithDays, UpdateTripInput } from '~/shared/types/models/trip'
 import { defineStore } from 'pinia'
 import { sanitizeActivity } from '~/components/05.modules/trip-info/lib/helpers'
 import { useRequest, useRequestError, useRequestStatus, useRequestStatusByPrefix, useRequestStore } from '~/plugins/request'
@@ -245,7 +245,7 @@ export const useTripPlanStore = defineStore('tripPlan', {
         if (newActIndex !== -1)
           day.activities.splice(newActIndex, 1)
 
-        this.addActivity(dayId, { ...draft, id: undefined } as any)
+        this.addActivity(dayId, draft)
       }
 
       this.activityDrafts.delete(activityId)
@@ -307,7 +307,7 @@ export const useTripPlanStore = defineStore('tripPlan', {
 
       // Persist new AI-generated activities
       for (const draft of newActivitiesToAdd) {
-        this.addActivity(dayId, { ...draft, id: undefined } as any)
+        this.addActivity(dayId, draft)
       }
 
       this.isPreviewMode = false
@@ -387,7 +387,7 @@ export const useTripPlanStore = defineStore('tripPlan', {
       this.currentTripId = tripId
       const offlineStore = useOfflineStore()
 
-      const applyTripData = (result: any) => {
+      const applyTripData = (result: TripWithDays) => {
         const { days, sections, ...tripData } = result
         this.trip = tripData as Trip
         this.currentTripId = this.trip.id
@@ -396,7 +396,7 @@ export const useTripPlanStore = defineStore('tripPlan', {
         this.days = sortedDays as IDay[]
 
         this.dayNote.clear()
-        sortedDays.forEach((day: any) => {
+        sortedDays.forEach((day) => {
           if (day.note) {
             this.dayNote.set(day.id, day.note)
           }
@@ -726,7 +726,7 @@ export const useTripPlanStore = defineStore('tripPlan', {
 
       useRequest({
         key: ETripPlanKeys.ADD_DAY,
-        fn: db => db.days.createNewDay(newDayData as any),
+        fn: db => db.days.createNewDay(newDayData),
         onSuccess: (createdDay) => {
           const tempDayIndex = this.days.findIndex(d => d.id === tempId)
 
@@ -778,7 +778,7 @@ export const useTripPlanStore = defineStore('tripPlan', {
 
       useRequest({
         key: ETripPlanKeys.ADD_DAY,
-        fn: db => db.days.createNewDay(newDayData as any),
+        fn: db => db.days.createNewDay(newDayData),
         onSuccess: (createdDay) => {
           const tempDayIndex = this.days.findIndex(d => d.id === tempId)
 

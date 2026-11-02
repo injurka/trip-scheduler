@@ -1,3 +1,4 @@
+import type { MapPoint, MapRoute } from '~/components/03.domain/trip-info/geolocation-section/models/types'
 import type { Trip } from '~/shared/types/models/trip'
 import { invoke } from '@tauri-apps/api/core'
 import { strToU8, zipSync } from 'fflate'
@@ -59,7 +60,7 @@ function hexToKmlColor(hex?: string): string {
 /**
  * Определяет цвет булавки в зависимости от типа точки и категории активности
  */
-function getPlacemarkColor(point: any): MapsMeColor {
+function getPlacemarkColor(point: MapPoint & { activityTag?: string, title?: string }): MapsMeColor {
   // 1. Сначала проверяем системные точки маршрута
   if (point.type === 'start')
     return 'green'
@@ -83,7 +84,7 @@ function getPlacemarkColor(point: any): MapsMeColor {
   return 'red'
 }
 
-function getPointCoordinates(point: any): { lon: number, lat: number } | null {
+function getPointCoordinates(point: MapPoint & { activityTag?: string, title?: string }): { lon: number, lat: number } | null {
   if (!point.coordinates || point.coordinates.length < 2)
     return null
 
@@ -96,15 +97,15 @@ function getPointCoordinates(point: any): { lon: number, lat: number } | null {
   return { lon, lat }
 }
 
-function getPointName(point: any): string {
+function getPointName(point: MapPoint & { activityTag?: string, title?: string }): string {
   return point.comment || point.address || point.title || 'Точка'
 }
 
-function getPointDescription(point: any): string {
+function getPointDescription(point: MapPoint & { activityTag?: string, title?: string }): string {
   return point.comment && point.address ? point.address : ''
 }
 
-function createPointPlacemark(point: any): string {
+function createPointPlacemark(point: MapPoint & { activityTag?: string, title?: string }): string {
   const coordinates = getPointCoordinates(point)
 
   if (!coordinates)
@@ -130,7 +131,7 @@ function createPointPlacemark(point: any): string {
 /**
  * Генерирует содержимое файла .kml
  */
-function generateKml(trip: Trip, points: any[], routes: any[]): string {
+function generateKml(trip: Pick<Trip, 'id' | 'title'>, points: MapPoint[], routes: MapRoute[]): string {
   const routeColors = new Set<string>()
   routes.forEach(r => routeColors.add(hexToKmlColor(r.color)))
 
@@ -167,12 +168,12 @@ function generateKml(trip: Trip, points: any[], routes: any[]): string {
     const color = hexToKmlColor(r.color)
     const name = r.title || 'Маршрут'
 
-    const validCoords = r.geometry.filter((pt: any) => pt && pt.length >= 2 && !Number.isNaN(Number(pt[0])) && !Number.isNaN(Number(pt[1])))
+    const validCoords = r.geometry.filter(pt => pt && pt.length >= 2 && !Number.isNaN(Number(pt[0])) && !Number.isNaN(Number(pt[1])))
 
     if (validCoords.length < 2)
       return
 
-    const coordsString = validCoords.map((pt: any) => `${Number(pt[0])},${Number(pt[1])}`).join(' ')
+    const coordsString = validCoords.map(pt => `${Number(pt[0])},${Number(pt[1])}`).join(' ')
 
     placemarks += `
     <Placemark>
@@ -206,13 +207,13 @@ function uint8ArrayToBase64(bytes: Uint8Array): string {
 
   for (let i = 0; i < len; i += chunkSize) {
     const chunk = bytes.subarray(i, Math.min(i + chunkSize, len))
-    binary += String.fromCharCode.apply(null, chunk as unknown as number[])
+    binary += String.fromCharCode(...chunk)
   }
 
   return btoa(binary)
 }
 
-function getExportFileName(trip: Trip): string {
+function getExportFileName(trip: Pick<Trip, 'id' | 'title'>): string {
   const baseName = (trip.title || trip.id || 'trip').trim().replace(/[/\\?%*:|"<>]/g, '_')
 
   return `${baseName}.kmz`
@@ -225,7 +226,7 @@ function isTauriApp(): boolean {
 /**
  * Основная функция: генерирует KML, пакует в KMZ и открывает в Maps.me / скачивает.
  */
-export async function exportToMapsMe(trip: Trip | null, points: any[], routes: any[]): Promise<MapsMeExportResult | void> {
+export async function exportToMapsMe(trip: Pick<Trip, 'id' | 'title'> | null, points: MapPoint[], routes: MapRoute[]): Promise<MapsMeExportResult | void> {
   if (!trip)
     return
 

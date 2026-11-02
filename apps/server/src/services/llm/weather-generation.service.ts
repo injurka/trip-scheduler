@@ -324,11 +324,11 @@ async function fetchClimateNormals(lat: number, lon: number, month: number): Pro
     if (!daily)
       return null
 
-    const validMeans: number[] = (daily.temperature_2m_mean || []).filter((v: any) => typeof v === 'number')
-    const validMins: number[] = (daily.temperature_2m_min || []).filter((v: any) => typeof v === 'number')
-    const validMaxs: number[] = (daily.temperature_2m_max || []).filter((v: any) => typeof v === 'number')
-    const validWinds: number[] = (daily.wind_speed_10m_max || []).filter((v: any) => typeof v === 'number')
-    const validPrecip: number[] = (daily.precipitation_sum || []).filter((v: any) => typeof v === 'number')
+    const validMeans: number[] = (daily.temperature_2m_mean || []).filter((v: unknown): v is number => typeof v === 'number')
+    const validMins: number[] = (daily.temperature_2m_min || []).filter((v: unknown): v is number => typeof v === 'number')
+    const validMaxs: number[] = (daily.temperature_2m_max || []).filter((v: unknown): v is number => typeof v === 'number')
+    const validWinds: number[] = (daily.wind_speed_10m_max || []).filter((v: unknown): v is number => typeof v === 'number')
+    const validPrecip: number[] = (daily.precipitation_sum || []).filter((v: unknown): v is number => typeof v === 'number')
 
     if (!validMeans.length)
       return null

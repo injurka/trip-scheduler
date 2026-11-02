@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { CalendarDate } from '@internationalized/date'
+import type { CreatePayload } from '../../models/types'
 import { Icon } from '@iconify/vue'
 import { getLocalTimeZone, parseDate, Time, today } from '@internationalized/date'
 import { useDateFormat } from '@vueuse/core'
@@ -18,7 +19,7 @@ const props = withDefaults(defineProps<Props>(), {
   isLoading: false,
 })
 const emit = defineEmits<{
-  (e: 'create', data: any): void
+  (e: 'create', data: CreatePayload): void
 }>()
 const visible = defineModel<boolean>('visible', { required: true })
 

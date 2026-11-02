@@ -40,7 +40,7 @@ export async function geocodeLocation(
       signal: AbortSignal.timeout(photonTimeout),
     })
     if (res.ok) {
-      const data = (await res.json()) as any
+      const data = (await res.json())
       if (data.features && data.features.length > 0) {
         const coords = data.features[0].geometry.coordinates as [number, number]
         geoCache.set(cacheKey, coords)
@@ -64,7 +64,7 @@ export async function geocodeLocation(
       signal: AbortSignal.timeout(nominatimTimeout),
     })
     if (res.ok) {
-      const data = (await res.json()) as any
+      const data = (await res.json())
       if (Array.isArray(data) && data.length > 0) {
         const lon = Number.parseFloat(data[0].lon)
         const lat = Number.parseFloat(data[0].lat)

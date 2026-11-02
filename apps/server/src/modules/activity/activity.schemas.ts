@@ -123,6 +123,7 @@ export const ActivitySchema = z.object({
   sections: z.array(ActivitySectionSchema).optional().nullable(),
   tag: z.enum(['transport', 'walk', 'food', 'attraction', 'relax', 'activity']).optional().nullable(),
   dayId: z.string(),
+  status: z.enum(['none', 'completed', 'skipped']).default('none'),
 })
 
 export const CreateActivityInputSchema = ActivitySchema.pick({

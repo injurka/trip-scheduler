@@ -2,6 +2,7 @@ import type { IActivityRepository } from '../model/types'
 import type { Activity } from '~/shared/types/models/activity'
 import { trpc } from '~/shared/services/trpc/trpc.service'
 import { throttle } from '../lib/decorators'
+import { normalizeActivity } from '../lib/normalize-models'
 
 class ActivityRepository implements IActivityRepository {
   /**
@@ -17,7 +18,7 @@ class ActivityRepository implements IActivityRepository {
     }
     const createdActivity = await trpc.activity.create.mutate(payload)
 
-    return createdActivity as Activity
+    return normalizeActivity(createdActivity)
   }
 
   /**
@@ -33,7 +34,7 @@ class ActivityRepository implements IActivityRepository {
     }
     const updatedActivity = await trpc.activity.update.mutate(payload)
 
-    return updatedActivity as Activity
+    return normalizeActivity(updatedActivity)
   }
 
   /**
@@ -45,7 +46,7 @@ class ActivityRepository implements IActivityRepository {
   async remove(id: string): Promise<Activity> {
     const deletedActivity = await trpc.activity.delete.mutate({ id })
 
-    return deletedActivity as Activity
+    return normalizeActivity(deletedActivity)
   }
 }
 

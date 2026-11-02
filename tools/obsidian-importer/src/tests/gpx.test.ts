@@ -1,3 +1,4 @@
+import assert from 'node:assert/strict'
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -199,7 +200,8 @@ describe('enricher: gpx tracks', () => {
       { geocode: false, gpxIndex },
     )
 
-    const geoSec = res.sections?.find(s => s.type === 'geolocation') as any
+    const geoSec = res.sections?.find(s => s.type === 'geolocation')
+    assert(geoSec)
     expect(geoSec).toBeDefined()
     expect(geoSec.points).toHaveLength(0)
     expect(geoSec.routes).toHaveLength(1)
@@ -212,9 +214,9 @@ describe('enricher: gpx tracks', () => {
     })
     expect(geoSec.routes[0].geometry).toHaveLength(3)
     expect(geoSec.routes[0].distance).toBeGreaterThan(40)
-    expect(geoSec.routes[0].points.map((p: any) => p.type)).toEqual(['start', 'end'])
+    expect(geoSec.routes[0].points.map(p => p.type)).toEqual(['start', 'end'])
 
-    const descSec = res.sections?.find(s => s.type === 'description') as any
+    const descSec = res.sections?.find(s => s.type === 'description')
     expect(descSec?.text ?? '').not.toContain('chinan.gpx')
     expect(descSec?.text ?? '').not.toContain('[[chinan.gpx')
   })
@@ -229,10 +231,11 @@ describe('enricher: gpx tracks', () => {
       tag: 'walk',
       sections: [{ id: 'description', type: 'description', text: '_GPX-трек_: [[walk.gpx]]' }],
     }, new Map(), null, null, new Map(), new Map(), { geocode: false, gpxIndex })
-    const map = result.sections?.find(section => section.type === 'geolocation') as any
+    const map = result.sections?.find(section => section.type === 'geolocation')
+    assert(map)
     const route = map.routes[0]
-    expect(route.points.map((point: any) => point.type)).toEqual(['start', 'connect', 'connect', 'connect', 'end'])
-    expect(new Set(route.points.map((point: any) => point.id)).size).toBe(5)
+    expect(route.points.map(point => point.type)).toEqual(['start', 'connect', 'connect', 'connect', 'end'])
+    expect(new Set(route.points.map(point => point.id)).size).toBe(5)
     expect(route.geometry).toEqual([[121, 25], [121, 25.03]])
   })
 
@@ -260,7 +263,8 @@ describe('enricher: gpx tracks', () => {
       { geocode: false, gpxIndex },
     )
 
-    const geoSec = res.sections?.find(s => s.type === 'geolocation') as any
+    const geoSec = res.sections?.find(s => s.type === 'geolocation')
+    assert(geoSec)
     expect(geoSec.routes).toHaveLength(1)
     expect(geoSec.routes[0].transportMode).toBe('bike')
     expect(geoSec.routes[0].title).toBe('Chinan')
@@ -281,16 +285,17 @@ describe('enricher: gpx tracks', () => {
     }
     const enrich = () => enrichActivityWithMediaAndLocation(activity, new Map(), null, null, new Map(), new Map(), { geocode: false, gpxIndex })
     const result = await enrich()
-    const map = result.sections?.find(section => section.type === 'geolocation') as any
+    const map = result.sections?.find(section => section.type === 'geolocation')
+    assert(map)
     expect(map.routes).toHaveLength(1)
-    expect(map.routes[0].points.map((point: any) => [point.address, point.type])).toEqual([
+    expect(map.routes[0].points.map(point => [point.address, point.type])).toEqual([
       ['Начало трека', 'start'],
       ['Peak', 'via'],
       ['Конец трека', 'end'],
     ])
     expect(map.routes[0].geometry).toEqual(parseGpxContent(SAMPLE_GPX)!.coordinates)
     expect(map.points).toMatchObject([{ address: 'Hotel', coordinates: [30, 50], type: 'poi' }])
-    expect(new Set(map.routes[0].points.map((point: any) => point.id)).size).toBe(3)
+    expect(new Set(map.routes[0].points.map(point => point.id)).size).toBe(3)
     expect((await enrich()).sections).toEqual(result.sections)
   })
 

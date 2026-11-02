@@ -155,6 +155,13 @@
       "when": 1793609989747,
       "tag": "0021_known_venom",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1793613311035,
+      "tag": "0022_lumpy_captain_britain",
+      "breakpoints": true
     }
   ]
 }

@@ -4,17 +4,18 @@ import type { RouterInput, RouterOutput } from '../trpc'
  * Определяет, к какой сущности относится комментарий.
  * Значения должны быть синхронизированы с `commentParentTypeEnum` на бэкенде.
  */
-export enum CommentParentType {
-  TRIP = 'trip',
-  DAY = 'day',
-  POST = 'post',
-}
+export const CommentParentType = {
+  TRIP: 'trip',
+  DAY: 'day',
+  POST: 'post',
+} as const
+export type CommentParentType = typeof CommentParentType[keyof typeof CommentParentType]
 
 /**
  * Тип комментария, выведенный из ответа tRPC-процедуры.
  * Это гарантирует, что тип на фронтенде всегда соответствует тому, что возвращает API.
  */
-export type Comment = RouterOutput['comment']['list'][number]
+export type Comment = RouterOutput['comment']['list']['data'][number]
 
 /**
  * Тип для создания нового комментария.

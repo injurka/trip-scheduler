@@ -1,10 +1,10 @@
 <script setup lang="ts">
+import type { HighlightFormState } from '../../composables/use-highlights'
 /* eslint-disable vue/no-mutating-props */
 import type { KitDropdownItem } from '~/components/01.kit/kit-dropdown'
 import type { DestinationMapPoint } from '~/shared/services/api/model/types'
 import type { Country } from '~/shared/types/models/destination-review'
 import type { GeoPlaceRef } from '~/shared/types/models/geo-place'
-import type { CreateHighlightInput } from '~/shared/types/models/user'
 import { Icon } from '@iconify/vue'
 import { CalendarDate, Time } from '@internationalized/date'
 import { onClickOutside } from '@vueuse/core'
@@ -24,7 +24,7 @@ interface Props {
   visible: boolean
   countries: Country[]
   mapPoints: DestinationMapPoint[]
-  form: Partial<CreateHighlightInput>
+  form: HighlightFormState
   file: File | null
   isUploading: boolean
   isSubmitting: boolean
@@ -43,7 +43,7 @@ const emit = defineEmits<{
 const selectedCityRef = ref<GeoPlaceRef | null>(props.form.geoPlaceId && props.form.city
   ? {
       id: props.form.geoPlaceId,
-      name: props.form.city,
+      name: props.form.city || '',
       countryId: props.form.countryId || null,
       countryCode: '',
       countryName: '',
@@ -95,14 +95,14 @@ const formattedTakenAt = computed(() => {
   })
 })
 const hasCoordinates = computed(() => {
-  return props.form.latitude !== null && props.form.latitude !== undefined && props.form.latitude !== ''
-    && props.form.longitude !== null && props.form.longitude !== undefined && props.form.longitude !== ''
+  return props.form.latitude !== null && props.form.latitude !== undefined
+    && props.form.longitude !== null && props.form.longitude !== undefined
 })
 const mapMarkers = computed(() => {
   const lat = Number(props.form.latitude)
   const lon = Number(props.form.longitude)
 
-  if (!Number.isNaN(lat) && !Number.isNaN(lon) && props.form.latitude !== null && props.form.longitude !== null && props.form.latitude !== '' && props.form.longitude !== '') {
+  if (!Number.isNaN(lat) && !Number.isNaN(lon) && props.form.latitude !== null && props.form.longitude !== null) {
     return [{ id: 'pin', coords: { lat, lon } }]
   }
 
@@ -199,7 +199,7 @@ function isHighlightCityHydrated(geoPlaceId: string): boolean {
 function createHighlightCityRef(geoPlaceId: string): GeoPlaceRef {
   return {
     id: geoPlaceId,
-    name: props.form.city,
+    name: props.form.city || '',
     countryId: props.form.countryId || null,
     countryCode: '',
     countryName: '',

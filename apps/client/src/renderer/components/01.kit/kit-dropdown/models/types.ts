@@ -1,4 +1,4 @@
-export interface KitDropdownItem<T = any> {
+export interface KitDropdownItem<T = string> {
   value: T
   label: string
   icon?: string

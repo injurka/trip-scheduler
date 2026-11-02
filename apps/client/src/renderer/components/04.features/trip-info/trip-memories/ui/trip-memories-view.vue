@@ -94,7 +94,7 @@ const galleryImages = computed<ImageViewerImage[]>(() => {
         currentDayId,
       )
       const isVideo = image.mediaType === 'video' || /\.(?:mp4|webm|mov|mkv|avi|ogg|quicktime)$/i.test(image.url)
-      const mediaType = isVideo ? 'video' : 'image'
+      const mediaType: 'video' | 'image' = isVideo ? 'video' : 'image'
       const meta = {
         ...image.metadata,
         mediaType,
@@ -129,11 +129,11 @@ const cachingPercent = computed(() => {
   return Math.round((imageCacher.cachedCount.value / total) * 100)
 })
 const importOptions = computed(() => {
-  const existingSourceIds = new Set(memories.memories.map((m: any) => m.sourceActivityId).filter(Boolean))
+  const existingSourceIds = new Set(memories.memories.map(m => m.sourceActivityId).filter(Boolean))
 
   return getActivitiesForSelectedDay.value
-    .filter((act: any) => !existingSourceIds.has(act.id))
-    .map((activity: any) => ({
+    .filter(act => !existingSourceIds.has(act.id))
+    .map(activity => ({
       value: activity,
       label: `${activity.startTime} - ${activity.title}`,
       icon: getTagInfo(activity.tag)?.icon,

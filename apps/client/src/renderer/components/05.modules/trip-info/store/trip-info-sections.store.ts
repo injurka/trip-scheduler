@@ -44,7 +44,7 @@ export const useTripSectionsStore = defineStore('tripSections', {
         return
       }
 
-      let defaultContent: any = {}
+      let defaultContent: unknown = {}
       let defaultIcon = 'mdi:file-document-outline'
       let defaultTitle = 'Новый раздел'
 
@@ -168,7 +168,7 @@ export const useTripSectionsStore = defineStore('tripSections', {
 
       const sectionToClear = this.sections[index]
 
-      let defaultContent: any = {}
+      let defaultContent: unknown = {}
 
       switch (sectionToClear.type) {
         case TripSectionType.NOTES:

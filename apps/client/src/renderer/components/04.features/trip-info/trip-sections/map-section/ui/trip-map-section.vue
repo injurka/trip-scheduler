@@ -50,7 +50,7 @@ const isDetailsResizing = ref(false)
 
 const isFullscreen = computed(() => isNativeFullscreen.value || isCustomFullscreen.value)
 const dayOptions = computed(() => {
-  const options: any[] = [{ value: 'all', label: 'Все дни', dayNumber: null }]
+  const options: Array<{ value: string, label: string, dayNumber: number | null }> = [{ value: 'all', label: 'Все дни', dayNumber: null }]
   props.days.forEach((day, index) => {
     options.push({ value: day.id, label: day.title || `День ${index + 1}`, dayNumber: index + 1 })
   })
@@ -58,7 +58,7 @@ const dayOptions = computed(() => {
   return options
 })
 const allGeoSections = computed(() => {
-  const sections: { section: any, dayId: string, activityId: string, activityTitle: string }[] = []
+  const sections: { section: ActivitySectionGeolocation, dayId: string, activityId: string, activityTitle: string }[] = []
   props.days.forEach((day) => {
     day.activities.forEach((activity) => {
       activity.sections?.forEach((section) => {
@@ -71,8 +71,8 @@ const allGeoSections = computed(() => {
 
   return sections
 })
-const allPoints = computed(() => allGeoSections.value.flatMap(s => s.section.points.map((p: any) => ({ ...p, dayId: s.dayId }))))
-const allRoutes = computed(() => allGeoSections.value.flatMap(s => s.section.routes.map((r: any) => ({ ...r, dayId: s.dayId }))))
+const allPoints = computed(() => allGeoSections.value.flatMap(s => s.section.points.map(p => ({ ...p, dayId: s.dayId }))))
+const allRoutes = computed(() => allGeoSections.value.flatMap(s => s.section.routes.map(r => ({ ...r, dayId: s.dayId }))))
 const filteredPoints = computed(() => selectedDayId.value === 'all' ? allPoints.value : allPoints.value.filter(p => p.dayId === selectedDayId.value))
 const filteredRoutes = computed(() => selectedDayId.value === 'all' ? allRoutes.value : allRoutes.value.filter(r => r.dayId === selectedDayId.value))
 const timelineActivities = computed<TimelineActivity[]>(() => props.days.flatMap((day, dayIndex) => {
@@ -108,7 +108,7 @@ const selectedActivity = computed(() => {
     return null
 
   const geoSection = allGeoSections.value.find(s =>
-    s.section.points.some((p: any) => p.id === selectedItemId.value)
+    s.section.points.some(p => p.id === selectedItemId.value)
     || s.section.routes.some((route: MapRoute) =>
       route.id === selectedItemId.value
       || route.points.some(point => point.id === selectedItemId.value)))
@@ -152,7 +152,7 @@ const mapCenter = computed((): [number, number] => {
 })
 const geolocationMapPoints = computed<MapPoint[]>(() => {
   const routePoints = filteredRoutes.value.flatMap(route =>
-    route.points.map((point: { style: any }) => ({
+    route.points.map(point => ({
       ...point,
       style: { ...point.style, color: route.color },
     })))
@@ -308,8 +308,8 @@ function focusOnItem(item: MapPoint | MapRoute) {
               >
                 <template #item="{ item }">
                   <div class="day-option-content">
-                    <div v-if="(item as any).dayNumber" class="day-number-badge">
-                      {{ (item as any).dayNumber }}
+                    <div v-if="(item).dayNumber" class="day-number-badge">
+                      {{ (item).dayNumber }}
                     </div>
                     <span>{{ item.label }}</span>
                   </div>

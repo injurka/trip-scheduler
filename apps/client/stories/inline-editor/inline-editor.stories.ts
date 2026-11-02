@@ -57,7 +57,7 @@ This is a demo of the **Milkdown**-based inline editor. You can write in _Markdo
 `
 
 // A reusable render function to show the v-model state
-function render(args: any) {
+function render(args: unknown) {
   return {
     components: { KitInlineMdEditorWrapper },
     setup() {

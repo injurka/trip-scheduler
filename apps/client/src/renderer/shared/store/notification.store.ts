@@ -19,6 +19,15 @@ export interface NotificationState {
   loading: boolean
 }
 
+function serializePushSubscription(subscription: PushSubscription) {
+  const json = subscription.toJSON()
+
+  if (!json.endpoint || !json.keys?.p256dh || !json.keys.auth)
+    throw new Error('Неполные данные push-подписки')
+
+  return { endpoint: json.endpoint, keys: { p256dh: json.keys.p256dh, auth: json.keys.auth } }
+}
+
 const useNotificationStore = defineStore('notification', {
   state: (): NotificationState => ({
     subscribedTripIds: new Set(),
@@ -168,11 +177,12 @@ const useNotificationStore = defineStore('notification', {
           if (!subscription)
             throw new Error('Не удалось создать подписку')
 
+          const payload = serializePushSubscription(subscription)
           await useRequest({
             key: ENotificationKeys.SUBSCRIBE_TRIP,
             fn: db => db.notification.subscribeToTrip({
               tripId,
-              subscription: subscription.toJSON(),
+              subscription: payload,
             }),
             onSuccess: () => {
               this.subscribedTripIds.add(tripId)

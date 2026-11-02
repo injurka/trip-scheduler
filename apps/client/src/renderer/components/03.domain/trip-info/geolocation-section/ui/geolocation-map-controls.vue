@@ -45,7 +45,7 @@ const tillerItems = computed(() => [
   },
 ])
 
-function handleTileSourceSelect(selected: any) {
+function handleTileSourceSelect(selected: unknown) {
   if (selected === 'configure_custom') {
     isTileSettingsOpen.value = true
 
@@ -61,7 +61,7 @@ function handleTileSourceSelect(selected: any) {
   emit('setTileSource', selected as TileSourceId)
 }
 
-function handleTileSettingsApplied(sourceId: any) {
+function handleTileSettingsApplied(sourceId: unknown) {
   emit('setTileSource', sourceId as TileSourceId)
 }
 

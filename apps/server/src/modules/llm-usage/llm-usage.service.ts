@@ -17,7 +17,7 @@ export const llmUsageService = {
    * @param user The user object, including the plan.
    * @returns An object with total input and output tokens.
    */
-  async getSummary(user: typeof users.$inferSelect & { plan: any }) {
+  async getSummary(user: typeof users.$inferSelect & { plan: { monthlyLlmCredits: number } }) {
     const totals = await llmUsageRepository.getSummaryByUserId(user.id)
     return {
       ...totals,

@@ -4,6 +4,7 @@ import { existsSync } from 'node:fs'
 import { basename } from 'node:path'
 import { lookupImageCache, saveImageUploadCache, setImageCache } from './cache'
 import { pMap } from './concurrency'
+import { getErrorMessage } from './value-guards'
 
 export interface ImageUploader {
   uploadImage: (tripId: string, filePath: string, placement?: 'route' | 'memories' | 'notes' | 'documents') => Promise<string>
@@ -79,7 +80,7 @@ export function collectTripImagePaths(
   // 2. Booking photos
   if (tripData.bookingsContent?.bookings) {
     for (const booking of tripData.bookingsContent.bookings) {
-      const data = booking.data as any
+      const data = booking.data
       const rawPhotos: string[] = data?.photos || data?.imageUrls || []
       if (!Array.isArray(rawPhotos))
         continue
@@ -271,8 +272,8 @@ export async function batchUploadTripImages(
         completed++
         options.onProgress?.(`  📸 [${completed}/${toUpload.length}] ${fileName}`)
       }
-      catch (err: any) {
-        options.onProgress?.(`  ⚠ Ошибка загрузки ${fileName}: ${err?.message || err}`)
+      catch (err) {
+        options.onProgress?.(`  ⚠ Ошибка загрузки ${fileName}: ${getErrorMessage(err) || err}`)
         throw err
       }
     },

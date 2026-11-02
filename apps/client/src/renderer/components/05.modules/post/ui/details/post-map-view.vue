@@ -52,7 +52,7 @@ const hasActiveFocus = computed(() => {
 const mapPoints = computed<MapPoint[]>(() => {
   const points: MapPoint[] = []
   props.post.elements?.forEach((element, sIndex) => {
-    element.content.forEach((block: any) => {
+    element.content.forEach((block) => {
       if (block.type === 'location' && block.location && (block.location.lat != null || block.location.lng != null)) {
         let lat = Number(block.location.lat)
         let lng = Number(block.location.lng)
@@ -84,7 +84,7 @@ const mapPoints = computed<MapPoint[]>(() => {
             opacity: styleConfig.opacity,
             zIndex: props.focusBlockId === block.id ? 150 : 20,
           },
-        } as unknown as MapPoint)
+        } satisfies MapPoint)
       }
     })
   })
@@ -94,15 +94,15 @@ const mapPoints = computed<MapPoint[]>(() => {
 const mapRoutes = computed<MapRoute[]>(() => {
   const routes: MapRoute[] = []
   props.post.elements?.forEach((element, sIndex) => {
-    element.content.forEach((block: any) => {
+    element.content.forEach((block) => {
       if (block.type === 'route' && block.route && block.route.geometry && block.route.geometry.length > 0) {
         const styleConfig = getPointStyleConfig(sIndex, block.id)
         const routeColor = getRouteColor(sIndex, block.id)
 
         const rawPoints = block.route.points || []
-        const validBlockPoints: any[] = []
+        const validBlockPoints: MapPoint[] = []
 
-        rawPoints.forEach((p: any, idx: number) => {
+        rawPoints.forEach((p, idx: number) => {
           let lat = Number(p.lat)
           let lng = Number(p.lng)
 

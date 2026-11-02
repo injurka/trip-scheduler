@@ -42,7 +42,7 @@ const singleImage: ImageViewerImage[] = [
 ]
 
 function createRender(imageList: ImageViewerImage[]) {
-  return (args: any) => ({
+  return args => ({
     components: { KitImageViewer },
     setup() {
       const viewer = useImageViewer(args.options as ImageViewerOptions)

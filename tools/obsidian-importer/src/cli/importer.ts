@@ -1,4 +1,6 @@
 import type { UploadedDocumentLink } from '../lib/document-links'
+import type { ImportSectionContent } from '../lib/section-content'
+import type { ImportDocument, ImportTripSection } from '../lib/transport'
 import type { ActivityPayload, Booking } from '../types'
 import { readFileSync } from 'node:fs'
 import process from 'node:process'
@@ -25,7 +27,9 @@ import { batchUploadTripImages, collectTripImagePaths } from '../lib/image-uploa
 import { resolveCityIds } from '../lib/import-trip'
 import { generateActivitiesViaDirectLlm, mergeLlmActivitiesWithRawMarkdown } from '../lib/llm'
 import { createMetroActivityResolver } from '../lib/metro-resolver'
+import { readDocumentFolders } from '../lib/section-content'
 import { stableId } from '../lib/stable-id'
+import { getErrorMessage } from '../lib/value-guards'
 import { parseActivitiesFromMarkdown, stripFrontmatter } from '../parsers/activity'
 import { parseObsidianTripFolder } from '../parsers/vault'
 import {
@@ -127,8 +131,8 @@ export async function runImport(): Promise<void> {
   try {
     tripData = parseObsidianTripFolder(targetDir, cliOptions.startDate)
   }
-  catch (err: any) {
-    console.error(`${colors.red}❌ Ошибка парсинга папки Obsidian: ${err.message}${colors.reset}`)
+  catch (err) {
+    console.error(`${colors.red}❌ Ошибка парсинга папки Obsidian: ${getErrorMessage(err)}${colors.reset}`)
     process.exit(1)
   }
 
@@ -159,8 +163,8 @@ export async function runImport(): Promise<void> {
   }
 
   const bookingsTotal = tripData.bookingsContent?.bookings?.length || 0
-  const bookingsWithPhotos = (tripData.bookingsContent?.bookings || []).filter((b: any) => (b.data as any)?.photos?.length > 0).length
-  const totalPhotosCount = (tripData.bookingsContent?.bookings || []).reduce((sum: number, b: any) => sum + ((b.data as any)?.photos?.length || 0), 0)
+  const bookingsWithPhotos = (tripData.bookingsContent?.bookings || []).filter(b => (b.data.photos?.length ?? 0) > 0).length
+  const totalPhotosCount = (tripData.bookingsContent?.bookings || []).reduce((sum: number, b) => sum + ((b.data)?.photos?.length || 0), 0)
   const financesTotalRub = (tripData.financesContent?.transactions || []).reduce((sum, t) => sum + (t.amount || 0), 0)
   const transactionsCount = tripData.financesContent?.transactions?.length || 0
 
@@ -258,8 +262,8 @@ export async function runImport(): Promise<void> {
     await api.signIn(email, password)
     process.stdout.write(`${colors.green}Успешно!${colors.reset}\n`)
   }
-  catch (err: any) {
-    console.error(`\n${colors.red}❌ Ошибка авторизации: ${err.message}${colors.reset}`)
+  catch (err) {
+    console.error(`\n${colors.red}❌ Ошибка авторизации: ${getErrorMessage(err)}${colors.reset}`)
     process.exit(1)
   }
 
@@ -309,8 +313,8 @@ export async function runImport(): Promise<void> {
       }
       console.log(`  ${colors.green}✔ Найдено путешествие:${colors.reset} ${colors.bright}${createdTrip.title}${colors.reset} (ID: ${createdTrip.id})`)
     }
-    catch (err: any) {
-      console.error(`  ${colors.red}❌ Путешествие с ID ${targetTripId} не найдено: ${err.message}${colors.reset}`)
+    catch (err) {
+      console.error(`  ${colors.red}❌ Путешествие с ID ${targetTripId} не найдено: ${getErrorMessage(err)}${colors.reset}`)
       process.exit(1)
     }
   }
@@ -326,8 +330,8 @@ export async function runImport(): Promise<void> {
       })
       console.log(`  ${colors.green}✔ Путешествие создано:${colors.reset} ${colors.bright}${createdTrip.title}${colors.reset} (ID: ${createdTrip.id})`)
     }
-    catch (err: any) {
-      console.error(`  ${colors.red}❌ Ошибка создания поездки: ${err.message}${colors.reset}`)
+    catch (err) {
+      console.error(`  ${colors.red}❌ Ошибка создания поездки: ${getErrorMessage(err)}${colors.reset}`)
       process.exit(1)
     }
   }
@@ -338,9 +342,9 @@ export async function runImport(): Promise<void> {
       coverImageUrl = await api.uploadImage(createdTrip.id, tripData.coverImagePath, 'route')
       console.log(`  ${colors.green}✔ Обложка путешествия загружена${colors.reset}`)
     }
-    catch (err: any) {
+    catch (err) {
       recordError('Загрузка обложки', err)
-      console.warn(`  ${colors.yellow}⚠ Ошибка загрузки обложки: ${err.message}${colors.reset}`)
+      console.warn(`  ${colors.yellow}⚠ Ошибка загрузки обложки: ${getErrorMessage(err)}${colors.reset}`)
     }
   }
 
@@ -362,9 +366,9 @@ export async function runImport(): Promise<void> {
       })
       console.log(`  ${colors.green}✔ Метаданные путешествия обновлены${colors.reset} (города: ${tripData.cities.join(', ') || '—'}, теги: ${tripData.tags.join(', ')})`)
     }
-    catch (err: any) {
+    catch (err) {
       recordError('Обновление метаданных', err)
-      console.warn(`  ${colors.yellow}⚠ Ошибка обновления метаданных: ${err.message}${colors.reset}`)
+      console.warn(`  ${colors.yellow}⚠ Ошибка обновления метаданных: ${getErrorMessage(err)}${colors.reset}`)
       if (cityIds !== undefined) {
         if (!targetTripId) {
           try {
@@ -430,7 +434,7 @@ export async function runImport(): Promise<void> {
   if (importSections) {
     console.log(`\n${colors.dim}📑 Наполнение разделов-вкладок путешествия...${colors.reset}`)
 
-    let existingSections: Array<{ id: string, type: string, title: string, content?: any }> = []
+    let existingSections: ImportTripSection[] = []
     try {
       const details = await api.getTripDetails(createdTrip.id)
       if (Array.isArray(details?.sections)) {
@@ -445,7 +449,7 @@ export async function runImport(): Promise<void> {
     for (const sec of appConfig.defaultSections) {
       try {
         const existingSec = existingSections.find(s => s.type === sec.type)
-        let sectionContent: any
+        let sectionContent: ImportSectionContent | undefined
 
         if (sec.type === 'bookings') {
           sectionContent = tripData.bookingsContent && tripData.bookingsContent.bookings.length > 0 ? tripData.bookingsContent : undefined
@@ -457,7 +461,7 @@ export async function runImport(): Promise<void> {
           sectionContent = tripData.financesContent?.transactions?.length ? tripData.financesContent : undefined
         }
         else if (sec.type === 'documents') {
-          const existingFolders = Array.isArray(existingSec?.content?.folders) ? existingSec.content.folders : []
+          const existingFolders = readDocumentFolders(existingSec?.content)
           const newFolders = tripData.documentsContent?.folders || []
           const mergedFolders = [...existingFolders]
           for (const nf of newFolders) {
@@ -480,38 +484,38 @@ export async function runImport(): Promise<void> {
         else {
           await api.createTripSection({
             tripId: createdTrip.id,
-            type: sec.type as any,
+            type: sec.type,
             title: sec.title,
             icon: sec.icon,
             content: sectionContent,
           })
         }
 
-        if (sec.type === 'bookings' && sectionContent?.bookings?.length > 0) {
-          const hotelsCount = sectionContent.bookings.filter((b: any) => b.type === 'hotel').length
-          const flightsCount = sectionContent.bookings.filter((b: any) => b.type === 'flight').length
-          const trainsCount = sectionContent.bookings.filter((b: any) => b.type === 'train').length
-          const carsCount = sectionContent.bookings.filter((b: any) => b.type === 'car').length
-          const attractionsCount = sectionContent.bookings.filter((b: any) => b.type === 'attraction').length
-          const othersCount = sectionContent.bookings.filter((b: any) => b.type === 'other').length
-          const totalBookingPhotos = sectionContent.bookings.reduce((sum: number, b: any) => sum + ((b.data as any)?.photos?.length || 0), 0)
+        if (sec.type === 'bookings' && sectionContent?.bookings?.length) {
+          const hotelsCount = sectionContent.bookings.filter(b => b.type === 'hotel').length
+          const flightsCount = sectionContent.bookings.filter(b => b.type === 'flight').length
+          const trainsCount = sectionContent.bookings.filter(b => b.type === 'train').length
+          const carsCount = sectionContent.bookings.filter(b => b.type === 'car').length
+          const attractionsCount = sectionContent.bookings.filter(b => b.type === 'attraction').length
+          const othersCount = sectionContent.bookings.filter(b => b.type === 'other').length
+          const totalBookingPhotos = sectionContent.bookings.reduce((sum: number, b) => sum + ((b.data)?.photos?.length || 0), 0)
           console.log(`  ${colors.green}✔ Раздел «${sec.title}» наполнен:${colors.reset} ${hotelsCount > 0 ? `🏨 ${hotelsCount} отелей ` : ''}${flightsCount > 0 ? `✈️ ${flightsCount} рейсов ` : ''}${trainsCount > 0 ? `🚆 ${trainsCount} поездов ` : ''}${carsCount > 0 ? `🚗 ${carsCount} авто/трансферов ` : ''}${attractionsCount > 0 ? `🎟️ ${attractionsCount} билетов/пропусков ` : ''}${othersCount > 0 ? `🧭 ${othersCount} прочих переездов ` : ''}${totalBookingPhotos > 0 ? `📸 ${totalBookingPhotos} фото` : ''}`)
         }
-        else if (sec.type === 'checklist' && sectionContent?.items?.length > 0) {
+        else if (sec.type === 'checklist' && sectionContent?.items?.length) {
           const totalItems = sectionContent.items.length
           const totalGroups = sectionContent.groups?.length || 0
           console.log(`  ${colors.green}✔ Раздел «${sec.title}» наполнен:${colors.reset} 📝 ${totalGroups} групп (${totalItems} пунктов)`)
         }
-        else if (sec.type === 'documents' && sectionContent?.folders?.length > 0) {
+        else if (sec.type === 'documents' && sectionContent?.folders?.length) {
           console.log(`  ${colors.green}✔ Раздел «${sec.title}» наполнен:${colors.reset} 📁 ${sectionContent.folders.length} папок`)
         }
         else {
           console.log(`  ${colors.green}✔ Раздел сохранен:${colors.reset} ${sec.title}`)
         }
       }
-      catch (err: any) {
+      catch (err) {
         recordError(`Раздел «${sec.title}»`, err)
-        console.warn(`  ${colors.yellow}⚠ Раздел «${sec.title}»: ${err.message}${colors.reset}`)
+        console.warn(`  ${colors.yellow}⚠ Раздел «${sec.title}»: ${getErrorMessage(err)}${colors.reset}`)
       }
     }
   }
@@ -607,15 +611,15 @@ export async function runImport(): Promise<void> {
             })
             console.log(`    ${colors.cyan}🏷️  Добавлено ${day.meta.length} инфо-блоков day.meta${colors.reset}`)
           }
-          catch (metaErr: any) {
+          catch (metaErr) {
             recordError(`day.meta дня ${day.dayNumber}`, metaErr)
-            console.warn(`    ${colors.yellow}⚠ Ошибка сохранения day.meta: ${metaErr.message}${colors.reset}`)
+            console.warn(`    ${colors.yellow}⚠ Ошибка сохранения day.meta: ${getErrorMessage(metaErr)}${colors.reset}`)
           }
         }
       }
-      catch (err: any) {
+      catch (err) {
         recordError(`День ${day.dayNumber}`, err)
-        console.error(`  ${colors.red}❌ Ошибка создания дня ${day.dayNumber}: ${err.message}${colors.reset}`)
+        console.error(`  ${colors.red}❌ Ошибка создания дня ${day.dayNumber}: ${getErrorMessage(err)}${colors.reset}`)
       }
     }
   }
@@ -650,15 +654,15 @@ export async function runImport(): Promise<void> {
             })
             console.log(`    ${colors.dim}📄 ${file.title}${colors.reset}`)
           }
-          catch (fileErr: any) {
+          catch (fileErr) {
             recordError(`Файл ${file.title}`, fileErr)
-            console.warn(`    ${colors.yellow}⚠ Файл ${file.title}: ${fileErr.message}${colors.reset}`)
+            console.warn(`    ${colors.yellow}⚠ Файл ${file.title}: ${getErrorMessage(fileErr)}${colors.reset}`)
           }
         }
       }
-      catch (folderErr: any) {
+      catch (folderErr) {
         recordError(`Папка ${folder.folderName}`, folderErr)
-        console.warn(`  ${colors.yellow}⚠ Папка ${folder.folderName}: ${folderErr.message}${colors.reset}`)
+        console.warn(`  ${colors.yellow}⚠ Папка ${folder.folderName}: ${getErrorMessage(folderErr)}${colors.reset}`)
       }
     }
 
@@ -673,9 +677,9 @@ export async function runImport(): Promise<void> {
           })
           console.log(`  ${colors.green}📄 Корневая заметка:${colors.reset} ${rootNote.title}`)
         }
-        catch (err: any) {
+        catch (err) {
           recordError(`Заметка ${rootNote.title}`, err)
-          console.warn(`  ${colors.yellow}⚠ Заметка ${rootNote.title}: ${err.message}${colors.reset}`)
+          console.warn(`  ${colors.yellow}⚠ Заметка ${rootNote.title}: ${getErrorMessage(err)}${colors.reset}`)
         }
       }
     }
@@ -690,10 +694,8 @@ export async function runImport(): Promise<void> {
     let currentSectionFolders: Array<{ id: string, name: string }> = []
     try {
       const details = await api.getTripDetails(createdTrip.id)
-      const docSec = details?.sections?.find((s: any) => s.type === 'documents')
-      if (Array.isArray(docSec?.content?.folders)) {
-        currentSectionFolders = docSec.content.folders
-      }
+      const docSec = details?.sections?.find(s => s.type === 'documents')
+      currentSectionFolders = readDocumentFolders(docSec?.content)
     }
     catch {
       currentSectionFolders = []
@@ -713,7 +715,7 @@ export async function runImport(): Promise<void> {
       }
     }
 
-    let existingDocs: any[] = []
+    let existingDocs: ImportDocument[] = []
     try {
       existingDocs = await api.listDocuments(createdTrip.id)
     }
@@ -769,9 +771,9 @@ export async function runImport(): Promise<void> {
         const accessLabel = doc.access === 'private' ? 'личный/private' : 'публичный/public'
         console.log(`  ${colors.green}✔ Загружен документ:${colors.reset} ${doc.fileName} ${colors.dim}(Папка: ${doc.folderName || 'Корень'}, Категория: ${doc.category}, Доступ: ${accessLabel})${colors.reset}`)
       }
-      catch (docErr: any) {
+      catch (docErr) {
         recordError(`Загрузка документа «${doc.fileName}»`, docErr)
-        console.warn(`  ${colors.yellow}⚠ Документ «${doc.fileName}»: ${docErr.message}${colors.reset}`)
+        console.warn(`  ${colors.yellow}⚠ Документ «${doc.fileName}»: ${getErrorMessage(docErr)}${colors.reset}`)
       }
     }
   }
@@ -832,8 +834,8 @@ export async function runImport(): Promise<void> {
                 throw new Error('LLM не вернул распознанных активностей')
               }
             }
-            catch (directErr: any) {
-              process.stdout.write(`${colors.yellow}Ошибка прямого LLM: ${directErr.message}. Пробую серверный LLM...${colors.reset}\n`)
+            catch (directErr) {
+              process.stdout.write(`${colors.yellow}Ошибка прямого LLM: ${getErrorMessage(directErr)}. Пробую серверный LLM...${colors.reset}\n`)
               try {
                 process.stdout.write(`    ${colors.dim}🤖 Запрос к LLM на сервере...${colors.reset} `)
                 const generated = await api.generateDayTemplate(dayId, {
@@ -850,8 +852,8 @@ export async function runImport(): Promise<void> {
                   throw new Error('Пустой ответ от сервера')
                 }
               }
-              catch (serverLlmErr: any) {
-                process.stdout.write(`${colors.yellow}Серверный LLM: ${serverLlmErr.message}. Использую встроенный парсер...${colors.reset}\n`)
+              catch (serverLlmErr) {
+                process.stdout.write(`${colors.yellow}Серверный LLM: ${getErrorMessage(serverLlmErr)}. Использую встроенный парсер...${colors.reset}\n`)
               }
             }
           }
@@ -872,8 +874,8 @@ export async function runImport(): Promise<void> {
                 throw new Error('Пустой ответ от сервера')
               }
             }
-            catch (serverLlmErr: any) {
-              process.stdout.write(`${colors.yellow}Серверный LLM: ${serverLlmErr.message}${colors.reset}\n`)
+            catch (serverLlmErr) {
+              process.stdout.write(`${colors.yellow}Серверный LLM: ${getErrorMessage(serverLlmErr)}${colors.reset}\n`)
             }
           }
 
@@ -988,11 +990,11 @@ export async function runImport(): Promise<void> {
           const noteBadge = attachedNotes.length > 0
             ? ` ${colors.magenta}[📌 +${attachedNotes.length} ${attachedNotes.length === 1 ? 'заметка' : 'заметки'}: ${attachedNotes.map(n => n.title || 'Заметка').join(', ')}]${colors.reset}`
             : (descSections.length > 1 ? ` ${colors.magenta}[📝 +${descSections.length - 1} заметка]${colors.reset}` : '')
-          const gallerySection = act.sections?.find(s => s.type === 'gallery') as any
+          const gallerySection = act.sections?.find(s => s.type === 'gallery')
           const galleryBadge = gallerySection?.imageUrls?.length ? ` ${colors.cyan}[📸 ${gallerySection.imageUrls.length} фото]${colors.reset}` : ''
-          const geoSection = act.sections?.find(s => s.type === 'geolocation') as any
+          const geoSection = act.sections?.find(s => s.type === 'geolocation')
           const geoBadge = geoSection?.points?.length ? ` ${colors.green}[📍 ${geoSection.points[0].address || 'Локация'}]${colors.reset}` : ''
-          const bookingSection = act.sections?.find(s => s.type === 'booking') as any
+          const bookingSection = act.sections?.find(s => s.type === 'booking')
           let bookingBadge = ''
           if (bookingSection?.bookingId) {
             const matchedBooking = createdBookings.find(b => b.id === bookingSection.bookingId)
@@ -1010,17 +1012,17 @@ export async function runImport(): Promise<void> {
             totalLocationsGeocoded += geoSection.points.length
           }
 
-          const metroSection = act.sections?.find(s => s.type === 'metro') as any
+          const metroSection = act.sections?.find(s => s.type === 'metro')
           const metroBadge = metroSection?.rides?.length ? ` ${colors.cyan}[🚇 ${metroSection.rides.length} ${metroSection.rides.length === 1 ? 'метро' : 'метро'}]${colors.reset}` : ''
-          const busSection = act.sections?.find(s => s.type === 'bus') as any
+          const busSection = act.sections?.find(s => s.type === 'bus')
           const busBadge = busSection?.rides?.length ? ` ${colors.yellow}[🚌 ${busSection.rides.length} ${busSection.rides.length === 1 ? 'автобус' : 'автобуса'}]${colors.reset}` : ''
 
           const action = existingActivity ? '↻' : '✔'
           console.log(`    ${colors.green}${action} [${act.startTime}–${act.endTime}]${colors.reset} [${act.tag}] ${act.title}${noteBadge}${bookingBadge}${metroBadge}${busBadge}${geoBadge}${galleryBadge}`)
         }
-        catch (actErr: any) {
+        catch (actErr) {
           recordError(`Активность «${act.title}»`, actErr)
-          console.warn(`    ${colors.yellow}⚠ Активность «${act.title}»: ${actErr.message}${colors.reset}`)
+          console.warn(`    ${colors.yellow}⚠ Активность «${act.title}»: ${getErrorMessage(actErr)}${colors.reset}`)
         }
       }
 

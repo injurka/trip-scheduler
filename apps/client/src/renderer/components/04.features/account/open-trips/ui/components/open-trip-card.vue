@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { DeepReadonly } from 'vue'
 import type { Trip } from '~/shared/types/models/trip'
 import { Icon } from '@iconify/vue'
 import { computed } from 'vue'
@@ -9,7 +10,7 @@ import { KitImage } from '~/components/01.kit/kit-image'
 import { AppRoutePaths } from '~/shared/constants/routes'
 
 interface Props {
-  trip: Trip
+  trip: DeepReadonly<Trip>
 }
 
 const props = defineProps<Props>()

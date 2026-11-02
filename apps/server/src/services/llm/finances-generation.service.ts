@@ -1,5 +1,6 @@
 import type { AiRequestPrompts } from '~/lib/llm'
 import { TRPCError } from '@trpc/server'
+import { z } from 'zod'
 import { AI_MODELS, createAiChatRequest, DEFAULT_AI_MODEL, parseJsonWithAiRepair } from '~/lib/llm'
 import { llmUsageRepository } from '~/repositories/llm-usage.repository'
 import { quotaService } from '~/services/quota.service'
@@ -13,16 +14,17 @@ interface GenerateFinancesParams {
   categories?: string | null
 }
 
-interface GeneratedTransaction {
-  title: string
-  amount: number
-  currency: string
-  categoryId?: string | null
-  categorySuggestion?: string
-  date?: string // YYYY-MM-DD
-  notes?: string
-  isSpontaneous?: boolean
-}
+const GeneratedTransactionSchema = z.object({
+  title: z.string(),
+  amount: z.number(),
+  currency: z.string(),
+  categoryId: z.string().nullable().optional(),
+  categorySuggestion: z.string().optional(),
+  date: z.string().optional(),
+  notes: z.string().optional(),
+  isSpontaneous: z.boolean().optional(),
+})
+type GeneratedTransaction = z.infer<typeof GeneratedTransactionSchema>
 
 function getSystemPrompt(categories: string | null): string {
   const categoriesInstruction = categories
@@ -91,7 +93,7 @@ async function generateTransactionsFromData({ userId, fileBuffer, fileName, text
     if (!Array.isArray(prompts.user)) {
       prompts.user = [{ type: 'text', text: prompts.user as string }]
     }
-    (prompts.user as any[]).push({
+    (prompts.user as unknown[]).push({
       type: 'image_url',
       image_url: {
         url: `data:image/jpeg;base64,${fileBuffer.toString('base64')}`,
@@ -131,12 +133,12 @@ async function generateTransactionsFromData({ userId, fileBuffer, fileName, text
     throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'ИИ не вернул результат.' })
   }
 
-  const parsedData = await parseJsonWithAiRepair<any>(jsonResponse, {
+  const parsedData = await parseJsonWithAiRepair(jsonResponse, {
     userId,
     model: modelId,
     operation: 'financesGeneration',
     customInstructions: 'The output must be a valid JSON array of transaction objects, or an object containing an array of transactions.',
-    validate: data => Boolean(data && (Array.isArray(data) || Object.values(data).some(v => Array.isArray(v)))),
+    schema: z.union([z.array(GeneratedTransactionSchema), z.record(z.string(), z.array(GeneratedTransactionSchema))]),
   })
 
   if (Array.isArray(parsedData)) {

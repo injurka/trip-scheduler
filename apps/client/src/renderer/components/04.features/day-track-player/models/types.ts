@@ -64,7 +64,7 @@ export interface TrackPhoto {
   source: 'gps' | 'interpolated' | 'stop'
   tsUtc: number
   mediaType?: 'image' | 'video'
-  originalMemory?: any
+  originalMemory?: unknown
 }
 
 export interface TrackPhotoCluster {

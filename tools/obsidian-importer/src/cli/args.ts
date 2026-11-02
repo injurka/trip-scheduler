@@ -95,15 +95,15 @@ export function parseCliArgs(args = process.argv.slice(2)): CliOptions {
       options.dryRun = true
     }
     else if (arg === '--status') {
-      const s = readValue() as any
-      if (['planned', 'draft', 'completed'].includes(s))
+      const s = readValue()
+      if ((s === 'draft' || s === 'planned' || s === 'completed'))
         options.status = s
       else
         throw new Error(`Недопустимый статус: ${s}`)
     }
     else if (arg === '--visibility') {
-      const v = readValue() as any
-      if (['private', 'public'].includes(v))
+      const v = readValue()
+      if ((v === 'private' || v === 'public'))
         options.visibility = v
       else
         throw new Error(`Недопустимая видимость: ${v}`)

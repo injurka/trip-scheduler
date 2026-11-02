@@ -84,7 +84,7 @@ export const useActivityMapStore = defineStore('activityMap', {
       await useRequest({
         key: EActivityMapKeys.FETCH_MARKS,
         cancelPrevious: true,
-        fn: db => db.marks.getMarks(params as any),
+        fn: db => db.marks.getMarks(params),
         onSuccess: (data) => {
           this.marks = data
         },

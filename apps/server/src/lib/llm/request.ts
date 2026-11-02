@@ -1,3 +1,4 @@
+import { getErrorMessage } from '@injurka/type-utils'
 import OpenAI from 'openai'
 import { externalApiCallsCounter, externalApiDurationHistogram } from '~/services/metrics.service'
 
@@ -55,7 +56,7 @@ async function measureExternalApiCall<T>(
     externalApiCallsCounter.inc({ service, operation, status: 'success' })
     return result
   }
-  catch (error: any) {
+  catch (error) {
     end()
     // При ошибке инкрементируем счетчик со статусом 'error'
     externalApiCallsCounter.inc({ service, operation, status: 'error' })
@@ -99,7 +100,7 @@ export async function createAiChatRequest(
     throw new Error(`Invalid chat model: ${mergedOptions.model}. Available chat models: ${AI_MODELS.join(', ')}`)
   }
 
-  const hasImageUrl = Array.isArray(prompt.user) && prompt.user.some((p: any) => p?.type === 'image_url')
+  const hasImageUrl = Array.isArray(prompt.user) && prompt.user.some(p => p?.type === 'image_url')
 
   const initialModel = hasImageUrl && !VISION_CAPABLE_MODELS.includes(mergedOptions.model)
     ? 'gemini-3.5-flash-lite'
@@ -115,7 +116,7 @@ export async function createAiChatRequest(
     ...availableModels.filter(m => m !== initialModel),
   ]
 
-  let lastError: any = null
+  let lastError: unknown = null
 
   for (let i = 0; i < candidateModels.length; i++) {
     const currentModel = candidateModels[i]
@@ -140,13 +141,13 @@ export async function createAiChatRequest(
           stream: false,
         }))
     }
-    catch (error: any) {
+    catch (error) {
       lastError = error
       const hasNext = i < candidateModels.length - 1
       if (hasNext) {
         const nextModel = candidateModels[i + 1]
         console.warn(
-          `[LLM Request] Модель "${currentModel}" вернула ошибку (${error.message}). Переключение на резервную модель "${nextModel}"...`,
+          `[LLM Request] Модель "${currentModel}" вернула ошибку (${getErrorMessage(error)}). Переключение на резервную модель "${nextModel}"...`,
         )
       }
       else {

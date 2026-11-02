@@ -1,4 +1,3 @@
-import type { FetchCreateContextFnOptions } from '@trpc/server/adapters/fetch'
 import type { Context } from 'hono'
 import type { OpenApiMeta } from 'trpc-to-openapi'
 import { initTRPC, TRPCError } from '@trpc/server'
@@ -6,7 +5,7 @@ import { db } from '~/../db'
 import { trpcRequestCounter, trpcRequestDurationHistogram } from '~/services/metrics.service'
 import { authUtils } from './auth.utils'
 
-export async function createContext(_: FetchCreateContextFnOptions, c: Context) {
+export async function createContext(_: unknown, c: Context) {
   const req = c.req
   const token = req.header('authorization')?.split(' ')[1]
 

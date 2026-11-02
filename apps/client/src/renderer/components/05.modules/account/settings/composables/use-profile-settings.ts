@@ -1,3 +1,4 @@
+import { getErrorMessage } from '@injurka/type-utils'
 import { useVaultMemoriesStore } from '~/components/04.features/trip-info/trip-memories/store/vault-memories.store'
 import { useRequestStatus } from '~/plugins/request'
 import { AppRouteNames } from '~/shared/constants/routes'
@@ -77,7 +78,7 @@ export function useProfileSettings() {
     || !!coverFile.value)
 
   // Обложка уже есть: сохраненная на сервере или только что выбранная (еще не загруженная)
-  const hasCover = computed(() => !!coverPreviewUrl.value || Boolean((user.value as any)?.coverUrl))
+  const hasCover = computed(() => !!coverPreviewUrl.value || Boolean((user.value)?.coverUrl))
 
   const isPasswordFormValid = computed(() =>
     passwordForm.currentPassword
@@ -97,7 +98,7 @@ export function useProfileSettings() {
   const isYandexLinked = computed(() => Boolean(user.value?.yandexId))
   const isGoogleLinked = computed(() => Boolean(user.value?.googleId))
   const isGithubLinked = computed(() => Boolean(user.value?.githubId))
-  const hasPassword = computed(() => Boolean((user.value as any)?.hasPassword))
+  const hasPassword = computed(() => Boolean((user.value)?.hasPassword))
 
   const unlinkingProvider = ref<string | null>(null)
 
@@ -114,8 +115,8 @@ export function useProfileSettings() {
       toast.success('Профиль успешно обновлен')
       coverFile.value = null
     }
-    catch (e: any) {
-      toast.error(e.message || 'Ошибка при обновлении профиля')
+    catch (e) {
+      toast.error(getErrorMessage(e) || 'Ошибка при обновлении профиля')
     }
   }
 
@@ -133,8 +134,8 @@ export function useProfileSettings() {
       toast.success('Пароль успешно изменен')
       Object.assign(passwordForm, { currentPassword: '', newPassword: '', confirmPassword: '' })
     }
-    catch (e: any) {
-      toast.error(e.message || 'Ошибка при смене пароля')
+    catch (e) {
+      toast.error(getErrorMessage(e) || 'Ошибка при смене пароля')
     }
     finally {
       isChangingPassword.value = false
@@ -152,8 +153,8 @@ export function useProfileSettings() {
       toast.success('Пароль успешно установлен!')
       Object.assign(setPasswordForm, { newPassword: '', confirmPassword: '' })
     }
-    catch (e: any) {
-      toast.error(e.message || 'Ошибка при установке пароля')
+    catch (e) {
+      toast.error(getErrorMessage(e) || 'Ошибка при установке пароля')
     }
     finally {
       isSettingPassword.value = false
@@ -203,8 +204,8 @@ export function useProfileSettings() {
       await authStore.unlinkProvider(provider)
       toast.success(`Аккаунт ${providerNames[provider]} успешно отвязан`)
     }
-    catch (e: any) {
-      toast.error(e.message || 'Не удалось отвязать аккаунт')
+    catch (e) {
+      toast.error(getErrorMessage(e) || 'Не удалось отвязать аккаунт')
     }
     finally {
       unlinkingProvider.value = null
@@ -230,8 +231,8 @@ export function useProfileSettings() {
       await authStore.signOut()
       await router.push({ name: AppRouteNames.Root })
     }
-    catch (e: any) {
-      toast.error(e.message || 'Ошибка при удалении аккаунта')
+    catch (e) {
+      toast.error(getErrorMessage(e) || 'Ошибка при удалении аккаунта')
     }
     finally {
       isDeletingAccount.value = false
@@ -249,8 +250,8 @@ export function useProfileSettings() {
       await authStore.uploadAvatar(file)
       toast.success('Аватар успешно обновлен')
     }
-    catch (e: any) {
-      toast.error(e.message || 'Не удалось загрузить аватар.')
+    catch (e) {
+      toast.error(getErrorMessage(e) || 'Не удалось загрузить аватар.')
     }
   }
 

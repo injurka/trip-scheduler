@@ -8,7 +8,7 @@ export interface ConfirmDialogOptions {
 export interface ConfirmDialogState extends ConfirmDialogOptions {
   isOpen: boolean
   resolve: (value: boolean) => void
-  reject: (reason?: any) => void
+  reject: (reason?: unknown) => void
 }
 
 const defaultState: Omit<ConfirmDialogState, 'resolve' | 'reject'> = {

@@ -51,12 +51,12 @@ function handleModeChange(mode: 'list' | 'map') {
     overflow: hidden;
 
     &.is-map-mode {
-      padding-top: var(--header-height) !important;
+      padding-top: calc(var(--header-height) + var(--safe-area-inset-top)) !important;
     }
   }
 }
 
 :global(.is-tauri .content-wrapper.is-map-mode) {
-  padding-top: var(--header-height) !important;
+  padding-top: calc(var(--header-height) + var(--safe-area-inset-top)) !important;
 }
 </style>

@@ -10,6 +10,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from 'node:os'
 import { basename, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { getErrorMessage } from '@injurka/type-utils'
 import {
   importTripFolderCore,
   parseActivitiesFromMarkdown,
@@ -395,20 +396,20 @@ async function generateConceptWithRetry(
 
       const parsed = await parseJsonWithAiRepair<AiTripConceptProposal>(raw, {
         userId,
-        model: modelUsed as any,
+        model: DEFAULT_AI_MODEL,
         operation: 'aiTripConceptProposal',
         maxRetries: 2,
         maxTokens: 8000,
         schema: AiTripConceptProposalSchema,
-        validateWithErrors: data => validateConceptProposal(data, input),
+        validateWithErrors: data => validateConceptProposal(AiTripConceptProposalSchema.parse(data), input),
         customInstructions: `Root JSON object with "title", "summary", "estimatedBudgetRub", "cities" (non-empty), "places" (>=3 items), "hotels", and "daysOutline" (EXACTLY ${input.days} items for days 1..${input.days}).`,
       })
 
       return parsed
     }
-    catch (err: any) {
+    catch (err) {
       lastError = err
-      const reason = err?.message || String(err)
+      const reason = getErrorMessage(err) || String(err)
       onLog?.(`⚠ Концепция (попытка ${attempt}/${MAX_CHUNK_ATTEMPTS}): повтор из-за ошибки валидации (${reason.slice(0, 140)})`)
       feedback = reason
     }
@@ -622,7 +623,7 @@ async function generateFilesChunkWithRetry(params: {
 
       const parsedChunk = await parseJsonWithAiRepair<{ files: GeneratedFile[] }>(raw, {
         userId,
-        model: modelUsed as any,
+        model: DEFAULT_AI_MODEL,
         operation: 'aiTripGeneration',
         maxRetries: 2,
         maxTokens,
@@ -630,7 +631,7 @@ async function generateFilesChunkWithRetry(params: {
         customInstructions: customRepairInstructions,
         validateWithErrors: (data) => {
           const stripped = stripTripWrapper(
-            (data.files as GeneratedFile[])
+            GeneratedFilesChunkSchema.parse(data).files
               .filter(f => f.path.endsWith('.md'))
               .map(f => ({ path: normalizeFilePath(f.path), content: f.content })),
           )
@@ -643,9 +644,9 @@ async function generateFilesChunkWithRetry(params: {
 
       return parsedChunk.files
     }
-    catch (err: any) {
+    catch (err) {
       lastError = err
-      const reason = err?.message || String(err)
+      const reason = getErrorMessage(err) || String(err)
       onLog?.(`⚠ Самопроверка «${chunkLabel}» (попытка ${attempt}/${MAX_CHUNK_ATTEMPTS}): исправление структуры…`)
       feedback = reason
     }
@@ -1279,11 +1280,11 @@ async function runJob(jobId: string, userId: string, input: GenerateAiTripInput)
     log(`Импорт завершен: дней=${result.daysCreated}, активностей=${result.activitiesCreated}, заметок=${result.notesCreated}`)
     setJob(jobId, { status: 'done', stage: 'Готово', progress: 100, tripId: result.tripId })
   }
-  catch (error: any) {
+  catch (error) {
     console.error('[AI Trip] Ошибка генерации:', error)
-    log(`Ошибка: ${error?.message || error}`)
-    const message = error?.message || String(error)
-    const needsInput = error?.name === 'GeoCityNeedsInputError'
+    log(`Ошибка: ${getErrorMessage(error) || error}`)
+    const message = getErrorMessage(error) || String(error)
+    const needsInput = (error instanceof Error && error.name === 'GeoCityNeedsInputError')
       || /Город «.+» в авиасегменте (?:неоднозначен|не найден в справочнике)\./.test(message)
     setJob(jobId, {
       status: needsInput ? 'needs_input' : 'error',

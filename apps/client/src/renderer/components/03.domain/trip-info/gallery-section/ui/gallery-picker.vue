@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import type { KitDropdownItem } from '~/components/01.kit/kit-dropdown'
-import type { ActivitySection } from '~/shared/types/models/activity'
 import type { TripMedia } from '~/shared/types/models/trip'
 import { Icon } from '@iconify/vue'
+import { isRecord } from '@injurka/type-utils'
 import { refDebounced, useElementSize, useVirtualList } from '@vueuse/core'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitDialogWithClose } from '~/components/01.kit/kit-dialog-with-close'
@@ -57,9 +57,9 @@ const globallyUsedUrls = computed(() => {
   if (days.value) {
     days.value.forEach((day) => {
       day.activities?.forEach((activity) => {
-        activity.sections?.forEach((section: ActivitySection) => {
-          if (section.type === 'gallery' && Array.isArray((section as any).imageUrls)) {
-            (section as any).imageUrls.forEach((url: string) => used.add(url))
+        activity.sections?.forEach((section) => {
+          if (section.type === 'gallery' && Array.isArray((section).imageUrls)) {
+            (section).imageUrls.forEach((url: string) => used.add(url))
           }
         })
       })
@@ -68,9 +68,9 @@ const globallyUsedUrls = computed(() => {
 
   if (trip.value && trip.value.sections) {
     trip.value.sections.forEach((section) => {
-      const content = section.content as any
+      const content = section.content
 
-      if (content && Array.isArray(content.imageUrls)) {
+      if (isRecord(content) && Array.isArray(content.imageUrls)) {
         content.imageUrls.forEach((url: string) => used.add(url))
       }
     })

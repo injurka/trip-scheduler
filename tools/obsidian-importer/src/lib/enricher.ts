@@ -17,6 +17,7 @@ import { pMap } from './concurrency'
 import { geocodeLocation } from './geocode'
 import { resolveImageFromIndex, uploadSingleImage } from './image-uploader'
 import { stableId } from './stable-id'
+import { getErrorMessage } from './value-guards'
 
 interface ImageUploader {
   uploadImage: (tripId: string, filePath: string, placement?: 'route' | 'memories' | 'notes' | 'documents') => Promise<string>
@@ -439,7 +440,7 @@ export async function enrichActivityWithMediaAndLocation(
     }
 
     // Build route objects for trail groups
-    const routes: any[] = []
+    const routes: ActivitySectionGeolocation['routes'] = []
     for (const [routeName, pts] of routeGroups) {
       if (pts.length > 1) {
         const orderedPts = pts.map((p, i) => {
@@ -534,7 +535,7 @@ export async function enrichActivityWithMediaAndLocation(
       const sectionTitle = [...poiLabels, ...routeLabels].join(' • ') || routes[0]?.title || mapPoints[0]?.address || 'Локация'
       const geoMeta = computeGeoBoundsAndCenter(mapPoints, routes)
       const center = geoMeta?.center || mapPoints[0]?.coordinates || routes[0]?.points[0]?.coordinates
-      const totalPoints = mapPoints.length + routes.reduce((s: number, r: any) => s + r.points.length, 0)
+      const totalPoints = mapPoints.length + routes.reduce((s: number, r) => s + r.points.length, 0)
       const zoom = geoMeta?.zoom ?? (totalPoints > 2 ? 11 : totalPoints > 1 ? 12 : 13.5)
       geoSection = {
         id: stableId('activity-geolocation', act.startTime),
@@ -613,8 +614,8 @@ export async function enrichActivityWithMediaAndLocation(
               )
               return uploadedUrl || null
             }
-            catch (uploadErr: any) {
-              console.warn(`      ${colors.yellow}⚠ Ошибка загрузки фото ${imgName}: ${uploadErr.message}${colors.reset}`)
+            catch (uploadErr) {
+              console.warn(`      ${colors.yellow}⚠ Ошибка загрузки фото ${imgName}: ${getErrorMessage(uploadErr)}${colors.reset}`)
               throw uploadErr
             }
           }

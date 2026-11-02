@@ -18,7 +18,7 @@ interface Props {
 
 const props = defineProps<Props>()
 const emit = defineEmits<{
-  (e: 'clickLocation', location: any): void
+  (e: 'clickLocation', location: unknown): void
   (e: 'clickCard', id: string): void
   (e: 'toggleLike', id: string): void
   (e: 'toggleSave', id: string): void

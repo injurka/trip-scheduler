@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { Coordinate, MapPoint, MapRoute, PointType } from '~/components/03.domain/trip-info/geolocation-section'
+import type { useGeolocationMap } from '~/components/03.domain/trip-info/geolocation-section/composables/use-geolocation-map'
 import { Icon } from '@iconify/vue'
 import { v4 as uuidv4 } from 'uuid'
 import { computed, ref, watch } from 'vue'
@@ -61,7 +62,7 @@ watch(() => props.visible, (isOpen) => {
   }
 })
 
-function onMapReady(ctrl: any) {
+function onMapReady(ctrl: ReturnType<typeof useGeolocationMap>) {
   const handleDragEnd = async (pointId: string, newCoords: Coordinate) => {
     const targetPoint = mapPoints.value.find(p => p.id === pointId)
 

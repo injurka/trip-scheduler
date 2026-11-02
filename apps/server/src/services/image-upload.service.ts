@@ -1,4 +1,4 @@
-import type { EntityType, IUploadHandler, UploadContext, UploadResult } from '../models/image-upload'
+import type { EntityType, IUploadHandler, UploadContext, UploadMetadata, UploadResult } from '../models/image-upload'
 import path from 'node:path'
 import { db } from 'db'
 import { postMedia, tripImagePlacementEnum, tripImages } from 'db/schema'
@@ -20,10 +20,16 @@ import { s3Service } from '~/services/s3.service'
 import { trackPendingPostUpload } from '~/services/storage-cleanup.service'
 import { videoProcessingService } from '~/services/video-processing.service'
 
+function parsePlacement(value: string | null | undefined) {
+  const placement = tripImagePlacementEnum.enumValues.find(item => item === value)
+  if (!placement)
+    throw new HTTPException(400, { message: 'Некорректный тип размещения.' })
+  return placement
+}
+
 const tripHandler: IUploadHandler = {
   async validate({ userId, userRole, entityId, placement, buffer }) {
-    if (!placement || !tripImagePlacementEnum.enumValues.includes(placement as any))
-      throw new HTTPException(400, { message: 'Некорректный тип размещения.' })
+    parsePlacement(placement)
     const trip = await tripRepository.getById(entityId)
     if (!trip)
       throw new HTTPException(404, { message: 'Путешествие не найдено.' })
@@ -33,7 +39,7 @@ const tripHandler: IUploadHandler = {
   },
   getFolderPath: ({ entityId, placement }) => `trips/${entityId}/${placement}`,
   async afterSave({ entityId, placement }, { url, size, metadata, variants, mediaType }) {
-    return await imageService.create(entityId, url, metadata.originalName || 'file', placement as any, size, { ...metadata, variants }, mediaType)
+    return await imageService.create(entityId, url, metadata.originalName || 'file', parsePlacement(placement), size, { takenAt: null, latitude: null, longitude: null, width: null, height: null, ...metadata, metadata: metadata.metadata ?? null, variants }, mediaType)
   },
 }
 
@@ -150,7 +156,7 @@ export class ImageUploadService {
     const isVideo = ctx.file.type.startsWith('video/') || /\.(?:mp4|webm|mov|mkv|avi|ogg|quicktime)$/i.test(fileName)
     const isImage = !isVideo && (ctx.file.type.startsWith('image/') || /\.(?:jpg|jpeg|png|webp|avif|gif)$/i.test(fileName))
     const mediaType: 'image' | 'video' = isVideo ? 'video' : 'image'
-    let metadata: any = { originalName: ctx.file.name, mediaType, ...ctx.customMetadata }
+    let metadata: UploadMetadata = { originalName: ctx.file.name, mediaType, ...ctx.customMetadata }
 
     if (isImage) {
       try {
@@ -173,7 +179,7 @@ export class ImageUploadService {
           variants = await generateImageVariants(ctx.buffer)
         }
       }
-      catch (e: any) {
+      catch (e) {
         console.error('Sharp error:', e)
         throw new HTTPException(415, { message: 'Ошибка обработки изображения.' })
       }
@@ -248,7 +254,7 @@ export class ImageUploadService {
       entityId: ctx.entityId,
       placement: ctx.placement,
       buffer: Buffer.alloc(0),
-      file: { name: ctx.fileName, size: ctx.fileSize, type: ctx.fileType } as any,
+      file: { name: ctx.fileName, size: ctx.fileSize, type: ctx.fileType },
     })
 
     await quotaService.checkStorageQuota(ctx.userId, ctx.fileSize)
@@ -259,7 +265,7 @@ export class ImageUploadService {
       entityId: ctx.entityId,
       placement: ctx.placement,
       buffer: Buffer.alloc(0),
-      file: { name: ctx.fileName, size: ctx.fileSize, type: ctx.fileType } as any,
+      file: { name: ctx.fileName, size: ctx.fileSize, type: ctx.fileType },
     })
 
     const paths = generateFilePaths(folderPath, ctx.fileName)
@@ -306,7 +312,7 @@ export class ImageUploadService {
       parts: { PartNumber: number, ETag: string }[]
       fileName: string
       fileSize: number
-      customMetadata?: Record<string, any>
+      customMetadata?: Record<string, unknown>
     },
   ) {
     const handler = handlers[entityType]
@@ -341,7 +347,7 @@ export class ImageUploadService {
       entityId: ctx.entityId,
       placement: ctx.placement,
       buffer: Buffer.alloc(0),
-      file: { name: ctx.fileName, size: ctx.fileSize, type: isVideo ? 'video/mp4' : 'application/octet-stream' } as any,
+      file: { name: ctx.fileName, size: ctx.fileSize, type: isVideo ? 'video/mp4' : 'application/octet-stream' },
       customMetadata: ctx.customMetadata,
     }
 
@@ -421,7 +427,7 @@ export class ImageUploadService {
           where: eq(tripImages.id, imageId),
         })
         if (existing) {
-          const currentMeta = (existing.metadata as Record<string, any>) || {}
+          const currentMeta = (existing.metadata as Record<string, unknown>) || {}
           const currentVariants = (existing.variants as Record<string, string>) || {}
           await db.update(tripImages)
             .set({
@@ -442,7 +448,7 @@ export class ImageUploadService {
           where: eq(postMedia.id, imageId),
         })
         if (existing) {
-          const currentMeta = (existing.metadata as Record<string, any>) || {}
+          const currentMeta = (existing.metadata as Record<string, unknown>) || {}
           const currentVariants = (existing.variants as Record<string, string>) || {}
           await db.update(postMedia)
             .set({

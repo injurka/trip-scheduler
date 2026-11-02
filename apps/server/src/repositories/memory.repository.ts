@@ -94,7 +94,7 @@ export const memoryRepository = {
   async update(data: z.infer<typeof UpdateMemoryInputSchema>) {
     const { id, ...updateData } = data
 
-    const payload: Record<string, any> = { ...updateData, updatedAt: new Date() }
+    const payload: Record<string, unknown> = { ...updateData, updatedAt: new Date() }
 
     if (Object.hasOwn(updateData, 'timestamp')) {
       payload.timestamp = updateData.timestamp ? new Date(updateData.timestamp) : null

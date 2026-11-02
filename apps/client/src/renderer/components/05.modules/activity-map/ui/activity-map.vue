@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { MapBounds } from '../models/types'
+import type { CreatePayload, MapBounds } from '../models/types'
 import type { MapMarker } from '~/components/01.kit/kit-map'
 import type { CreateMarkInput } from '~/shared/types/models/mark'
 import { useToast } from '~/shared/composables/use-toast'
@@ -21,14 +21,6 @@ export interface ActivityItem {
   endIso?: string
   coords: [number, number]
   durationHours: number
-}
-interface CreatePayload {
-  title: string
-  description: string
-  isStatic: boolean
-  startAt: string
-  endAt: string
-  coords: [number, number] | null
 }
 
 const emit = defineEmits<{

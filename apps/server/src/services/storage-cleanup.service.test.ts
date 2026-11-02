@@ -7,7 +7,7 @@ const linked = new Set<string>()
 const deleteFiles = mock(async (_keys: string[]) => {})
 const deleteFolder = mock(async (_prefix: string) => {})
 const abort = mock(async (_key: string, _uploadId: string) => {})
-const tx: any = {
+const tx = {
   select: () => ({ from: () => ({ where: () => ({ orderBy: () => ({ limit: () => ({ for: async () => {
     selected = tasks.find(task => task.availableAt <= new Date())
     return selected ? [selected] : []
@@ -16,8 +16,8 @@ const tx: any = {
   delete: () => ({ where: async () => { tasks = tasks.filter(task => task.id !== selected?.id) } }),
   update: () => ({ set: (patch: Partial<Task>) => ({ where: async () => { Object.assign(selected!, patch) } }) }),
 }
-mock.module('db', () => ({ db: { transaction: async (fn: any) => fn(tx) } }))
-mock.module('~/lib/db-monitoring', () => ({ measureDbQuery: (_table: string, _operation: string, fn: any) => fn() }))
+mock.module('db', () => ({ db: { transaction: async (fn: (transaction: typeof tx) => Promise<unknown>) => fn(tx) } }))
+mock.module('~/lib/db-monitoring', () => ({ measureDbQuery: <T>(_table: string, _operation: string, fn: () => Promise<T>) => fn() }))
 mock.module('./s3.service', () => ({ s3Service: { deleteFiles, deleteFolder, abortMultipartUpload: abort } }))
 const { processStorageCleanup, postMediaStorageKeys } = await import('./storage-cleanup.service')
 function task(extra: Partial<Task> = {}): Task {

@@ -20,7 +20,8 @@ const meta = {
 } satisfies Meta<typeof KitImageViewer>
 
 export default meta
-type Story = StoryObj<any>
+type GalleryStoryArgs = Partial<InstanceType<typeof KitImageViewer>['$props']> & { options?: ImageViewerOptions }
+type Story = StoryObj<GalleryStoryArgs>
 
 const sampleImages: ImageViewerImage[] = [
   {
@@ -107,7 +108,7 @@ const sampleImages: ImageViewerImage[] = [
 ]
 
 function createGalleryStory(imageList: ImageViewerImage[]) {
-  return (args: any) => ({
+  return (args: GalleryStoryArgs) => ({
     components: { KitImageViewer },
     setup() {
       const viewer = useImageViewer(args.options as ImageViewerOptions)
@@ -181,7 +182,7 @@ export const SingleImage: Story = {
 
 export const CustomFooterSlot: Story = {
   name: 'Кастомный слот футера (#footer)',
-  render: (args: any) => ({
+  render: args => ({
     components: { KitImageViewer },
     setup() {
       const viewer = useImageViewer()

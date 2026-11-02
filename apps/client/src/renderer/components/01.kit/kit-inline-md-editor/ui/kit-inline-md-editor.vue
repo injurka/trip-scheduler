@@ -232,7 +232,7 @@ watch(markdown, (newValue) => {
   }
 })
 
-function getEditorAttributes(prevAttributes: any) {
+function getEditorAttributes(prevAttributes: Record<string, unknown> | undefined) {
   let existingClasses = ''
 
   if (prevAttributes && typeof prevAttributes.class === 'string') {

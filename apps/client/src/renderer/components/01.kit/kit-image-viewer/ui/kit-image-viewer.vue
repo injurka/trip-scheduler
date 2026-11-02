@@ -67,7 +67,7 @@ async function handleFetchMetadata(image: ImageViewerImage): Promise<IImageViewe
     return props.fetchMetadata(image)
   }
 
-  const imageId = (image.meta as any)?.imageId
+  const imageId = (image.meta)?.imageId
 
   if (imageId) {
     try {

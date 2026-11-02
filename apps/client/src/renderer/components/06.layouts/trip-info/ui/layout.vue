@@ -520,7 +520,7 @@ onBeforeUnmount(() => {
     // Хедер и футер absolute (вне потока) — отступы от них лежат на .content-wrapper:
     // фон тянется под хедером и футером, контент начинается и заканчивается с безопасными отступами
     .content-wrapper {
-      padding-top: var(--header-height);
+      padding-top: calc(var(--header-height) + var(--safe-area-inset-top));
       padding-bottom: calc(var(--footer-height) + var(--safe-area-inset-bottom) + 16px);
     }
   }
@@ -547,7 +547,7 @@ onBeforeUnmount(() => {
     max-width: 100%;
     height: 100%;
     padding: 0;
-    padding-top: var(--header-height);
+    padding-top: calc(var(--header-height) + var(--safe-area-inset-top));
     align-items: center;
 
     :deep() {

@@ -53,24 +53,25 @@ export interface ImageMetadata {
   technical?: ImageMetadataTechnical
   gps?: ImageMetadataGps
   iptc?: ImageMetadataIptc
-  rawExif?: Record<string, any>
+  rawExif?: Record<string, unknown>
   software?: {
     modifyDate?: string | Date
     software?: string
     creator?: string
     copyright?: string
-    [key: string]: any
   }
-  [key: string]: any
 }
 
 export interface IImageViewerImageMeta extends ImageMetadata {
+  imageId?: string
+  memoryId?: string
+  mediaId?: string
+  mediaType?: 'image' | 'video'
   latitude?: number | null
   longitude?: number | null
   takenAt?: string | null
   width?: number | null
   height?: number | null
-  [key: string]: any
 }
 
 export interface ImageViewerImageVariants {
@@ -119,7 +120,7 @@ export interface TouchPoint {
 
 export type ImageQuality = 'small' | 'medium' | 'large' | 'original' | (string & {})
 
-export interface KitViewerDropdownItem<T = any> {
+export interface KitViewerDropdownItem<T = unknown> {
   value: T
   label: string
   icon?: string

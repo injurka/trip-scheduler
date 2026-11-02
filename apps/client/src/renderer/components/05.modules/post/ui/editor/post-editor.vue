@@ -613,8 +613,8 @@ onMounted(async () => {
                 >
                   <template #item="{ item }">
                     <img
-                      v-if="(item as any).flag"
-                      :src="(item as any).flag"
+                      v-if="(item).flag"
+                      :src="(item).flag"
                       class="option-flag"
                       alt=""
                     >

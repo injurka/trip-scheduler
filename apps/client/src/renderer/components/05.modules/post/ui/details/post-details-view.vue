@@ -50,7 +50,7 @@ const canScrollLeft = ref(false)
 const canScrollRight = ref(false)
 
 const isOwner = computed(() => !!user.value && user.value.id === props.post.user.id)
-const hasMapContent = computed(() => props.post.elements?.some(element => element.content.some((block: any) => {
+const hasMapContent = computed(() => props.post.elements?.some(element => element.content.some((block) => {
   if (block.type === 'location')
     return block.location?.lat != null && block.location?.lng != null
 

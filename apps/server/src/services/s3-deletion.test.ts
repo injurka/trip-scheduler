@@ -1,21 +1,20 @@
-import { DeleteObjectCommand, DeleteObjectsCommand, ListObjectsV2Command } from '@aws-sdk/client-s3'
-import { afterEach, describe, expect, it, mock } from 'bun:test'
+import { DeleteObjectCommand, DeleteObjectsCommand, ListObjectsV2Command, S3Client } from '@aws-sdk/client-s3'
+import { afterEach, describe, expect, it, spyOn } from 'bun:test'
 import { s3Service } from './s3.service'
 
-const client = (s3Service as any).client
-const originalSend = client.send
+const send = spyOn(S3Client.prototype, 'send')
 afterEach(() => {
-  client.send = originalSend
+  send.mockReset()
 })
 describe('S3 deletion acknowledgement', () => {
   it('propagates individual delete failures instead of reporting success', async () => {
-    client.send = mock(async () => {
+    send.mockImplementation(async () => {
       throw new Error('AccessDenied')
     })
     await expect(s3Service.deleteFile('posts/post/file.jpg')).rejects.toThrow('AccessDenied')
   })
   it('detects per-object failures in a successful HTTP bulk response', async () => {
-    client.send = mock(async (command: unknown) => {
+    send.mockImplementation(async (command: unknown) => {
       if (command instanceof DeleteObjectsCommand)
         return { Errors: [{ Key: 'posts/post/file.jpg', Code: 'AccessDenied' }] }
       throw new Error('AccessDenied')
@@ -24,7 +23,7 @@ describe('S3 deletion acknowledgement', () => {
   })
   it('supports providers without bulk deletion using successful individual deletes', async () => {
     const removed: string[] = []
-    client.send = mock(async (command: any) => {
+    send.mockImplementation(async (command) => {
       if (command instanceof DeleteObjectsCommand)
         throw new Error('NotImplemented')
       if (command instanceof DeleteObjectCommand)
@@ -35,7 +34,7 @@ describe('S3 deletion acknowledgement', () => {
     expect(removed).toEqual(['a', 'b'])
   })
   it('preserves cleanup failure when deleting a whole post folder', async () => {
-    client.send = mock(async (command: any) => {
+    send.mockImplementation(async (command) => {
       if (command instanceof ListObjectsV2Command) {
         expect(command.input.Prefix).toBe('posts/post/')
         return { Contents: [{ Key: 'posts/post/file.jpg' }] }

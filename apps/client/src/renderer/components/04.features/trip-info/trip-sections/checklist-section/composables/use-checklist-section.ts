@@ -30,7 +30,7 @@ const DEFAULT_TABS: ChecklistTabConfig[] = [
 /**
  * Хук для управления логикой секции чек-листа с поддержкой кастомных вкладок, подзадач и импорта.
  */
-export function useChecklistSection(props: UseChecklistSectionProps, emit: (event: 'updateSection', payload: any) => void) {
+export function useChecklistSection(props: UseChecklistSectionProps, emit: (event: 'updateSection', payload: UseChecklistSectionProps['section']) => void) {
   const confirm = useConfirm()
   const toast = useToast()
   const { canEdit } = useTripPermissions()
@@ -43,13 +43,13 @@ export function useChecklistSection(props: UseChecklistSectionProps, emit: (even
   const tabs = ref<ChecklistTabConfig[]>(JSON.parse(JSON.stringify(initialTabs)))
 
   // Инициализация элементов
-  const initialItems = (props.section.content?.items || []).map((item: any): ChecklistItem => {
+  const initialItems = (props.section.content?.items || []).map((item): ChecklistItem => {
     let priority: ChecklistPriority = 1
 
-    if (item.priority === 'high') {
+    if (String(item.priority) === 'high') {
       priority = 4
     }
-    else if (item.priority === 'normal') {
+    else if (String(item.priority) === 'normal') {
       priority = 1
     }
     else if (typeof item.priority === 'number' && item.priority >= 1 && item.priority <= 5) {

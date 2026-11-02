@@ -1,6 +1,7 @@
 import type { AiRequestPrompts } from '~/lib/llm'
 import { TRPCError } from '@trpc/server'
 import { AI_MODELS, createAiChatRequest, DEFAULT_AI_MODEL, parseJsonWithAiRepair } from '~/lib/llm'
+import { AiGeneratedPostOutputSchema } from '~/modules/post/post.schemas'
 import { llmUsageRepository } from '~/repositories/llm-usage.repository'
 import { quotaService } from '~/services/quota.service'
 
@@ -80,12 +81,12 @@ export const postGenerationService = {
       throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'ИИ не вернул результат.' })
     }
 
-    const parsedData = await parseJsonWithAiRepair<any>(jsonResponse, {
+    const parsedData = await parseJsonWithAiRepair(jsonResponse, {
       userId,
       model: modelId,
       operation: 'postGeneration',
       customInstructions: 'The output must be a valid JSON object representing a travel post with title, insight, description, country, tags, and stages.',
-      validate: data => Boolean(data && typeof data === 'object' && !Array.isArray(data)),
+      schema: AiGeneratedPostOutputSchema,
     })
 
     return parsedData

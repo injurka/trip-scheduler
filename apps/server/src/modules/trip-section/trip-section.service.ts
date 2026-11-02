@@ -13,7 +13,7 @@ interface TripSectionResult {
   type: TripSectionType
   title: string
   icon: string | null
-  content: any
+  content: unknown
   order: number
   createdAt: Date
   updatedAt: Date
@@ -23,15 +23,15 @@ async function canonicalizeFlightCities(contentValue: unknown, existingContent?:
   if (!contentValue || typeof contentValue !== 'object' || Array.isArray(contentValue))
     return contentValue
 
-  const content = JSON.parse(JSON.stringify(contentValue)) as Record<string, any>
+  const content = JSON.parse(JSON.stringify(contentValue)) as Record<string, unknown>
   if (!Array.isArray(content.bookings))
     return contentValue
 
   const segments = content.bookings
-    .filter((booking: any) => booking?.type === 'flight' && Array.isArray(booking?.data?.segments))
-    .flatMap((booking: any) => booking.data.segments)
+    .filter(booking => booking?.type === 'flight' && Array.isArray(booking?.data?.segments))
+    .flatMap(booking => booking.data.segments)
   const previousBookings = existingContent && typeof existingContent === 'object' && !Array.isArray(existingContent)
-    ? (existingContent as Record<string, any>).bookings
+    ? (existingContent as Record<string, unknown>).bookings
     : undefined
 
   for (const [bookingIndex, booking] of content.bookings.entries()) {
@@ -39,7 +39,7 @@ async function canonicalizeFlightCities(contentValue: unknown, existingContent?:
       continue
 
     const previousBooking = Array.isArray(previousBookings)
-      ? previousBookings.find((candidate: any) => booking.id && candidate?.id === booking.id) ?? previousBookings[bookingIndex]
+      ? previousBookings.find(candidate => booking.id && candidate?.id === booking.id) ?? previousBookings[bookingIndex]
       : undefined
     const previousSegments = previousBooking?.type === 'flight' && Array.isArray(previousBooking?.data?.segments)
       ? previousBooking.data.segments
@@ -76,7 +76,7 @@ async function canonicalizeFlightCities(contentValue: unknown, existingContent?:
     }
   }
 
-  const ids = [...new Set(segments.flatMap((segment: any) => [segment?.departureCityId, segment?.arrivalCityId]
+  const ids = [...new Set(segments.flatMap(segment => [segment?.departureCityId, segment?.arrivalCityId]
     .filter((id: unknown): id is string => typeof id === 'string')))]
 
   if (ids.length === 0)

@@ -1,7 +1,8 @@
+import type { LocationQueryRaw } from 'vue-router'
 import { computed, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
-let pendingQuery: Record<string, any> | null = null
+let pendingQuery: LocationQueryRaw | null = null
 let updatePromise: Promise<void> | null = null
 
 function parseQueryValue<T>(value: string | string[], defaultValue: T, parse?: (value: string | string[]) => T): T {
@@ -92,7 +93,7 @@ export function useQuerySync<T>(key: string, defaultValue: T, options: {
         updateQuery(undefined)
       }
       else {
-        const serialized = options.serialize ? options.serialize(newVal) : (newVal as any)
+        const serialized = options.serialize ? options.serialize(newVal) : (newVal == null ? undefined : Array.isArray(newVal) ? newVal.map(String) : String(newVal))
         updateQuery(serialized)
       }
     },

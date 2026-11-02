@@ -1,4 +1,5 @@
 import { extname } from 'node:path'
+import { isRecord } from '@injurka/type-utils'
 import { and, eq, or, sql } from 'drizzle-orm'
 import { Hono } from 'hono'
 import { HTTPException } from 'hono/http-exception'
@@ -24,7 +25,7 @@ imageController.get('/*', async (c) => {
 
   if (filePath.includes('/documents/')) {
     const imageRecord = await db.query.tripImages.findFirst({ where: eq(tripImages.url, filePath) })
-    if (imageRecord && (imageRecord.metadata as any)?.access === 'private') {
+    if (imageRecord && isRecord(imageRecord.metadata) && imageRecord.metadata.access === 'private') {
       const token = c.req.query('token') || c.req.header('authorization')?.split(' ')[1]
       const user = await authUtils.getUserFromToken(token)
 
@@ -179,7 +180,7 @@ imageController.get('/*', async (c) => {
 
     const fallbackFilename = filePath.split('/').pop() || `file.${fileExt || 'bin'}`
 
-    return c.body(s3Result.buffer as any, 200, {
+    return c.body(new Uint8Array(s3Result.buffer), 200, {
       'Content-Type': s3Result.contentType || 'application/octet-stream',
       'Accept-Ranges': 'bytes',
       'Cache-Control': 'public, max-age=31536000, immutable',
@@ -202,7 +203,7 @@ imageController.get('/*', async (c) => {
   if (!width && !height && !format) {
     endTimer({ status: 'success', format: fileExt, type: 'skipped' })
     imageOutputSizeBytesHistogram.observe({ format: fileExt, type: 'skipped' }, s3Result.buffer.byteLength)
-    return c.body(s3Result.buffer as any, 200, {
+    return c.body(new Uint8Array(s3Result.buffer), 200, {
       'Content-Type': s3Result.contentType,
       'Cache-Control': 'public, max-age=31536000, immutable',
     })

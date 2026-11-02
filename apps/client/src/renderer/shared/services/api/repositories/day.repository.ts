@@ -2,6 +2,7 @@ import type { IDayRepository } from '../model/types'
 import type { Day } from '~/shared/types/models/activity'
 import { trpc } from '~/shared/services/trpc/trpc.service'
 import { throttle } from '../lib/decorators'
+import { normalizeDay } from '../lib/normalize-models'
 
 class DayRepository implements IDayRepository {
   /**
@@ -11,7 +12,7 @@ class DayRepository implements IDayRepository {
    */
   @throttle(1_000)
   async getByTripId(tripId: string): Promise<Day[]> {
-    return await trpc.day.getByTripId.query({ tripId }) as Day[]
+    return (await trpc.day.getByTripId.query({ tripId })).map(normalizeDay)
   }
 
   /**
@@ -30,14 +31,14 @@ class DayRepository implements IDayRepository {
   async createNewDay(dayData: Omit<Day, 'id' | 'activities'>): Promise<Day> {
     const newDay = await trpc.day.create.mutate(dayData)
 
-    return newDay as Day
+    return normalizeDay(newDay)
   }
 
   @throttle(1_000)
   async deleteDay(id: string): Promise<Day> {
     const deletedDay = await trpc.day.delete.mutate({ id })
 
-    return deletedDay as unknown as Day
+    return normalizeDay(deletedDay)
   }
 
   @throttle(1_000)
@@ -47,7 +48,7 @@ class DayRepository implements IDayRepository {
       details,
     })
 
-    return result as unknown as Day
+    return normalizeDay(result)
   }
 }
 

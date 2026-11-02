@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import type { TDisplayMode, TripsHubTab } from '../composables/use-trips-hub'
+import type { KitDropdownItem } from '~/components/01.kit/kit-dropdown'
 import type { ViewSwitcherItem } from '~/components/01.kit/kit-view-switcher'
 import type { GeoPlaceRef } from '~/shared/types/models/geo-place'
+import type { TripStatus } from '~/shared/types/models/trip'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitDivider } from '~/components/01.kit/kit-divider'
 import { KitDropdown } from '~/components/01.kit/kit-dropdown'
@@ -43,7 +45,7 @@ const displayModeItems: ViewSwitcherItem<TDisplayMode>[] = [
   { id: 'column', icon: 'mdi:view-grid-outline', label: '' },
   { id: 'row', icon: 'mdi:view-list-outline', label: '' },
 ]
-const statusOptions = [
+const statusOptions: KitDropdownItem<TripStatus>[] = [
   { value: 'planned', label: 'Запланировано' },
   { value: 'completed', label: 'Завершено' },
   { value: 'draft', label: 'Черновик' },

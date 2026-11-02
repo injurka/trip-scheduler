@@ -1,4 +1,5 @@
 import type { INotificationRepository, MemoryNotificationDelivery } from '../model/types'
+import type { RouterInput } from '~/shared/types/trpc'
 import { trpc } from '~/shared/services/trpc/trpc.service'
 
 export class NotificationRepository implements INotificationRepository {
@@ -6,7 +7,7 @@ export class NotificationRepository implements INotificationRepository {
     return await trpc.notification.checkTripSubscription.query({ tripId })
   }
 
-  async subscribeToTrip(payload: { tripId: string, subscription: any }): Promise<void> {
+  async subscribeToTrip(payload: { tripId: string, subscription: RouterInput['notification']['subscribeToTrip']['subscription'] }): Promise<void> {
     await trpc.notification.subscribeToTrip.mutate(payload)
   }
 

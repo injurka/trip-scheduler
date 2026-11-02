@@ -1,3 +1,4 @@
+import type { RouterInput, RouterOutput } from '../trpc'
 import type { ImageMetadata } from './trip'
 
 export interface PostStatsDetail {
@@ -53,6 +54,9 @@ export interface RouteBlock extends TimelineBlockBase {
   distance?: string
   duration?: string
   transport: 'walk' | 'transit' | 'car'
+  points?: MapPoint[]
+  geometry?: [number, number][]
+  distanceMeters?: number
 }
 
 export type TimelineBlock = TextBlock | GalleryBlock | LocationBlock | RouteBlock
@@ -115,7 +119,7 @@ export interface PostElement {
   day: number
   time?: string | null
   order: number
-  content: any[]
+  content: NonNullable<RouterOutput['post']['getById']['elements']>[number]['content']
 }
 
 export interface PostDetail {
@@ -169,7 +173,7 @@ export interface CreatePostInput {
   startDate?: string | null
   tags: string[]
   status: 'draft' | 'completed' | 'planned'
-  elements?: any[]
+  elements?: RouterInput['post']['create']['elements']
   mediaIds?: string[]
   mediaPrivacy?: Record<string, boolean>
   whitelistUserIds?: string[]

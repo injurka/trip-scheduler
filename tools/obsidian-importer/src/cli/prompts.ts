@@ -286,7 +286,7 @@ export async function promptForInteractiveOptions(
 }
 
 export async function promptForTargetTrip(
-  api: { getTrips: (tab?: 'my' | 'public') => Promise<Array<{ id: string, title: string, startDate?: string, endDate?: string, status?: string, cities?: string[], days?: any[] }>> },
+  api: { getTrips: (tab?: 'my' | 'public') => Promise<Array<{ id: string, title: string, startDate?: string, endDate?: string, status?: string, cities?: string[], days?: unknown[] }>> },
   cliTripId?: string,
   vaultTripTitle?: string,
 ): Promise<{ tripId?: string, isNew: boolean, overwriteDays: boolean }> {
@@ -294,7 +294,7 @@ export async function promptForTargetTrip(
     return { tripId: cliTripId, isNew: false, overwriteDays: false }
   }
 
-  let userTrips: Array<{ id: string, title: string, startDate?: string, endDate?: string, status?: string, cities?: string[], days?: any[] }> = []
+  let userTrips: Array<{ id: string, title: string, startDate?: string, endDate?: string, status?: string, cities?: string[], days?: unknown[] }> = []
   try {
     userTrips = await api.getTrips('my')
   }

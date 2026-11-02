@@ -65,7 +65,7 @@ export const DeleteAccountInputSchema = z.object({
 
 export const HighlightSchema = createSelectSchema(highlights).extend({
   country: CountrySchema.optional().nullable(),
-  metadata: z.any().nullable().optional(),
+  metadata: z.unknown().nullable().optional(),
 })
 
 export const GetUserHighlightsInputSchema = z.object({
@@ -91,7 +91,7 @@ export const CreateHighlightInputSchema = z.object({
   width: z.number().optional().nullable(),
   height: z.number().optional().nullable(),
   variants: z.record(z.string(), z.string()).optional().nullable(),
-  metadata: z.any().optional().nullable(),
+  metadata: z.unknown().optional().nullable(),
 })
 
 export const DeleteHighlightInputSchema = z.object({
@@ -109,7 +109,7 @@ export const PlanSchema = createSelectSchema(plans)
 export const UserSchema = createSelectSchema(users)
   .omit({ password: true, telegramId: true })
   .extend({
-    plan: PlanSchema.optional(),
+    plan: PlanSchema.nullable().optional(),
     hasPassword: z.boolean().optional(),
     _count: z.object({
       trips: z.number(),

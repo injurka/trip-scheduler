@@ -39,7 +39,7 @@ export const GenerateDayNoteInputSchema = z.object({
 export const GenerateTemplateInputSchema = z.object({
   dayId: z.string().uuid(),
   prompt: z.string(),
-  currentActivities: z.array(z.any()),
+  currentActivities: z.array(ActivitySchema),
   canvasNote: z.string().optional().nullable(),
   daysContext: z.array(z.object({
     dayNumber: z.number(),

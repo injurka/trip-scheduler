@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { protectedProcedure, publicProcedure } from '~/lib/trpc'
+import { ImageMetadataSchema } from './image-metadata.schema'
 import {
   DeleteImageInputSchema,
   GetImageMetadataInputSchema,
@@ -36,7 +37,7 @@ export const imageProcedures = {
 
   getMetadata: publicProcedure
     .input(GetImageMetadataInputSchema)
-    .output(z.any().nullable())
+    .output(ImageMetadataSchema.nullable())
     .query(async ({ input }) => {
       return imageService.getMetadata(input.id)
     }),

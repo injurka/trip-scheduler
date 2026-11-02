@@ -1,8 +1,11 @@
-import type { ActivityPayload } from '../types'
+import type { ActivityPayload, DayMetaInfo } from '../types'
 import type { MetroCatalogDetails, MetroCatalogSystem } from './metro-resolver'
-import type { ImportGeoPlace, ImportGeoResolution } from './transport'
+import type { ImportDayContext, ImportDocument, ImportGeoPlace, ImportGeoResolution, ImportTemplateActivity, ImportTripSummary } from './transport'
 import { readFileSync } from 'node:fs'
 import { basename } from 'node:path'
+import { getErrorCode, getErrorMessage, isRecord } from './value-guards'
+
+interface AuthResponse { token: { accessToken: string }, user: { id: string } }
 
 export interface ValidationIssue {
   path?: Array<string | number>
@@ -40,7 +43,7 @@ function isTransitModeRejected(error: unknown): boolean {
 function hasTransitRoute(sections: ActivityPayload['sections']): boolean {
   return (sections ?? []).some(section =>
     section.type === 'geolocation'
-    && section.routes.some((route: any) => route?.transportMode === 'transit'),
+    && section.routes.some(route => route?.transportMode === 'transit'),
   )
 }
 
@@ -52,7 +55,7 @@ function downgradeTransitToCar<T extends { sections?: ActivityPayload['sections'
     sections: payload.sections.map(section => section.type === 'geolocation'
       ? {
           ...section,
-          routes: section.routes.map((route: any) =>
+          routes: section.routes.map(route =>
             route?.transportMode === 'transit' ? { ...route, transportMode: 'car' } : route),
         }
       : section),
@@ -115,7 +118,7 @@ export class ApiClient {
     }
 
     const maxRetries = 3
-    let lastError: any
+    let lastError: unknown
 
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
       try {
@@ -125,7 +128,7 @@ export class ApiClient {
         })
 
         const text = await response.text()
-        let data: any
+        let data: unknown
         try {
           data = JSON.parse(text)
         }
@@ -134,23 +137,23 @@ export class ApiClient {
         }
 
         if (!response.ok) {
-          const issues: ValidationIssue[] = Array.isArray(data?.issues)
-            ? data.issues.filter((issue: any) => issue && typeof issue === 'object')
+          const issues: ValidationIssue[] = isRecord(data) && Array.isArray(data.issues)
+            ? data.issues.filter((issue): issue is ValidationIssue => isRecord(issue) && (issue.message === undefined || typeof issue.message === 'string') && (issue.code === undefined || typeof issue.code === 'string') && (issue.path === undefined || (Array.isArray(issue.path) && issue.path.every(part => typeof part === 'string' || typeof part === 'number'))))
             : []
-          const baseMessage = typeof data === 'object' && data?.message
+          const baseMessage = isRecord(data) && typeof data.message === 'string'
             ? data.message
-            : (typeof data === 'object' && data?.error ? JSON.stringify(data.error) : `HTTP ${response.status}: ${text}`)
+            : (isRecord(data) && data.error ? JSON.stringify(data.error) : `HTTP ${response.status}: ${text}`)
           throw new ApiHttpError(`${baseMessage}${formatIssues(issues)}`, response.status, issues)
         }
 
         return data as T
       }
-      catch (err: any) {
+      catch (err) {
         lastError = err
-        const isSocketOrNetworkError = err?.message?.includes('socket connection was closed')
-          || err?.message?.includes('ECONNRESET')
-          || err?.message?.includes('ETIMEDOUT')
-          || err?.code === 'ECONNRESET'
+        const isSocketOrNetworkError = getErrorMessage(err)?.includes('socket connection was closed')
+          || getErrorMessage(err)?.includes('ECONNRESET')
+          || getErrorMessage(err)?.includes('ETIMEDOUT')
+          || getErrorCode(err) === 'ECONNRESET'
 
         if (attempt < maxRetries && isSocketOrNetworkError) {
           const backoff = (attempt + 1) * 750
@@ -192,9 +195,9 @@ export class ApiClient {
   }
 
   // 1. Auth: SignIn
-  async signIn(email: string, password: string): Promise<{ accessToken: string, user: any }> {
+  async signIn(email: string, password: string): Promise<{ accessToken: string, user: { id: string } }> {
     try {
-      const res = await this.request<any>('/auth/signin', {
+      const res = await this.request<{ token: { accessToken: string }, user: { id: string } }>('/auth/signin', {
         method: 'POST',
         body: JSON.stringify({ email, password }),
       })
@@ -204,14 +207,14 @@ export class ApiClient {
         return { accessToken: res.token.accessToken, user: res.user }
       }
     }
-    catch (err: any) {
+    catch (err) {
       try {
-        const trpcRes = await this.request<any>('/trpc/user.signIn', {
+        const trpcRes = await this.request<{ result?: { data: AuthResponse } } & Partial<AuthResponse>>('/trpc/user.signIn', {
           method: 'POST',
           body: JSON.stringify({ email, password }),
         })
         const result = trpcRes?.result?.data || trpcRes
-        if (result?.token?.accessToken) {
+        if (result?.token?.accessToken && result.user) {
           this.setToken(result.token.accessToken)
           return { accessToken: result.token.accessToken, user: result.user }
         }
@@ -219,7 +222,7 @@ export class ApiClient {
       catch {
         // ignore
       }
-      throw new Error(`Ошибка авторизации: ${err.message}`)
+      throw new Error(`Ошибка авторизации: ${getErrorMessage(err)}`)
     }
 
     throw new Error('Не удалось получить accessToken при входе')
@@ -233,7 +236,7 @@ export class ApiClient {
     startDate?: string
     endDate?: string
   }): Promise<{ id: string, title: string, startDate: string, endDate: string }> {
-    return await this.request<any>('/trips', {
+    return await this.request('/trips', {
       method: 'POST',
       body: JSON.stringify(payload),
     })
@@ -254,37 +257,37 @@ export class ApiClient {
     budget?: number | null
     currency?: string | null
     cityIds?: string[]
-  }): Promise<any> {
-    return await this.request<any>(`/trips/${id}`, {
+  }): Promise<unknown> {
+    return await this.request(`/trips/${id}`, {
       method: 'PATCH',
       body: JSON.stringify({ id, details }),
     })
   }
 
-  async getTrips(tab: 'my' | 'public' = 'my'): Promise<Array<{ id: string, title: string, startDate?: string, endDate?: string, status?: string, cities?: string[], days?: any[] }>> {
-    return await this.request<any>(`/trips?tab=${tab}`, {
+  async getTrips(tab: 'my' | 'public' = 'my'): Promise<ImportTripSummary[]> {
+    return await this.request(`/trips?tab=${tab}`, {
       method: 'GET',
     })
   }
 
-  async getTripById(tripId: string): Promise<any> {
-    return await this.request<any>(`/trips/${tripId}`, {
+  async getTripById(tripId: string): Promise<ImportTripSummary> {
+    return await this.request(`/trips/${tripId}`, {
       method: 'GET',
     })
   }
 
-  async deleteTrip(tripId: string): Promise<any> {
-    return await this.request<any>(`/trips/${tripId}`, { method: 'DELETE' })
+  async deleteTrip(tripId: string): Promise<unknown> {
+    return await this.request(`/trips/${tripId}`, { method: 'DELETE' })
   }
 
-  async getTripDetails(tripId: string): Promise<any> {
+  async getTripDetails(tripId: string): Promise<ImportTripSummary> {
     try {
-      return await this.request<any>(`/trips/${tripId}/details`, {
+      return await this.request(`/trips/${tripId}/details`, {
         method: 'GET',
       })
     }
     catch {
-      return await this.request<any>(`/trips/${tripId}`, {
+      return await this.request(`/trips/${tripId}`, {
         method: 'GET',
       })
     }
@@ -293,19 +296,19 @@ export class ApiClient {
   // 3. Trip Sections (Tabs: Bookings, Checklist, Finances, Memories, Notes, Documents)
   async createTripSection(payload: {
     tripId: string
-    type: 'bookings' | 'checklist' | 'finances' | 'memories' | 'notes' | 'documents'
+    type: string
     title: string
     icon?: string | null
-    content?: any
-  }): Promise<any> {
+    content?: unknown
+  }): Promise<unknown> {
     try {
-      return await this.request<any>('/trip-sections', {
+      return await this.request('/trip-sections', {
         method: 'POST',
         body: JSON.stringify(payload),
       })
     }
     catch {
-      return await this.request<any>('/trpc/tripSection.create', {
+      return await this.request('/trpc/tripSection.create', {
         method: 'POST',
         body: JSON.stringify(payload),
       })
@@ -315,16 +318,16 @@ export class ApiClient {
   async updateTripSection(id: string, payload: {
     title?: string
     icon?: string | null
-    content?: any
-  }): Promise<any> {
+    content?: unknown
+  }): Promise<unknown> {
     try {
-      return await this.request<any>(`/trip-sections/${id}`, {
+      return await this.request(`/trip-sections/${id}`, {
         method: 'PATCH',
         body: JSON.stringify({ id, ...payload }),
       })
     }
     catch {
-      return await this.request<any>('/trpc/tripSection.update', {
+      return await this.request('/trpc/tripSection.update', {
         method: 'POST',
         body: JSON.stringify({ id, ...payload }),
       })
@@ -332,7 +335,7 @@ export class ApiClient {
   }
 
   async getDaysByTripId(tripId: string): Promise<Array<{ id: string, date: string, title: string, activities?: Array<{ id: string, title: string, startTime: string, endTime: string, sections?: Array<{ id: string, type: string }> }> }>> {
-    return await this.request<any>(`/days/by-trip/${tripId}`, {
+    return await this.request(`/days/by-trip/${tripId}`, {
       method: 'GET',
     })
   }
@@ -344,7 +347,7 @@ export class ApiClient {
     description?: string | null
     date: string
   }): Promise<{ id: string, title: string }> {
-    return await this.request<any>('/days', {
+    return await this.request('/days', {
       method: 'POST',
       body: JSON.stringify(payload),
     })
@@ -354,26 +357,26 @@ export class ApiClient {
     title?: string
     description?: string | null
     note?: string | null
-    meta?: any[]
+    meta?: DayMetaInfo[]
     date?: string
-  }): Promise<any> {
-    return await this.request<any>(`/days/${id}`, {
+  }): Promise<unknown> {
+    return await this.request(`/days/${id}`, {
       method: 'PATCH',
       body: JSON.stringify({ id, details }),
     })
   }
 
-  async deleteDay(id: string): Promise<any> {
-    return await this.request<any>(`/days/${id}`, {
+  async deleteDay(id: string): Promise<unknown> {
+    return await this.request(`/days/${id}`, {
       method: 'DELETE',
     })
   }
 
   async generateDayTemplate(dayId: string, payload: {
     prompt: string
-    currentActivities: any[]
+    currentActivities: ImportTemplateActivity[]
     canvasNote: string
-    daysContext?: any
+    daysContext?: ImportDayContext[] | null
   }): Promise<ActivityPayload[]> {
     return await this.request<ActivityPayload[]>(`/days/${dayId}/generate-template`, {
       method: 'POST',
@@ -393,8 +396,8 @@ export class ApiClient {
     startTime: string
     endTime: string
     tag?: string
-    sections?: any[]
-  }): Promise<any> {
+    sections?: ActivityPayload['sections']
+  }): Promise<unknown> {
     return this.sendActivity('POST', '/activities', payload)
   }
 
@@ -405,36 +408,36 @@ export class ApiClient {
     startTime: string
     endTime: string
     tag?: string
-    sections?: any[]
-  }): Promise<any> {
+    sections?: ActivityPayload['sections']
+  }): Promise<unknown> {
     return this.sendActivity('PATCH', `/activities/${payload.id}`, payload)
   }
 
   private async sendActivity(
     method: 'POST' | 'PATCH',
     path: string,
-    payload: { sections?: any[] } & Record<string, any>,
-  ): Promise<any> {
+    payload: { sections?: ActivityPayload['sections'] } & Record<string, unknown>,
+  ): Promise<unknown> {
     try {
-      return await this.request<any>(path, {
+      return await this.request(path, {
         method,
         body: JSON.stringify(payload),
       })
     }
     catch (error) {
-      if (!isTransitModeRejected(error) || !hasTransitRoute(payload.sections as ActivityPayload['sections']))
+      if (!isTransitModeRejected(error) || !hasTransitRoute(payload.sections))
         throw error
 
       this.onWarning?.('⚠ API не поддерживает transportMode «transit» (устаревшая версия сервера). Маршрут импортируется как «car».')
-      return await this.request<any>(path, {
+      return await this.request(path, {
         method,
         body: JSON.stringify(downgradeTransitToCar(payload)),
       })
     }
   }
 
-  async deleteActivity(id: string): Promise<any> {
-    return await this.request<any>(`/activities/${id}`, {
+  async deleteActivity(id: string): Promise<unknown> {
+    return await this.request(`/activities/${id}`, {
       method: 'DELETE',
     })
   }
@@ -448,7 +451,7 @@ export class ApiClient {
     order?: number
     color?: string | null
   }): Promise<{ id: string, title: string, type: string }> {
-    return await this.request<any>('/notes', {
+    return await this.request('/notes', {
       method: 'POST',
       body: JSON.stringify(payload),
     })
@@ -460,15 +463,15 @@ export class ApiClient {
     parentId?: string | null
     order?: number
     color?: string | null
-  }): Promise<any> {
-    return await this.request<any>(`/notes/${id}`, {
+  }): Promise<unknown> {
+    return await this.request(`/notes/${id}`, {
       method: 'PATCH',
       body: JSON.stringify({ id, ...payload }),
     })
   }
 
   async getNotesByTripId(tripId: string): Promise<Array<{ id: string, parentId?: string | null, type: string, title: string }>> {
-    return await this.request<any>(`/notes/by-trip/${tripId}`, { method: 'GET' })
+    return await this.request(`/notes/by-trip/${tripId}`, { method: 'GET' })
   }
 
   // 7. Image & Document Upload Endpoint
@@ -476,7 +479,7 @@ export class ApiClient {
     tripId: string,
     filePath: string,
     placement: 'route' | 'memories' | 'notes' | 'documents' = 'route',
-    metadata?: Record<string, any>,
+    metadata?: Record<string, unknown>,
   ): Promise<string> {
     const formData = new FormData()
     const buffer = readFileSync(filePath)
@@ -498,7 +501,7 @@ export class ApiClient {
     }
 
     const maxRetries = 3
-    let lastError: any
+    let lastError: unknown
 
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
       try {
@@ -513,15 +516,15 @@ export class ApiClient {
           throw new Error(`HTTP ${response.status}: ${text}`)
         }
 
-        const result = (await response.json()) as any
+        const result = (await response.json())
         return result.url || result.dbRecord?.url || result.dbRecord?.path || ''
       }
-      catch (err: any) {
+      catch (err) {
         lastError = err
-        const isSocketOrNetworkError = err?.message?.includes('socket connection was closed')
-          || err?.message?.includes('ECONNRESET')
-          || err?.message?.includes('ETIMEDOUT')
-          || err?.code === 'ECONNRESET'
+        const isSocketOrNetworkError = getErrorMessage(err)?.includes('socket connection was closed')
+          || getErrorMessage(err)?.includes('ECONNRESET')
+          || getErrorMessage(err)?.includes('ETIMEDOUT')
+          || getErrorCode(err) === 'ECONNRESET'
 
         if (attempt < maxRetries && isSocketOrNetworkError) {
           const backoff = (attempt + 1) * 750
@@ -551,18 +554,11 @@ export class ApiClient {
     })
   }
 
-  async listDocuments(tripId: string): Promise<Array<{
-    id: string
-    tripId: string
-    url: string
-    originalName: string
-    sizeBytes: number
-    metadata?: any
-  }>> {
+  async listDocuments(tripId: string): Promise<ImportDocument[]> {
     try {
       const input = encodeURIComponent(JSON.stringify({ tripId }))
-      const res = await this.request<any>(`/trpc/image.listDocuments?input=${input}`, { method: 'GET' })
-      return res?.result?.data || (Array.isArray(res) ? res : [])
+      const res = await this.request<{ result?: { data: ImportDocument[] } } | ImportDocument[]>(`/trpc/image.listDocuments?input=${input}`, { method: 'GET' })
+      return Array.isArray(res) ? res : res.result?.data || []
     }
     catch {
       return []
@@ -579,11 +575,11 @@ export class ApiClient {
       isFavorite?: boolean
       note?: string | null
     },
-  ): Promise<any> {
-    const res = await this.request<any>('/trpc/image.updateDocumentMeta', {
+  ): Promise<unknown> {
+    const res = await this.request<unknown>('/trpc/image.updateDocumentMeta', {
       method: 'POST',
       body: JSON.stringify({ id, metadata }),
     })
-    return res?.result?.data ?? res
+    return isRecord(res) && isRecord(res.result) ? res.result.data : res
   }
 }

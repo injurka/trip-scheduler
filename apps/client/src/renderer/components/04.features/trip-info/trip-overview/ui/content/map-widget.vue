@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { Map as MapLibreMap } from 'maplibre-gl'
 import type { useGeolocationMap } from '~/components/03.domain/trip-info/geolocation-section/composables/use-geolocation-map'
 import type { Coordinate, MapPoint, MapRoute } from '~/components/03.domain/trip-info/geolocation-section/models/types'
 import type { TripCityRef } from '~/shared/types/models/geo-place'
@@ -11,8 +12,8 @@ import { isValidCoordinate } from '~/shared/services/geo'
 
 interface Props {
   cityRefs?: TripCityRef[]
-  points?: any[]
-  routes?: any[]
+  points?: MapPoint[]
+  routes?: MapRoute[]
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -68,7 +69,7 @@ async function initMapData() {
         routes.push({
           id: r.id,
           title: r.title || 'Маршрут',
-          points: (r.points || []).map((rp: any) => {
+          points: (r.points || []).map((rp) => {
             let [lon, lat] = rp.coordinates || [0, 0]
 
             if (Math.abs(lat) > 90 && Math.abs(lon) <= 90) {
@@ -93,7 +94,7 @@ async function initMapData() {
       }
 
       if (r.points && Array.isArray(r.points)) {
-        r.points.forEach((rp: any) => {
+        r.points.forEach((rp) => {
           if (rp && rp.coordinates && isValidCoordinate(rp.coordinates)) {
             let [lon, lat] = rp.coordinates
 
@@ -162,7 +163,7 @@ function handleMapReady(controller: ReturnType<typeof useGeolocationMap>) {
     fitViewToData(controller.mapInstance.value)
   }
 }
-function fitViewToData(map: any) {
+function fitViewToData(map: MapLibreMap) {
   let minLon = Number.POSITIVE_INFINITY
   let minLat = Number.POSITIVE_INFINITY
   let maxLon = Number.NEGATIVE_INFINITY

@@ -67,18 +67,18 @@ const mapPoints = computed<MapPoint[]>(() => {
       address: props.block.address,
       comment: props.block.name,
       style: { color: props.color },
-    } as any]
+    }]
   }
 
   return []
 })
 
 const mapRoutes = computed<MapRoute[]>(() => {
-  if (props.block.type === 'route' && (props.block as any).geometry && (props.block as any).geometry.length > 0) {
-    const rawPoints = (props.block as any).points || []
-    const validPts: any[] = []
+  if (props.block.type === 'route' && (props.block).geometry && (props.block).geometry.length > 0) {
+    const rawPoints = (props.block).points || []
+    const validPts: MapPoint[] = []
 
-    rawPoints.forEach((p: any, idx: number, arr: any[]) => {
+    rawPoints.forEach((p, idx: number, arr) => {
       let lat = Number(p.lat)
       let lng = Number(p.lng)
 
@@ -103,7 +103,7 @@ const mapRoutes = computed<MapRoute[]>(() => {
       })
     })
 
-    const validGeometry: [number, number][] = ((props.block as any).geometry as [number, number][]).filter(coord => isValidCoordinate(coord))
+    const validGeometry: [number, number][] = ((props.block).geometry as [number, number][]).filter(coord => isValidCoordinate(coord))
 
     if (validGeometry.length >= 2) {
       return [{
@@ -114,7 +114,7 @@ const mapRoutes = computed<MapRoute[]>(() => {
         color: props.color,
         isVisible: true,
         isDirect: false,
-      } as any]
+      }]
     }
   }
 

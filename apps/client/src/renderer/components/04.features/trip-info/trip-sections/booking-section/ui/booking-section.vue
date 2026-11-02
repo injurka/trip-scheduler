@@ -133,7 +133,7 @@ function getCardComponent(type: Booking['type']) {
                     </div>
                     <Component
                       :is="getCardComponent(entry.booking.type)"
-                      :booking="entry.booking as any"
+                      :booking="entry.booking"
                       v-bind="entry.booking.type === 'flight' && entry.segmentRange ? { segmentRange: entry.segmentRange } : {}"
                       :readonly="readonly"
                       :show-drag-handle="false"

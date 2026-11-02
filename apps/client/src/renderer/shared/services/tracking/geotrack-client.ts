@@ -1,5 +1,6 @@
 import type { TrackActivityType } from '@limiteddissolve/track-processing'
 import type { PluginListener } from '@tauri-apps/api/core'
+import { getErrorMessage } from '@injurka/type-utils'
 import { bearingDeg, evaluatePointValidity, haversineM, MAX_ACCURACY_M, movementEvidence, prepareTrack } from '@limiteddissolve/track-processing'
 import { addPluginListener, invoke } from '@tauri-apps/api/core'
 import {
@@ -494,7 +495,7 @@ class BackgroundAudioKeepalive {
 
   private startWebAudio(): void {
     try {
-      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext
+      const AudioContextClass = window.AudioContext || (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
 
       if (!AudioContextClass)
         return
@@ -687,7 +688,7 @@ class WebGeolocationTracker {
   private trackingPluginListener: PluginListener | null = null
   private trackingStateListener: PluginListener | null = null
   private batteryOptimizationsIgnored = false
-  private wakeLockSentinel: any = null
+  private wakeLockSentinel: WakeLockSentinel | null = null
   private watchdogTimer: ReturnType<typeof setInterval> | null = null
   private keepalive = new BackgroundAudioKeepalive()
   private currentSessionId: string | null = null
@@ -886,13 +887,13 @@ class WebGeolocationTracker {
       && this.wakeLockRequestId === requestId
   }
 
-  private async requestWakeLock(generation: number, requestId: number): Promise<any | null> {
+  private async requestWakeLock(generation: number, requestId: number): Promise<WakeLockSentinel | null> {
     let timedOut = false
     let timeoutTimer: ReturnType<typeof setTimeout> | undefined
 
-    const rawPromise: Promise<any> = (navigator as any).wakeLock.request('screen')
+    const rawPromise: Promise<WakeLockSentinel> = (navigator).wakeLock.request('screen')
     const safePromise = rawPromise
-      .then((sentinel: any) => {
+      .then((sentinel) => {
         if (this.isCurrentWakeLockRequest(timedOut, generation, requestId))
           return sentinel
 
@@ -924,7 +925,7 @@ class WebGeolocationTracker {
       && document.visibilityState === 'visible'
   }
 
-  private registerWakeLock(sentinel: any, generation: number) {
+  private registerWakeLock(sentinel: WakeLockSentinel, generation: number) {
     if (this.wakeLockSentinel && this.wakeLockSentinel !== sentinel && !this.wakeLockSentinel.released)
       void this.wakeLockSentinel.release().catch(() => {})
 
@@ -971,7 +972,7 @@ class WebGeolocationTracker {
       this.wakeLockSentinel = null
 
       try {
-        let timeoutTimer: any
+        let timeoutTimer: ReturnType<typeof setTimeout> | undefined
         const relPromise = sentinel.release()
         const timeoutPromise = new Promise((resolve) => {
           timeoutTimer = setTimeout(resolve, 1000)
@@ -1337,8 +1338,8 @@ class WebGeolocationTracker {
 
       return false
     }
-    catch (error: any) {
-      const message = error?.message || String(error)
+    catch (error) {
+      const message = getErrorMessage(error) || String(error)
       this.lastError = `Ошибка запроса прав геолокации: ${message}`
       console.warn('[Tracking] Ошибка запроса прав в Tauri:', error)
 

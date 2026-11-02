@@ -52,8 +52,8 @@ const vRipple: Directive = {
 }
 
 function createRipple(event: MouseEvent) {
-  const el = event.currentTarget as HTMLElement
-  let container = (el as any)._rippleContainer as HTMLElement | undefined
+  const el = event.currentTarget as HTMLElement & { _rippleContainer?: HTMLElement }
+  let container = (el)._rippleContainer as HTMLElement | undefined
 
   if (!container) {
     if (window.getComputedStyle(el).position === 'static') {
@@ -63,7 +63,7 @@ function createRipple(event: MouseEvent) {
     container = document.createElement('div')
     container.className = 'kit-ripple-container'
     el.appendChild(container)
-    ;(el as any)._rippleContainer = container
+    ;(el)._rippleContainer = container
   }
 
   const circle = document.createElement('span')

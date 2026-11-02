@@ -41,6 +41,46 @@ import {
   users,
 } from './schema'
 
+type MockDay = Omit<typeof days.$inferInsert, 'date'> & {
+  id: string
+  date: string | Date
+  activities?: Array<typeof activities.$inferInsert>
+}
+type MockTrip = Omit<typeof trips.$inferInsert, 'startDate' | 'endDate'> & {
+  id: string
+  startDate: string | Date
+  endDate: string | Date
+  participantIds?: string[]
+  cities?: string[]
+  weatherData?: unknown
+  days?: MockDay[]
+  images?: Array<typeof tripImages.$inferInsert>
+  memories?: Array<typeof memories.$inferInsert>
+  sections?: Array<typeof tripSections.$inferInsert>
+}
+type MockElement = Omit<typeof postElements.$inferInsert, 'postId'> & {
+  id: string
+  media?: Array<Omit<typeof postMedia.$inferInsert, 'postId'>>
+}
+type MockPost = typeof posts.$inferInsert & {
+  id: string
+  elements?: MockElement[]
+  timelineItems?: MockElement[]
+  media?: Array<typeof postMedia.$inferInsert>
+}
+type MockUser = typeof users.$inferInsert & { id: string }
+type MockMark = typeof marks.$inferInsert & { id: string }
+type MockHighlight = typeof highlights.$inferInsert & { id: string }
+type MockReview = typeof destinationReviews.$inferInsert & { id: string }
+interface MockModule {
+  MOCK_USER_DATA?: MockUser[]
+  MOCK_DATA?: MockTrip[] | Record<string, MockTrip>
+  MOCK_POST_DATA?: MockPost[] | Record<string, MockPost>
+  MOCK_MARKS_DATA?: MockMark[]
+  MOCK_HIGHLIGHTS_DATA?: MockHighlight[]
+  MOCK_DESTINATION_REVIEWS_DATA?: MockReview[]
+}
+
 async function copyStaticFiles() {
   const sourceDir = path.join(__dirname, 'mock/static')
   const destDir = path.join(process.cwd(), 'static')
@@ -65,12 +105,12 @@ async function copyStaticFiles() {
 async function discoverAndSelectData() {
   const mockDirs = [path.join(__dirname, 'mock')]
   const discovered = {
-    users: new Map<string, any>(),
-    trips: new Map<string, any>(),
-    posts: new Map<string, any>(),
-    marks: new Map<string, any>(),
-    highlights: new Map<string, any>(),
-    destinationReviews: new Map<string, any>(),
+    users: new Map<string, MockUser>(),
+    trips: new Map<string, MockTrip>(),
+    posts: new Map<string, MockPost>(),
+    marks: new Map<string, MockMark>(),
+    highlights: new Map<string, MockHighlight>(),
+    destinationReviews: new Map<string, MockReview>(),
   }
 
   console.log('🔍 Поиск и загрузка доступных мок-данных...')
@@ -87,11 +127,11 @@ async function discoverAndSelectData() {
 
       for (const file of files) {
         const filePath = path.join(dir, file)
-        const module = await import(url.pathToFileURL(filePath).href)
+        const module = await import(url.pathToFileURL(filePath).href) as MockModule
 
         // 1. Загрузка Пользователей
         if (Array.isArray(module.MOCK_USER_DATA)) {
-          module.MOCK_USER_DATA.forEach((user: any) =>
+          module.MOCK_USER_DATA.forEach(user =>
             discovered.users.set(user.id, user),
           )
         }
@@ -100,7 +140,7 @@ async function discoverAndSelectData() {
         if (module.MOCK_DATA) {
           const tripsSource = module.MOCK_DATA
           const tripsData = Array.isArray(tripsSource) ? tripsSource : Object.values(tripsSource)
-          for (const trip of tripsData as any[]) {
+          for (const trip of tripsData) {
             if (!trip || !trip.id || !trip.title)
               continue
             discovered.trips.set(trip.id, trip)
@@ -111,7 +151,7 @@ async function discoverAndSelectData() {
         if (module.MOCK_POST_DATA) {
           const postsSource = module.MOCK_POST_DATA
           const postsData = Array.isArray(postsSource) ? postsSource : Object.values(postsSource)
-          for (const post of postsData as any[]) {
+          for (const post of postsData) {
             if (!post || !post.id || !post.title)
               continue
             discovered.posts.set(post.id, post)
@@ -120,21 +160,21 @@ async function discoverAndSelectData() {
 
         // 4. Загрузка Меток
         if (module.MOCK_MARKS_DATA) {
-          module.MOCK_MARKS_DATA.forEach((mark: any) =>
+          module.MOCK_MARKS_DATA.forEach(mark =>
             discovered.marks.set(mark.id, mark),
           )
         }
 
         // 5. Загрузка Витрины (Highlights)
         if (module.MOCK_HIGHLIGHTS_DATA) {
-          module.MOCK_HIGHLIGHTS_DATA.forEach((highlight: any) =>
+          module.MOCK_HIGHLIGHTS_DATA.forEach(highlight =>
             discovered.highlights.set(highlight.id, highlight),
           )
         }
 
         // 6. Загрузка Впечатлений (Destination Reviews) - ДОБАВЛЕНО
         if (module.MOCK_DESTINATION_REVIEWS_DATA) {
-          module.MOCK_DESTINATION_REVIEWS_DATA.forEach((review: any) =>
+          module.MOCK_DESTINATION_REVIEWS_DATA.forEach(review =>
             discovered.destinationReviews.set(review.id, review),
           )
         }
@@ -231,7 +271,7 @@ async function discoverAndSelectData() {
       name: 'selectedDestinationReviews',
       message: 'Выберите ВПЕЧАТЛЕНИЯ (Рейтинги) для добавления',
       choices: [...discovered.destinationReviews.values()].map(r => ({
-        title: r.type === 'city' ? r.city : `Страна (${r.countryId})`,
+        title: r.type === 'city' ? r.city || 'Без названия' : `Страна (${r.countryId})`,
         description: r.content ? `${r.content.substring(0, 40)}...` : '',
         value: r,
         selected: true,
@@ -248,12 +288,12 @@ async function discoverAndSelectData() {
   })
 
   return {
-    selectedUsers: response.selectedUsers || [],
-    selectedTrips: response.selectedTrips || [],
-    selectedPosts: response.selectedPosts || [],
-    selectedMarks: response.selectedMarks || [],
-    selectedHighlights: response.selectedHighlights || [],
-    selectedDestinationReviews: response.selectedDestinationReviews || [], // ДОБАВЛЕНО
+    selectedUsers: (response.selectedUsers || []) as MockUser[],
+    selectedTrips: (response.selectedTrips || []) as MockTrip[],
+    selectedPosts: (response.selectedPosts || []) as MockPost[],
+    selectedMarks: (response.selectedMarks || []) as MockMark[],
+    selectedHighlights: (response.selectedHighlights || []) as MockHighlight[],
+    selectedDestinationReviews: (response.selectedDestinationReviews || []) as MockReview[], // ДОБАВЛЕНО
   }
 }
 
@@ -335,7 +375,7 @@ async function seed() {
           lineNumber: line.lineNumber,
         }).returning()
 
-        const stationsToInsert = line.stations.map((station: any) => ({
+        const stationsToInsert = line.stations.map(station => ({
           id: station.id,
           systemId: insertedSystem.id,
           name: station.name,
@@ -345,7 +385,7 @@ async function seed() {
           await db.insert(metroStations).values(stationsToInsert).onConflictDoNothing()
         }
 
-        const lineStationsToInsert = line.stations.map((station: any, index: number) => ({
+        const lineStationsToInsert = line.stations.map((station, index: number) => ({
           lineId: insertedLine.id,
           stationId: station.id,
           order: index,
@@ -406,7 +446,7 @@ async function seed() {
     }
 
     if (mockSections) {
-      sectionsToInsert.push(...mockSections.map((s: any) => ({
+      sectionsToInsert.push(...mockSections.map(s => ({
         ...s,
         tripId: tripDetails.id,
       })))
@@ -423,7 +463,7 @@ async function seed() {
           updatedAt: dayDetails.updatedAt ? new Date(dayDetails.updatedAt) : new Date(),
         })
         if (mockActivities) {
-          activitiesToInsert.push(...mockActivities.map((a: any) => ({
+          activitiesToInsert.push(...mockActivities.map(a => ({
             ...a,
             sections: a.sections || [],
             tag: a.tag || 'transport',
@@ -432,10 +472,10 @@ async function seed() {
       }
     }
     if (mockImages) {
-      const processedImages = mockImages.map((image: any) => ({
+      const processedImages = mockImages.map(image => ({
         ...image,
         tripId: tripDetails.id,
-        originalName: image.originalName || image.url.split('/').pop(),
+        originalName: image.originalName || image.url.split('/').pop() || 'file',
       }))
       imagesToInsert.push(...processedImages)
     }
@@ -470,7 +510,7 @@ async function seed() {
         })
 
         if (itemMedia) {
-          postMediaToInsert.push(...itemMedia.map((m: any) => ({
+          postMediaToInsert.push(...itemMedia.map(m => ({
             ...m,
             postId: postDetails.id,
             elementId: item.id,
@@ -480,7 +520,7 @@ async function seed() {
     }
 
     if (media) {
-      postMediaToInsert.push(...media.map((m: any) => ({
+      postMediaToInsert.push(...media.map(m => ({
         ...m,
         postId: postDetails.id,
         elementId: null,
@@ -532,7 +572,7 @@ async function seed() {
   await db.insert(blogs).values(blogsToInsert)
 
   if (selectedUsers.length > 0)
-    await db.insert(users).values(selectedUsers.map((u: any) => ({ ...u, planId: plansData[0].id })))
+    await db.insert(users).values(selectedUsers.map(u => ({ ...u, planId: plansData[0].id })))
 
   if (tripsToInsert.length > 0)
     await db.insert(trips).values(tripsToInsert)

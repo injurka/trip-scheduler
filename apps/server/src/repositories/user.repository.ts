@@ -1,4 +1,5 @@
 import type { z } from 'zod'
+import type { plans } from '~/../db/schema'
 import type { SignUpInputSchema, UpdateUserInputSchema } from '~/modules/user/user.schemas'
 import { eq, ilike, or, sql } from 'drizzle-orm'
 import { db } from '~/../db'
@@ -7,7 +8,7 @@ import { authUtils } from '~/lib/auth.utils'
 import { FREE_PLAN_ID } from '~/lib/constants'
 import { createTRPCError } from '~/lib/trpc'
 
-type UserForClient = Omit<typeof users.$inferSelect, 'password'> & { hasPassword?: boolean, plan?: any, _count?: { trips: number } }
+type UserForClient = Omit<typeof users.$inferSelect, 'password'> & { hasPassword?: boolean, plan?: typeof plans.$inferSelect | null, _count?: { trips: number } }
 
 function excludePassword<T extends { password?: string | null }>(user: T): Omit<T, 'password'> & { hasPassword: boolean } {
   const { password, ...rest } = user

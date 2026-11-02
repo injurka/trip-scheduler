@@ -1,12 +1,15 @@
 import type { z } from 'zod'
 import type { CreateNoteInputSchema, ReorderNotesInputSchema, UpdateNoteInputSchema } from './note.schemas'
+import type { tripNotes } from '~/../db/schema'
 import { createTRPCError } from '~/lib/trpc'
 import { noteRepository } from '~/repositories/note.repository'
 import { tripRepository } from '~/repositories/trip.repository'
 
-function formatNote(note: any) {
+type NoteWithImages = typeof tripNotes.$inferSelect & { trip?: { userId: string }, noteImages?: Awaited<ReturnType<typeof noteRepository.getByTripId>>[number]['noteImages'] }
+
+function formatNote(note: NoteWithImages) {
   const { noteImages, trip, ...rest } = note
-  const images = (noteImages || []).filter((ni: any) => ni.image).map((ni: any) => {
+  const images = (noteImages || []).filter(ni => ni.image).map((ni) => {
     const sources: Record<string, string> = { original: ni.image.url }
     if (ni.image.variants) {
       Object.assign(sources, ni.image.variants)
@@ -100,7 +103,7 @@ export const noteService = {
         width: img.width,
         height: img.height,
         sources,
-        usedIn: img.noteImages.map((ni: any) => ({
+        usedIn: img.noteImages.map(ni => ({
           id: ni.note.id,
           title: ni.note.title,
           type: ni.note.type,

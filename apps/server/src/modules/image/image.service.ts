@@ -11,6 +11,7 @@ import { tripRepository } from '~/repositories/trip.repository'
 import { deleteFileWithVariants } from '~/services/file-storage.service'
 import { quotaService } from '~/services/quota.service'
 import { s3Service } from '~/services/s3.service'
+import { ImageMetadataSchema } from './image-metadata.schema'
 
 type Placement = (typeof tripImagePlacementEnum.enumValues)[number]
 
@@ -38,7 +39,8 @@ export const imageService = {
   },
 
   async getMetadata(imageId: string) {
-    return await imageRepository.getMetadata(imageId)
+    const metadata = await imageRepository.getMetadata(imageId)
+    return metadata == null ? null : ImageMetadataSchema.parse(metadata)
   },
 
   async getByEntity(entityId: string, entityType: EntityType, placement?: string): Promise<ServiceImageResult[]> {

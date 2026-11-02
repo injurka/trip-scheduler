@@ -1,12 +1,12 @@
-<script setup lang="ts" generic="T extends string | number | object">
+<script setup lang="ts" generic="T extends string | number | object, Item extends KitDropdownItem<T> = KitDropdownItem<T>">
 import type { KitDropdownItem } from '~/components/01.kit/kit-dropdown'
 import { Icon } from '@iconify/vue'
 import { onClickOutside, useElementBounding, useWindowSize } from '@vueuse/core'
 import { KitInput } from '~/components/01.kit/kit-input'
 
-export interface Props<T extends string | number | object> {
+export interface Props<T extends string | number | object, Item extends KitDropdownItem<T> = KitDropdownItem<T>> {
   modelValue: T | T[] | null
-  items: KitDropdownItem<T>[]
+  items: Item[]
   label?: string
   placeholder?: string
   disabled?: boolean
@@ -14,11 +14,12 @@ export interface Props<T extends string | number | object> {
   loading?: boolean
   multiple?: boolean
   creatable?: boolean
+  createValue?: (label: string) => T
   icon?: string
   size?: 'sm' | 'md' | 'lg'
 }
 
-const props = withDefaults(defineProps<Props<T>>(), {
+const props = withDefaults(defineProps<Props<T, Item>>(), {
   label: '',
   placeholder: 'Выберите значение...',
   disabled: false,
@@ -49,7 +50,7 @@ const selectedItems = computed(() => {
   if (!props.modelValue)
     return []
 
-  const modelValues = (Array.isArray(props.modelValue) ? props.modelValue : [props.modelValue]) as any[]
+  const modelValues = (Array.isArray(props.modelValue) ? props.modelValue : [props.modelValue]) as T[]
 
   return modelValues
     .map((value) => {
@@ -164,15 +165,15 @@ function isSelected(item: KitDropdownItem<T>): boolean {
   return props.modelValue === item.value
 }
 function handleAddNewItem() {
-  if (!props.creatable || !props.multiple || !searchQuery.value.trim())
+  if (!props.creatable || !props.createValue || !props.multiple || !searchQuery.value.trim())
     return
 
-  const newValue = searchQuery.value.trim()
-  const model = (Array.isArray(props.modelValue) ? [...props.modelValue] : []) as string[]
+  const newValue = props.createValue(searchQuery.value.trim())
+  const model = (Array.isArray(props.modelValue) ? [...props.modelValue] : []) as T[]
 
-  if (!model.some(v => String(v).toLowerCase() === newValue.toLowerCase())) {
+  if (!model.some(v => String(v).toLowerCase() === String(newValue).toLowerCase())) {
     model.push(newValue)
-    emit('update:modelValue', model as any)
+    emit('update:modelValue', model)
   }
 
   searchQuery.value = ''

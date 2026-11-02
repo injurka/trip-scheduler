@@ -19,6 +19,7 @@ export interface CreateBlogPostInput {
   excerpt?: string
   coverImage?: string
   published?: boolean
+  publishedAt?: string | null
 }
 
 export interface UpdateBlogPostInput {

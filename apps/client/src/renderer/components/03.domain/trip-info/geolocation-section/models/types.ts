@@ -17,6 +17,8 @@ export interface MapPoint {
   id: string
   coordinates: Coordinate
   type: PointType
+  isDraggable?: boolean
+  draggable?: boolean
   style?: MarkerStyle
   address?: string
   comment?: string
@@ -41,7 +43,7 @@ export interface MapRoute {
 
 export interface ActivitySectionGeolocation {
   id: string
-  type: EActivitySectionType.GEOLOCATION
+  type: typeof EActivitySectionType.GEOLOCATION
   isAttached?: boolean
   title?: string
   icon?: string
@@ -67,7 +69,7 @@ export interface OSRMResponse {
   code: string
   routes: Array<{
     legs: Array<{
-      steps: any[]
+      steps: unknown[]
       weight: number
       summary: string
       duration: number

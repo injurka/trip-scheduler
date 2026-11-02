@@ -57,7 +57,7 @@ const localForm = ref<LocalBlogForm>({
   excerpt: modelValue.value?.excerpt || '',
   coverImage: modelValue.value?.coverImage || '',
   published: modelValue.value?.published ?? true,
-  publishedAt: (modelValue.value as any)?.publishedAt || new Date().toISOString(),
+  publishedAt: (modelValue.value)?.publishedAt || new Date().toISOString(),
 })
 const selectedDate = shallowRef<CalendarDate>(today(getLocalTimeZone()))
 const selectedTime = shallowRef<Time>(new Time(new Date().getHours(), new Date().getMinutes()))
@@ -142,7 +142,7 @@ watch(() => modelValue.value, (newVal) => {
       ...localForm.value,
       ...newVal,
       id: incomingId,
-      publishedAt: (newVal as any)?.publishedAt || new Date().toISOString(),
+      publishedAt: (newVal)?.publishedAt || new Date().toISOString(),
     }
 
     if (newVal.slug) {

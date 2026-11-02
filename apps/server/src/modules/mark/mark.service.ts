@@ -1,3 +1,4 @@
+import type { SQL } from 'drizzle-orm'
 import type { z } from 'zod'
 import type { CreateMarkInputSchema, GetMarksInputSchema } from './mark.schemas'
 import { and, gte, isNull, lte, or, sql } from 'drizzle-orm'
@@ -9,7 +10,7 @@ import { createTRPCError } from '~/lib/trpc'
 export const markService = {
   async getMarks(params: z.infer<typeof GetMarksInputSchema>) {
     return measureDbQuery('marks', 'select', async () => {
-      const conditions: any[] = []
+      const conditions: Array<SQL | undefined> = []
 
       if (params.screen) {
         const { screen } = params
@@ -84,9 +85,9 @@ export const markService = {
           photo: [] as string[],
           owner: mark.user
             ? {
-                id: (mark as any).user.id,
-                username: (mark as any).user.name,
-                avatar: (mark as any).user.avatarUrl ?? undefined,
+                id: (mark).user.id,
+                username: mark.user.name ?? 'Пользователь',
+                avatar: (mark).user.avatarUrl ?? undefined,
               }
             : undefined,
         }

@@ -7,6 +7,7 @@
       "node"
     ],
     "allowImportingTsExtensions": true,
+    "strict": true,
     "emitDeclarationOnly": true,
     "outDir": "node_modules/.cache/tsconfig-node",
     "allowSyntheticDefaultImports": true,
@@ -14,6 +15,7 @@
   },
   "include": [
     "vite.config.ts",
+    "package.json",
     "./build/**/*"
   ]
 }

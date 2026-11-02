@@ -149,7 +149,7 @@ async function submit() {
     await useRequest({
       key: 'destination-reviews:create',
       fn: db => db.destinationReviews.create({
-        type: form.type as any,
+        type: form.type === 'country' ? 'country' : 'city',
         countryId: form.countryId,
         geoPlaceId: form.geoPlaceId,
         city: form.city,
@@ -251,8 +251,8 @@ function getSliderColor(value: number) {
         >
           <template #item="{ item }">
             <img
-              v-if="(item as any).flagUrl"
-              :src="(item as any).flagUrl"
+              v-if="(item).flagUrl"
+              :src="(item).flagUrl"
               class="dropdown-flag"
               alt=""
             >

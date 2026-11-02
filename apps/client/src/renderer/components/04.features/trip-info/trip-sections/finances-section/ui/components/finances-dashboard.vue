@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { ActiveElement, ChartEvent, TooltipItem, TooltipModel } from 'chart.js'
 import type { ViewSwitcherItem } from '~/components/01.kit/kit-view-switcher'
 import { Icon } from '@iconify/vue'
 import { useMutationObserver } from '@vueuse/core'
@@ -7,6 +8,8 @@ import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { Bar, Doughnut } from 'vue-chartjs'
 import { KitViewSwitcher } from '~/components/01.kit/kit-view-switcher'
 import { useCurrencyFormatter } from '../../composables/use-currency-formatter'
+
+type DisplayTooltip = Pick<TooltipModel<'bar' | 'doughnut'>, 'title' | 'body' | 'caretX' | 'caretY' | 'xAlign' | 'yAlign' | 'opacity'>
 
 interface CategorySpendingItem {
   id?: string
@@ -179,13 +182,13 @@ const doughnutChartOptions = computed(() => ({
       enabled: false,
       external: externalTooltipHandler,
       callbacks: {
-        title: (items: any[]) => {
+        title: (items: TooltipItem<'doughnut'>[]) => {
           if (!items || items.length === 0)
             return ''
 
           return items[0].label || ''
         },
-        label: (context: any) => {
+        label: (context: TooltipItem<'doughnut'>) => {
           const val = context.parsed || 0
           const base = props.statusFilter === 'planned'
             ? (effectivePlannedTotal.value || 1)
@@ -197,7 +200,7 @@ const doughnutChartOptions = computed(() => ({
       },
     },
   },
-  onHover: (_event: any, elements: any[]) => {
+  onHover: (_event: ChartEvent, elements: ActiveElement[]) => {
     if (elements && elements.length > 0) {
       const itemIndex = elements[0].index
       const targetItem = doughnutChartItems.value[itemIndex]
@@ -247,8 +250,8 @@ const barChartOptions = computed(() => ({
       padding: 10,
       cornerRadius: 8,
       callbacks: {
-        label: (context: any) => {
-          return ` ${formatCurrency(context.parsed.y, props.mainCurrency)}`
+        label: (context: TooltipItem<'bar'>) => {
+          return ` ${formatCurrency(context.parsed.y ?? 0, props.mainCurrency)}`
         },
       },
     },
@@ -261,7 +264,7 @@ const barChartOptions = computed(() => ({
       },
       ticks: {
         color: secondaryTextColor.value,
-        callback: (val: any) => formatCurrency(Number(val), props.mainCurrency),
+        callback: (val: string | number) => formatCurrency(Number(val), props.mainCurrency),
       },
       border: {
         display: false,
@@ -399,10 +402,10 @@ function getTooltipElement(parent: ParentNode): HTMLElement {
   return element
 }
 
-function renderTooltipContent(tooltip: any, tooltipEl: HTMLElement) {
+function renderTooltipContent(tooltip: DisplayTooltip, tooltipEl: HTMLElement) {
   if (tooltip.body) {
     const titleLines = tooltip.title || []
-    const bodyLines = tooltip.body.map((b: any) => b.lines)
+    const bodyLines = tooltip.body.map(b => b.lines)
 
     let innerHtml = ''
     titleLines.forEach((title: string) => {
@@ -415,7 +418,7 @@ function renderTooltipContent(tooltip: any, tooltipEl: HTMLElement) {
   }
 }
 
-function getTooltipTransform(tooltip: any): string {
+function getTooltipTransform(tooltip: DisplayTooltip): string {
   if (tooltip.yAlign === 'top')
     return 'translate(-50%, 10px)'
 
@@ -431,7 +434,7 @@ function getTooltipTransform(tooltip: any): string {
   return 'translate(-50%, calc(-100% - 10px))'
 }
 
-function positionTooltip(tooltipEl: HTMLElement, chart: any, tooltip: any) {
+function positionTooltip(tooltipEl: HTMLElement, chart: { canvas: HTMLCanvasElement }, tooltip: DisplayTooltip) {
   const { offsetLeft: positionX, offsetTop: positionY } = chart.canvas
 
   tooltipEl.style.opacity = '1'
@@ -441,9 +444,9 @@ function positionTooltip(tooltipEl: HTMLElement, chart: any, tooltip: any) {
   tooltipEl.style.transform = getTooltipTransform(tooltip)
 }
 
-function externalTooltipHandler(context: { chart: any, tooltip: any }) {
+function externalTooltipHandler(context: { chart: { canvas: HTMLCanvasElement }, tooltip: DisplayTooltip }) {
   const { chart, tooltip } = context
-  const parent = chart.canvas?.parentNode
+  const parent = chart.canvas?.parentElement
 
   if (!parent)
     return

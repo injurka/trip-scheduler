@@ -1,3 +1,4 @@
+import type { MapPoint } from '../src/renderer/components/03.domain/trip-info/geolocation-section/models/types'
 import { afterEach, describe, expect, it, mock } from 'bun:test'
 import { ref } from 'vue'
 import { routingService } from '../src/renderer/shared/services/geo/routing.service'
@@ -7,7 +8,7 @@ mock.module('../src/renderer/shared/services/geo', () => ({ routingService, nomi
 const { useGeolocationRoutes } = await import('../src/renderer/components/03.domain/trip-info/geolocation-section/composables/use-geolocation-routes')
 
 const originalFetch = globalThis.fetch
-const points = [{ id: 'a', coordinates: [121.545997, 25.151367], type: 'start' }, { id: 'b', coordinates: [121.5249762, 25.0842798], type: 'end' }]
+const points: MapPoint[] = [{ id: 'a', coordinates: [121.545997, 25.151367], type: 'start' }, { id: 'b', coordinates: [121.5249762, 25.0842798], type: 'end' }]
 const response = (duration: number) => new Response(JSON.stringify({ code: 'Ok', routes: [{ geometry: '_p~iF~ps|U_ulLnnqC_mqNvxq`@', distance: 9600, duration }] }))
 afterEach(() => {
   globalThis.fetch = originalFetch
@@ -16,13 +17,14 @@ afterEach(() => {
 describe('route mode changes', () => {
   it('converts saved transit routes to Auto and recalculates their geometry', async () => {
     const urls: string[] = []
-    globalThis.fetch = mock(async (url: any) => {
+    const fetchReplacement = mock(async (url) => {
       urls.push(String(url))
 
       return response(600)
-    }) as any
+    })
+    globalThis.fetch = Object.assign(fetchReplacement, { preconnect: originalFetch.preconnect })
     const state = useGeolocationRoutes(ref(undefined))
-    const legacyPoints = points.map(p => ({ ...p, coordinates: [p.coordinates[0] + 0.02, p.coordinates[1]] }))
+    const legacyPoints: MapPoint[] = points.map(p => ({ ...p, coordinates: [p.coordinates[0] + 0.02, p.coordinates[1]] }))
     await state.setInitialRoutes([{
       id: 'legacy',
       title: 'A → B',
@@ -30,18 +32,19 @@ describe('route mode changes', () => {
       transportMode: 'transit',
       geometry: [[121, 25], [122, 26]],
       isVisible: true,
-    }] as any)
+    }])
     expect(state.routes.value[0]).toMatchObject({ transportMode: 'car', duration: 600 })
     expect(urls[0]).toContain('routed-car')
   })
 
   it('switches foot → car immediately and keeps the mode on reload', async () => {
     const urls: string[] = []
-    globalThis.fetch = mock(async (url: any) => {
+    const fetchReplacement = mock(async (url) => {
       urls.push(String(url))
 
       return response(600)
-    }) as any
+    })
+    globalThis.fetch = Object.assign(fetchReplacement, { preconnect: originalFetch.preconnect })
     const state = useGeolocationRoutes(ref(undefined))
     await state.setInitialRoutes([{
       id: 'mode-switch',
@@ -49,7 +52,7 @@ describe('route mode changes', () => {
       points,
       transportMode: 'foot',
       isVisible: true,
-    }] as any)
+    }])
     const pending = state.setRouteTransportMode('mode-switch', 'car')
     expect(state.routes.value[0].transportMode).toBe('car')
     await pending
@@ -64,23 +67,24 @@ describe('route mode changes', () => {
 
   it('does not calculate transit with a cycling or walking provider', async () => {
     const fetchMock = mock(async () => response(999))
-    globalThis.fetch = fetchMock as any
-    const route = await routingService.calculateRoute(points as any, 'transit', 'bus')
+    globalThis.fetch = Object.assign(fetchMock, { preconnect: originalFetch.preconnect })
+    const route = await routingService.calculateRoute(points, 'transit', 'bus')
     expect(fetchMock).not.toHaveBeenCalled()
     expect(route).toMatchObject({ distance: 0, duration: 0, isDirect: true })
   })
 
   it('ignores an older response after a rapid car → bike change', async () => {
     const pending: Array<(value: Response) => void> = []
-    globalThis.fetch = mock(() => new Promise<Response>(resolve => pending.push(resolve))) as any
+    const fetchReplacement = mock(() => new Promise<Response>(resolve => pending.push(resolve)))
+    globalThis.fetch = Object.assign(fetchReplacement, { preconnect: originalFetch.preconnect })
     const state = useGeolocationRoutes(ref(undefined))
     state.routes.value = [{
       id: 'race',
       title: 'A → B',
-      points: points.map(p => ({ ...p, coordinates: [p.coordinates[0] + 0.01, p.coordinates[1]] })),
+      points: points.map(p => ({ ...p, coordinates: [p.coordinates[0] + 0.01, p.coordinates[1]] as [number, number] })),
       transportMode: 'foot',
       isVisible: true,
-    }] as any
+    }]
     const car = state.setRouteTransportMode('race', 'car')
     const bike = state.setRouteTransportMode('race', 'bike')
     pending[1](response(200))

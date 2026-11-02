@@ -1,3 +1,4 @@
+import { getErrorMessage } from '@injurka/type-utils'
 import { TRPCError } from '@trpc/server'
 import { eq } from 'drizzle-orm'
 import { sign, verify } from 'hono/jwt'
@@ -104,12 +105,12 @@ async function verifyAccessToken(token: string): Promise<AccessTokenPayload | nu
 
     return payload as unknown as AccessTokenPayload
   }
-  catch (error: any) {
-    if (error?.name === 'JwtTokenExpired') {
+  catch (error) {
+    if (error instanceof Error && error.name === 'JwtTokenExpired') {
       return null
     }
 
-    console.error('Ошибка верификации Access Token:', error?.message || error)
+    console.error('Ошибка верификации Access Token:', getErrorMessage(error) || error)
     return null
   }
 }

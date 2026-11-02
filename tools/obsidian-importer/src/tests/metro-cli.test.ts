@@ -1,3 +1,4 @@
+import type { ActivityPayload, ActivitySection } from '../types'
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -7,7 +8,7 @@ import taipei from '../../../metro-import/data/taipei.json'
 for (const audit of [false, true]) {
   test(`CLI ${audit ? 'audits without writes' : 'persists metro in city mode'}`, async () => {
     const directory = mkdtempSync(join(tmpdir(), 'metro-cli-'))
-    const activities: any[] = []
+    const activities: Array<ActivityPayload & { sections: ActivitySection[] }> = []
     const requests: string[] = []
     let sequence = 0
     const server = Bun.serve({ port: 0, fetch: async (request) => {
@@ -23,7 +24,7 @@ for (const audit of [false, true]) {
         return Response.json({ status: 'resolved', place: { id: '00000000-0000-4000-8000-000000000002', name: 'Taipei' } })
       if (request.method === 'GET')
         return Response.json(path.includes('details') ? { sections: [] } : [])
-      const body = await request.json() as any
+      const body = await request.json()
       if (path === '/activities')
         activities.push(body)
       return Response.json({ ...body, id: `id-${++sequence}` })
@@ -55,9 +56,9 @@ routes:
       }
       else {
         expect(activities).toHaveLength(1)
-        const section = activities[0].sections.find((section: any) => section.type === 'metro')
+        const section = activities[0].sections.find(section => section.type === 'metro')
         expect(section).toMatchObject({ mode: 'city', systemId: 'tw-taipei' })
-        expect(section.rides[0]).toMatchObject({ lineId: 'tw-taipei-g', startStationId: 'tw-taipei-g12', endStationId: 'tw-taipei-g13', stops: 1 })
+        expect(section?.rides[0]).toMatchObject({ lineId: 'tw-taipei-g', startStationId: 'tw-taipei-g12', endStationId: 'tw-taipei-g13', stops: 1 })
       }
     }
     finally {

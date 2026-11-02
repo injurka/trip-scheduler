@@ -1,4 +1,5 @@
 import type { z } from 'zod'
+import type { users } from '../../db/schema'
 import type { GeoPlaceRef, TripCityRef } from '~/modules/geo/geo.schemas'
 import type { CreateTripInputSchema, ListTripsInputSchema, UpdateTripInputSchema } from '~/modules/trip/trip.schemas'
 import { randomBytes } from 'node:crypto'
@@ -72,7 +73,7 @@ const withParticipants = {
       },
     },
   },
-}
+} as const
 
 const withFullTripData = {
   ...withParticipants,
@@ -81,7 +82,7 @@ const withFullTripData = {
   },
 }
 
-function mapTripParticipants<T extends { participants: Array<{ user: any }> }>(trip: T | null | undefined) {
+function mapTripParticipants<T extends { participants: Array<{ user: Pick<typeof users.$inferSelect, 'id' | 'name' | 'avatarUrl'> }> }>(trip: T | null | undefined) {
   if (!trip)
     return null
 
@@ -460,13 +461,13 @@ export const tripRepository = {
   async updateWeatherPayload(
     id: string,
     payload: {
-      weatherByPlaceId: Record<string, unknown>
+      weatherByPlaceId: NonNullable<typeof trips.$inferSelect.weatherByPlaceId>
     },
   ) {
     return measureDbQuery('trips', 'update', async () => {
       await db.update(trips)
         .set({
-          weatherByPlaceId: payload.weatherByPlaceId as any,
+          weatherByPlaceId: payload.weatherByPlaceId,
           updatedAt: new Date(),
         })
         .where(eq(trips.id, id))

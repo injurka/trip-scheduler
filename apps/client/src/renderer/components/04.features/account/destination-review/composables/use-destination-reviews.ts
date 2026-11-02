@@ -48,7 +48,7 @@ export const METRIC_PRESETS: MetricPreset[] = [
   { id: 'nomad', label: 'Digital Nomad', icon: 'mdi:laptop', metrics: ['safety', 'infrastructure', 'prices', 'climate', 'food', 'people'] },
 ]
 
-interface ReviewFormState {
+export interface ReviewFormState {
   type: 'city'
   countryId: string
   geoPlaceId: string | null
@@ -197,7 +197,7 @@ export function useDestinationReviews(userId: string) {
         limit,
         countryId: selectedCountry.value || undefined,
         geoPlaceId: selectedCityId.value || undefined,
-        sortBy: sortBy.value,
+        sortBy: sortBy.value === 'createdAt' || sortBy.value === 'rating' ? sortBy.value : METRIC_KEYS.find(key => key === sortBy.value) ?? 'createdAt',
         sortOrder: sortOrder.value,
         selectedMetrics: selectedMetrics.value.length === METRIC_KEYS.length ? undefined : selectedMetrics.value,
       }),
@@ -269,7 +269,7 @@ export function useDestinationReviews(userId: string) {
       ...getReviewEditIdentity(review, cityName, cityRef),
       ...getReviewEditContent(review),
       metrics: { ...createEmptyForm().metrics, ...metrics.values },
-      metricComments: { ...metrics.comments, ...(review as any).metricComments },
+      metricComments: { ...metrics.comments },
     }
   }
 
@@ -291,16 +291,16 @@ export function useDestinationReviews(userId: string) {
   }
 
   function getReviewCityName(review: DestinationReview): string {
-    const place = (review as any).geoPlace
+    const place = (review).geoPlace
 
-    return place?.nameRu || place?.nameEn || review.city || ''
+    return place?.primaryName || review.city || ''
   }
 
   function createReviewCityRef(review: DestinationReview, cityName: string): GeoPlaceRef | null {
     if (!review.geoPlaceId)
       return null
 
-    const place = (review as any).geoPlace
+    const place = (review).geoPlace
 
     return {
       id: review.geoPlaceId,
@@ -321,7 +321,7 @@ export function useDestinationReviews(userId: string) {
     return review.country?.id || null
   }
 
-  function getReviewCountryCode(review: DestinationReview, place: any): string {
+  function getReviewCountryCode(review: DestinationReview, place: DestinationReview['geoPlace']): string {
     return review.country?.sourceCode || place?.countryCode || ''
   }
 
@@ -329,19 +329,19 @@ export function useDestinationReviews(userId: string) {
     return review.country?.name || ''
   }
 
-  function getReviewRegionName(place: any): string | null {
+  function getReviewRegionName(place: DestinationReview['geoPlace']): string | null {
     return place?.regionName || null
   }
 
-  function getReviewPlaceKind(place: any): GeoPlaceRef['kind'] {
-    return (place?.kind as any) || 'settlement'
+  function getReviewPlaceKind(place: DestinationReview['geoPlace']): GeoPlaceRef['kind'] {
+    return (place?.kind) || 'settlement'
   }
 
   function getReviewCoordinate(value: unknown): number {
     return Number(value) || 0
   }
 
-  function getReviewTimezone(place: any): string | null {
+  function getReviewTimezone(place: DestinationReview['geoPlace']): string | null {
     return place?.timezone || null
   }
 

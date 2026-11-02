@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { IUserRepository } from '~/shared/services/api/model/types'
 import type { Trip } from '~/shared/types/models/trip'
 import { Icon } from '@iconify/vue'
 import { useDebounceFn } from '@vueuse/core'
@@ -26,7 +27,7 @@ const tripPlanStore = useModuleStore('plan')
 const { canEdit } = useTripPermissions()
 
 const searchQuery = ref('')
-const searchResults = ref<any[]>([])
+const searchResults = ref<Awaited<ReturnType<IUserRepository['search']>>>([])
 const SEARCH_USERS_KEY = 'users:search'
 
 const isSearching = useRequestStatus(SEARCH_USERS_KEY)

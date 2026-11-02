@@ -1,4 +1,3 @@
-import { Readable } from 'node:stream'
 import {
   AbortMultipartUploadCommand,
   CompleteMultipartUploadCommand,
@@ -13,6 +12,7 @@ import {
   S3Client,
   UploadPartCommand,
 } from '@aws-sdk/client-s3'
+import { getErrorMessage, isRecord } from '@injurka/type-utils'
 
 class S3Service {
   private client: S3Client
@@ -128,8 +128,8 @@ class S3Service {
         contentType: response.ContentType || 'application/octet-stream',
       }
     }
-    catch (error: any) {
-      if (error.name === 'NoSuchKey' || error.name === 'NotFound' || error.$metadata?.httpStatusCode === 404) {
+    catch (error) {
+      if (isMissingObject(error)) {
         return null
       }
       throw error
@@ -172,10 +172,10 @@ class S3Service {
           throw new Error(`S3 failed to delete: ${result.Errors.map(error => error.Key).join(', ')}`)
       }
     }
-    catch (error: any) {
+    catch (error) {
       // Некоторые S3-совместимые хранилища (например, BunnyCDN Storage S3) не реализуют bulk-удаление (501 NotImplemented).
       // В таком случае удаляем файлы поштучно параллельными пачками.
-      console.warn(`[S3] Пакетное удаление DeleteObjectsCommand не поддерживается хранилищем (${error.name || error.message}). Переключаемся на параллельное поштучное удаление DeleteObjectCommand...`)
+      console.warn(`[S3] Пакетное удаление DeleteObjectsCommand не поддерживается хранилищем (${error instanceof Error ? error.name : getErrorMessage(error)}). Переключаемся на параллельное поштучное удаление DeleteObjectCommand...`)
       try {
         const CONCURRENCY = 25
         for (let i = 0; i < validKeys.length; i += CONCURRENCY) {
@@ -268,8 +268,8 @@ class S3Service {
         contentType: response.ContentType || 'application/octet-stream',
       }
     }
-    catch (error: any) {
-      if (error.name === 'NoSuchKey' || error.name === 'NotFound' || error.$metadata?.httpStatusCode === 404) {
+    catch (error) {
+      if (isMissingObject(error)) {
         return null
       }
       throw error
@@ -280,7 +280,7 @@ class S3Service {
     key: string,
     range?: string,
   ): Promise<{
-    stream: any
+    stream: ReadableStream<Uint8Array>
     contentType: string
     contentLength?: number
     contentRange?: string
@@ -300,11 +300,7 @@ class S3Service {
 
       const isRange = !!range && (response.$metadata.httpStatusCode === 206 || !!response.ContentRange)
 
-      // Преобразуем входящий поток в Web ReadableStream если это Node.js Readable
-      let stream: any = response.Body
-      if (response.Body instanceof Readable) {
-        stream = Readable.toWeb(response.Body)
-      }
+      const stream = response.Body.transformToWebStream()
 
       return {
         stream,
@@ -314,8 +310,8 @@ class S3Service {
         status: isRange ? 206 : 200,
       }
     }
-    catch (error: any) {
-      if (error.name === 'NoSuchKey' || error.name === 'NotFound' || error.$metadata?.httpStatusCode === 404) {
+    catch (error) {
+      if (isMissingObject(error)) {
         return null
       }
       throw error
@@ -396,8 +392,8 @@ class S3Service {
 
       return await response.Body.transformToString('utf-8')
     }
-    catch (error: any) {
-      if (error.name === 'NoSuchKey' || error.name === 'NotFound' || error.$metadata?.httpStatusCode === 404) {
+    catch (error) {
+      if (isMissingObject(error)) {
         return ''
       }
       console.error(`S3 GetFileContent Error for key ${key}:`, error)
@@ -407,3 +403,10 @@ class S3Service {
 }
 
 export const s3Service = new S3Service()
+
+function isMissingObject(error: unknown): boolean {
+  if (!isRecord(error))
+    return false
+  return error.name === 'NoSuchKey' || error.name === 'NotFound'
+    || (isRecord(error.$metadata) && error.$metadata.httpStatusCode === 404)
+}

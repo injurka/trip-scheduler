@@ -1,3 +1,4 @@
+import assert from 'node:assert/strict'
 import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -941,7 +942,8 @@ _Хайкинг-трек_: [Google Maps: Yehliu Visitor Center → Yehliu Cape T
       { geocode: false },
     )
 
-    const geoSec = res.sections?.find(s => s.type === 'geolocation') as any
+    const geoSec = res.sections?.find(s => s.type === 'geolocation')
+    assert(geoSec)
     expect(geoSec).toBeDefined()
     expect(geoSec.routes).toHaveLength(1)
     expect(geoSec.routes[0].title).toBe('Yehliu Visitor Center → Yehliu Cape Tip')

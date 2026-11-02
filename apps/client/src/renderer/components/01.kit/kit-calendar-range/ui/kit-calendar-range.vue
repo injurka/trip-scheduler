@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import type { CalendarDate } from '@internationalized/date'
+import type { DateRange as CalendarRange } from 'reka-ui'
 import { Icon } from '@iconify/vue'
+import { toCalendarDate } from '@internationalized/date'
 import {
   RangeCalendarCell,
   RangeCalendarCellTrigger,
@@ -30,12 +32,17 @@ const props = defineProps<Props>()
 const model = defineModel<DateRange | null>({ required: true })
 
 const locale = 'ru-RU'
+
+const calendarModel = computed<CalendarRange | null>({
+  get: () => model.value ? { start: model.value.start ?? undefined, end: model.value.end ?? undefined } : null,
+  set: (value) => { model.value = value ? { start: value.start ? toCalendarDate(value.start) : null, end: value.end ? toCalendarDate(value.end) : null } : null },
+})
 </script>
 
 <template>
   <RangeCalendarRoot
     v-slot="{ weekDays, grid }"
-    v-model="model as any"
+    v-model="calendarModel"
     class="calendar"
     fixed-weeks
     :locale="locale"

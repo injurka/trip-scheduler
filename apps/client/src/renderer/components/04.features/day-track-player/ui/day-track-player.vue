@@ -177,7 +177,7 @@ function handleOpenViewer(photo: TrackPhoto) {
   if (list.length === 0)
     return
 
-  const idx = list.findIndex(img => (img.meta as any)?.memoryId === photo.memoryId || img.url === photo.imageUrl)
+  const idx = list.findIndex(img => (img.meta)?.memoryId === photo.memoryId || img.url === photo.imageUrl)
   imageViewer.open(list, idx !== -1 ? idx : 0)
 }
 /**

@@ -1,9 +1,6 @@
-export interface GetMarksParams {
-  screen: ScreenPosition
-  zoomlevel: number
-  startAt: string
-  endAt: string
-}
+import type { RouterInput } from '../trpc'
+
+export type GetMarksParams = RouterInput['mark']['list']
 
 export interface CreateMarkInput {
   markName: string

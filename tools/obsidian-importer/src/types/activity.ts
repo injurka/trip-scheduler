@@ -32,11 +32,23 @@ export interface GeolocationPoint {
   } | null
 }
 
+export interface GeolocationRoute {
+  id: string
+  title: string
+  points: GeolocationPoint[]
+  transportMode: 'foot' | 'bike' | 'car' | 'transit'
+  geometry?: [number, number][]
+  distance?: number
+  duration?: number
+  isVisible?: boolean
+  isFetching?: boolean
+}
+
 export interface ActivitySectionGeolocation {
   id: string
   type: 'geolocation'
   points: GeolocationPoint[]
-  routes: any[]
+  routes: GeolocationRoute[]
   center?: [number, number] | null
   zoom?: number | null
   title?: string

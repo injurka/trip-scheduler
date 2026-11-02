@@ -35,12 +35,14 @@
     "noUnusedLocals": false,
     "noUnusedParameters": false,
     "declaration": true,
+    "declarationDir": "./.types",
     "esModuleInterop": true,
     "verbatimModuleSyntax": true,
     "skipLibCheck": true
   },
   "include": [
     "src/**/*.ts",
-    "db/**/*.ts"
+    "db/**/*.ts",
+    "scripts/**/*.ts"
   ]
 }

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { Booking, BookingType } from '../../models/types'
 import { Icon } from '@iconify/vue'
+import { getErrorMessage } from '@injurka/type-utils'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitFileInput } from '~/components/01.kit/kit-file-input'
 import { KitInput } from '~/components/01.kit/kit-input'
@@ -91,9 +92,9 @@ async function handleGenerate() {
 
     state.value = 'preview'
   }
-  catch (e: any) {
+  catch (e) {
     console.error('AI booking generation failed:', e)
-    error.value = e.message || 'Не удалось распознать данные. Пожалуйста, попробуйте другой файл или добавьте больше информации в заметках.'
+    error.value = getErrorMessage(e) || 'Не удалось распознать данные. Пожалуйста, попробуйте другой файл или добавьте больше информации в заметках.'
     state.value = 'error'
   }
 }
@@ -170,7 +171,7 @@ onUnmounted(() => {
       <div class="preview-card-wrapper">
         <Component
           :is="previewCardComponent"
-          :booking="generatedBooking as any"
+          :booking="generatedBooking"
           :readonly="false"
           @update:booking="updatePreviewBooking"
         />

@@ -1,3 +1,4 @@
+import type { ActivitySectionGeolocation } from '../types'
 import { afterEach, describe, expect, it } from 'bun:test'
 import { ApiClient, ApiHttpError } from '../lib/api-client'
 
@@ -14,7 +15,7 @@ function jsonResponse(body: unknown, status = 200): Response {
   })
 }
 
-const transitActivity = {
+const transitActivity: Parameters<ApiClient['createActivity']>[0] & { sections: ActivitySectionGeolocation[] } = {
   dayId: 'day-1',
   title: 'Автобус до Hinoki Village',
   startTime: '14:50',
@@ -37,7 +38,7 @@ const transitActivity = {
 
 describe('ApiClient activity validation', () => {
   it('retries transit routes as car when an older API rejects the mode', async () => {
-    const bodies: any[] = []
+    const bodies: Array<typeof transitActivity> = []
     const warnings: string[] = []
 
     globalThis.fetch = (async (_url: string | URL | Request, init?: RequestInit) => {
@@ -67,7 +68,7 @@ describe('ApiClient activity validation', () => {
   })
 
   it('keeps the original payload when the API accepts transit', async () => {
-    const bodies: any[] = []
+    const bodies: Array<typeof transitActivity> = []
     globalThis.fetch = (async (_url: string | URL | Request, init?: RequestInit) => {
       bodies.push(JSON.parse(String(init?.body)))
       return jsonResponse({ id: 'activity-1' })

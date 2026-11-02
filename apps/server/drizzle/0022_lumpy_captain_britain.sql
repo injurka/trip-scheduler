@@ -1,0 +1,1 @@
+ALTER TYPE "public"."comment_parent_type" ADD VALUE 'post';

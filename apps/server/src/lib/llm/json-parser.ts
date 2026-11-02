@@ -1,11 +1,12 @@
-import type { ZodType } from 'zod'
+import type { ZodIssue, ZodType } from 'zod'
 import type { AiModel } from './request'
+import { toError } from '@injurka/type-utils'
 import { TRPCError } from '@trpc/server'
 import { llmUsageRepository } from '~/repositories/llm-usage.repository'
 import { quotaService } from '~/services/quota.service'
 import { createAiChatRequest, DEFAULT_AI_MODEL } from './request'
 
-export interface ParseJsonWithAiRepairOptions<T = any> {
+export interface ParseJsonWithAiRepairOptions<T = unknown> {
   userId?: string
   model?: AiModel
   operation?: string
@@ -14,7 +15,7 @@ export interface ParseJsonWithAiRepairOptions<T = any> {
   customInstructions?: string
   validate?: (data: T) => boolean
   schema?: ZodType<T>
-  validateWithErrors?: (data: any) => { success: true, data: T } | { success: false, errors: string[] }
+  validateWithErrors?: (data: unknown) => { success: true, data: T } | { success: false, errors: string[] }
   transformOnSuccess?: (data: T) => T
 }
 
@@ -30,26 +31,21 @@ const HEX_DIGIT_REGEX = /^[0-9a-f]{4}$/i
 /**
  * Validates parsed data against schema, validateWithErrors, or validate callback.
  */
-export function validateParsedData<T = any>(
-  data: any,
+export function validateParsedData<T = unknown>(
+  data: unknown,
   options: Pick<ParseJsonWithAiRepairOptions<T>, 'schema' | 'validate' | 'validateWithErrors'>,
 ): DataValidationResult<T> {
   if (options.schema) {
     const result = options.schema.safeParse(data)
     if (!result.success) {
       const errors: string[] = []
-      const collectErrors = (issue: any) => {
+      const collectErrors = (issue: ZodIssue) => {
         if (issue.code === 'invalid_union') {
-          const nested = issue.errors || issue.unionErrors
+          const nested = issue.errors
           if (Array.isArray(nested)) {
             for (const sub of nested) {
               if (Array.isArray(sub)) {
                 for (const subIssue of sub) {
-                  collectErrors(subIssue)
-                }
-              }
-              else if (sub && Array.isArray(sub.issues)) {
-                for (const subIssue of sub.issues) {
                   collectErrors(subIssue)
                 }
               }
@@ -99,15 +95,7 @@ export function validateParsedData<T = any>(
     return { success: false, errors: result.errors }
   }
 
-  if (options.validate) {
-    const isValid = options.validate(data)
-    if (isValid) {
-      return { success: true, data }
-    }
-    return { success: false, errors: ['Структура данных не прошла проверку валидатора.'] }
-  }
-
-  return { success: true, data }
+  return { success: false, errors: ['Для проверки JSON необходима схема или валидатор структуры.'] }
 }
 
 /**
@@ -355,10 +343,10 @@ export function sanitizeJsonString(raw: string): string {
 /**
  * Attempts to safely parse JSON.
  */
-export function tryParseJson<T = any>(raw: string): { success: true, data: T } | { success: false, error: Error } {
+export function tryParseJson(raw: string): { success: true, data: unknown } | { success: false, error: Error } {
   // 1. Direct attempt
   try {
-    const data = JSON.parse(raw)
+    const data: unknown = JSON.parse(raw)
     return { success: true, data }
   }
   catch {
@@ -369,7 +357,7 @@ export function tryParseJson<T = any>(raw: string): { success: true, data: T } |
   const candidate = extractOuterJsonCandidate(raw)
   if (candidate && candidate !== raw) {
     try {
-      const data = JSON.parse(candidate)
+      const data: unknown = JSON.parse(candidate)
       return { success: true, data }
     }
     catch {
@@ -380,11 +368,11 @@ export function tryParseJson<T = any>(raw: string): { success: true, data: T } |
   // 3. String-aware repaired attempt
   const repaired = repairJsonLiteralsAndComments(candidate)
   try {
-    const data = JSON.parse(repaired)
+    const data: unknown = JSON.parse(repaired)
     return { success: true, data }
   }
-  catch (error: any) {
-    return { success: false, error }
+  catch (error) {
+    return { success: false, error: toError(error) }
   }
 }
 
@@ -392,7 +380,7 @@ export function tryParseJson<T = any>(raw: string): { success: true, data: T } |
  * Parses JSON response from LLM, and if invalid (syntax or schema validation),
  * triggers an agentic AI repair request loop to fix the JSON and adhere to the schema.
  */
-export async function parseJsonWithAiRepair<T = any>(
+export async function parseJsonWithAiRepair<T = unknown>(
   rawResponse: string,
   options: ParseJsonWithAiRepairOptions<T> = {},
 ): Promise<T> {
@@ -410,7 +398,7 @@ export async function parseJsonWithAiRepair<T = any>(
   } = options
 
   // 1. Initial parse attempt
-  const initialResult = tryParseJson<any>(rawResponse)
+  const initialResult = tryParseJson(rawResponse)
   let validationIssues: string[] = []
 
   if (initialResult.success) {
@@ -487,7 +475,7 @@ ${currentContent}`,
         throw new Error('AI агент исправления вернул пустой ответ.')
       }
 
-      const repairResult = tryParseJson<any>(repairedRaw)
+      const repairResult = tryParseJson(repairedRaw)
       if (repairResult.success) {
         const validation = validateParsedData<T>(repairResult.data, { schema, validate, validateWithErrors })
         if (validation.success && validation.data !== undefined) {
@@ -504,9 +492,9 @@ ${currentContent}`,
 
       currentContent = repairedRaw
     }
-    catch (attemptErr: any) {
+    catch (attemptErr) {
       console.error(`[AI JSON Parser] Ошибка на шаге исправления ${attempt}:`, attemptErr)
-      lastError = attemptErr
+      lastError = toError(attemptErr)
     }
   }
 

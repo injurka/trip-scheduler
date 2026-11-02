@@ -3,7 +3,7 @@ export type RequestStatus = 'idle' | 'pending' | 'success' | 'error' | 'aborted'
 export interface IRequestState {
   statuses: Map<string, RequestStatus>
   errors: Map<string, unknown | null>
-  cache: Map<string, any>
+  cache: Map<string, unknown>
   controllers: Map<string, AbortController>
 }
 
@@ -26,7 +26,7 @@ export const useRequestStore = defineStore('request', {
         this.errors.delete(key)
       }
     },
-    setCache(key: string, data: any) {
+    setCache(key: string, data: unknown) {
       this.cache.set(key, data)
     },
     abort(key: string) {

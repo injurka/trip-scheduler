@@ -22,6 +22,7 @@ import { KitTooltip } from '~/components/01.kit/kit-tooltip'
 import { useModuleStore } from '~/components/05.modules/trip-info/composables/use-trip-info-module'
 import { activityTagIcons, activityTagLabels, getTagInfo } from '~/components/05.modules/trip-info/lib/helpers'
 import AddSectionMenu from '~/components/05.modules/trip-info/ui/controls/add-section-menu.vue'
+import { useConfirm } from '~/shared/composables/use-confirm'
 import { lazyComponent } from '~/shared/lib/lazy-component'
 import { EActivitySectionType, EActivityTag } from '~/shared/types/models/activity'
 import { useActivityDiff } from '../composables/use-activity-diff'
@@ -50,6 +51,8 @@ const emit = defineEmits<{
   (e: 'requestAiEdit', prompt: string): void
   (e: 'acceptDraftFields', fields: string[]): void
 }>()
+
+const confirm = useConfirm()
 
 const store = useModuleStore(['ui'])
 
@@ -435,7 +438,7 @@ function handleInlineEditorBlur() {
   updateActivity({ title: activityTitle.value })
 }
 async function handleDelete() {
-  const isConfirmed = await (confirm as any)({
+  const isConfirmed = await (confirm)({
     title: 'Удалить активность?',
     description: 'Это действие необратимо. Все секции внутри этой активности будут удалены.',
     type: 'danger',

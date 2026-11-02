@@ -118,7 +118,7 @@ IMPORTANT Guidelines:
     throw new Error(`LLM Error ${response.status}: ${errText}`)
   }
 
-  const result = (await response.json()) as any
+  const result = (await response.json())
   const content = result.choices?.[0]?.message?.content
   if (!content)
     return null

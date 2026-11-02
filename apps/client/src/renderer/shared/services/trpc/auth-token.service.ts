@@ -1,3 +1,4 @@
+import { getErrorMessage, getErrorStatus, isRecord } from '@injurka/type-utils'
 import { useAuthStore } from '~/shared/store/auth.store'
 
 let refreshingPromise: Promise<boolean> | null = null
@@ -37,12 +38,16 @@ export async function refreshTokensIfNeeded(): Promise<boolean> {
   return refreshingPromise
 }
 
-function getErrorCode(err: any): string | undefined {
-  return err.data?.code || err.shape?.data?.code
-}
+function getErrorCode(error: unknown): string | undefined {
+  if (!isRecord(error))
+    return undefined
 
-function getErrorStatus(err: any): number | undefined {
-  return err.data?.httpStatus || err.shape?.data?.httpStatus || err.status || err.statusCode
+  const data = isRecord(error.data) ? error.data : undefined
+  const shape = isRecord(error.shape) ? error.shape : undefined
+  const shapeData = isRecord(shape?.data) ? shape.data : undefined
+  const code = data?.code ?? shapeData?.code
+
+  return typeof code === 'string' ? code : undefined
 }
 
 function hasUnauthorizedMessage(message: string): boolean {
@@ -51,13 +56,13 @@ function hasUnauthorizedMessage(message: string): boolean {
     || message.includes('UNAUTHORIZED')
 }
 
-export function isUnauthorizedError(err: any): boolean {
+export function isUnauthorizedError(err: unknown): boolean {
   if (!err)
     return false
 
   const code = getErrorCode(err)
   const httpStatus = getErrorStatus(err)
-  const message = typeof err.message === 'string' ? err.message : ''
+  const message = getErrorMessage(err)
 
   return (
     code === 'UNAUTHORIZED'

@@ -1,4 +1,5 @@
 import type { Context } from 'hono'
+import { getErrorMessage } from '@injurka/type-utils'
 import { Hono } from 'hono'
 import { getCookie, setCookie } from 'hono/cookie'
 import { HTTPException } from 'hono/http-exception'
@@ -132,16 +133,18 @@ authController.get('/google/callback', async (c) => {
       addClientStateToRedirect(redirectUrl, transaction)
       return c.redirect(redirectUrl.toString())
     }
-    catch (error: any) {
+    catch (error) {
       const redirectUrl = new URL(redirectType === 'app' ? 'trip-scheduler://user/settings' : `${process.env.FRONTEND_URL}/user/${linkUserId}/settings`)
-      redirectUrl.searchParams.set('oauth_error', error?.message || 'Не удалось привязать Google аккаунт')
+      redirectUrl.searchParams.set('oauth_error', getErrorMessage(error) || 'Не удалось привязать Google аккаунт')
       addClientStateToRedirect(redirectUrl, transaction)
       return c.redirect(redirectUrl.toString())
     }
   }
 
   const result = await oAuthService.handleGoogle(code!)
-  const { token } = result as { token: any, user: any }
+  const { token } = result
+  if (!token)
+    throw new HTTPException(500, { message: 'OAuth callback did not return tokens.' })
   const redirectUrl = new URL(redirectType === 'app' ? 'trip-scheduler://auth/callback' : `${process.env.FRONTEND_URL}/auth/callback`)
   redirectUrl.searchParams.set('token', token.accessToken)
   redirectUrl.searchParams.set('refreshToken', token.refreshToken)
@@ -198,16 +201,18 @@ authController.get('/github/callback', async (c) => {
       addClientStateToRedirect(redirectUrl, transaction)
       return c.redirect(redirectUrl.toString())
     }
-    catch (error: any) {
+    catch (error) {
       const redirectUrl = new URL(redirectType === 'app' ? 'trip-scheduler://user/settings' : `${process.env.FRONTEND_URL}/user/${linkUserId}/settings`)
-      redirectUrl.searchParams.set('oauth_error', error?.message || 'Не удалось привязать GitHub аккаунт')
+      redirectUrl.searchParams.set('oauth_error', getErrorMessage(error) || 'Не удалось привязать GitHub аккаунт')
       addClientStateToRedirect(redirectUrl, transaction)
       return c.redirect(redirectUrl.toString())
     }
   }
 
   const result = await oAuthService.handleGithub(code!)
-  const { token } = result as { token: any, user: any }
+  const { token } = result
+  if (!token)
+    throw new HTTPException(500, { message: 'OAuth callback did not return tokens.' })
   const redirectUrl = new URL(redirectType === 'app' ? 'trip-scheduler://auth/callback' : `${process.env.FRONTEND_URL}/auth/callback`)
   redirectUrl.searchParams.set('token', token.accessToken)
   redirectUrl.searchParams.set('refreshToken', token.refreshToken)
@@ -269,16 +274,18 @@ authController.get('/yandex/callback', async (c) => {
       addClientStateToRedirect(redirectUrl, transaction)
       return c.redirect(redirectUrl.toString())
     }
-    catch (error: any) {
+    catch (error) {
       const redirectUrl = new URL(redirectType === 'app' ? 'trip-scheduler://user/settings' : `${process.env.FRONTEND_URL}/user/${linkUserId}/settings`)
-      redirectUrl.searchParams.set('oauth_error', error?.message || 'Не удалось привязать Яндекс аккаунт')
+      redirectUrl.searchParams.set('oauth_error', getErrorMessage(error) || 'Не удалось привязать Яндекс аккаунт')
       addClientStateToRedirect(redirectUrl, transaction)
       return c.redirect(redirectUrl.toString())
     }
   }
 
   const result = await oAuthService.handleYandex(code!)
-  const { token } = result as { token: any, user: any }
+  const { token } = result
+  if (!token)
+    throw new HTTPException(500, { message: 'OAuth callback did not return tokens.' })
   const redirectUrl = new URL(redirectType === 'app' ? 'trip-scheduler://auth/callback' : `${process.env.FRONTEND_URL}/auth/callback`)
   redirectUrl.searchParams.set('token', token.accessToken)
   redirectUrl.searchParams.set('refreshToken', token.refreshToken)

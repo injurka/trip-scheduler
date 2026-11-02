@@ -7,7 +7,7 @@ import { useToast } from '~/shared/composables/use-toast'
 import { nominatimService, routingService } from '~/shared/services/geo'
 import { POI_COLORS } from '../constant'
 
-type GeolocationMapApi = ReturnType<typeof useGeolocationMap>
+type GeolocationMapApi = Pick<ReturnType<typeof useGeolocationMap>, 'addOrUpdatePoint' | 'addOrUpdateRoute' | 'removePoint' | 'removeRoute'>
 
 function formatCoordsLabel(coords: Coordinate, prefix: string): string {
   return `${prefix} (${coords[1].toFixed(4)}, ${coords[0].toFixed(4)})`
@@ -203,8 +203,8 @@ export function useGeolocationRoutes(mapApiRef: Ref<GeolocationMapApi | undefine
       if (routeData && isCurrentRouteRequest(route, routeId, request))
         applyRouteGeometry(route, routeData)
     }
-    catch (error: any) {
-      if (error?.name !== 'AbortError') {
+    catch (error) {
+      if (!(error instanceof Error) || error.name !== 'AbortError') {
         console.error('Ошибка обновления геометрии маршрута:', error)
       }
     }

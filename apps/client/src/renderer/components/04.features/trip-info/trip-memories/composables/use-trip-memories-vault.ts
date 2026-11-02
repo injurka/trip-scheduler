@@ -23,8 +23,8 @@ export function useTripMemoriesVault() {
   watch([() => tripData.currentTripId, () => getSelectedDay.value, () => memories.memories], async ([tId, day, mems]) => {
     if (tId && day && mems && mems.length > 0 && vaultStore.isConfigured) {
       const imageItems = mems
-        .filter((m: any) => m.imageId && m.image)
-        .map((m: any) => ({
+        .filter(m => m.imageId && m.image)
+        .map(m => ({
           imageId: m.image!.id,
           dayId: day.id,
         }))
@@ -83,8 +83,8 @@ export function useTripMemoriesVault() {
     const currentDayId = getSelectedDay.value.id
 
     const imagesToSync = memoriesForSelectedDay.value
-      .filter((m: any) => m.image && m.imageId)
-      .map((m: any) => ({
+      .filter(m => m.image && m.imageId)
+      .map(m => ({
         id: m.image!.id,
         url: resolveApiUrl(m.image!.url),
         sizeBytes: m.image!.sizeBytes || 0,

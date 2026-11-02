@@ -118,7 +118,7 @@ function toAiRouteBlock(block: AiGeneratedBlock, id: string): TimelineBlock {
     transport: block.transport || 'walk',
     points: [],
     geometry: [],
-  } as any
+  }
 }
 
 function toAiTimelineBlock(block: AiGeneratedBlock): TimelineBlock {
@@ -141,7 +141,7 @@ function toAiTimelineStage(stage: AiGeneratedStage, index: number): TimelineStag
     time: stage.time || '',
     order: index,
     blocks: stage.blocks?.map(toAiTimelineBlock) ?? [],
-  } as unknown as TimelineStage
+  }
 }
 
 function serializeTimelineBlock(block: TimelineBlock) {
@@ -162,7 +162,7 @@ function serializeTimelineBlock(block: TimelineBlock) {
         location: { lat: block.coords.lat, lng: block.coords.lng, label: block.name, address: block.address },
       }
     case 'route': {
-      const route = block as any
+      const route = block
 
       return {
         id: block.id,
@@ -660,7 +660,7 @@ export const usePostDraftStore = defineStore('post-draft', {
         title: 'Новый этап',
         order: this.post.stages.length,
         blocks: [],
-      } as unknown as TimelineStage)
+      })
       this.isDirty = true
     },
 
@@ -733,7 +733,7 @@ export const usePostDraftStore = defineStore('post-draft', {
           transport: 'walk',
           points: [],
           geometry: [],
-        } as any
+        }
       }
 
       if (newBlock) {

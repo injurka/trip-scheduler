@@ -1,5 +1,6 @@
 import type { PushSubscription as WebPushSubscription } from 'web-push'
 import type { NotificationChannelDelivery } from './notification.schemas'
+import { isRecord } from '@injurka/type-utils'
 import webpush from 'web-push'
 import { createTRPCError } from '~/lib/trpc'
 import { dayRepository } from '~/repositories/day.repository'
@@ -110,14 +111,15 @@ export const notificationService = {
         )
         web.accepted++
       }
-      catch (error: any) {
+      catch (error) {
+        const statusCode = isRecord(error) && typeof error.statusCode === 'number' ? error.statusCode : undefined
         web.failed++
-        recordError(web, error.statusCode ? `HTTP_${error.statusCode}` : 'REQUEST_FAILED')
-        if (error.statusCode === 410 || error.statusCode === 404) {
+        recordError(web, statusCode ? `HTTP_${statusCode}` : 'REQUEST_FAILED')
+        if (statusCode === 410 || statusCode === 404) {
           await notificationRepository.deletePushSubscription(tokenRecord.endpoint)
         }
         else {
-          console.error(`[Web Push] Delivery failed: ${error.statusCode ?? 'REQUEST_FAILED'}.`)
+          console.error(`[Web Push] Delivery failed: ${statusCode ?? 'REQUEST_FAILED'}.`)
         }
       }
     })

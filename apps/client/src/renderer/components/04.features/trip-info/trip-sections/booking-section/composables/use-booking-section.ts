@@ -148,7 +148,7 @@ function buildRangeHighlightMap<T>(items: T[], getId: (item: T) => string, getRa
  * @param props - Входящие параметры компонента.
  * @param emit - Функция для отправки событий.
  */
-export function useBookingSection(props: UseBookingSectionProps, emit: (event: 'updateSection', payload: any) => void) {
+export function useBookingSection(props: UseBookingSectionProps, emit: (event: 'updateSection', payload: UseBookingSectionProps['section']) => void) {
   const bookings = ref<Booking[]>(JSON.parse(JSON.stringify(props.section.content?.bookings || [])))
   const activeTab = ref<string>('timeline')
 
@@ -238,7 +238,7 @@ export function useBookingSection(props: UseBookingSectionProps, emit: (event: '
 
     const config = BOOKING_TYPES_CONFIG[type]
 
-    const initialData: any = {}
+    const initialData: Partial<import('../models/types').TrainData & import('../models/types').CarData & import('../models/types').OtherData> = {}
 
     if (type === 'train' || type === 'car' || type === 'other') {
       const tz = getCurrentTimeZoneOffset()

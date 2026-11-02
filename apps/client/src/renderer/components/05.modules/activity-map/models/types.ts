@@ -32,3 +32,12 @@ export interface GetMarksParams {
   startAt?: string
   endAt?: string
 }
+
+export interface CreatePayload {
+  title: string
+  description: string
+  isStatic: boolean
+  startAt: string
+  endAt: string
+  coords: [number, number] | null
+}

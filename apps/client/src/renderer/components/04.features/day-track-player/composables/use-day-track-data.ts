@@ -51,7 +51,8 @@ export function useDayTrackData(options: UseDayTrackDataOptions = {}) {
     loadError.value = null
 
     try {
-      const res = await (trpc as any).tracking.getDay.query({ dayUtc: targetDay })
+      const response = await trpc.tracking.getDay.query({ dayUtc: targetDay })
+      const res: DayData = { ...response }
 
       if (sequence !== loadSequence)
         return
@@ -279,7 +280,7 @@ export function useDayTrackData(options: UseDayTrackDataOptions = {}) {
 
     try {
       // 1. Запрос на сервер для удаления точки и нормализации сегментов сессии
-      await (trpc as any).tracking.deletePoint.mutate({ clientPointId: pt.clientPointId })
+      await (trpc).tracking.deletePoint.mutate({ clientPointId: pt.clientPointId })
 
       // 2. Удаляем из локальной очереди клиента (если еще не отправлена)
       deleteStoredPoint(pt.clientPointId)

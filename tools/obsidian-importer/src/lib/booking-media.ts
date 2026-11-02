@@ -1,6 +1,7 @@
 import type { Booking } from '../types'
 import type { ImageCacheEntry } from './cache'
 import { resolveImageFromIndex, uploadSingleImage } from './image-uploader'
+import { getErrorMessage } from './value-guards'
 
 export interface BookingImageUploader {
   uploadImage: (tripId: string, filePath: string, placement?: 'route' | 'memories' | 'notes' | 'documents') => Promise<string>
@@ -34,7 +35,7 @@ export async function resolveAndUploadBookingPhotos(
   let bookingsUpdated = 0
 
   for (const booking of bookings) {
-    const data = booking.data as any
+    const data = booking.data
     const rawPhotos: string[] = data?.photos || data?.imageUrls || []
     if (!Array.isArray(rawPhotos) || rawPhotos.length === 0)
       continue
@@ -85,8 +86,8 @@ export async function resolveAndUploadBookingPhotos(
               }
             }
           }
-          catch (err: any) {
-            options.onLog?.(`⚠ Ошибка загрузки фото бронирования «${photo}»: ${err?.message || err}`)
+          catch (err) {
+            options.onLog?.(`⚠ Ошибка загрузки фото бронирования «${photo}»: ${getErrorMessage(err) || err}`)
             throw err
           }
         }

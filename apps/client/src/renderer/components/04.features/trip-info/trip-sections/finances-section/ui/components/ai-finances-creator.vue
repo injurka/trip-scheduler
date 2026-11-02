@@ -2,6 +2,7 @@
 import type { CalendarDate } from '@internationalized/date'
 import type { FinancesSettings, Transaction } from '../../models/types'
 import { Icon } from '@iconify/vue'
+import { getErrorMessage } from '@injurka/type-utils'
 import { getLocalTimeZone, parseDate, today } from '@internationalized/date'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitFileInput } from '~/components/01.kit/kit-file-input'
@@ -22,7 +23,7 @@ interface Props {
   settings: FinancesSettings
 }
 type CreatorState = 'input' | 'loading' | 'preview' | 'error'
-type GeneratedTransaction = Omit<Transaction, 'id' | 'categoryId'> & {
+type GeneratedTransaction = Omit<Transaction, 'id' | 'categoryId' | 'status' | 'source'> & {
   categorySuggestion?: string
   categoryId: string | null
   isSpontaneous?: boolean
@@ -104,7 +105,7 @@ async function handleGenerate() {
 
     const availableCurrencies = new Set([props.settings.mainCurrency, ...Object.keys(props.settings.exchangeRates)])
 
-    generatedTransactions.value = response.map((tx: any) => {
+    generatedTransactions.value = response.map((tx) => {
       let foundCategory = tx.categoryId ? props.categories.find(cat => cat.id === tx.categoryId) : undefined
 
       if (!foundCategory && tx.categorySuggestion) {
@@ -129,9 +130,9 @@ async function handleGenerate() {
 
     state.value = 'preview'
   }
-  catch (e: any) {
+  catch (e) {
     console.error('AI finances generation failed:', e)
-    error.value = e.message || 'Произошла ошибка. Пожалуйста, попробуйте еще раз.'
+    error.value = getErrorMessage(e) || 'Произошла ошибка. Пожалуйста, попробуйте еще раз.'
     state.value = 'error'
   }
 }

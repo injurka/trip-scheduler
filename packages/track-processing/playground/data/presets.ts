@@ -1,4 +1,5 @@
 import type { TrackActivityType, TrackPoint, TrackSegment } from '../../src/index'
+import { isRecord } from '@injurka/type-utils'
 
 let currentTimestamp = 1_747_000_000_000 // Fixed base date: May 2025
 
@@ -324,7 +325,7 @@ export function parseGpx(gpxText: string): TrackPoint[] {
 
 /** GeoJSON export helper */
 export function exportToGeoJson(points: TrackPoint[], segments?: TrackSegment[]): string {
-  const features: any[] = []
+  const features: unknown[] = []
 
   if (segments && segments.length > 0) {
     for (let i = 0; i < segments.length; i++) {
@@ -367,21 +368,30 @@ export function exportToGeoJson(points: TrackPoint[], segments?: TrackSegment[])
 }
 
 /** GeoJSON points parser for custom file uploads */
-export function parseGeoJsonPoints(geoJson: any): TrackPoint[] {
+function isCoordinate(value: unknown): value is [number, number, number?] {
+  return Array.isArray(value) && typeof value[0] === 'number' && typeof value[1] === 'number'
+    && (value[2] === undefined || typeof value[2] === 'number')
+}
+
+export function parseGeoJsonPoints(geoJson: unknown): TrackPoint[] {
   let coords: [number, number, number?][] = []
+
+  if (!isRecord(geoJson))
+    return []
 
   if (geoJson.type === 'FeatureCollection' && Array.isArray(geoJson.features)) {
     for (const f of geoJson.features) {
-      if (f.geometry?.type === 'LineString' && Array.isArray(f.geometry.coordinates)) {
-        coords.push(...f.geometry.coordinates)
+      if (isRecord(f) && isRecord(f.geometry) && f.geometry.type === 'LineString' && Array.isArray(f.geometry.coordinates)) {
+        coords.push(...f.geometry.coordinates.filter(isCoordinate))
       }
-      else if (f.geometry?.type === 'Point' && Array.isArray(f.geometry.coordinates)) {
-        coords.push(f.geometry.coordinates as [number, number, number?])
+      else if (isRecord(f) && isRecord(f.geometry) && f.geometry.type === 'Point' && Array.isArray(f.geometry.coordinates)) {
+        if (isCoordinate(f.geometry.coordinates))
+          coords.push(f.geometry.coordinates)
       }
     }
   }
-  else if (geoJson.type === 'Feature' && geoJson.geometry?.type === 'LineString') {
-    coords = geoJson.geometry.coordinates
+  else if (geoJson.type === 'Feature' && isRecord(geoJson.geometry) && geoJson.geometry.type === 'LineString') {
+    coords = Array.isArray(geoJson.geometry.coordinates) ? geoJson.geometry.coordinates.filter(isCoordinate) : []
   }
 
   const baseTime = Date.now()

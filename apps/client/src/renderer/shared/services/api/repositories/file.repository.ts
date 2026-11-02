@@ -1,5 +1,6 @@
 import type { EntityType, IFileRepository, TripDocumentResponse } from '../model/types'
 import type { ImageMetadata, TripMedia, TripMediaPlacement } from '~/shared/types/models/trip'
+import { getErrorStatus } from '@injurka/type-utils'
 import { ofetch } from 'ofetch'
 import { SERVER_URL } from '~/shared/lib/env'
 import { resolveApiUrl } from '~/shared/lib/url'
@@ -19,8 +20,8 @@ function shouldUseMultipartUpload(file: File): boolean {
   return file.size > MULTIPART_UPLOAD_THRESHOLD || isVideoFile(file)
 }
 
-function isUnauthorizedError(error: any): boolean {
-  return error.status === 401 || error.statusCode === 401 || error.response?.status === 401
+function isUnauthorizedError(error: unknown): boolean {
+  return getErrorStatus(error) === 401
 }
 
 function createUploadFormData(
@@ -30,7 +31,7 @@ function createUploadFormData(
   placement?: string | null,
   timestamp?: string | null,
   comment?: string | null,
-  metadata?: Record<string, any>,
+  metadata?: Record<string, unknown>,
 ): FormData {
   const formData = new FormData()
   formData.append('file', file)
@@ -69,7 +70,7 @@ export class FileRepository implements IFileRepository {
     placement?: string | null,
     timestamp?: string | null,
     comment?: string | null,
-    metadata?: Record<string, any>,
+    metadata?: Record<string, unknown>,
   ): Promise<TripMedia> {
     if (shouldUseMultipartUpload(file)) {
       return this.uploadMultipartWithRetry(
@@ -99,7 +100,7 @@ export class FileRepository implements IFileRepository {
     entityId: string,
     entityType: EntityType,
     placement?: string | null,
-    metadata?: Record<string, any>,
+    metadata?: Record<string, unknown>,
   ): Promise<TripMedia> {
     const signal = new AbortController().signal
     const uploadMultipart = () => this.uploadMultipartWithProgress(
@@ -115,7 +116,7 @@ export class FileRepository implements IFileRepository {
     try {
       return await uploadMultipart()
     }
-    catch (err: any) {
+    catch (err) {
       if (!isUnauthorizedError(err))
         throw err
 
@@ -132,7 +133,7 @@ export class FileRepository implements IFileRepository {
     try {
       return await this.uploadDirect(formData, getAccessToken())
     }
-    catch (error: any) {
+    catch (error) {
       if (!isUnauthorizedError(error))
         throw error
 
@@ -164,7 +165,7 @@ export class FileRepository implements IFileRepository {
     placement: string | null,
     onProgress: (percentage: number) => void,
     signal: AbortSignal,
-    metadata?: Record<string, any>,
+    metadata?: Record<string, unknown>,
   ): Promise<TripMedia> {
     const serverUrl = SERVER_URL
     const authStore = useAuthStore()
@@ -269,7 +270,7 @@ export class FileRepository implements IFileRepository {
 
       return completeRes
     }
-    catch (err: any) {
+    catch (err) {
       try {
         await ofetch(`${serverUrl}/api/upload/multipart/abort`, {
           method: 'POST',

@@ -1,5 +1,6 @@
 import type { Context } from 'hono'
 import { generateTripCalendarIcs } from '@injurka/trip-calendar'
+import { isRecord } from '@injurka/type-utils'
 import { Hono } from 'hono'
 import { HTTPException } from 'hono/http-exception'
 import { authUtils } from '~/lib/auth.utils'
@@ -49,8 +50,9 @@ async function handleCalendar(c: Context) {
     }
   }
 
-  const bookingSection = trip.sections?.find((s: any) => s.type === 'bookings')
-  const bookings = (bookingSection?.content as any)?.bookings || []
+  const bookingSection = trip.sections?.find(s => s.type === 'bookings')
+  const content = bookingSection?.content
+  const bookings = isRecord(content) && Array.isArray(content.bookings) ? content.bookings : []
 
   const baseUrl = process.env.FRONTEND_URL || 'https://trip-scheduler.ru'
   const tripUrl = trip.shareSlug ? `${baseUrl}/trip/${trip.shareSlug}` : `${baseUrl}/trip/${trip.id}`
@@ -72,7 +74,7 @@ async function handleCalendar(c: Context) {
         cityRefs: trip.cityRefs,
         url: tripUrl,
       },
-      days: trip.days as any,
+      days: trip.days,
       bookings,
     },
     {

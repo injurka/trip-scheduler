@@ -33,10 +33,10 @@ const transportIcons: Record<string, string> = {
 }
 
 const blockPoints = computed<EditorRoutePoint[]>(() => {
-  return Array.isArray((props.block as any).points) ? (props.block as any).points : []
+  return Array.isArray((props.block).points) ? (props.block).points : []
 })
 
-function calculateTimeAndDist(distMeters: number, transport: string) {
+function calculateTimeAndDist(distMeters: number, transport: RouteBlock['transport']) {
   const speeds: Record<string, number> = { walk: 5000, transit: 20000, car: 50000 }
   const speed = speeds[transport] || 5000
   const mins = Math.round((distMeters / speed) * 60)
@@ -61,13 +61,13 @@ function calculateTimeAndDist(distMeters: number, transport: string) {
   return { distance: distStr, duration: durStr }
 }
 
-async function fetchOSRMRoute(points: EditorRoutePoint[], transport: string) {
+async function fetchOSRMRoute(points: EditorRoutePoint[], transport: RouteBlock['transport']) {
   if (points.length < 2)
     return
 
   try {
     const waypoints = points.map(p => [p.lng, p.lat] as [number, number])
-    const route = await routingService.calculateRoute(waypoints, transport as any)
+    const route = await routingService.calculateRoute(waypoints, transport)
     const distMeters = route.distance
     const { distance, duration } = calculateTimeAndDist(distMeters, transport)
 

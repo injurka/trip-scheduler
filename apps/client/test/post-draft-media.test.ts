@@ -1,11 +1,12 @@
+import type { CreatePostInput, UpdatePostInput } from '../src/renderer/shared/types/models/post'
 import { beforeEach, describe, expect, it, mock } from 'bun:test'
 import { createPinia, setActivePinia } from 'pinia'
 
-const create = mock(async (_data: unknown) => ({ id: 'server-post' }))
+const create = mock(async (_data: CreatePostInput) => ({ id: 'server-post' }))
 const upload = mock(async (file: File, postId: string, ..._args: unknown[]) => ({ id: file.name, url: `posts/${postId}/${file.name}`, originalName: file.name }))
 const remove = mock(async (_input: unknown) => ({ success: true }))
-const update = mock(async (_input: unknown) => ({ id: 'server-post' }))
-const getById = mock(async (_input: unknown) => ({ media: [] as any[] }))
+const update = mock(async (_input: { id: string, data: UpdatePostInput }) => ({ id: 'server-post' }))
+const getById = mock(async (_input: unknown) => ({ media: [] as unknown[] }))
 const deletePost = mock(async (_input: unknown) => ({ id: 'server-post' }))
 const api = {
   posts: {
@@ -18,7 +19,7 @@ const api = {
   files: { uploadFile: upload },
 }
 mock.module('~/plugins/request', () => ({
-  useRequest: async (options: any) => {
+  useRequest: async (options: { fn: (db: typeof api) => Promise<unknown>, onSuccess?: (result: unknown) => void, onError?: (result: { error: { customMessage: string } }) => void }) => {
     try {
       const result = await options.fn(api)
       options.onSuccess?.(result)
@@ -67,7 +68,7 @@ describe('post media ownership and draft recovery', () => {
       blocks: [],
     }]
     await store.savePost(true, 'draft')
-    expect((update.mock.calls[0][0] as any).data.elements).toEqual([])
+    expect((update.mock.calls[0][0]).data.elements).toEqual([])
   })
   it('saves gallery references without uploading the files again', async () => {
     const store = usePostDraftStore()
@@ -81,10 +82,11 @@ describe('post media ownership and draft recovery', () => {
       blocks: [{ id: 'gallery', type: 'gallery', images: [media!] }],
     }]
     await store.savePost(true, 'draft')
-    const payload = update.mock.calls[0][0] as any
+    const payload = update.mock.calls[0][0]
     expect(payload.data.status).toBe('draft')
     expect(payload.data.mediaIds).toEqual([media!.id])
-    expect(payload.data.elements[0].content[0].imageIds).toEqual([media!.id])
+    expect(payload.data.elements?.[0].content[0]).toMatchObject({ type: 'gallery', imageIds: [media!.id] })
+    expect(payload.data.mediaIds).toEqual([media!.id])
     expect(create).toHaveBeenCalledTimes(1)
     expect(upload).toHaveBeenCalledTimes(1)
   })

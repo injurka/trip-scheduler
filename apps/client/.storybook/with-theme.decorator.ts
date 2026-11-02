@@ -1,11 +1,13 @@
-import { h, onMounted, shallowReactive, watch } from 'vue'import StoryWrapper from './app-wrapper.vue'
+import type { Decorator } from '@storybook/vue3-vite'
+import { h, onMounted, shallowReactive, watch } from 'vue'
+import StoryWrapper from './app-wrapper.vue'
 
 export const DEFAULT_THEME = 'light'
 
 const theme = shallowReactive({ themeName: DEFAULT_THEME })
 
-export function withTheme(storyFn: any, context: any) {
-  theme.themeName = context.globals.theme || DEFAULT_THEME
+export const withTheme: Decorator = (storyFn, context) => {
+  theme.themeName = typeof context.globals.theme === 'string' ? context.globals.theme : DEFAULT_THEME
   const story = storyFn()
 
   const setTheme = (value: string) => {
@@ -20,7 +22,7 @@ export function withTheme(storyFn: any, context: any) {
   })
 
   onMounted(() => {
-    setTheme(context.globals.theme ?? DEFAULT_THEME)
+    setTheme(theme.themeName)
   })
 
   return () => {

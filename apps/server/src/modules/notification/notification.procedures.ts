@@ -23,7 +23,7 @@ export const notificationProcedures = {
     .input(SubscribeToTripInputSchema)
     .output(z.void())
     .mutation(async ({ input, ctx }) => {
-      await notificationService.subscribeToTrip(ctx.user.id, input.tripId, input.subscription as any)
+      await notificationService.subscribeToTrip(ctx.user.id, input.tripId, input.subscription)
     }),
 
   subscribeToTripWithPushToken: protectedProcedure

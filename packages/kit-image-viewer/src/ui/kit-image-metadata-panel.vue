@@ -164,7 +164,7 @@ const technicalInfo = computed(() => {
 })
 
 const generalInfo = computed(() => {
-  const items: Array<{ label: string, value: any, icon: string, isMap?: boolean }> = [
+  const items: Array<{ label: string, value: unknown, icon: string, isMap?: boolean }> = [
     { label: 'Дата съемки', value: takenAtDate.value, icon: 'mdi:calendar-clock' },
   ]
   if (gpsCoordinates.value) {
@@ -173,7 +173,7 @@ const generalInfo = computed(() => {
   return items.filter(item => item.value)
 })
 
-function flattenMetadata(obj: Record<string, any> | null | undefined, parentKey = ''): Record<string, any> {
+function flattenMetadata(obj: object | null | undefined, parentKey = ''): Record<string, unknown> {
   if (!obj)
     return {}
   return Object.entries(obj).reduce((acc, [key, value]) => {
@@ -185,7 +185,7 @@ function flattenMetadata(obj: Record<string, any> | null | undefined, parentKey 
       acc[newKey] = value
     }
     return acc
-  }, {} as Record<string, any>)
+  }, {} as Record<string, unknown>)
 }
 
 const extendedInfo = computed(() => {

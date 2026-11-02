@@ -1,5 +1,6 @@
 import type { TripDocumentResponse, TripNote } from '~/shared/services/api/model/types'
 import type { TripWithDays } from '~/shared/types/models/trip'
+import { isRecord } from '@injurka/type-utils'
 import { defineStore } from 'pinia'
 import { useToast } from '~/shared/composables/use-toast'
 import { MAPTILER_KEY } from '~/shared/lib/map-styles-sources'
@@ -50,8 +51,8 @@ export interface IOfflineState {
   activeProgressTripId: string | null
 }
 
-function extractUrlsFromMarkdown(text: string | null | undefined): string[] {
-  if (!text)
+function extractUrlsFromMarkdown(text: unknown): string[] {
+  if (typeof text !== 'string' || !text)
     return []
 
   const urls: string[] = []
@@ -75,14 +76,14 @@ function extractUrlsFromMarkdown(text: string | null | undefined): string[] {
   return urls
 }
 
-function addOfflineUrl(urls: Set<string>, url: string | null | undefined) {
-  if (!url || url.startsWith('blob:') || url.startsWith('data:') || url.includes('/memories/'))
+function addOfflineUrl(urls: Set<string>, url: unknown) {
+  if (typeof url !== 'string' || !url || url.startsWith('blob:') || url.startsWith('data:') || url.includes('/memories/'))
     return
 
   urls.add(url)
 }
 
-function addMarkdownUrls(urls: Set<string>, text: string | null | undefined) {
+function addMarkdownUrls(urls: Set<string>, text: unknown) {
   extractUrlsFromMarkdown(text).forEach(url => addOfflineUrl(urls, url))
 }
 
@@ -108,12 +109,17 @@ function collectNoteMediaUrls(notes: TripNote[], urls: Set<string>) {
   })
 }
 
-function collectDocumentSectionUrls(section: any, urls: Set<string>) {
-  if (section.type === 'documents' && Array.isArray(section.content?.documents))
-    section.content.documents.forEach((doc: any) => addOfflineUrl(urls, doc.url))
+function collectDocumentSectionUrls(section: unknown, urls: Set<string>) {
+  if (!isRecord(section))
+    return
 
-  if (section.type === 'bookings' && Array.isArray(section.content?.bookings)) {
-    section.content.bookings.forEach((booking: any) => {
+  const content = isRecord(section.content) ? section.content : {}
+
+  if (section.type === 'documents' && Array.isArray(content.documents))
+    content.documents.filter(isRecord).forEach(doc => addOfflineUrl(urls, doc.url))
+
+  if (section.type === 'bookings' && Array.isArray(content.bookings)) {
+    content.bookings.filter(isRecord).forEach((booking) => {
       addOfflineUrl(urls, booking.attachmentUrl)
       addOfflineUrl(urls, booking.ticketUrl)
       addOfflineUrl(urls, booking.fileUrl)
@@ -121,19 +127,24 @@ function collectDocumentSectionUrls(section: any, urls: Set<string>) {
   }
 }
 
-function collectMediaSectionUrls(section: any, urls: Set<string>) {
-  if (section.type === 'gallery' && Array.isArray(section.content?.imageUrls))
-    section.content.imageUrls.forEach((url: string) => addOfflineUrl(urls, url))
+function collectMediaSectionUrls(section: unknown, urls: Set<string>) {
+  if (!isRecord(section))
+    return
 
-  if (typeof section.content?.markdown === 'string')
-    addMarkdownUrls(urls, section.content.markdown)
+  const content = isRecord(section.content) ? section.content : {}
 
-  if (typeof section.content?.text === 'string')
-    addMarkdownUrls(urls, section.content.text)
+  if (section.type === 'gallery' && Array.isArray(content.imageUrls))
+    content.imageUrls.forEach((url: string) => addOfflineUrl(urls, url))
+
+  if (typeof content.markdown === 'string')
+    addMarkdownUrls(urls, content.markdown)
+
+  if (typeof content.text === 'string')
+    addMarkdownUrls(urls, content.text)
 }
 
 function collectSectionUrls(
-  section: any,
+  section: unknown,
   includeMedia: boolean,
   includeDocuments: boolean,
   urls: Set<string>,
@@ -145,19 +156,24 @@ function collectSectionUrls(
     collectMediaSectionUrls(section, urls)
 }
 
-function collectActivitySectionUrls(section: any, urls: Set<string>) {
+function collectActivitySectionUrls(section: unknown, urls: Set<string>) {
+  if (!isRecord(section))
+    return
+
+  const content = isRecord(section.content) ? section.content : {}
+
   if (section.type === 'gallery') {
     if (Array.isArray(section.imageUrls))
       section.imageUrls.forEach((url: string) => addOfflineUrl(urls, url))
 
-    if (Array.isArray(section.content?.imageUrls))
-      section.content.imageUrls.forEach((url: string) => addOfflineUrl(urls, url))
+    if (Array.isArray(content.imageUrls))
+      content.imageUrls.forEach((url: string) => addOfflineUrl(urls, url))
   }
 
   if (section.type === 'geolocation' && Array.isArray(section.points)) {
-    section.points.forEach((point: any) => {
+    section.points.filter(isRecord).forEach((point) => {
       addOfflineUrl(urls, point.imageUrl)
-      addOfflineUrl(urls, point.style?.iconUrl)
+      addOfflineUrl(urls, isRecord(point.style) ? point.style.iconUrl : undefined)
     })
   }
 

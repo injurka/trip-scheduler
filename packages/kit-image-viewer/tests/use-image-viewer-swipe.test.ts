@@ -17,11 +17,7 @@ function createTouchEvent(type: string, touches: Array<{ clientX: number, client
     rotationAngle: 0,
     force: 1,
   }))
-  const event = new Event(type, { bubbles: true, cancelable: true }) as any
-  event.touches = touchList
-  event.targetTouches = touchList
-  event.changedTouches = touchList
-  return event as TouchEvent
+  return new TouchEvent(type, { bubbles: true, cancelable: true, touches: touchList, targetTouches: touchList, changedTouches: touchList })
 }
 
 describe('useImageViewerSwipe - multi-touch vs single-touch', () => {

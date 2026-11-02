@@ -1,5 +1,5 @@
 import type { Ref } from 'vue'
-import type { LocationQueryValue } from 'vue-router'
+import type { LocationQueryRaw, LocationQueryValue } from 'vue-router'
 import type { DateRange } from '../models/types'
 import { parseDate } from '@internationalized/date'
 import { useDebounceFn } from '@vueuse/core'
@@ -73,7 +73,7 @@ export function useActivityUrlState(options: UseActivityUrlStateOptions) {
   }
 
   const updateUrl = useDebounceFn(() => {
-    const query: Record<string, any> = { ...route.query }
+    const query: LocationQueryRaw = { ...route.query }
 
     query.view = viewMode.value
 

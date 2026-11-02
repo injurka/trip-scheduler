@@ -1,3 +1,4 @@
+import type { PgTable } from 'drizzle-orm/pg-core'
 /* eslint-disable no-console */
 import process from 'node:process'
 import { sql } from 'drizzle-orm'
@@ -24,7 +25,7 @@ import {
  * @param tableName - Человекочитаемое имя таблицы для вывода.
  * @returns Объект с именем и количеством записей.
  */
-async function getTableCount(table: any, tableName: string): Promise<{ name: string, count: number }> {
+async function getTableCount(table: PgTable, tableName: string): Promise<{ name: string, count: number }> {
   const [result] = await db
     .select({ count: sql<number>`count(*)` })
     .from(table)

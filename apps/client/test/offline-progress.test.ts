@@ -1,6 +1,8 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it, mock } from 'bun:test'
 import { createPinia, setActivePinia } from 'pinia'
-import { useOfflineStore } from '../src/renderer/shared/store/offline.store'
+
+mock.module('~/plugins/request', () => ({ useRequest: mock(() => {}), useRequestStatus: mock(() => false) }))
+const { useOfflineStore } = await import('../src/renderer/shared/store/offline.store')
 
 describe('offline progress dialog store state', () => {
   it('manages dialog visibility and active download id when minimizing and reopening', () => {

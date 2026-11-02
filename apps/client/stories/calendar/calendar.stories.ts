@@ -32,7 +32,7 @@ type Story = StoryObj<typeof meta>
 const getToday = () => today('UTC')
 
 // A reusable render function to demonstrate v-model interactivity
-function interactiveRender(args: any) {
+function interactiveRender(args: unknown) {
   return {
     components: { KitCalendar },
     setup() {

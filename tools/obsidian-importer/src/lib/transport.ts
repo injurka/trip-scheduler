@@ -1,5 +1,19 @@
-import type { ActivityPayload, Booking } from '../types'
+import type { ActivityPayload, Booking, DayMetaInfo } from '../types'
 import type { MetroCatalogSource } from './metro-resolver'
+
+export interface ImportTemplateActivity extends ActivityPayload {
+  id: string
+  dayId: string
+  status: 'none' | 'completed' | 'skipped'
+}
+
+export interface ImportDayContext {
+  dayNumber: number
+  date: string
+  title: string
+  description?: string | null
+  activitiesSummary: Array<{ startTime: string, endTime: string, title: string, tag: ActivityPayload['tag'] }>
+}
 
 export interface ImportGeoPlace {
   id: string
@@ -61,7 +75,7 @@ export interface Transport extends Partial<MetroCatalogSource> {
 
   deleteTrip?: (id: string) => Promise<unknown>
 
-  getTripDetails: (tripId: string) => Promise<{ sections?: Array<{ id: string, type: string, title: string, content?: unknown }> } | null>
+  getTripDetails: (tripId: string) => Promise<{ sections?: ImportTripSection[] } | null>
 
   getDaysByTripId: (tripId: string) => Promise<Array<{ id: string, date: string, title: string }>>
 
@@ -76,7 +90,7 @@ export interface Transport extends Partial<MetroCatalogSource> {
     title?: string
     description?: string | null
     note?: string | null
-    meta?: unknown[]
+    meta?: DayMetaInfo[]
     date?: string
   }) => Promise<unknown>
 
@@ -88,7 +102,7 @@ export interface Transport extends Partial<MetroCatalogSource> {
     startTime: string
     endTime: string
     tag?: string
-    sections?: unknown[]
+    sections?: ActivityPayload['sections']
   }) => Promise<unknown>
 
   createTripSection: (payload: {
@@ -124,25 +138,19 @@ export interface Transport extends Partial<MetroCatalogSource> {
 
   generateDayTemplate?: (dayId: string, payload: {
     prompt: string
-    currentActivities: unknown[]
+    currentActivities: ImportTemplateActivity[]
     canvasNote: string
+    daysContext?: ImportDayContext[] | null
   }) => Promise<ActivityPayload[]>
 
   uploadImage?: (
     tripId: string,
     filePath: string,
     placement?: 'route' | 'memories' | 'notes' | 'documents',
-    metadata?: Record<string, any>,
+    metadata?: Record<string, unknown>,
   ) => Promise<string>
 
-  listDocuments?: (tripId: string) => Promise<Array<{
-    id: string
-    tripId: string
-    url: string
-    originalName: string
-    sizeBytes: number
-    metadata?: any
-  }>>
+  listDocuments?: (tripId: string) => Promise<ImportDocument[]>
 
   updateDocumentMeta?: (
     id: string,
@@ -157,4 +165,42 @@ export interface Transport extends Partial<MetroCatalogSource> {
   ) => Promise<unknown>
 }
 
-export type { ActivityPayload, Booking }
+export type { ActivityPayload, Booking, DayMetaInfo }
+
+export interface ImportDocument {
+  id: string
+  tripId: string
+  url: string
+  originalName: string
+  sizeBytes: number
+  metadata?: {
+    folderId?: string | null
+    access?: 'public' | 'private'
+    title?: string | null
+    category?: string | null
+    isFavorite?: boolean | null
+    note?: string | null
+  } | null
+}
+
+export interface ImportTripSection {
+  id: string
+  type: string
+  title: string
+  content?: unknown
+}
+
+export interface ImportTripSummary {
+  id: string
+  title: string
+  description?: string | null
+  descriptionShort?: string | null
+  imageUrl?: string | null
+  tags?: string[]
+  cities?: string[]
+  startDate?: string
+  endDate?: string
+  status?: string
+  sections?: ImportTripSection[]
+  days?: Array<{ id: string, date?: string | null, title: string }>
+}

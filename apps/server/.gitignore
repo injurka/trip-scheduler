@@ -29,3 +29,5 @@ static/**
 
 # DB dumps (Windows can't checkout filenames with ":")
 db/dump/
+
+.types/

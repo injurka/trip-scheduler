@@ -1,5 +1,7 @@
 <script setup lang="ts">
+import type { KitDropdownItem } from '~/components/01.kit/kit-dropdown'
 import type { GeoPlaceRef } from '~/shared/types/models/geo-place'
+import type { TripStatus } from '~/shared/types/models/trip'
 import { Icon } from '@iconify/vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitInput } from '~/components/01.kit/kit-input'
@@ -30,7 +32,7 @@ const {
 } = useOpenTrips(props.userId)
 
 const isFiltersOpen = ref(false)
-const statusOptions = [
+const statusOptions: KitDropdownItem<TripStatus>[] = [
   { value: 'planned', label: 'Запланировано' },
   { value: 'completed', label: 'Завершено' },
   { value: 'draft', label: 'Черновик' },
@@ -153,7 +155,7 @@ onMounted(() => {
           <OpenTripCard
             v-for="trip in data"
             :key="trip.id"
-            :trip="(trip as any)"
+            :trip="(trip)"
           />
         </div>
       </template>

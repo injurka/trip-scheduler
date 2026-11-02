@@ -31,7 +31,7 @@ watch(comments, async (newComments, oldComments) => {
   if (asyncWrapper.value) {
     if (!oldComments || newComments.length > oldComments.length) {
       await nextTick()
-      const el = (asyncWrapper.value as any)?.$el || asyncWrapper.value
+      const el = asyncWrapper.value
 
       if (el) {
         el.scrollTop = el.scrollHeight
