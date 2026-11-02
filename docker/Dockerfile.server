@@ -20,6 +20,8 @@ COPY packages/track-processing/package.json ./packages/track-processing/package.
 COPY packages/track-processing/src ./packages/track-processing/src
 COPY packages/trip-calendar/package.json ./packages/trip-calendar/package.json
 COPY packages/trip-calendar/src ./packages/trip-calendar/src
+COPY packages/type-utils/package.json ./packages/type-utils/package.json
+COPY packages/type-utils/src ./packages/type-utils/src
 COPY tools/obsidian-importer/package.json ./tools/obsidian-importer/package.json
 COPY tools/obsidian-importer/src ./tools/obsidian-importer/src
 
