@@ -8,16 +8,18 @@ import { AppRoutePaths } from '~/shared/constants/routes'
 
 interface Props {
   isModal?: boolean
+  standalone?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
   isModal: false,
+  standalone: false,
 })
 const emit = defineEmits<{
   (e: 'close'): void
 }>()
 
-const router = useRouter()
+const router = props.standalone ? undefined : useRouter()
 
 const sections = [
   {
@@ -68,11 +70,11 @@ function scrollToSection(id: string) {
 }
 function handleStartPlanning() {
   emit('close')
-  router.push(AppRoutePaths.Trip.List)
+  router?.push(AppRoutePaths.Trip.List)
 }
 function handleGoToAbout() {
   emit('close')
-  router.push(AppRoutePaths.About)
+  router?.push(AppRoutePaths.About)
 }
 function handleClose() {
   emit('close')
@@ -91,7 +93,7 @@ function handleClose() {
       @click="handleClose"
     >
       <span class="close-label">Пропустить</span>
-      <Icon icon="mdi:close" class="close-icon" />
+      <Icon :ssr="true" icon="mdi:close" class="close-icon" />
     </button>
 
     <!-- Верхний блок Hero -->
@@ -101,7 +103,7 @@ function handleClose() {
       </div>
 
       <div class="hero-badge">
-        <Icon icon="mdi:compass-outline" class="badge-sparkle" />
+        <Icon :ssr="true" icon="mdi:compass-outline" class="badge-sparkle" />
         <span>Твой личный центр планирования поездок</span>
       </div>
 
@@ -127,7 +129,7 @@ function handleClose() {
           @click="scrollToSection(s.id)"
         >
           <span class="stage-num">{{ s.number }}</span>
-          <Icon :icon="s.icon" class="stage-icon" />
+          <Icon :ssr="true" :icon="s.icon" class="stage-icon" />
           <span class="stage-text">{{ s.title }}</span>
         </button>
       </nav>
@@ -171,7 +173,7 @@ function handleClose() {
             <ul class="features-list">
               <li class="feature-item">
                 <div class="feature-icon-wrapper">
-                  <Icon icon="mdi:calendar-multiselect" class="feature-icon" />
+                  <Icon :ssr="true" icon="mdi:calendar-multiselect" class="feature-icon" />
                 </div>
                 <div class="feature-info">
                   <strong>Последовательный план по дням и часам:</strong>
@@ -181,7 +183,7 @@ function handleClose() {
 
               <li class="feature-item">
                 <div class="feature-icon-wrapper">
-                  <Icon icon="mdi:map-marker-radius" class="feature-icon" />
+                  <Icon :ssr="true" icon="mdi:map-marker-radius" class="feature-icon" />
                 </div>
                 <div class="feature-info">
                   <strong>Точки и маршруты прямо на карте:</strong>
@@ -191,7 +193,7 @@ function handleClose() {
 
               <li class="feature-item">
                 <div class="feature-icon-wrapper">
-                  <Icon icon="mdi:notebook-edit-outline" class="feature-icon" />
+                  <Icon :ssr="true" icon="mdi:notebook-edit-outline" class="feature-icon" />
                 </div>
                 <div class="feature-info">
                   <strong>Заметки и лайфхаки к точкам:</strong>
@@ -212,7 +214,7 @@ function handleClose() {
                   Старый город, хайкинг и закат
                 </div>
                 <div class="mockup-day-meta">
-                  <Icon icon="mdi:map-marker-path" /> 3 локации • 6.2 км маршрута
+                  <Icon :ssr="true" icon="mdi:map-marker-path" /> 3 локации • 6.2 км маршрута
                 </div>
               </div>
 
@@ -243,7 +245,7 @@ function handleClose() {
                   <div class="event-card hiking-card">
                     <div class="event-card-header">
                       <div class="hiking-title-group">
-                        <Icon icon="mdi:hiking" class="hiking-icon" />
+                        <Icon :ssr="true" icon="mdi:hiking" class="hiking-icon" />
                         <span class="event-name">Смотровая площадка на скале</span>
                       </div>
                       <span class="event-tag is-hiking-tag">Хайкинг</span>
@@ -291,21 +293,21 @@ function handleClose() {
 
                       <!-- Точка старта на карте -->
                       <div class="map-pin pin-start" title="Старт тропы">
-                        <Icon icon="mdi:flag-checkered" />
+                        <Icon :ssr="true" icon="mdi:flag-checkered" />
                         <span class="pin-label">Старт</span>
                       </div>
 
                       <!-- Точка вершины с маркером -->
                       <div class="map-pin pin-peak" title="Смотровая площадка">
                         <div class="pin-radar" />
-                        <Icon icon="mdi:map-marker" class="peak-icon" />
+                        <Icon :ssr="true" icon="mdi:map-marker" class="peak-icon" />
                         <span class="pin-label">Пик 1250 м</span>
                       </div>
 
                       <!-- Плашка статуса карты -->
                       <div class="pseudo-map-bar">
                         <span class="map-badge">
-                          <Icon icon="mdi:crosshairs-gps" /> Точка на карте привязана
+                          <Icon :ssr="true" icon="mdi:crosshairs-gps" /> Точка на карте привязана
                         </span>
                         <span class="map-trail-info">Тропа орлов • 4.2 км</span>
                       </div>
@@ -332,21 +334,21 @@ function handleClose() {
                     <div class="activity-photos-strip">
                       <div class="activity-photo-card photo-sunset-1" title="Маяк на закате">
                         <div class="photo-bg-wrap">
-                          <Icon icon="mdi:lighthouse" class="photo-subject-icon" />
+                          <Icon :ssr="true" icon="mdi:lighthouse" class="photo-subject-icon" />
                         </div>
                         <span class="photo-mini-label">Маяк</span>
                       </div>
 
                       <div class="activity-photo-card photo-sunset-2" title="Золотые волны">
                         <div class="photo-bg-wrap">
-                          <Icon icon="mdi:waves" class="photo-subject-icon" />
+                          <Icon :ssr="true" icon="mdi:waves" class="photo-subject-icon" />
                         </div>
                         <span class="photo-mini-label">Залив</span>
                       </div>
 
                       <div class="activity-photo-card photo-sunset-3" title="Вечернее солнце">
                         <div class="photo-bg-wrap">
-                          <Icon icon="mdi:weather-sunset-up" class="photo-subject-icon" />
+                          <Icon :ssr="true" icon="mdi:weather-sunset-up" class="photo-subject-icon" />
                         </div>
                         <span class="photo-mini-label photo-more-chip">+3 фото</span>
                       </div>
@@ -394,7 +396,7 @@ function handleClose() {
             <ul class="features-list">
               <li class="feature-item">
                 <div class="feature-icon-wrapper">
-                  <Icon icon="mdi:bed-king-outline" class="feature-icon" />
+                  <Icon :ssr="true" icon="mdi:bed-king-outline" class="feature-icon" />
                 </div>
                 <div class="feature-info">
                   <strong>Бронирования отелей и транспорта:</strong>
@@ -404,7 +406,7 @@ function handleClose() {
 
               <li class="feature-item">
                 <div class="feature-icon-wrapper">
-                  <Icon icon="mdi:wallet-outline" class="feature-icon" />
+                  <Icon :ssr="true" icon="mdi:wallet-outline" class="feature-icon" />
                 </div>
                 <div class="feature-info">
                   <strong>Финансы и смета бюджета:</strong>
@@ -414,7 +416,7 @@ function handleClose() {
 
               <li class="feature-item">
                 <div class="feature-icon-wrapper">
-                  <Icon icon="mdi:file-document-check-outline" class="feature-icon" />
+                  <Icon :ssr="true" icon="mdi:file-document-check-outline" class="feature-icon" />
                 </div>
                 <div class="feature-info">
                   <strong>Документы и чек-листы сборов:</strong>
@@ -435,7 +437,7 @@ function handleClose() {
                   :class="{ 'is-active': activeOrgTab === 'booking' }"
                   @click="activeOrgTab = 'booking'"
                 >
-                  <Icon icon="mdi:bed-king-outline" />
+                  <Icon :ssr="true" icon="mdi:bed-king-outline" />
                   <span>Бронирования</span>
                 </button>
                 <button
@@ -444,7 +446,7 @@ function handleClose() {
                   :class="{ 'is-active': activeOrgTab === 'finances' }"
                   @click="activeOrgTab = 'finances'"
                 >
-                  <Icon icon="mdi:chart-pie" />
+                  <Icon :ssr="true" icon="mdi:chart-pie" />
                   <span>Финансы</span>
                 </button>
                 <button
@@ -453,7 +455,7 @@ function handleClose() {
                   :class="{ 'is-active': activeOrgTab === 'checklist' }"
                   @click="activeOrgTab = 'checklist'"
                 >
-                  <Icon icon="mdi:format-list-checks" />
+                  <Icon :ssr="true" icon="mdi:format-list-checks" />
                   <span>Чек-лист</span>
                 </button>
               </div>
@@ -478,10 +480,10 @@ function handleClose() {
                     </div>
                     <div class="booking-card-bottom">
                       <span class="booking-dates">
-                        <Icon icon="mdi:calendar-range" /> 12 сент — 16 сент
+                        <Icon :ssr="true" icon="mdi:calendar-range" /> 12 сент — 16 сент
                       </span>
                       <span class="booking-doc-link">
-                        <Icon icon="mdi:paperclip" /> Ваучер в кэше
+                        <Icon :ssr="true" icon="mdi:paperclip" /> Ваучер в кэше
                       </span>
                     </div>
                   </div>
@@ -504,7 +506,7 @@ function handleClose() {
                           <span class="track-node is-start" />
                           <div class="track-bar">
                             <div class="track-plane-icon">
-                              <Icon icon="mdi:airplane" />
+                              <Icon :ssr="true" icon="mdi:airplane" />
                             </div>
                           </div>
                           <span class="track-node is-end" />
@@ -595,14 +597,14 @@ function handleClose() {
                           class="check-input"
                         >
                         <span class="check-box-custom">
-                          <Icon v-if="item.checked" icon="mdi:check" />
+                          <Icon v-if="item.checked" ssr icon="mdi:check" />
                         </span>
                         <span class="check-text">{{ item.text }}</span>
                       </label>
                     </div>
 
                     <div class="checklist-footer-note">
-                      <Icon icon="mdi:cloud-check-outline" />
+                      <Icon :ssr="true" icon="mdi:cloud-check-outline" />
                       <span>Сохранено для оффлайн-доступа</span>
                     </div>
                   </div>
@@ -650,7 +652,7 @@ function handleClose() {
             <ul class="features-list">
               <li class="feature-item">
                 <div class="feature-icon-wrapper">
-                  <Icon icon="mdi:image-album" class="feature-icon" />
+                  <Icon :ssr="true" icon="mdi:image-album" class="feature-icon" />
                 </div>
                 <div class="feature-info">
                   <strong>Коллаж из фото по дням и местам:</strong>
@@ -660,7 +662,7 @@ function handleClose() {
 
               <li class="feature-item">
                 <div class="feature-icon-wrapper">
-                  <Icon icon="mdi:comment-quote-outline" class="feature-icon" />
+                  <Icon :ssr="true" icon="mdi:comment-quote-outline" class="feature-icon" />
                 </div>
                 <div class="feature-info">
                   <strong>Текстовые пометки и впечатления:</strong>
@@ -670,7 +672,7 @@ function handleClose() {
 
               <li class="feature-item">
                 <div class="feature-icon-wrapper">
-                  <Icon icon="mdi:map-legend" class="feature-icon" />
+                  <Icon :ssr="true" icon="mdi:map-legend" class="feature-icon" />
                 </div>
                 <div class="feature-info">
                   <strong>Общая интерактивная карта воспоминаний:</strong>
@@ -686,11 +688,11 @@ function handleClose() {
               <!-- Заголовок дня воспоминаний -->
               <div class="memories-group-header">
                 <div class="memories-day-chip">
-                  <Icon icon="mdi:calendar-check" />
+                  <Icon :ssr="true" icon="mdi:calendar-check" />
                   <span>День 3 • 14 сентября</span>
                 </div>
                 <div class="memories-stats-tag">
-                  <Icon icon="mdi:camera" /> 18 фото • 2 заметки
+                  <Icon :ssr="true" icon="mdi:camera" /> 18 фото • 2 заметки
                 </div>
               </div>
 
@@ -815,11 +817,11 @@ function handleClose() {
 
                     <div class="photo-tag-top">
                       <span class="rating-pill">
-                        <Icon icon="mdi:star" class="star-icon" /> 5.0
+                        <Icon :ssr="true" icon="mdi:star" class="star-icon" /> 5.0
                       </span>
                     </div>
                     <div class="photo-caption-bar">
-                      <Icon icon="mdi:map-marker" />
+                      <Icon :ssr="true" icon="mdi:map-marker" />
                       <span>Пик Орлов • Рассвет в облаках</span>
                     </div>
                   </div>
@@ -957,7 +959,7 @@ function handleClose() {
                       <span class="photo-time-pill">10:45</span>
                     </div>
                     <div class="photo-caption-bar">
-                      <Icon icon="mdi:map-marker" />
+                      <Icon :ssr="true" icon="mdi:map-marker" />
                       <span>Старая кофейня</span>
                     </div>
                   </div>
@@ -1100,7 +1102,7 @@ function handleClose() {
                       <span class="photo-time-pill">19:20</span>
                     </div>
                     <div class="photo-caption-bar">
-                      <Icon icon="mdi:map-marker" />
+                      <Icon :ssr="true" icon="mdi:map-marker" />
                       <span>Бухта маяка</span>
                     </div>
                   </div>
@@ -1111,7 +1113,7 @@ function handleClose() {
               <div class="memories-notes-stream">
                 <div class="memory-note-bubble">
                   <div class="note-quote-icon">
-                    <Icon icon="mdi:format-quote-open" />
+                    <Icon :ssr="true" icon="mdi:format-quote-open" />
                   </div>
                   <div class="note-body">
                     <p class="note-text">
@@ -1124,7 +1126,7 @@ function handleClose() {
 
                 <div class="memory-note-bubble is-small">
                   <div class="note-quote-icon">
-                    <Icon icon="mdi:message-text-outline" />
+                    <Icon :ssr="true" icon="mdi:message-text-outline" />
                   </div>
                   <div class="note-body">
                     <p class="note-text">
@@ -1144,7 +1146,7 @@ function handleClose() {
       <div class="cta-inner">
         <div class="cta-glow" />
         <div class="cta-icon-wrapper">
-          <Icon icon="mdi:compass-rose" class="cta-compass" />
+          <Icon :ssr="true" icon="mdi:compass-rose" class="cta-compass" />
         </div>
 
         <h2 class="cta-title">
@@ -1157,25 +1159,47 @@ function handleClose() {
         </p>
 
         <div class="cta-actions">
+          <a
+            v-if="props.standalone"
+            :href="AppRoutePaths.Trip.List"
+            class="kit-btn kit-btn--solid kit-btn--color-primary kit-btn--size-lg cta-primary-btn"
+          >
+            <span class="kit-btn-content">
+              <Icon :ssr="true" icon="mdi:plus-circle-outline" />
+              <span>Начать планировать</span>
+            </span>
+          </a>
           <KitBtn
+            v-else
             variant="solid"
             color="primary"
             size="lg"
             class="cta-primary-btn"
             @click="handleStartPlanning"
           >
-            <Icon icon="mdi:plus-circle-outline" />
+            <Icon :ssr="true" icon="mdi:plus-circle-outline" />
             <span>Начать планировать</span>
           </KitBtn>
 
+          <a
+            v-if="props.standalone"
+            :href="AppRoutePaths.About"
+            class="kit-btn kit-btn--outlined kit-btn--color-secondary kit-btn--size-lg cta-secondary-btn"
+          >
+            <span class="kit-btn-content">
+              <Icon :ssr="true" icon="mdi:information-outline" />
+              <span>О проекте TripScheduler</span>
+            </span>
+          </a>
           <KitBtn
+            v-else
             variant="outlined"
             color="secondary"
             size="lg"
             class="cta-secondary-btn"
             @click="handleGoToAbout"
           >
-            <Icon icon="mdi:information-outline" />
+            <Icon :ssr="true" icon="mdi:information-outline" />
             <span>О проекте TripScheduler</span>
           </KitBtn>
         </div>
@@ -2867,6 +2891,10 @@ function handleClose() {
   line-height: 1.6;
   color: var(--fg-secondary-color);
   margin-bottom: 28px;
+}
+
+.cta-actions a {
+  text-decoration: none;
 }
 
 .cta-actions {

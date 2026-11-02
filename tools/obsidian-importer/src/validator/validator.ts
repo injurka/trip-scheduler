@@ -657,11 +657,8 @@ export function validateObsidianVault(context: ValidationScopeContext, startDate
     })
   }
   else {
-    const financesContent = readFileSync(financesFilePath, 'utf-8')
-    const declaredTotalMatch = financesContent.match(/(?:общий[^\n]*бюджет|итого[^\n]*под ключ)[^\n]*?([\d][\d\s]+)\s*₽/i)
-    const declaredTotal = declaredTotalMatch
-      ? Number.parseInt(declaredTotalMatch[1].replace(/\s+/g, ''), 10)
-      : undefined
+    // Use the same amount parser as the import, including currency fractions.
+    const declaredTotal = financesData.settings.totalBudget
     if (declaredTotal && Math.abs(declaredTotal - totalFinancesRub) > 1) {
       issues.push({
         severity: 'error',

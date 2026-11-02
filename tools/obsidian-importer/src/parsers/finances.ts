@@ -35,6 +35,12 @@ export function resolveDateFromText(text: string, startDate?: string): string | 
     return undefined
 
   const tripYear = Number.parseInt(startDate.split('-')[0], 10)
+  text = cleanMarkdown(text)
+
+  // An explicit accounting date takes precedence over service/payment dates in notes.
+  const accountingDate = text.match(/(?:дата\s+(?:расхода|операции|платежа)|expense\s+date)\s*:\s*(\d{4}-\d{2}-\d{2})/i)
+  if (accountingDate)
+    return accountingDate[1]
 
   const isoMatch = text.match(/(\d{4})-(\d{2})-(\d{2})/)
   if (isoMatch)
@@ -59,12 +65,20 @@ export function resolveDateFromText(text: string, startDate?: string): string | 
     }
   }
 
-  const dayMatch = text.match(/(?:День|Дни|\*\*)\s*(\d{1,2})/i)
+  const shortDateMatch = text.match(/(?:^|[\s(;,])([0-3]?\d)\.([01]?\d)(?![\d.])/)
+  if (shortDateMatch) {
+    const day = Number(shortDateMatch[1])
+    const month = Number(shortDateMatch[2])
+    if (day >= 1 && day <= 31 && month >= 1 && month <= 12)
+      return `${tripYear}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+  }
+
+  const dayMatch = text.match(/(?:День|Дни|Day)\s*(\d{1,2})/i)
   if (dayMatch) {
     const dayNum = Number.parseInt(dayMatch[1], 10)
     if (dayNum >= 1 && dayNum <= 60) {
-      const d = new Date(startDate)
-      d.setDate(d.getDate() + (dayNum - 1))
+      const d = new Date(`${startDate}T12:00:00Z`)
+      d.setUTCDate(d.getUTCDate() + (dayNum - 1))
       return d.toISOString().split('T')[0]
     }
   }
@@ -74,6 +88,7 @@ export function resolveDateFromText(text: string, startDate?: string): string | 
 
 export function buildDayKeywordMap(routePlanDir: string, startDate?: string): Map<string, string> {
   const map = new Map<string, string>()
+  const ambiguous = new Set<string>()
   if (!routePlanDir || !existsSync(routePlanDir) || !startDate)
     return map
 
@@ -84,15 +99,22 @@ export function buildDayKeywordMap(routePlanDir: string, startDate?: string): Ma
       if (!match)
         continue
       const dayNum = Number.parseInt(match[1], 10)
-      const d = new Date(startDate)
-      d.setDate(d.getDate() + (dayNum - 1))
+      const d = new Date(`${startDate}T12:00:00Z`)
+      d.setUTCDate(d.getUTCDate() + (dayNum - 1))
       const dateStr = d.toISOString().split('T')[0]
 
-      const rawTitle = match[2]
+      // Only use the location prefix, never generic words in the activity title.
+      const rawTitle = match[2].split('(')[0]
       const words = rawTitle.split(/[\s,➔\(\)]+/).filter(w => w.length >= 4 && !/^\d+$/.test(w))
       for (const word of words) {
         const cleanWord = word.toLowerCase().replace(/[^a-zа-яё]/gi, '')
-        if (cleanWord.length >= 4 && !map.has(cleanWord)) {
+        if (cleanWord.length < 4 || ambiguous.has(cleanWord))
+          continue
+        if (map.has(cleanWord) && map.get(cleanWord) !== dateStr) {
+          map.delete(cleanWord)
+          ambiguous.add(cleanWord)
+        }
+        else {
           map.set(cleanWord, dateStr)
         }
       }
@@ -106,11 +128,13 @@ export function buildDayKeywordMap(routePlanDir: string, startDate?: string): Ma
 }
 
 function categoryFor(text: string): string {
+  if (/прочее|\bother\b/i.test(text))
+    return 'cat-other'
   if (/авиа|перел[её]т|flight/i.test(text))
     return 'cat-flights'
   if (/проживан|отел|гостиниц|миньсу|hotel|b&b/i.test(text))
     return 'cat-housing'
-  if (/транспорт|поезд|thsr|tra|паром|автобус|такси|трансфер|easycard|логистик|авто/i.test(text))
+  if (/транспорт|поезд|железнодорож|thsr|tra|паром|автобус|такси|трансфер|easycard|логистик|авто/i.test(text))
     return 'cat-transport'
   if (/питани|еда|напит|завтрак|обед|ужин|стритфуд|ресторан|кафе/i.test(text))
     return 'cat-food'
@@ -130,13 +154,21 @@ function cleanMarkdown(value: string): string {
 }
 
 function rubAmount(value: string): number | undefined {
-  const cleaned = value.replace(/,\d+\s*(?:₽|RUB)/gi, ' ₽')
-  const matches = [...cleaned.matchAll(/`?~?([\d][\d\s]*)\s*(?:₽|RUB)`?/gi)]
+  const matches = [...value.matchAll(/`?~?([\d][\d\s]*(?:[.,]\d{1,2})?)\s*(?:₽|RUB)`?/gi)]
   const raw = matches.at(-1)?.[1]
   if (!raw)
     return undefined
-  const amount = Number.parseInt(raw.replace(/\s+/g, ''), 10)
+  const amount = Number(raw.replace(/\s+/g, '').replace(',', '.'))
   return amount > 0 ? amount : undefined
+}
+
+function isPaidExpense(text: string): boolean {
+  const plain = cleanMarkdown(text)
+  const status = plain.match(/(?:статус|status)\s*:\s*([^;|.]+)/i)?.[1] ?? plain
+  if (/(?:не\s*оплачен|пока\s+не\s+оплачен|к\s+оплате|\bunpaid\b|\bnot\s+paid\b|\bplanned\b|(?:^|[\s(;,])план(?=$|[\s);,.]))/i.test(status))
+    return false
+  const ownPayment = status.replace(/без\s+оплачен[а-яё]*[^;|.]*/gi, '')
+  return /оплачен|\bpaid\b|\bonline\b|билеты?\s+(?:выпущен|куплен|выкуплен)|tickets?\s+issued/i.test(ownPayment)
 }
 
 function makeTransaction(
@@ -185,7 +217,7 @@ function parseHotelsFromBookings(hotelsFilePath: string, startDate?: string): Fi
     if (!amount)
       continue
 
-    const isPaid = /оплачен|paid|online/i.test(line) || /оплачен|paid|online/i.test(rawHotelCol)
+    const isPaid = isPaidExpense(line)
     const hotelName = cleanMarkdown(rawHotelCol.replace(/\*\(оплачено\)\*/gi, '').trim())
     const title = `${hotelName} (${location}, ${nights})`.trim()
     const date = resolveDateFromText(`${location} ${dayCol}`, startDate)
@@ -208,7 +240,7 @@ function parseHotelsFromBookings(hotelsFilePath: string, startDate?: string): Fi
       const amount = rubAmount(line)
       if (!amount)
         continue
-      const isPaid = /оплачен|paid|online/i.test(line)
+      const isPaid = isPaidExpense(line)
       const match = line.match(/^[\*\-]\s+(?:[^\w\s\(\)]+\s+)?(.+?):\s*`?~?[\d\s]+(?:,\d+)?\s*₽/i)
       const rawName = match ? match[1] : line.replace(/^[\*\-]\s+/, '')
       const hotelName = cleanMarkdown(rawName.replace(/\*\(.+?\)\*/g, '').trim())
@@ -239,8 +271,9 @@ function parseFlightsFromBookings(flightsFilePath: string, startDate?: string): 
     const amount = Number.parseInt(heroMatch[1].replace(/\s+/g, ''), 10)
     if (amount > 0) {
       const flightName = titleMatch ? cleanMarkdown(titleMatch[1]) : 'Международный авиаперелет'
-      const isPaid = /trip\.com|orderdetail|pnr|билет|маршрут-квитанция|оплачен/i.test(content)
-      const flightDate = resolveDateFromText(content, startDate) || startDate
+      const isPaid = content.split('\n').some(line => isPaidExpense(line))
+      const departureLine = content.split('\n').find(line => /дата отправления|даты пол[её]та/i.test(line))
+      const flightDate = resolveDateFromText(departureLine || '', startDate) || startDate
       return [makeTransaction(
         flightName,
         amount,
@@ -265,22 +298,21 @@ function parseSummary(lines: string[], rawContent: string): SummaryParseResult {
   const summaryTransactions: FinanceTransaction[] = []
 
   let totalBudget: number | undefined
-  const totalMatch = rawContent.match(/(?:общий[^\n]*бюджет|итого[^\n]*под ключ)[^\n]*?([\d][\d\s]+)\s*₽/i)
-  if (totalMatch) {
-    totalBudget = Number.parseInt(totalMatch[1].replace(/\s+/g, ''), 10)
-  }
+  const totalLine = rawContent.split('\n').find(line => /общий[^\n]*бюджет|итого[^\n]*под ключ/i.test(line))
+  if (totalLine)
+    totalBudget = rubAmount(totalLine)
 
   for (const line of lines) {
     if (!/^>\s*-\s+/.test(line))
       continue
     const amount = rubAmount(line)
-    const titleMatch = line.match(/^>\s*-\s+(.+?):(?:\*\*)?\s*`?~?[\d\s]+\s*₽/i)
+    const titleMatch = line.match(/^>\s*-\s+(.+?):(?:\*\*)?\s*`?~?[\d\s.,]+\s*₽/i)
     if (amount && titleMatch) {
       const title = titleMatch[1]
       const catId = categoryFor(title)
       categoryBudgets[catId] = (categoryBudgets[catId] || 0) + amount
 
-      const isPaid = /оплачен|paid|online/i.test(line) && !/из них/i.test(line)
+      const isPaid = isPaidExpense(line) && !/из них/i.test(line)
       summaryTransactions.push(makeTransaction(
         title,
         amount,
@@ -306,32 +338,43 @@ function parseDetailed(
   const result: FinanceTransaction[] = []
   let currentCategory = 'cat-other'
   let inSummaryTable = false
+  let inDetailedSection = false
 
   const findDateFromKeywords = (text: string): string | undefined => {
+    const dates = new Set<string>()
     const words = text.toLowerCase().split(/[\s,➔\(\)]+/).filter(w => w.length >= 4)
     for (const word of words) {
       const cleanWord = word.replace(/[^a-zа-яё]/gi, '')
       if (dayKeywordMap.has(cleanWord)) {
-        return dayKeywordMap.get(cleanWord)
+        dates.add(dayKeywordMap.get(cleanWord)!)
       }
     }
-    return undefined
+    return dates.size === 1 ? [...dates][0] : undefined
   }
 
   for (const line of lines) {
     const trimmed = line.trim()
-    if (/^###\s+/.test(trimmed)) {
-      currentCategory = categoryFor(trimmed)
+    if (/^#{1,2}\s+/.test(trimmed)) {
+      inDetailedSection = false
       inSummaryTable = false
       continue
     }
+    if (/^###\s+/.test(trimmed)) {
+      currentCategory = categoryFor(trimmed)
+      inSummaryTable = false
+      inDetailedSection = true
+      continue
+    }
+    if (!inDetailedSection)
+      continue
 
     // Skip housing (parsed from bookings/Отели.md)
     if (currentCategory === 'cat-housing')
       continue
 
-    // Skip food daily meal norms (they form the category budget limit)
-    if (currentCategory === 'cat-food')
+    // Meal estimates form an envelope; explicit paid purchases (e.g. prepaid
+    // store credit) still belong in the payment history, inside that envelope.
+    if (currentCategory === 'cat-food' && !isPaidExpense(trimmed))
       continue
 
     // Detect summary / aggregate table start
@@ -372,10 +415,9 @@ function parseDetailed(
           : /связь|интернет|esim|sim-карт|сим|страховк|полис/i.test(title)
             ? 'cat-telecom'
             : currentCategory
-        const isPaid = /оплачен|paid|online/i.test(trimmed)
+        const isPaid = isPaidExpense(trimmed)
         const date = resolveDateFromText(trimmed, startDate)
           || findDateFromKeywords(trimmed)
-          || (col0.includes('EasyCard') && startDate ? resolveDateFromText('День 03', startDate) : (catId === 'cat-other' && startDate ? startDate : undefined))
 
         result.push(makeTransaction(
           title,
@@ -392,7 +434,7 @@ function parseDetailed(
     const bullet = trimmed.match(/^\s*[-*]\s+(?:\*\*)?(.+?)(?:\*\*)?:.*$/)
     const amount = rubAmount(trimmed)
     if (bullet && amount && !/итого|подитог|сводка|средняя стоимость|текущий статус|разбивка/i.test(bullet[1])) {
-      const isPaid = /оплачен|paid|online/i.test(trimmed)
+      const isPaid = isPaidExpense(trimmed)
       const title = bullet[1]
       const catId = /связь|интернет|esim|sim-карт|сим|страховк|полис/i.test(title)
         ? 'cat-telecom'

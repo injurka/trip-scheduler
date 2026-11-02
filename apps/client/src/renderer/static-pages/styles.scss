@@ -1,0 +1,4 @@
+#static-page {
+  // Standalone pages have no application shell to contain the side gradients.
+  --content-gradient-width: 0px;
+}

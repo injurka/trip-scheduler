@@ -13,6 +13,7 @@ import { autoImportOptionsCfg } from './cfg/auto-import.ts'
 import { iconsCfg } from './cfg/icons.ts'
 import { pwaCfg } from './cfg/pwa.ts'
 import { resolveAppVersion, visualizerPlugin } from './lib/helpers.ts'
+import { buildStaticPages } from './lib/static-pages.ts'
 import { getVendorChunkName } from './vendor-chunks.ts'
 
 const require = createRequire(import.meta.url)
@@ -31,6 +32,12 @@ export default defineConfig({
     include: ['vue', 'vue-router', 'pinia', '@vueuse/core', '@vueuse/head'],
   },
   plugins: [
+    buildStaticPages(() => ({
+      root: resolve(import.meta.dirname, '../src/renderer'),
+      plugins: [Vue(), AutoImport({ ...autoImportOptionsCfg, dts: false, eslintrc: { enabled: false } })],
+      resolve: { alias: { '~': resolve(import.meta.dirname, '../src/renderer') } },
+      css: { preprocessorOptions: { scss: { additionalData: `@use '~/assets/scss/_setup.scss' as *;` } } },
+    })),
     Vue(),
     React(),
     AutoImport(autoImportOptionsCfg),
@@ -61,7 +68,7 @@ export default defineConfig({
         target: 'http://localhost:8080',
         changeOrigin: true,
       },
-      '/static': {
+      '^/static(?:/|$)': {
         target: 'http://localhost:8080',
         changeOrigin: true,
       },

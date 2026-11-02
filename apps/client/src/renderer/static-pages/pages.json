@@ -1,0 +1,30 @@
+[
+  {
+    "slug": "onboarding",
+    "description": "TripScheduler — планирование путешествий: маршрут и карта, бронирования, документы, бюджет и воспоминания в одном месте.",
+    "component": "/components/05.modules/onboarding/ui/onboarding-view.vue",
+    "title": "Планируй путешествия с TripScheduler",
+    "hydrate": true
+  },
+  {
+    "slug": "about",
+    "description": "О проекте Trip Scheduler и его авторе.",
+    "component": "/components/05.modules/public-pages/ui/about-view.vue",
+    "title": "О проекте Trip Scheduler",
+    "hydrate": true
+  },
+  {
+    "slug": "terms",
+    "description": "Условия использования Trip Scheduler.",
+    "component": "/components/05.modules/public-pages/ui/terms-view.vue",
+    "title": "Условия использования — Trip Scheduler",
+    "hydrate": false
+  },
+  {
+    "slug": "privacy",
+    "description": "Политика конфиденциальности Trip Scheduler.",
+    "component": "/components/05.modules/public-pages/ui/privacy-view.vue",
+    "title": "Политика конфиденциальности — Trip Scheduler",
+    "hydrate": false
+  }
+]

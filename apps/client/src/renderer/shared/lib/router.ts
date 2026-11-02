@@ -3,6 +3,7 @@ import { createRouter, createWebHashHistory, createWebHistory } from 'vue-router
 import { AppRouteNames, AppRoutePaths } from '~/shared/constants/routes'
 import { isTauri } from '~/shared/lib/env'
 import { useAuthStore } from '~/shared/store/auth.store'
+import { findStaticPage } from '~/static-pages/registry'
 
 // --- Компоненты страниц ---
 const Root = () => import('~/pages/root.vue')
@@ -291,6 +292,12 @@ const router: Router = createRouter({
 })
 
 router.beforeEach(async (to) => {
+  if (import.meta.env.PROD && !isTauri && findStaticPage(to.path)) {
+    window.location.assign(to.fullPath)
+
+    return false
+  }
+
   const authStore = useAuthStore()
 
   if (!authStore.isInitialized) {

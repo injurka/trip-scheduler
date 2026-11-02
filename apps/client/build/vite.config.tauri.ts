@@ -76,7 +76,7 @@ export default defineConfig({
         target: 'http://localhost:8080',
         changeOrigin: true,
       },
-      '/static': {
+      '^/static(?:/|$)': {
         target: 'http://localhost:8080',
         changeOrigin: true,
       },

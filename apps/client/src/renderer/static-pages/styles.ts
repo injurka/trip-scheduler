@@ -1,0 +1,5 @@
+import '~/assets/scss/normalize.scss'
+import '~/assets/scss/global.scss'
+import '~/assets/scss/atomic.scss'
+import '~/assets/scss/fonts.scss'
+import './styles.scss'

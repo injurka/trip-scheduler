@@ -45,7 +45,7 @@ export const AIHUBMIX_MODELS: Array<{ title: string, value: string }> = [
 export const DEFAULT_AIHUBMIX_MODEL = 'gemini-3.1-flash-lite'
 
 export const DEFAULT_EXCHANGE_RATES: Record<string, number> = {
-  TWD: 2.8,
+  TWD: 2.6,
   USD: 90.0,
   EUR: 100.0,
   CNY: 12.5,

@@ -1,8 +1,9 @@
 /* eslint-disable no-console */
 import type { ServiceWorkerMessage } from './model/types'
 import { clientsClaim } from 'workbox-core'
-import { cleanupOutdatedCaches, createHandlerBoundToURL, precacheAndRoute } from 'workbox-precaching'
+import { cleanupOutdatedCaches, createHandlerBoundToURL, getCacheKeyForURL, precacheAndRoute } from 'workbox-precaching'
 import { NavigationRoute, registerRoute } from 'workbox-routing'
+import { staticPages } from '../static-pages/registry'
 import { OFFLINE_MEDIA_CACHE_NAME } from './constant'
 import { messageHandlers } from './lib/message-handlers'
 import { AssetAnalyzer, CacheStrategyFactory } from './lib/utils'
@@ -167,6 +168,17 @@ if (import.meta.env.PROD) {
     /^\/manifest-(.*).webmanifest$/,
     /^\/workbox-.*\.js$/,
   ]
+}
+
+// Native builds retain their SPA routes and do not include these HTML files.
+for (const page of staticPages) {
+  const html = `/${page.slug}/index.html`
+
+  if (getCacheKeyForURL(html)) {
+    registerRoute(new NavigationRoute(createHandlerBoundToURL(html), {
+      allowlist: [new RegExp(`^/${page.slug}(?:/(?:index\\.html)?)?(?:\\?.*)?$`)],
+    }))
+  }
 }
 
 registerRoute(new NavigationRoute(createHandlerBoundToURL(import.meta.env.DEV ? 'index.html' : '/'), {

@@ -3,6 +3,7 @@
     "composite": true,
     "module": "ESNext",
     "moduleResolution": "bundler",
+    "resolveJsonModule": true,
     "types": [
       "node"
     ],
@@ -16,6 +17,7 @@
   "include": [
     "vite.config.ts",
     "package.json",
-    "./build/**/*"
+    "./build/**/*",
+    "./src/renderer/static-pages/pages.json"
   ]
 }

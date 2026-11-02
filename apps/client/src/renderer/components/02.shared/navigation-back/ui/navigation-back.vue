@@ -1,23 +1,33 @@
 <script setup lang="ts">
+import { Icon } from '@iconify/vue'
 import { useRouter } from 'vue-router'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { AppRoutePaths } from '~/shared/constants/routes'
 
-const router = useRouter()
+interface Props {
+  href?: string
+}
+
+const props = defineProps<Props>()
+const router = props.href ? undefined : useRouter()
 
 function goBack() {
   if (typeof window !== 'undefined' && window.history.state?.back) {
-    router.back()
+    router?.back()
   }
   else {
-    void router.push(AppRoutePaths.Root)
+    void router?.push(AppRoutePaths.Root)
   }
 }
 </script>
 
 <template>
   <div class="navigation-back-container">
+    <a v-if="href" :href="href" class="navigation-back-btn static-back">
+      <Icon :ssr="true" icon="mdi:arrow-left" /> Назад
+    </a>
     <KitBtn
+      v-else
       class="navigation-back-btn"
       icon="mdi:arrow-left"
       variant="outlined"
@@ -30,6 +40,13 @@ function goBack() {
 </template>
 
 <style scoped lang="scss">
+.static-back {
+  color: var(--fg-secondary-color);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .navigation-back-container {
   display: flex;
 }
