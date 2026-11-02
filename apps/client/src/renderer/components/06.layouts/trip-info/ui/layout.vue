@@ -318,6 +318,13 @@ onBeforeUnmount(() => {
   flex: 1;
   position: relative;
   overflow-x: clip;
+  min-height: 100dvh;
+  box-sizing: border-box;
+
+  :global(html.is-mobile-app) &,
+  :global(html.is-tauri) & {
+    background-color: var(--bg-primary-color);
+  }
 
   // Заметки занимают ровно высоту вьюпорта, скролл живёт внутри секции (дерево файлов, .editor-body).
   // Без явной высоты flex-элемент растягивается по контенту, `#app` (min-height: 100dvh) растёт вместе с ним,
@@ -507,7 +514,7 @@ onBeforeUnmount(() => {
     // Хедер и футер absolute (вне потока) — отступы от них лежат на .content-wrapper:
     // фон тянется под хедером и футером, контент начинается и заканчивается с безопасными отступами
     .content-wrapper {
-      padding-top: calc(var(--header-height) + var(--safe-area-inset-top));
+      padding-top: var(--header-height);
       padding-bottom: calc(var(--footer-height) + var(--safe-area-inset-bottom) + 16px);
     }
   }
@@ -534,7 +541,7 @@ onBeforeUnmount(() => {
     max-width: 100%;
     height: 100%;
     padding: 0;
-    padding-top: calc(var(--header-height) + var(--safe-area-inset-top));
+    padding-top: var(--header-height);
     align-items: center;
 
     :deep() {
