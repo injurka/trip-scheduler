@@ -152,7 +152,7 @@ onMounted(() => {
   flex: 1;
   height: 100%;
   min-height: 100%;
-  padding: 16px;
+  padding: 16px 16px calc(16px + var(--safe-area-inset-bottom));
   // Только opacity: transform на предке делает его containing block для position: fixed
   // (.corner-actions), и кнопки уезжали вместе с контентом за нижний край экрана
   animation: fadeInOpacity 0.8s ease-out forwards;
@@ -174,7 +174,7 @@ onMounted(() => {
 
 .corner-actions {
   position: fixed;
-  bottom: 24px;
+  bottom: calc(24px + var(--safe-area-inset-bottom));
   right: 24px;
   z-index: 10;
   display: flex;

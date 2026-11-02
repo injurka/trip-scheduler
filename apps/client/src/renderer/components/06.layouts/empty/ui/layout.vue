@@ -54,6 +54,8 @@ useHead({
 
 .main--welcome-edge-to-edge {
   padding-top: 0;
+  // Welcome сам заливает фоном зону навбара и отступает от неё внутри
+  padding-bottom: 0;
 }
 
 .system-bar-top-scrim {
