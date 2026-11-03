@@ -4,23 +4,20 @@ import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitLogo } from '~/components/01.kit/kit-logo'
+import { useOnboarding } from '~/shared/composables/use-onboarding'
 import { AppRoutePaths } from '~/shared/constants/routes'
 
 interface Props {
-  isModal?: boolean
   standalone?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  isModal: false,
   standalone: false,
 })
-const emit = defineEmits<{
-  (e: 'close'): void
-}>()
+
+const { completeOnboarding } = useOnboarding()
 
 const router = props.standalone ? undefined : useRouter()
-
 const sections = [
   {
     id: 'plan',
@@ -69,27 +66,41 @@ function scrollToSection(id: string) {
   }
 }
 function handleStartPlanning() {
-  emit('close')
+  completeOnboarding()
   router?.push(AppRoutePaths.Trip.List)
 }
 function handleGoToAbout() {
-  emit('close')
+  completeOnboarding()
   router?.push(AppRoutePaths.About)
 }
 function handleClose() {
-  emit('close')
+  completeOnboarding()
+  const returnUrl = props.standalone
+    ? new URLSearchParams(window.location.search).get('returnUrl')
+    : router?.currentRoute.value.query.returnUrl
+  const target = typeof returnUrl === 'string'
+    && /^\/(?![\\/])/.test(returnUrl)
+    && !returnUrl.startsWith(AppRoutePaths.Onboarding)
+    ? returnUrl
+    : AppRoutePaths.Root
+
+  if (props.standalone) {
+    window.location.replace(target)
+  }
+  else {
+    router?.replace(target)
+  }
 }
 </script>
 
 <template>
-  <div class="onboarding-container" :class="{ 'is-modal': props.isModal }">
-    <!-- Кнопка закрытия для модального режима -->
+  <div class="onboarding-container">
+    <!-- Пропуск вводного экрана -->
     <button
-      v-if="props.isModal"
-      class="modal-close-btn"
+      class="skip-btn"
       type="button"
       title="Закрыть и перейти к приложению"
-      aria-label="Закрыть"
+      aria-label="Пропустить"
       @click="handleClose"
     >
       <span class="close-label">Пропустить</span>
@@ -1163,6 +1174,7 @@ function handleClose() {
             v-if="props.standalone"
             :href="AppRoutePaths.Trip.List"
             class="kit-btn kit-btn--solid kit-btn--color-primary kit-btn--size-lg cta-primary-btn"
+            @click="completeOnboarding"
           >
             <span class="kit-btn-content">
               <Icon :ssr="true" icon="mdi:plus-circle-outline" />
@@ -1185,6 +1197,7 @@ function handleClose() {
             v-if="props.standalone"
             :href="AppRoutePaths.About"
             class="kit-btn kit-btn--outlined kit-btn--color-secondary kit-btn--size-lg cta-secondary-btn"
+            @click="completeOnboarding"
           >
             <span class="kit-btn-content">
               <Icon :ssr="true" icon="mdi:information-outline" />
@@ -1205,7 +1218,6 @@ function handleClose() {
         </div>
 
         <button
-          v-if="props.isModal"
           class="cta-skip-link"
           type="button"
           @click="handleClose"
@@ -1223,35 +1235,23 @@ function handleClose() {
   width: 100%;
   max-width: 1200px;
   margin: 0 auto;
-  padding: 40px 24px 80px;
+  padding: calc(60px + var(--safe-area-inset-top, 0px)) 24px calc(80px + var(--safe-area-inset-bottom, 0px));
   color: var(--fg-primary-color);
   font-family: inherit;
 
-  &.is-modal {
-    padding-top: 60px;
-  }
-
   @media (max-width: 768px) {
-    padding: 24px 16px 60px;
-
-    &.is-modal {
-      padding-top: 56px;
-    }
+    padding: calc(56px + var(--safe-area-inset-top, 0px)) 16px calc(60px + var(--safe-area-inset-bottom, 0px));
   }
 
   @media (max-width: 480px) {
-    padding: 16px 12px 48px;
-
-    &.is-modal {
-      padding-top: 52px;
-    }
+    padding: calc(52px + var(--safe-area-inset-top, 0px)) 12px calc(48px + var(--safe-area-inset-bottom, 0px));
   }
 }
 
-.modal-close-btn {
+.skip-btn {
   position: fixed;
-  top: 24px;
-  right: 24px;
+  top: calc(24px + var(--safe-area-inset-top, 0px));
+  right: calc(24px + var(--safe-area-inset-right, 0px));
   z-index: 100;
   display: flex;
   align-items: center;
@@ -1280,8 +1280,8 @@ function handleClose() {
   }
 
   @media (max-width: 600px) {
-    top: 16px;
-    right: 16px;
+    top: calc(16px + var(--safe-area-inset-top, 0px));
+    right: calc(16px + var(--safe-area-inset-right, 0px));
     padding: 6px 12px;
   }
 }

@@ -7,7 +7,7 @@ import { OfflineBanner } from '~/components/02.shared/offline-banner'
 import { ReloadPrompt } from '~/components/02.shared/reload-prompt'
 import { ToastManager } from '~/components/02.shared/toast-manager'
 import { useOnboarding } from '~/shared/composables/use-onboarding'
-import { AppRouteNames } from '~/shared/constants/routes'
+import { AppRouteNames, AppRoutePaths } from '~/shared/constants/routes'
 import { lazyComponent } from '~/shared/lib/lazy-component'
 import { useLayoutStore } from '~/shared/store/layout.store'
 import '~/assets/scss/global.scss'
@@ -19,10 +19,10 @@ import 'maplibre-gl/dist/maplibre-gl.css'
 import '~/assets/scss/maplibre-markers.scss'
 
 const route = useRoute()
+const router = useRouter()
 const layoutStore = useLayoutStore()
 const onboarding = useOnboarding()
 
-const OnboardingModal = lazyComponent(() => import('~/components/05.modules/onboarding/ui/onboarding-modal.vue'))
 const OfflineProgressDialog = lazyComponent(() => import('~/components/02.shared/offline-manager/ui/offline-progress-dialog.vue'))
 const FloatingMap = lazyComponent(() => import('~/components/04.features/floating-map/ui/floating-map.vue'))
 const DefaultLayout = lazyComponent(() => import('~/components/06.layouts/default/ui/layout.vue'))
@@ -96,9 +96,11 @@ useSeoMeta({
   twitterImage: `${siteUrl}/og-image.jpg`,
 })
 
-onMounted(() => {
-  if (!route.path.startsWith('/auth')) {
-    onboarding.initOnboarding()
+onMounted(async () => {
+  await router.isReady()
+
+  if (!route.path.startsWith('/auth') && route.name !== AppRouteNames.Onboarding && onboarding.initOnboarding()) {
+    router.replace({ path: AppRoutePaths.Onboarding, query: { returnUrl: route.fullPath } })
   }
 })
 </script>
@@ -124,10 +126,6 @@ onMounted(() => {
 
     <ConfirmDialogManager />
     <OfflineProgressDialog />
-    <OnboardingModal
-      v-if="onboarding.isOnboardingOpen.value && route.name !== AppRouteNames.Onboarding"
-      @close="onboarding.closeOnboarding"
-    />
   </ConfigProvider>
 </template>
 

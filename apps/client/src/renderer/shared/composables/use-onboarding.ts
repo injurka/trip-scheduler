@@ -1,8 +1,6 @@
 import { ref } from 'vue'
 
 const ONBOARDING_STORAGE_KEY = 'ts_onboarding_completed'
-
-const isOnboardingOpen = ref(false)
 const hasSeenOnboarding = ref(false)
 let isInitialized = false
 
@@ -13,8 +11,7 @@ export function useOnboarding() {
     }
 
     try {
-      const stored = localStorage.getItem(ONBOARDING_STORAGE_KEY)
-      hasSeenOnboarding.value = stored === 'true'
+      hasSeenOnboarding.value = localStorage.getItem(ONBOARDING_STORAGE_KEY) === 'true'
 
       return hasSeenOnboarding.value
     }
@@ -23,25 +20,13 @@ export function useOnboarding() {
     }
   }
 
-  function initOnboarding(options?: { force?: boolean }) {
-    if (typeof window === 'undefined')
-      return
+  function initOnboarding(): boolean {
+    if (typeof window === 'undefined' || isInitialized)
+      return false
 
-    const alreadySeen = checkStatus()
+    isInitialized = true
 
-    if (options?.force) {
-      isOnboardingOpen.value = true
-
-      return
-    }
-
-    if (!isInitialized) {
-      isInitialized = true
-
-      if (!alreadySeen) {
-        isOnboardingOpen.value = true
-      }
-    }
+    return !checkStatus()
   }
 
   function completeOnboarding() {
@@ -55,38 +40,7 @@ export function useOnboarding() {
     }
 
     hasSeenOnboarding.value = true
-    isOnboardingOpen.value = false
   }
 
-  function openOnboarding() {
-    isOnboardingOpen.value = true
-  }
-
-  function closeOnboarding() {
-    completeOnboarding()
-  }
-
-  function resetOnboarding() {
-    if (typeof window !== 'undefined') {
-      try {
-        localStorage.removeItem(ONBOARDING_STORAGE_KEY)
-      }
-      catch {
-        // Игнорируем
-      }
-    }
-
-    hasSeenOnboarding.value = false
-    isOnboardingOpen.value = true
-  }
-
-  return {
-    isOnboardingOpen,
-    hasSeenOnboarding,
-    initOnboarding,
-    completeOnboarding,
-    openOnboarding,
-    closeOnboarding,
-    resetOnboarding,
-  }
+  return { hasSeenOnboarding, checkStatus, initOnboarding, completeOnboarding }
 }

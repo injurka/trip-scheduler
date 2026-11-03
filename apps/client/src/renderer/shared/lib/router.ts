@@ -83,7 +83,7 @@ const routes: RouteRecordRaw[] = [
     path: AppRoutePaths.Onboarding,
     name: AppRouteNames.Onboarding,
     component: Onboarding,
-    meta: { layout: 'default' },
+    meta: { layout: 'empty' },
   },
   {
     path: AppRoutePaths.UsefulLinks,
