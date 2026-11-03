@@ -6,6 +6,7 @@ import { computed, ref, watch } from 'vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitDialogWithClose } from '~/components/01.kit/kit-dialog-with-close'
 import { KitDropdown } from '~/components/01.kit/kit-dropdown'
+import { KitMarkdownViewer } from '~/components/01.kit/kit-markdown-viewer'
 import { useToast } from '~/shared/composables/use-toast'
 import { isTauri } from '~/shared/lib/env'
 import { findOfflineMediaResponse } from '~/shared/lib/offline-cache'
@@ -49,6 +50,7 @@ const absoluteUrl = computed(() => {
 })
 
 const isPdf = computed(() => extension.value === 'pdf')
+const isMarkdown = computed(() => extension.value === 'md')
 const isText = computed(() => ['txt', 'md', 'json', 'csv'].includes(extension.value))
 
 const dropdownActions = computed<KitDropdownItem<string>[]>(() => {
@@ -281,6 +283,7 @@ function handleActionSelect(action: string) {
           <Icon icon="mdi:loading" class="spin" />
           <span>Загрузка содержимого...</span>
         </div>
+        <KitMarkdownViewer v-else-if="isMarkdown" :markdown="textContent" />
         <pre v-else class="text-content">{{ textContent }}</pre>
       </div>
 
@@ -436,6 +439,8 @@ function handleActionSelect(action: string) {
 
 .text-wrapper {
   width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
   max-height: 60vh;
   overflow-y: auto;
   padding: 16px;

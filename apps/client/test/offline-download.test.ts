@@ -38,7 +38,7 @@ function trip(): TripWithDays {
     title: 'Taiwan',
     imageUrl: 'https://example.test/cover.jpg',
     days: [],
-    sections: [],
+    sections: [{ type: 'geolocation', content: { points: [{ coordinates: [121.5, 25] }] } }],
   } as unknown as TripWithDays
 }
 function account(id: string) {

@@ -1,14 +1,21 @@
 <script setup lang="ts">
+import type { OfflineMapCoverage, OfflineMapOptions } from '~/shared/lib/offline-map-options'
 import type { OfflineDownloadOptions } from '~/shared/store/offline.store'
+import type { TripWithDays } from '~/shared/types/models/trip'
 import { Icon } from '@iconify/vue'
 import { computed, ref, watch } from 'vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitDialogWithClose } from '~/components/01.kit/kit-dialog-with-close'
+import { getOfflineMapStyle, getSelectedMapAreas } from '~/shared/lib/offline-map-options'
+import OfflineMapSettings from './offline-map-settings.vue'
 
 interface Props {
   visible: boolean
   tripTitle?: string
   hasCoordinates?: boolean
+  trip?: TripWithDays
+  initialMapOptions?: OfflineMapOptions
+  savedMapCoverage?: OfflineMapCoverage[]
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -20,10 +27,12 @@ const emit = defineEmits<{
   (e: 'confirm', options: OfflineDownloadOptions): void
 }>()
 
+const mapOptions = ref<OfflineMapOptions>({})
 const includeMedia = ref(true)
 const includeNotes = ref(true)
 const includeDocuments = ref(true)
 const includeMapTiles = ref(props.hasCoordinates)
+const isMapSelectionEmpty = computed(() => includeMapTiles.value && props.trip && getSelectedMapAreas(props.trip, mapOptions.value).length === 0)
 
 const totalAvailableOptions = computed(() => (props.hasCoordinates ? 4 : 3))
 const selectedCount = computed(() => {
@@ -48,6 +57,7 @@ const isAllSelected = computed(() => selectedCount.value === totalAvailableOptio
 
 watch(() => props.visible, (isOpen) => {
   if (isOpen) {
+    mapOptions.value = { style: getOfflineMapStyle(), maxZoom: 15, ...props.initialMapOptions, refresh: false }
     includeMedia.value = true
     includeNotes.value = true
     includeDocuments.value = true
@@ -71,7 +81,7 @@ function deselectAll() {
   includeMapTiles.value = false
 }
 function handleConfirm() {
-  if (isNoneSelected.value)
+  if (isNoneSelected.value || isMapSelectionEmpty.value)
     return
 
   emit('confirm', {
@@ -79,6 +89,7 @@ function handleConfirm() {
     includeNotes: includeNotes.value,
     includeDocuments: includeDocuments.value,
     includeMapTiles: props.hasCoordinates ? includeMapTiles.value : false,
+    map: mapOptions.value,
   })
   emit('update:visible', false)
 }
@@ -253,7 +264,7 @@ function handleCancel() {
               <span class="option-title">Карта зоны маршрута</span>
             </div>
             <span class="option-description">
-              {{ hasCoordinates ? 'Обзор поездки и подробная карта вокруг точек и линий маршрута (зум 10–15), рельеф при наличии MapTiler' : 'В маршруте нет гео-точек для скачивания' }}
+              {{ hasCoordinates ? 'Выберите области, детализацию и вид карты. Скачанные участки можно докачать позже.' : 'В маршруте нет гео-точек для скачивания' }}
             </span>
           </div>
           <div
@@ -265,6 +276,13 @@ function handleCancel() {
           </div>
         </div>
       </div>
+
+      <OfflineMapSettings
+        v-if="includeMapTiles && trip"
+        v-model="mapOptions"
+        :trip="trip"
+        :coverage="savedMapCoverage"
+      />
 
       <!-- Информационная плашка безопасности/автономности -->
       <div class="dialog-footer-hint">
@@ -279,7 +297,7 @@ function handleCancel() {
         </KitBtn>
         <KitBtn
           color="primary"
-          :disabled="isNoneSelected"
+          :disabled="isNoneSelected || Boolean(isMapSelectionEmpty)"
           @click="handleConfirm"
         >
           <Icon icon="mdi:download-outline" />

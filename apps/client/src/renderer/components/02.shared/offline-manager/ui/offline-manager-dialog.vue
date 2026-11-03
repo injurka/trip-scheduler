@@ -27,6 +27,7 @@ const moduleStore = useModuleStore(['plan', 'sections'])
 
 const selectedTripForUpdate = ref<{ id: string, title: string, hasCoordinates: boolean } | null>(null)
 const isDownloadDialogOpen = ref(false)
+const selectedSavedEntry = computed(() => selectedTripForUpdate.value ? offlineStore.savedTrips[selectedTripForUpdate.value.id] : undefined)
 
 function goToTrip(id: string) {
   emit('update:visible', false)
@@ -127,6 +128,12 @@ async function handleConfirmDownload(options: OfflineDownloadOptions) {
                 {{ item.imageCount }} файлов
               </span>
             </div>
+            <p v-if="item.mapCoverage?.length" class="item-meta">
+              Сохранено участков карты: {{ item.mapCoverage.length }}. Можно докачать другие области.
+            </p>
+            <p v-if="item.mapPending && !offlineStore.isDownloading[item.id]" class="item-warning">
+              Карта сохранена частично. Откройте обновление копии, чтобы докачать выбранные области.
+            </p>
             <p v-if="!item.cacheName || item.unavailableCount" class="item-warning">
               {{ !item.cacheName ? 'Обновите копию для восстановления оффлайн-файлов.' : `Сохранено не полностью: недоступно ${item.unavailableCount} элементов. Повторите загрузку.` }}
             </p>
@@ -181,6 +188,9 @@ async function handleConfirmDownload(options: OfflineDownloadOptions) {
       v-model:visible="isDownloadDialogOpen"
       :trip-title="selectedTripForUpdate?.title"
       :has-coordinates="selectedTripForUpdate?.hasCoordinates"
+      :trip="selectedSavedEntry?.data"
+      :initial-map-options="selectedSavedEntry?.mapOptions"
+      :saved-map-coverage="selectedSavedEntry?.mapCoverage"
       @confirm="handleConfirmDownload"
     />
   </KitDialogWithClose>

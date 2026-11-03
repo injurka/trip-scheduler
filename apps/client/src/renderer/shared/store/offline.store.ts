@@ -1,18 +1,24 @@
+import type { OfflineMapCoverage, OfflineMapOptions } from '~/shared/lib/offline-map-options'
 import type { TripDocumentResponse, TripNote } from '~/shared/services/api/model/types'
 import type { TripMedia, TripWithDays } from '~/shared/types/models/trip'
 import { isRecord } from '@injurka/type-utils'
 import { defineStore } from 'pinia'
 import { useToast } from '~/shared/composables/use-toast'
 import { getOfflineAccountId, getOfflineCachePrefix, OFFLINE_CACHE_READY_URL } from '~/shared/lib/offline-cache'
-import { planOfflineMap } from '~/shared/lib/offline-map'
+import { downloadOfflineMapAreas } from '~/shared/lib/offline-map-download'
 import { resolveApiUrl, stripAuthTokenFromUrl } from '~/shared/lib/url'
 import { offlineStorageService } from '~/shared/services/offline/offline-storage.service'
 import { trpc } from '~/shared/services/trpc/trpc.service'
+import { useAppSettingsStore } from './app-settings.store'
 
 export interface OfflineTripEntry {
   /** Version of the serialized trip payload, independent of IndexedDB schema version. */
   downloadedByUserId?: string
   cacheName?: string
+  mapCacheName?: string
+  mapPending?: boolean
+  mapCoverage?: OfflineMapCoverage[]
+  mapOptions?: OfflineMapOptions
   files?: Record<'media' | 'notes' | 'documents' | 'map', string[]>
   media?: TripMedia[]
   payloadSchemaVersion: number
@@ -32,7 +38,10 @@ export interface OfflineDownloadOptions {
   includeNotes?: boolean
   includeDocuments?: boolean
   includeMapTiles?: boolean
+  map?: OfflineMapOptions
 }
+
+type NormalizedOfflineDownloadOptions = Required<Omit<OfflineDownloadOptions, 'map'>> & Pick<OfflineDownloadOptions, 'map'>
 
 export interface OfflineDownloadStatus {
   progress: number
@@ -219,7 +228,7 @@ function collectTripDayUrls(trip: TripWithDays, urls: Set<string>) {
 
 function collectOfflineUrls(
   trip: TripWithDays,
-  options: Required<OfflineDownloadOptions>,
+  options: NormalizedOfflineDownloadOptions,
   notes: TripNote[],
   documents: TripDocumentResponse[],
 ): Set<string> {
@@ -255,7 +264,7 @@ interface OfflineMetadataResult {
   failureCount: number
 }
 
-async function fetchOfflineMetadata(tripId: string, options: Required<OfflineDownloadOptions>): Promise<OfflineMetadataResult> {
+async function fetchOfflineMetadata(tripId: string, options: NormalizedOfflineDownloadOptions): Promise<OfflineMetadataResult> {
   const [notesResult, documentsResult] = await Promise.all([
     options.includeNotes ? fetchOfflineNotes(tripId) : Promise.resolve({ items: [], success: false, failed: 0 }),
     options.includeDocuments ? fetchOfflineDocuments(tripId) : Promise.resolve({ items: [], success: false, failed: 0 }),
@@ -374,12 +383,13 @@ async function cacheOfflineMediaUrls(cacheName: string, urls: string[], onProgre
   return { loadedCount, failedCount }
 }
 
-function normalizeDownloadOptions(options?: OfflineDownloadOptions): Required<OfflineDownloadOptions> {
+function normalizeDownloadOptions(options?: OfflineDownloadOptions): NormalizedOfflineDownloadOptions {
   return {
     includeMedia: options?.includeMedia ?? true,
     includeNotes: options?.includeNotes ?? true,
     includeDocuments: options?.includeDocuments ?? true,
     includeMapTiles: options?.includeMapTiles ?? false,
+    map: options?.map,
   }
 }
 
@@ -411,8 +421,9 @@ function updateMediaCacheProgress(
   tripId: string,
   totalCount: number,
   loaded: number,
+  maxProgress = 100,
 ) {
-  const progress = Math.min(100, Math.round((loaded / totalCount) * 100))
+  const progress = Math.min(maxProgress, Math.round((loaded / totalCount) * maxProgress))
   state.downloadProgress[tripId] = progress
   state.downloadStatus[tripId] = {
     progress,
@@ -423,33 +434,18 @@ function updateMediaCacheProgress(
   }
 }
 
-function getDocumentsToSave(current: OfflineTripEntry | undefined, options: Required<OfflineDownloadOptions>, metadata: OfflineMetadataResult): TripDocumentResponse[] {
+function getDocumentsToSave(current: OfflineTripEntry | undefined, options: NormalizedOfflineDownloadOptions, metadata: OfflineMetadataResult): TripDocumentResponse[] {
   if (options.includeDocuments && metadata.documentsFetchSuccess)
     return metadata.documents
 
   return current?.documents ?? []
 }
 
-function getNotesToSave(current: OfflineTripEntry | undefined, options: Required<OfflineDownloadOptions>, metadata: OfflineMetadataResult): TripNote[] {
+function getNotesToSave(current: OfflineTripEntry | undefined, options: NormalizedOfflineDownloadOptions, metadata: OfflineMetadataResult): TripNote[] {
   if (options.includeNotes && metadata.notesFetchSuccess)
     return metadata.notes
 
   return current?.notes ?? []
-}
-
-function shouldIncludeOfflineTiles(
-  current: OfflineTripEntry | undefined,
-  options: Required<OfflineDownloadOptions>,
-  tileCount: number,
-  tileSuccesses: number,
-  tileFailures: number,
-): boolean {
-  if (!options.includeMapTiles)
-    return current?.includesTiles ?? false
-
-  const tilesSuccessfullyCached = tileCount > 0 && tileSuccesses === tileCount && tileFailures === 0
-
-  return tilesSuccessfullyCached
 }
 
 function createOfflineTripEntry(
@@ -510,7 +506,7 @@ function setOfflineSaveCompletion(
 }
 
 async function copyOfflineCache(previous: OfflineTripEntry | undefined, cacheName: string) {
-  if (!previous?.cacheName || typeof caches === 'undefined')
+  if (!previous?.cacheName || previous.cacheName === cacheName || typeof caches === 'undefined')
     return
 
   const oldCache = await caches.open(previous.cacheName)
@@ -524,20 +520,6 @@ async function copyOfflineCache(previous: OfflineTripEntry | undefined, cacheNam
 
     if (response)
       await nextCache.put(request, response)
-  }
-}
-
-async function prepareMap(trip: TripWithDays, cacheName: string, enabled: boolean) {
-  if (!enabled)
-    return { urls: [] as string[], failed: 0 }
-
-  try {
-    return { urls: await planOfflineMap(trip, cacheName), failed: 0 }
-  }
-  catch (error) {
-    useToast().warn(error instanceof Error ? error.message : 'Не удалось подготовить оффлайн-карту.')
-
-    return { urls: [] as string[], failed: 1 }
   }
 }
 
@@ -587,7 +569,7 @@ function selectCategoryFiles(
 
 function prepareFileManifest(
   trip: TripWithDays,
-  options: Required<OfflineDownloadOptions>,
+  options: NormalizedOfflineDownloadOptions,
   previous: OfflineTripEntry | undefined,
   media: TripMedia[],
   notes: TripNote[],
@@ -651,13 +633,122 @@ async function pruneOfflineCache(cacheName: string, urls: string[]) {
   }
 }
 
+interface OfflineDownloadSession {
+  cacheName: string
+  committed: boolean
+}
+
+async function commitOfflineEntry(state: IOfflineState, entry: OfflineTripEntry, accountId: string) {
+  requireSameAccount(accountId)
+  await offlineStorageService.saveTrip(entry)
+  requireSameAccount(accountId)
+  state.savedTrips[entry.id] = entry
+}
+
+async function saveTripMapAreas(
+  state: IOfflineState,
+  entry: OfflineTripEntry,
+  accountId: string,
+  options: OfflineMapOptions,
+) {
+  const baseFailures = entry.unavailableCount ?? 0
+  const result = await downloadOfflineMapAreas(
+    entry.data,
+    entry.mapCacheName!,
+    accountId,
+    options,
+    (part) => {
+      requireSameAccount(accountId)
+      const fraction = part.total ? part.loaded / part.total : 0
+      const progress = Math.round(10 + 89 * (part.areaIndex + fraction) / part.areaCount)
+      state.downloadProgress[entry.id] = progress
+      state.downloadStatus[entry.id] = {
+        progress,
+        total: part.total,
+        loaded: part.loaded,
+        stage: 'caching',
+        statusText: `Карта: ${part.title} (${part.areaIndex + 1}/${part.areaCount}), ${part.loaded}/${part.total}. Скачано ${(part.downloadedBytes / 1024 / 1024).toFixed(1)} МБ`,
+        tripTitle: entry.title,
+      }
+    },
+    async (coverage) => {
+      entry.mapCoverage = [...(entry.mapCoverage ?? []).filter(item => item.areaId !== coverage.areaId || item.style !== coverage.style || item.terrain !== coverage.terrain), coverage]
+      await commitOfflineEntry(state, entry, accountId)
+    },
+  )
+
+  if (result.completedAreas > 0 && options.style)
+    useAppSettingsStore().activeTileSource = options.style
+
+  entry.mapPending = result.failedAreas > 0
+  entry.includesTiles = result.completedAreas > 0 && result.failedAreas === 0
+  entry.unavailableCount = baseFailures + result.failedAreas
+  await commitOfflineEntry(state, entry, accountId)
+
+  return result.failedAreas
+}
+
+function getRequestedFileUrls(options: NormalizedOfflineDownloadOptions, files: NonNullable<OfflineTripEntry['files']>) {
+  return new Set([
+    ...(options.includeMedia ? files.media : []),
+    ...(options.includeNotes ? files.notes : []),
+    ...(options.includeDocuments ? files.documents : []),
+  ])
+}
+
+function configureEntryMap(entry: OfflineTripEntry, accountId: string, options: NormalizedOfflineDownloadOptions) {
+  if (!options.includeMapTiles)
+    return
+
+  entry.mapCacheName ??= `${getOfflineCachePrefix(accountId)}${entry.id}-map`
+  entry.mapOptions = options.map ?? {}
+  entry.mapPending = true
+  entry.includesTiles = false
+}
+
+async function commitBaseEntry(
+  state: IOfflineState,
+  entry: OfflineTripEntry,
+  previous: OfflineTripEntry | undefined,
+  accountId: string,
+  session: OfflineDownloadSession,
+) {
+  requireSameAccount(accountId)
+  await pruneOfflineCache(session.cacheName, Object.values(entry.files ?? {}).flat())
+
+  if (typeof caches !== 'undefined') {
+    const cache = await caches.open(session.cacheName)
+    await cache.put(OFFLINE_CACHE_READY_URL, Response.json({ savedAt: entry.savedAt }))
+  }
+
+  await commitOfflineEntry(state, entry, accountId)
+  session.committed = true
+
+  if (previous?.cacheName && previous.cacheName !== session.cacheName && typeof caches !== 'undefined')
+    await caches.delete(previous.cacheName).catch(() => false)
+}
+
+function createOfflineSession(
+  state: IOfflineState,
+  tripId: string,
+  accountId: string,
+  options: NormalizedOfflineDownloadOptions,
+) {
+  const onlyMap = !options.includeMedia && !options.includeNotes && !options.includeDocuments
+  const existingCache = onlyMap ? state.savedTrips[tripId]?.cacheName : undefined
+  const cacheName = existingCache ?? `${getOfflineCachePrefix(accountId)}${tripId}-${crypto.randomUUID()}`
+
+  return { cacheName, committed: Boolean(existingCache) }
+}
+
 async function performOfflineDownload(
   state: IOfflineState,
   trip: TripWithDays,
-  options: Required<OfflineDownloadOptions>,
+  options: NormalizedOfflineDownloadOptions,
   accountId: string,
-  cacheName: string,
+  session: OfflineDownloadSession,
 ) {
+  const cacheName = session.cacheName
   const previous = state.savedTrips[trip.id]
   await copyOfflineCache(previous, cacheName)
   const metadata = await fetchOfflineMetadata(trip.id, options)
@@ -667,7 +758,6 @@ async function performOfflineDownload(
     previous,
     metadata,
   )
-  const map = await prepareMap(trip, cacheName, options.includeMapTiles)
   const documents = getDocumentsToSave(previous, options, metadata)
   const notes = getNotesToSave(previous, options, metadata)
   const files = prepareFileManifest(
@@ -677,72 +767,81 @@ async function performOfflineDownload(
     media,
     notes,
     documents,
-    map.urls,
+    [],
   )
-  const urls = new Set([
-    ...(options.includeMedia ? files.media : []),
-    ...(options.includeNotes ? files.notes : []),
-    ...(options.includeDocuments ? files.documents : []),
-  ])
+  const urls = getRequestedFileUrls(options, files)
   requireSameAccount(accountId)
-  const total = urls.size + map.urls.length
-  setInitialCacheStatus(state, trip.id, total)
+  setInitialCacheStatus(state, trip.id, urls.size)
   const mediaResult = await cacheOfflineMediaUrls(cacheName, [...urls], loaded => updateMediaCacheProgress(
     state,
     trip.id,
-    total,
+    urls.size,
     loaded,
+    options.includeMapTiles ? 10 : 100,
   ))
-  requireSameAccount(accountId)
-  const tileResult = await cacheOfflineMediaUrls(cacheName, map.urls, loaded => updateMediaCacheProgress(
-    state,
-    trip.id,
-    total,
-    urls.size + loaded,
-  ))
-  const includesTiles = shouldIncludeOfflineTiles(
-    previous,
-    options,
-    map.urls.length,
-    map.urls.length - tileResult.failedCount,
-    tileResult.failedCount,
-  )
   const entry = createOfflineTripEntry(
     trip,
     previous,
-    getDocumentsToSave(previous, options, metadata),
-    getNotesToSave(previous, options, metadata),
+    documents,
+    notes,
     urls.size,
-    includesTiles,
+    Boolean(previous?.includesTiles),
   )
   entry.downloadedByUserId = accountId
   entry.cacheName = cacheName
   entry.media = media
   entry.files = files
-  entry.unavailableCount = mediaResult.failedCount + tileResult.failedCount + metadata.failureCount + map.failed
-  requireSameAccount(accountId)
-  await pruneOfflineCache(cacheName, Object.values(files).flat())
+  entry.unavailableCount = mediaResult.failedCount + metadata.failureCount
 
-  if (typeof caches !== 'undefined') {
-    const cache = await caches.open(cacheName)
-    await cache.put(OFFLINE_CACHE_READY_URL, Response.json({ savedAt: entry.savedAt }))
-  }
-
-  await offlineStorageService.saveTrip(entry)
-  requireSameAccount(accountId)
-  state.savedTrips[trip.id] = entry
-
-  if (previous?.cacheName && typeof caches !== 'undefined')
-    await caches.delete(previous.cacheName).catch(() => false)
-
+  configureEntryMap(entry, accountId, options)
+  await commitBaseEntry(
+    state,
+    entry,
+    previous,
+    accountId,
+    session,
+  )
+  const mapFailures = options.includeMapTiles
+    ? await saveTripMapAreas(
+        state,
+        entry,
+        accountId,
+        options.map ?? {},
+      )
+    : 0
   setOfflineSaveCompletion(
     state,
     trip,
-    total,
-    mediaResult.failedCount + tileResult.failedCount,
-    metadata.failureCount + map.failed,
+    urls.size,
+    mediaResult.failedCount,
+    metadata.failureCount + mapFailures,
     useToast(),
   )
+}
+
+async function handleOfflineDownloadError(
+  state: IOfflineState,
+  trip: TripWithDays,
+  accountId: string,
+  session: OfflineDownloadSession,
+  error: unknown,
+) {
+  if (!session.committed && typeof caches !== 'undefined')
+    await caches.delete(session.cacheName).catch(() => false)
+
+  if (getOfflineAccountId() !== accountId)
+    return
+
+  const message = error instanceof Error ? error.message : 'Ошибка при сохранении оффлайн.'
+  state.downloadStatus[trip.id] = {
+    progress: state.downloadProgress[trip.id] || 0,
+    total: 0,
+    loaded: 0,
+    stage: 'error',
+    statusText: message,
+    tripTitle: trip.title,
+  }
+  useToast().error(message)
 }
 
 function finishOfflineDownload(state: IOfflineState, tripId: string, accountId: string) {
@@ -897,12 +996,16 @@ export const useOfflineStore = defineStore('offline', {
       if (this.isDownloading[trip.id] || getOfflineAccountId() !== accountId)
         return
 
-      const cacheName = `${getOfflineCachePrefix(accountId)}${trip.id}-${crypto.randomUUID()}`
       const downloadOpts = normalizeDownloadOptions(options)
+      const session = createOfflineSession(
+        this,
+        trip.id,
+        accountId,
+        downloadOpts,
+      )
       this.isProgressMinimized = false
       this.activeProgressTripId = trip.id
       setInitialDownloadStatus(this, trip.id, trip.title)
-      const toast = useToast()
 
       try {
         await performOfflineDownload(
@@ -910,26 +1013,17 @@ export const useOfflineStore = defineStore('offline', {
           trip,
           downloadOpts,
           accountId,
-          cacheName,
+          session,
         )
       }
       catch (error) {
-        if (typeof caches !== 'undefined')
-          await caches.delete(cacheName).catch(() => false)
-
-        if (getOfflineAccountId() !== accountId)
-          return
-
-        console.error('[Offline] Ошибка сохранения:', error)
-        this.downloadStatus[trip.id] = {
-          progress: this.downloadProgress[trip.id] || 0,
-          total: 0,
-          loaded: 0,
-          stage: 'error',
-          statusText: 'Ошибка сохранения.',
-          tripTitle: trip.title,
-        }
-        toast.error('Ошибка при сохранении оффлайн.')
+        await handleOfflineDownloadError(
+          this,
+          trip,
+          accountId,
+          session,
+          error,
+        )
       }
       finally {
         finishOfflineDownload(this, trip.id, accountId)
@@ -945,8 +1039,12 @@ export const useOfflineStore = defineStore('offline', {
       try {
         const entry = this.savedTrips[tripId]
 
-        if (entry.cacheName && typeof caches !== 'undefined')
-          await caches.delete(entry.cacheName)
+        if (typeof caches !== 'undefined') {
+          for (const name of [entry.cacheName, entry.mapCacheName]) {
+            if (name)
+              await caches.delete(name)
+          }
+        }
 
         await offlineStorageService.removeTrip(tripId, this.accountId)
         delete this.savedTrips[tripId]

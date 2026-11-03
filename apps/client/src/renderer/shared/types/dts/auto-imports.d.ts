@@ -59,9 +59,11 @@ declare global {
   const defineComponent: typeof import('vue').defineComponent
   const defineStore: typeof import('pinia').defineStore
   const deriveImageVariants: typeof import('../../lib/url').deriveImageVariants
+  const downloadOfflineMapAreas: typeof import('../../lib/offline-map-download').downloadOfflineMapAreas
   const eagerComputed: typeof import('@vueuse/core').eagerComputed
   const effectScope: typeof import('vue').effectScope
   const ensureMaplibreWorkerReady: typeof import('../../lib/map-styles-sources').ensureMaplibreWorkerReady
+  const estimateOfflineMap: typeof import('../../lib/offline-map').estimateOfflineMap
   const exportRouteToGpx: typeof import('../../lib/geo-export').exportRouteToGpx
   const extendRef: typeof import('@vueuse/core').extendRef
   const findOfflineMediaResponse: typeof import('../../lib/offline-cache').findOfflineMediaResponse
@@ -85,7 +87,10 @@ declare global {
   const getOfflineAccountId: typeof import('../../lib/offline-cache').getOfflineAccountId
   const getOfflineCachePrefix: typeof import('../../lib/offline-cache').getOfflineCachePrefix
   const getOfflineImageUrl: typeof import('../../lib/offline-cache').getOfflineImageUrl
+  const getOfflineMapAreas: typeof import('../../lib/offline-map-options').getOfflineMapAreas
+  const getOfflineMapStyle: typeof import('../../lib/offline-map-options').getOfflineMapStyle
   const getOfflineRouteTiles: typeof import('../../lib/offline-map').getOfflineRouteTiles
+  const getSelectedMapAreas: typeof import('../../lib/offline-map-options').getSelectedMapAreas
   const getThumbHashApproximateAspectRatio: typeof import('../../lib/thumbhash').getThumbHashApproximateAspectRatio
   const getThumbHashAspectRatio: typeof import('../../lib/thumbhash').getThumbHashAspectRatio
   const getThumbHashAverageColor: typeof import('../../lib/thumbhash').getThumbHashAverageColor
@@ -165,6 +170,7 @@ declare global {
   const refManualReset: typeof import('@vueuse/core').refManualReset
   const refThrottled: typeof import('@vueuse/core').refThrottled
   const refWithControl: typeof import('@vueuse/core').refWithControl
+  const requireOfflineAccount: typeof import('../../lib/offline-map-download').requireOfflineAccount
   const resolveApiUrl: typeof import('../../lib/url').resolveApiUrl
   const resolveComponent: typeof import('vue').resolveComponent
   const router: typeof import('../../lib/router').default
@@ -411,6 +417,12 @@ declare global {
   export type { TilePrecacheResult } from '../../lib/map-tile-cache'
   import('../../lib/map-tile-cache')
   // @ts-ignore
+  export type { OfflineMapProgress } from '../../lib/offline-map-download'
+  import('../../lib/offline-map-download')
+  // @ts-ignore
+  export type { OfflineMapOptions, OfflineMapArea, OfflineMapCoverage } from '../../lib/offline-map-options'
+  import('../../lib/offline-map-options')
+  // @ts-ignore
   export type { BoundingBox } from '../../lib/tile-calc'
   import('../../lib/tile-calc')
   // @ts-ignore
@@ -486,9 +498,11 @@ declare module 'vue' {
     readonly defineComponent: UnwrapRef<typeof import('vue')['defineComponent']>
     readonly defineStore: UnwrapRef<typeof import('pinia')['defineStore']>
     readonly deriveImageVariants: UnwrapRef<typeof import('../../lib/url')['deriveImageVariants']>
+    readonly downloadOfflineMapAreas: UnwrapRef<typeof import('../../lib/offline-map-download')['downloadOfflineMapAreas']>
     readonly eagerComputed: UnwrapRef<typeof import('@vueuse/core')['eagerComputed']>
     readonly effectScope: UnwrapRef<typeof import('vue')['effectScope']>
     readonly ensureMaplibreWorkerReady: UnwrapRef<typeof import('../../lib/map-styles-sources')['ensureMaplibreWorkerReady']>
+    readonly estimateOfflineMap: UnwrapRef<typeof import('../../lib/offline-map')['estimateOfflineMap']>
     readonly exportRouteToGpx: UnwrapRef<typeof import('../../lib/geo-export')['exportRouteToGpx']>
     readonly extendRef: UnwrapRef<typeof import('@vueuse/core')['extendRef']>
     readonly findOfflineMediaResponse: UnwrapRef<typeof import('../../lib/offline-cache')['findOfflineMediaResponse']>
@@ -512,7 +526,10 @@ declare module 'vue' {
     readonly getOfflineAccountId: UnwrapRef<typeof import('../../lib/offline-cache')['getOfflineAccountId']>
     readonly getOfflineCachePrefix: UnwrapRef<typeof import('../../lib/offline-cache')['getOfflineCachePrefix']>
     readonly getOfflineImageUrl: UnwrapRef<typeof import('../../lib/offline-cache')['getOfflineImageUrl']>
+    readonly getOfflineMapAreas: UnwrapRef<typeof import('../../lib/offline-map-options')['getOfflineMapAreas']>
+    readonly getOfflineMapStyle: UnwrapRef<typeof import('../../lib/offline-map-options')['getOfflineMapStyle']>
     readonly getOfflineRouteTiles: UnwrapRef<typeof import('../../lib/offline-map')['getOfflineRouteTiles']>
+    readonly getSelectedMapAreas: UnwrapRef<typeof import('../../lib/offline-map-options')['getSelectedMapAreas']>
     readonly getThumbHashApproximateAspectRatio: UnwrapRef<typeof import('../../lib/thumbhash')['getThumbHashApproximateAspectRatio']>
     readonly getThumbHashAspectRatio: UnwrapRef<typeof import('../../lib/thumbhash')['getThumbHashAspectRatio']>
     readonly getThumbHashAverageColor: UnwrapRef<typeof import('../../lib/thumbhash')['getThumbHashAverageColor']>
@@ -592,6 +609,7 @@ declare module 'vue' {
     readonly refManualReset: UnwrapRef<typeof import('@vueuse/core')['refManualReset']>
     readonly refThrottled: UnwrapRef<typeof import('@vueuse/core')['refThrottled']>
     readonly refWithControl: UnwrapRef<typeof import('@vueuse/core')['refWithControl']>
+    readonly requireOfflineAccount: UnwrapRef<typeof import('../../lib/offline-map-download')['requireOfflineAccount']>
     readonly resolveApiUrl: UnwrapRef<typeof import('../../lib/url')['resolveApiUrl']>
     readonly resolveComponent: UnwrapRef<typeof import('vue')['resolveComponent']>
     readonly router: UnwrapRef<typeof import('../../lib/router')['default']>

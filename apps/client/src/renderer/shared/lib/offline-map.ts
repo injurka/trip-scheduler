@@ -1,13 +1,13 @@
+import type { OfflineMapOptions } from './offline-map-options'
 import type { TripWithDays } from '~/shared/types/models/trip'
 import { isRecord } from '@injurka/type-utils'
 import { normalizeMapResource } from './map-resource'
-import { getCustomTileUrl, getEffectiveMapTilerKey, getMapStyle } from './map-styles-sources'
-import { calculateTripBoundingBox, getTilesForBBox, lngLatToTile } from './tile-calc'
+import { getEffectiveMapTilerKey, getMapStyle } from './map-styles-sources'
+import { getOfflineMapStyle, getSelectedMapAreas } from './offline-map-options'
+import { calculateTripBoundingBox, lngLatToTile } from './tile-calc'
 
-const MAX_RESOURCES = 50000
-
-/** Full overview plus detailed 3x3-tile areas along the actual route, without silent truncation. */
-export function getOfflineRouteTiles(trip: TripWithDays) {
+/** A deduplicated corridor at every selected zoom; no bounding rectangle across distant regions. */
+export function getOfflineRouteTiles(trip: TripWithDays, maxZoom = 15) {
   const bounds = calculateTripBoundingBox(trip)
 
   if (!bounds)
@@ -17,35 +17,30 @@ export function getOfflineRouteTiles(trip: TripWithDays) {
   const add = (z: number, x: number, y: number) => {
     const last = 2 ** z - 1
 
-    if (x < 0 || y < 0 || x > last || y > last)
+    if (y < 0 || y > last)
       return
 
-    tiles.set(`${z}/${x}/${y}`, { z, x, y })
-
-    if (tiles.size > MAX_RESOURCES)
-      throw new Error('Маршрут слишком большой для одной оффлайн-карты. Разделите его на несколько поездок.')
+    const wrappedX = ((x % (last + 1)) + last + 1) % (last + 1)
+    tiles.set(`${z}/${wrappedX}/${y}`, { z, x: wrappedX, y })
   }
-
-  for (const tile of getTilesForBBox(
-    bounds,
-    0,
-    10,
-    MAX_RESOURCES,
-  ))
-    add(tile.z, tile.x, tile.y)
 
   const coordinate = (value: unknown): value is [number, number] => Array.isArray(value)
     && typeof value[0] === 'number' && typeof value[1] === 'number'
     && Number.isFinite(value[0]) && Number.isFinite(value[1])
     && Math.abs(value[0]) <= 180 && Math.abs(value[1]) <= 85
   const point = (value: [number, number], previous?: [number, number]) => {
-    for (let z = 11; z <= 15; z++) {
+    for (let z = 0; z <= maxZoom; z++) {
       const end = lngLatToTile(value[0], value[1], z)
       const start = previous ? lngLatToTile(previous[0], previous[1], z) : end
-      const steps = Math.max(Math.abs(end.x - start.x), Math.abs(end.y - start.y), 1)
+      let deltaX = end.x - start.x
+
+      if (Math.abs(deltaX) > 2 ** z / 2)
+        deltaX -= Math.sign(deltaX) * 2 ** z
+
+      const steps = Math.max(Math.abs(deltaX), Math.abs(end.y - start.y), 1)
 
       for (let step = 0; step <= steps; step++) {
-        const x = Math.round(start.x + (end.x - start.x) * step / steps)
+        const x = Math.round(start.x + deltaX * step / steps)
         const y = Math.round(start.y + (end.y - start.y) * step / steps)
 
         for (let dx = -1; dx <= 1; dx++) {
@@ -140,18 +135,24 @@ function collectFonts(value: unknown, fonts: Set<string>) {
   value.forEach(item => collectFonts(item, fonts))
 }
 
+function getLayerFont(layer: unknown): unknown {
+  if (!isRecord(layer) || !isRecord(layer.layout))
+    return undefined
+
+  if (!('text-font' in layer.layout) && !('text-field' in layer.layout))
+    return undefined
+
+  return layer.layout['text-font'] ?? ['Open Sans Regular', 'Arial Unicode MS Regular']
+}
+
 function addGlyphs(data: Record<string, unknown>, base: string, urls: Set<string>) {
   if (typeof data.glyphs !== 'string' || !Array.isArray(data.layers))
     return
 
   const fonts = new Set<string>()
 
-  for (const layer of data.layers) {
-    if (isRecord(layer) && isRecord(layer.layout)) {
-      const font = layer.layout['text-font'] ?? ['Open Sans Regular', 'Arial Unicode MS Regular']
-      collectFonts(font, fonts)
-    }
-  }
+  for (const layer of data.layers)
+    collectFonts(getLayerFont(layer), fonts)
 
   for (const font of fonts) {
     for (let start = 0; start < 65536; start += 256)
@@ -191,18 +192,6 @@ async function addSource(
   )
 }
 
-function getStylesToSave() {
-  const sources: ('maptilerStreets' | 'maptilerOutdoor' | 'satellite' | 'custom')[] = ['maptilerStreets', 'maptilerOutdoor']
-
-  if (getCustomTileUrl())
-    sources.push('custom')
-
-  if (typeof localStorage !== 'undefined' && localStorage.getItem('app-settings-active-tile-source')?.includes('satellite'))
-    sources.push('satellite')
-
-  return sources
-}
-
 async function addStyle(
   style: ReturnType<typeof getMapStyle>,
   json: JsonLoader,
@@ -231,12 +220,18 @@ async function addStyle(
 }
 
 /** Resolve real style/TileJSON dependencies rather than inventing vector tile endpoints. */
-export async function planOfflineMap(trip: TripWithDays, cacheName: string): Promise<string[]> {
-  const tiles = getOfflineRouteTiles(trip)
+export async function planOfflineMap(
+  trip: TripWithDays,
+  cacheName: string,
+  options: OfflineMapOptions = {},
+  refreshedMetadata = new Set<string>(),
+): Promise<string[]> {
+  const tiles = getOfflineRouteTiles(trip, options.maxZoom ?? 15)
   const cache = await caches.open(cacheName)
   const urls = new Set<string>()
   const json: JsonLoader = async (url) => {
-    const response = await fetch(url, { cache: 'reload', signal: AbortSignal.timeout(30000) })
+    const cached = options.refresh && !refreshedMetadata.has(url) ? undefined : await cache.match(url)
+    const response = cached ?? await fetch(url, { cache: 'reload', signal: AbortSignal.timeout(30000) })
 
     if (!response.ok)
       throw new Error(`Не удалось загрузить описание карты (${response.status}).`)
@@ -244,6 +239,7 @@ export async function planOfflineMap(trip: TripWithDays, cacheName: string): Pro
     const data = normalizeMapResource(await response.clone().json(), url)
     urls.add(url)
     await cache.put(url, Response.json(data))
+    refreshedMetadata.add(url)
 
     if (!isRecord(data))
       throw new Error('Некорректное описание карты.')
@@ -251,18 +247,16 @@ export async function planOfflineMap(trip: TripWithDays, cacheName: string): Pro
     return data
   }
 
-  for (const id of getStylesToSave()) {
-    await addStyle(
-      getMapStyle(id),
-      json,
-      tiles,
-      urls,
-    )
-  }
+  await addStyle(
+    getMapStyle(options.style ?? getOfflineMapStyle()),
+    json,
+    tiles,
+    urls,
+  )
 
   const key = getEffectiveMapTilerKey()
 
-  if (key) {
+  if (key && options.terrain) {
     await addSource(
       { url: `https://api.maptiler.com/tiles/terrain-rgb-v2/tiles.json?key=${key}`, maxzoom: 14 },
       'https://api.maptiler.com/',
@@ -272,8 +266,19 @@ export async function planOfflineMap(trip: TripWithDays, cacheName: string): Pro
     )
   }
 
-  if (urls.size > MAX_RESOURCES)
-    throw new Error('Слишком много ресурсов карты. Разделите маршрут на несколько поездок.')
-
   return [...urls]
+}
+
+/** Approximate transfer size: provider payloads vary, so present a range, not an exact promise. */
+export function estimateOfflineMap(trip: TripWithDays, options: OfflineMapOptions) {
+  const areas = getSelectedMapAreas(trip, options)
+  const tileCount = areas.reduce((total, area) => total + getOfflineRouteTiles(area.trip, options.maxZoom ?? 15).length, 0)
+  const multiplier = options.terrain ? 2 : 1
+
+  return {
+    areaCount: areas.length,
+    tileCount,
+    minBytes: tileCount * 8 * 1024 * multiplier + 1024 * 1024,
+    maxBytes: tileCount * 80 * 1024 * multiplier + 20 * 1024 * 1024,
+  }
 }

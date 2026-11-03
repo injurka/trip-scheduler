@@ -333,6 +333,8 @@ const moreMenuItems = computed((): KitDropdownItem<string>[] => {
 
   return items
 })
+const offlineDialogTrip = computed(() => props.trip ? { ...props.trip, days: props.days, sections: props.sections } : undefined)
+const savedOfflineEntry = computed(() => props.trip ? offlineStore.savedTrips[props.trip.id] : undefined)
 
 watch(() => props.trip?.id, () => {
   isMobileTagsOpen.value = false
@@ -837,6 +839,9 @@ async function handleConfirmOfflineDownload(options: OfflineDownloadOptions) {
       v-model:visible="isOfflineDownloadDialogVisible"
       :trip-title="trip?.title"
       :has-coordinates="hasCoordinates"
+      :trip="offlineDialogTrip"
+      :initial-map-options="savedOfflineEntry?.mapOptions"
+      :saved-map-coverage="savedOfflineEntry?.mapCoverage"
       @confirm="handleConfirmOfflineDownload"
     />
   </div>
