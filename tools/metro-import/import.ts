@@ -33,6 +33,7 @@ const availableCities = [
   'kaohsiung',
   'taichung',
   'moscow',
+  'guangzhou',
 ] as const
 type City = typeof availableCities[number]
 const availableCitySet: ReadonlySet<string> = new Set(availableCities)

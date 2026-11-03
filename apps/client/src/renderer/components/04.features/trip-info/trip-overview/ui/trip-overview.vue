@@ -392,6 +392,13 @@ async function shareTripFromMenu() {
   if (!trip)
     return
 
+  if (!canEdit.value) {
+    shareDialogInitialSlug.value = trip.shareSlug || trip.id
+    isShareDialogVisible.value = true
+
+    return
+  }
+
   const shareSlug = await useRequest({
     key: `trip-overview:share:${trip.id}`,
     fn: db => db.trips.getOrCreateShareSlug(trip.id),

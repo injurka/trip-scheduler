@@ -1,0 +1,2584 @@
+{
+  "id": "0433295a-d816-4d42-a2dc-72e6ccf17f3a",
+  "city": "Гуанчжоу",
+  "country": "Китай",
+  "lines": [
+    {
+      "id": "gz-l1",
+      "lineNumber": "1",
+      "name": "Линия 1",
+      "color": "#edcf3d",
+      "stations": [
+        {
+          "id": "gz-xilang",
+          "name": "Xilang",
+          "latitude": 23.067759,
+          "longitude": 113.226185
+        },
+        {
+          "id": "gz-kengkou",
+          "name": "Kengkou",
+          "latitude": 23.081569,
+          "longitude": 113.227169
+        },
+        {
+          "id": "gz-huadiwan",
+          "name": "Huadiwan",
+          "latitude": 23.089744,
+          "longitude": 113.228702
+        },
+        {
+          "id": "gz-fangcun",
+          "name": "Fangcun",
+          "latitude": 23.101255,
+          "longitude": 113.230542
+        },
+        {
+          "id": "gz-huangsha",
+          "name": "Huangsha",
+          "latitude": 23.113207,
+          "longitude": 113.23453
+        },
+        {
+          "id": "gz-changshou-lu",
+          "name": "Changshou Lu",
+          "latitude": 23.121083,
+          "longitude": 113.236945
+        },
+        {
+          "id": "gz-chen-clan-academy",
+          "name": "Chen Clan Academy",
+          "latitude": 23.128407,
+          "longitude": 113.241114
+        },
+        {
+          "id": "gz-ximenkou",
+          "name": "Ximenkou",
+          "latitude": 23.1279,
+          "longitude": 113.250506
+        },
+        {
+          "id": "gz-gongyuanqian",
+          "name": "Gongyuanqian",
+          "latitude": 23.128125,
+          "longitude": 113.258989
+        },
+        {
+          "id": "gz-peasant-movement-institute",
+          "name": "Peasant Movement Institute",
+          "latitude": 23.129296,
+          "longitude": 113.270268
+        },
+        {
+          "id": "gz-martyrs-park",
+          "name": "Martyrs' Park",
+          "latitude": 23.129367,
+          "longitude": 113.280318
+        },
+        {
+          "id": "gz-dongshankou",
+          "name": "Dongshankou",
+          "latitude": 23.126633,
+          "longitude": 113.290015
+        },
+        {
+          "id": "gz-yangji",
+          "name": "Yangji",
+          "latitude": 23.130767,
+          "longitude": 113.303496
+        },
+        {
+          "id": "gz-tiyu-xilu",
+          "name": "Tiyu Xilu",
+          "latitude": 23.133745,
+          "longitude": 113.316097
+        },
+        {
+          "id": "gz-tianhe-sports-center",
+          "name": "Tianhe Sports Center",
+          "latitude": 23.137562,
+          "longitude": 113.322956
+        },
+        {
+          "id": "gz-guangzhou-east-railway-station",
+          "name": "Guangzhou East Railway Station",
+          "latitude": 23.15367,
+          "longitude": 113.31908
+        }
+      ]
+    },
+    {
+      "id": "gz-l2",
+      "lineNumber": "2",
+      "name": "Линия 2",
+      "color": "#00679e",
+      "stations": [
+        {
+          "id": "gz-jiahewanggang",
+          "name": "Jiahewanggang",
+          "latitude": 23.240079,
+          "longitude": 113.283886
+        },
+        {
+          "id": "gz-huangbian",
+          "name": "Huangbian",
+          "latitude": 23.224271,
+          "longitude": 113.282023
+        },
+        {
+          "id": "gz-jiangxia",
+          "name": "Jiangxia",
+          "latitude": 23.213935,
+          "longitude": 113.278103
+        },
+        {
+          "id": "gz-xiao-gang",
+          "name": "Xiao-gang",
+          "latitude": 23.201221,
+          "longitude": 113.275353
+        },
+        {
+          "id": "gz-baiyun-culture-square",
+          "name": "Baiyun Culture Square",
+          "latitude": 23.192223,
+          "longitude": 113.270264
+        },
+        {
+          "id": "gz-baiyun-park",
+          "name": "Baiyun Park",
+          "latitude": 23.184268,
+          "longitude": 113.265632
+        },
+        {
+          "id": "gz-feixiang-park",
+          "name": "Feixiang Park",
+          "latitude": 23.171578,
+          "longitude": 113.258423
+        },
+        {
+          "id": "gz-sanyuanli",
+          "name": "Sanyuanli",
+          "latitude": 23.16207,
+          "longitude": 113.251525
+        },
+        {
+          "id": "gz-guangzhou-railway-station",
+          "name": "Guangzhou Railway Station",
+          "latitude": 23.150815,
+          "longitude": 113.251277
+        },
+        {
+          "id": "gz-yuexiu-park",
+          "name": "Yuexiu  Park",
+          "latitude": 23.142716,
+          "longitude": 113.25604
+        },
+        {
+          "id": "gz-sun-yat-sen-memorial-hall",
+          "name": "Sun Yat-sen Memorial Hall",
+          "latitude": 23.134856,
+          "longitude": 113.258104
+        },
+        {
+          "id": "gz-gongyuanqian",
+          "name": "Gongyuanqian",
+          "latitude": 23.128125,
+          "longitude": 113.258989
+        },
+        {
+          "id": "gz-haizhu-square",
+          "name": "Haizhu Square",
+          "latitude": 23.117479,
+          "longitude": 113.260018
+        },
+        {
+          "id": "gz-the-2nd-workers-cultural-palace",
+          "name": "The 2nd Workers' Cultural Palace",
+          "latitude": 23.108681,
+          "longitude": 113.264562
+        },
+        {
+          "id": "gz-jiangnanxi",
+          "name": "Jiangnanxi",
+          "latitude": 23.0999,
+          "longitude": 113.268587
+        },
+        {
+          "id": "gz-changgang",
+          "name": "Changgang",
+          "latitude": 23.09334,
+          "longitude": 113.271552
+        },
+        {
+          "id": "gz-jiangtai-road",
+          "name": "Jiangtai Road",
+          "latitude": 23.084918,
+          "longitude": 113.275234
+        },
+        {
+          "id": "gz-dongxiao-south",
+          "name": "Dongxiao South",
+          "latitude": 23.074009,
+          "longitude": 113.288821
+        },
+        {
+          "id": "gz-nanzhou",
+          "name": "Nanzhou",
+          "latitude": 23.067406,
+          "longitude": 113.292092
+        },
+        {
+          "id": "gz-luoxi",
+          "name": "Luoxi",
+          "latitude": 23.045578,
+          "longitude": 113.293307
+        },
+        {
+          "id": "gz-nanpu",
+          "name": "Nanpu",
+          "latitude": 23.035623,
+          "longitude": 113.287805
+        },
+        {
+          "id": "gz-huijiang",
+          "name": "Huijiang",
+          "latitude": 23.015757,
+          "longitude": 113.281056
+        },
+        {
+          "id": "gz-shibi",
+          "name": "Shibi",
+          "latitude": 22.996863,
+          "longitude": 113.272636
+        },
+        {
+          "id": "gz-guangzhou-south-railway-station",
+          "name": "Guangzhou South Railway Station",
+          "latitude": 22.991508,
+          "longitude": 113.264495
+        }
+      ]
+    },
+    {
+      "id": "gz-l3",
+      "lineNumber": "3",
+      "name": "Линия 3",
+      "color": "#e89e47",
+      "stations": [
+        {
+          "id": "gz-haibang",
+          "name": "Haibang",
+          "latitude": 22.942224,
+          "longitude": 113.469956
+        },
+        {
+          "id": "gz-haichong-lu",
+          "name": "Haichong Lu",
+          "latitude": 22.944641,
+          "longitude": 113.45229
+        },
+        {
+          "id": "gz-shiqinan",
+          "name": "Shiqinan",
+          "latitude": 22.940706,
+          "longitude": 113.434398
+        },
+        {
+          "id": "gz-bangjiang",
+          "name": "Bangjiang",
+          "latitude": 22.939357,
+          "longitude": 113.404125
+        },
+        {
+          "id": "gz-panyu-square",
+          "name": "Panyu Square",
+          "latitude": 22.938068,
+          "longitude": 113.380139
+        },
+        {
+          "id": "gz-shiqiao",
+          "name": "Shiqiao",
+          "latitude": 22.952353,
+          "longitude": 113.356254
+        },
+        {
+          "id": "gz-hanxi-changlong",
+          "name": "Hanxi Changlong",
+          "latitude": 22.995461,
+          "longitude": 113.324541
+        },
+        {
+          "id": "gz-dashi",
+          "name": "Dashi",
+          "latitude": 23.020415,
+          "longitude": 113.316345
+        },
+        {
+          "id": "gz-xiajiao",
+          "name": "Xiajiao",
+          "latitude": 23.040654,
+          "longitude": 113.315439
+        },
+        {
+          "id": "gz-lijiao",
+          "name": "Lijiao",
+          "latitude": 23.05744,
+          "longitude": 113.313832
+        },
+        {
+          "id": "gz-datang",
+          "name": "Datang",
+          "latitude": 23.080602,
+          "longitude": 113.316274
+        },
+        {
+          "id": "gz-kecun",
+          "name": "Kecun",
+          "latitude": 23.09882,
+          "longitude": 113.31493
+        },
+        {
+          "id": "gz-canton-tower",
+          "name": "Canton Tower",
+          "latitude": 23.109096,
+          "longitude": 113.318056
+        },
+        {
+          "id": "gz-zhujiang-new-town",
+          "name": "Zhujiang New Town",
+          "latitude": 23.121978,
+          "longitude": 113.315797
+        },
+        {
+          "id": "gz-tiyu-xilu",
+          "name": "Tiyu Xilu",
+          "latitude": 23.133745,
+          "longitude": 113.316097
+        },
+        {
+          "id": "gz-shipaiqiao",
+          "name": "Shipaiqiao",
+          "latitude": 23.135721,
+          "longitude": 113.326696
+        },
+        {
+          "id": "gz-gangding",
+          "name": "Gangding",
+          "latitude": 23.137451,
+          "longitude": 113.334158
+        },
+        {
+          "id": "gz-south-china-normal-university",
+          "name": "South China Normal University",
+          "latitude": 23.142848,
+          "longitude": 113.339875
+        },
+        {
+          "id": "gz-wushan",
+          "name": "Wushan",
+          "latitude": 23.155374,
+          "longitude": 113.346344
+        },
+        {
+          "id": "gz-tianhe-coach-terminal",
+          "name": "Tianhe Coach Terminal",
+          "latitude": 23.173724,
+          "longitude": 113.338532
+        }
+      ]
+    },
+    {
+      "id": "gz-l3a",
+      "lineNumber": "3A",
+      "name": "Линия 3 — ветка аэропорта",
+      "color": "#e89e47",
+      "stations": [
+        {
+          "id": "gz-tiyu-xilu",
+          "name": "Tiyu Xilu",
+          "latitude": 23.133745,
+          "longitude": 113.316097
+        },
+        {
+          "id": "gz-linhexi",
+          "name": "Linhexi",
+          "latitude": 23.143961,
+          "longitude": 113.318491
+        },
+        {
+          "id": "gz-guangzhou-east-railway-station",
+          "name": "Guangzhou East Railway Station",
+          "latitude": 23.15367,
+          "longitude": 113.31908
+        },
+        {
+          "id": "gz-yantang",
+          "name": "Yantang",
+          "latitude": 23.162842,
+          "longitude": 113.321639
+        },
+        {
+          "id": "gz-meihuayuan",
+          "name": "Meihuayuan",
+          "latitude": 23.17769,
+          "longitude": 113.315001
+        },
+        {
+          "id": "gz-jingxi-nanfang-hospital",
+          "name": "Jingxi Nanfang Hospital",
+          "latitude": 23.187802,
+          "longitude": 113.320707
+        },
+        {
+          "id": "gz-tonghe",
+          "name": "Tonghe",
+          "latitude": 23.199633,
+          "longitude": 113.320844
+        },
+        {
+          "id": "gz-yongtai",
+          "name": "Yongtai",
+          "latitude": 23.222481,
+          "longitude": 113.300852
+        },
+        {
+          "id": "gz-baiyundadaobei",
+          "name": "Baiyundadaobei",
+          "latitude": 23.224762,
+          "longitude": 113.292112
+        },
+        {
+          "id": "gz-jiahewanggang",
+          "name": "Jiahewanggang",
+          "latitude": 23.240079,
+          "longitude": 113.283886
+        },
+        {
+          "id": "gz-longgui",
+          "name": "Longgui",
+          "latitude": 23.291323,
+          "longitude": 113.295456
+        },
+        {
+          "id": "gz-renhe",
+          "name": "Renhe",
+          "latitude": 23.337806,
+          "longitude": 113.290622
+        },
+        {
+          "id": "gz-gaozeng",
+          "name": "Gaozeng",
+          "latitude": 23.357741,
+          "longitude": 113.29013
+        },
+        {
+          "id": "gz-airport-n-t2",
+          "name": "Airport N.(T2)",
+          "latitude": 23.399981,
+          "longitude": 113.300411
+        }
+      ]
+    },
+    {
+      "id": "gz-l4",
+      "lineNumber": "4",
+      "name": "Линия 4",
+      "color": "#01824a",
+      "stations": [
+        {
+          "id": "gz-huangcun",
+          "name": "Huangcun",
+          "latitude": 23.134306,
+          "longitude": 113.401749
+        },
+        {
+          "id": "gz-chebei",
+          "name": "Chebei",
+          "latitude": 23.127202,
+          "longitude": 113.390966
+        },
+        {
+          "id": "gz-chebeinan",
+          "name": "Chebeinan",
+          "latitude": 23.118435,
+          "longitude": 113.384043
+        },
+        {
+          "id": "gz-wanshengwei",
+          "name": "Wanshengwei",
+          "latitude": 23.100229,
+          "longitude": 113.379283
+        },
+        {
+          "id": "gz-guanzhou",
+          "name": "Guanzhou",
+          "latitude": 23.070301,
+          "longitude": 113.371457
+        },
+        {
+          "id": "gz-higher-education-mega-center-n",
+          "name": "Higher Education Mega Center N.",
+          "latitude": 23.06047,
+          "longitude": 113.380284
+        },
+        {
+          "id": "gz-higher-education-mega-center-s",
+          "name": "Higher Education Mega Center S.",
+          "latitude": 23.045938,
+          "longitude": 113.394959
+        },
+        {
+          "id": "gz-xinzao",
+          "name": "Xinzao",
+          "latitude": 23.030719,
+          "longitude": 113.410198
+        },
+        {
+          "id": "gz-shiqi",
+          "name": "Shiqi",
+          "latitude": 22.9599,
+          "longitude": 113.459771
+        },
+        {
+          "id": "gz-haibang",
+          "name": "Haibang",
+          "latitude": 22.942224,
+          "longitude": 113.469956
+        },
+        {
+          "id": "gz-dichong",
+          "name": "Dichong",
+          "latitude": 22.922263,
+          "longitude": 113.479445
+        },
+        {
+          "id": "gz-dongchong",
+          "name": "Dongchong",
+          "latitude": 22.888338,
+          "longitude": 113.473547
+        },
+        {
+          "id": "gz-qingsheng-nansha-north-railway-station-e58d97e6b299e58c97e7ab99",
+          "name": "Qingsheng（Nansha North Railway Station）",
+          "latitude": 22.8696,
+          "longitude": 113.485143
+        },
+        {
+          "id": "gz-huangge-auto-town",
+          "name": "Huangge Auto Town",
+          "latitude": 22.838625,
+          "longitude": 113.504447
+        },
+        {
+          "id": "gz-huangge",
+          "name": "Huangge",
+          "latitude": 22.827581,
+          "longitude": 113.513528
+        },
+        {
+          "id": "gz-jiaomen",
+          "name": "Jiaomen",
+          "latitude": 22.803583,
+          "longitude": 113.522293
+        },
+        {
+          "id": "gz-jinzhou",
+          "name": "Jinzhou",
+          "latitude": 22.79509,
+          "longitude": 113.533714
+        },
+        {
+          "id": "gz-feishajiao",
+          "name": "Feishajiao",
+          "latitude": 22.784775,
+          "longitude": 113.535593
+        },
+        {
+          "id": "gz-guanglong",
+          "name": "Guanglong",
+          "latitude": 22.775067,
+          "longitude": 113.535563
+        },
+        {
+          "id": "gz-dachong",
+          "name": "Dachong",
+          "latitude": 22.762039,
+          "longitude": 113.550854
+        },
+        {
+          "id": "gz-tangkeng",
+          "name": "Tangkeng",
+          "latitude": 22.756091,
+          "longitude": 113.56798
+        },
+        {
+          "id": "gz-nanheng",
+          "name": "Nanheng",
+          "latitude": 22.750898,
+          "longitude": 113.589325
+        },
+        {
+          "id": "gz-nansha-passenger-port",
+          "name": "Nansha Passenger Port",
+          "latitude": 22.769995,
+          "longitude": 113.605917
+        }
+      ]
+    },
+    {
+      "id": "gz-l5",
+      "lineNumber": "5",
+      "name": "Линия 5",
+      "color": "#c70541",
+      "stations": [
+        {
+          "id": "gz-huangpu-new-port",
+          "name": "Huangpu New Port",
+          "latitude": 23.055115,
+          "longitude": 113.519585
+        },
+        {
+          "id": "gz-xiagang",
+          "name": "Xiagang",
+          "latitude": 23.066305,
+          "longitude": 113.520044
+        },
+        {
+          "id": "gz-baoying-dadao",
+          "name": "Baoying Dadao",
+          "latitude": 23.077041,
+          "longitude": 113.520824
+        },
+        {
+          "id": "gz-xiayuan",
+          "name": "Xiayuan",
+          "latitude": 23.085637,
+          "longitude": 113.513117
+        },
+        {
+          "id": "gz-miaotou",
+          "name": "Miaotou",
+          "latitude": 23.087419,
+          "longitude": 113.497412
+        },
+        {
+          "id": "gz-shuangsha",
+          "name": "Shuangsha",
+          "latitude": 23.100505,
+          "longitude": 113.478911
+        },
+        {
+          "id": "gz-wenchong",
+          "name": "Wenchong",
+          "latitude": 23.106381,
+          "longitude": 113.463578
+        },
+        {
+          "id": "gz-dashadong",
+          "name": "Dashadong",
+          "latitude": 23.108775,
+          "longitude": 113.45306
+        },
+        {
+          "id": "gz-dashadi",
+          "name": "Dashadi",
+          "latitude": 23.105763,
+          "longitude": 113.440591
+        },
+        {
+          "id": "gz-yuzhu",
+          "name": "Yuzhu",
+          "latitude": 23.102949,
+          "longitude": 113.426756
+        },
+        {
+          "id": "gz-sanxi",
+          "name": "Sanxi",
+          "latitude": 23.106603,
+          "longitude": 113.410263
+        },
+        {
+          "id": "gz-dongpu",
+          "name": "Dongpu",
+          "latitude": 23.111894,
+          "longitude": 113.396039
+        },
+        {
+          "id": "gz-chebeinan",
+          "name": "Chebeinan",
+          "latitude": 23.118435,
+          "longitude": 113.384043
+        },
+        {
+          "id": "gz-keyun-lu",
+          "name": "Keyun Lu",
+          "latitude": 23.121796,
+          "longitude": 113.371708
+        },
+        {
+          "id": "gz-yuancun",
+          "name": "Yuancun",
+          "latitude": 23.118051,
+          "longitude": 113.358269
+        },
+        {
+          "id": "gz-tancun",
+          "name": "Tancun",
+          "latitude": 23.119932,
+          "longitude": 113.340494
+        },
+        {
+          "id": "gz-liede",
+          "name": "Liede",
+          "latitude": 23.121131,
+          "longitude": 113.326678
+        },
+        {
+          "id": "gz-zhujiang-new-town",
+          "name": "Zhujiang New Town",
+          "latitude": 23.121978,
+          "longitude": 113.315797
+        },
+        {
+          "id": "gz-wuyangcun",
+          "name": "Wuyangcun",
+          "latitude": 23.122391,
+          "longitude": 113.306255
+        },
+        {
+          "id": "gz-yangji",
+          "name": "Yangji",
+          "latitude": 23.130767,
+          "longitude": 113.303496
+        },
+        {
+          "id": "gz-zoo",
+          "name": "Zoo",
+          "latitude": 23.137133,
+          "longitude": 113.301912
+        },
+        {
+          "id": "gz-ouzhuang",
+          "name": "Ouzhuang",
+          "latitude": 23.137129,
+          "longitude": 113.291364
+        },
+        {
+          "id": "gz-taojin",
+          "name": "Taojin",
+          "latitude": 23.139024,
+          "longitude": 113.281202
+        },
+        {
+          "id": "gz-xiaobei",
+          "name": "Xiaobei",
+          "latitude": 23.142091,
+          "longitude": 113.271569
+        },
+        {
+          "id": "gz-guangzhou-railway-station",
+          "name": "Guangzhou Railway Station",
+          "latitude": 23.150815,
+          "longitude": 113.251277
+        },
+        {
+          "id": "gz-xicun",
+          "name": "Xicun",
+          "latitude": 23.144893,
+          "longitude": 113.236798
+        },
+        {
+          "id": "gz-xichang",
+          "name": "Xichang",
+          "latitude": 23.140052,
+          "longitude": 113.232727
+        },
+        {
+          "id": "gz-zhongshanba",
+          "name": "Zhongshanba",
+          "latitude": 23.128979,
+          "longitude": 113.228026
+        },
+        {
+          "id": "gz-tanwei",
+          "name": "Tanwei",
+          "latitude": 23.127891,
+          "longitude": 113.213041
+        },
+        {
+          "id": "gz-jiaokou",
+          "name": "Jiaokou",
+          "latitude": 23.116443,
+          "longitude": 113.203081
+        }
+      ]
+    },
+    {
+      "id": "gz-l6",
+      "lineNumber": "6",
+      "name": "Линия 6",
+      "color": "#6e0346",
+      "stations": [
+        {
+          "id": "gz-xunfenggang",
+          "name": "Xunfenggang",
+          "latitude": 23.166727,
+          "longitude": 113.196568
+        },
+        {
+          "id": "gz-hengsha",
+          "name": "Hengsha",
+          "latitude": 23.160814,
+          "longitude": 113.201426
+        },
+        {
+          "id": "gz-shabei",
+          "name": "Shabei",
+          "latitude": 23.155066,
+          "longitude": 113.20604
+        },
+        {
+          "id": "gz-hesha",
+          "name": "Hesha",
+          "latitude": 23.138227,
+          "longitude": 113.212057
+        },
+        {
+          "id": "gz-tanwei",
+          "name": "Tanwei",
+          "latitude": 23.127891,
+          "longitude": 113.213041
+        },
+        {
+          "id": "gz-ruyifang",
+          "name": "Ruyifang",
+          "latitude": 23.117838,
+          "longitude": 113.225778
+        },
+        {
+          "id": "gz-huangsha",
+          "name": "Huangsha",
+          "latitude": 23.113207,
+          "longitude": 113.23453
+        },
+        {
+          "id": "gz-cultural-park",
+          "name": "Cultural Park",
+          "latitude": 23.111873,
+          "longitude": 113.243653
+        },
+        {
+          "id": "gz-yide-lu",
+          "name": "Yide Lu",
+          "latitude": 23.115722,
+          "longitude": 113.251877
+        },
+        {
+          "id": "gz-haizhu-square",
+          "name": "Haizhu Square",
+          "latitude": 23.117479,
+          "longitude": 113.260018
+        },
+        {
+          "id": "gz-beijing-lu",
+          "name": "Beijing Lu",
+          "latitude": 23.121409,
+          "longitude": 113.264939
+        },
+        {
+          "id": "gz-tuanyida-square",
+          "name": "Tuanyida Square",
+          "latitude": 23.120785,
+          "longitude": 113.27293
+        },
+        {
+          "id": "gz-donghu",
+          "name": "Donghu",
+          "latitude": 23.117767,
+          "longitude": 113.283235
+        },
+        {
+          "id": "gz-dongshankou",
+          "name": "Dongshankou",
+          "latitude": 23.126633,
+          "longitude": 113.290015
+        },
+        {
+          "id": "gz-ouzhuang",
+          "name": "Ouzhuang",
+          "latitude": 23.137129,
+          "longitude": 113.291364
+        },
+        {
+          "id": "gz-huanghuagang",
+          "name": "Huanghuagang",
+          "latitude": 23.143767,
+          "longitude": 113.29454
+        },
+        {
+          "id": "gz-shaheding",
+          "name": "Shaheding",
+          "latitude": 23.149902,
+          "longitude": 113.301588
+        },
+        {
+          "id": "gz-shahe",
+          "name": "Shahe",
+          "latitude": 23.155043,
+          "longitude": 113.307363
+        },
+        {
+          "id": "gz-tianpingjia",
+          "name": "Tianpingjia",
+          "latitude": 23.162121,
+          "longitude": 113.315945
+        },
+        {
+          "id": "gz-yantang",
+          "name": "Yantang",
+          "latitude": 23.162842,
+          "longitude": 113.321639
+        },
+        {
+          "id": "gz-tianhe-coach-terminal",
+          "name": "Tianhe Coach Terminal",
+          "latitude": 23.173724,
+          "longitude": 113.338532
+        },
+        {
+          "id": "gz-changban",
+          "name": "Changban",
+          "latitude": 23.181038,
+          "longitude": 113.343969
+        },
+        {
+          "id": "gz-botanical-garden",
+          "name": "Botanical Garden",
+          "latitude": 23.192668,
+          "longitude": 113.360191
+        },
+        {
+          "id": "gz-longdong",
+          "name": "Longdong",
+          "latitude": 23.193448,
+          "longitude": 113.372008
+        },
+        {
+          "id": "gz-kemulang",
+          "name": "Kemulang",
+          "latitude": 23.195933,
+          "longitude": 113.390464
+        },
+        {
+          "id": "gz-gaotangshi",
+          "name": "Gaotangshi",
+          "latitude": 23.193527,
+          "longitude": 113.404879
+        },
+        {
+          "id": "gz-huangbei",
+          "name": "Huangbei",
+          "latitude": 23.190865,
+          "longitude": 113.428229
+        },
+        {
+          "id": "gz-jinfeng",
+          "name": "Jinfeng",
+          "latitude": 23.183983,
+          "longitude": 113.445705
+        },
+        {
+          "id": "gz-xiangang",
+          "name": "Xiangang",
+          "latitude": 23.174833,
+          "longitude": 113.454722
+        },
+        {
+          "id": "gz-suyuan",
+          "name": "Suyuan",
+          "latitude": 23.173527,
+          "longitude": 113.46305
+        },
+        {
+          "id": "gz-luogang",
+          "name": "Luogang",
+          "latitude": 23.178177,
+          "longitude": 113.475705
+        },
+        {
+          "id": "gz-xiangxue",
+          "name": "Xiangxue",
+          "latitude": 23.17503,
+          "longitude": 113.495899
+        }
+      ]
+    },
+    {
+      "id": "gz-l7",
+      "lineNumber": "7",
+      "name": "Линия 7",
+      "color": "#9dd32d",
+      "stations": [
+        {
+          "id": "gz-meidi-dadao",
+          "name": "Meidi Dadao",
+          "latitude": 22.947484,
+          "longitude": 113.202418
+        },
+        {
+          "id": "gz-beijiao-park",
+          "name": "Beijiao Park",
+          "latitude": 22.932689,
+          "longitude": 113.206577
+        },
+        {
+          "id": "gz-midea",
+          "name": "Midea",
+          "latitude": 22.936254,
+          "longitude": 113.221543
+        },
+        {
+          "id": "gz-nanchong",
+          "name": "Nanchong",
+          "latitude": 22.942076,
+          "longitude": 113.232856
+        },
+        {
+          "id": "gz-jinlong",
+          "name": "Jinlong",
+          "latitude": 22.955888,
+          "longitude": 113.236185
+        },
+        {
+          "id": "gz-chencun",
+          "name": "Chencun",
+          "latitude": 22.970733,
+          "longitude": 113.231551
+        },
+        {
+          "id": "gz-chencunbei",
+          "name": "Chencunbei",
+          "latitude": 22.978866,
+          "longitude": 113.239929
+        },
+        {
+          "id": "gz-dazhou",
+          "name": "Dazhou",
+          "latitude": 22.986535,
+          "longitude": 113.25198
+        },
+        {
+          "id": "gz-guangzhou-south-railway-station",
+          "name": "Guangzhou South Railway Station",
+          "latitude": 22.991508,
+          "longitude": 113.264495
+        },
+        {
+          "id": "gz-shibi",
+          "name": "Shibi",
+          "latitude": 22.996863,
+          "longitude": 113.272636
+        },
+        {
+          "id": "gz-xiecun",
+          "name": "Xiecun",
+          "latitude": 22.993287,
+          "longitude": 113.290482
+        },
+        {
+          "id": "gz-zhongcun",
+          "name": "Zhongcun",
+          "latitude": 22.989113,
+          "longitude": 113.311593
+        },
+        {
+          "id": "gz-hanxi-changlong",
+          "name": "Hanxi Changlong",
+          "latitude": 22.995461,
+          "longitude": 113.324541
+        },
+        {
+          "id": "gz-nancun-wanbo",
+          "name": "Nancun Wanbo",
+          "latitude": 23.0074,
+          "longitude": 113.342105
+        },
+        {
+          "id": "gz-yuangang",
+          "name": "Yuangang",
+          "latitude": 23.018537,
+          "longitude": 113.360158
+        },
+        {
+          "id": "gz-banqiao",
+          "name": "Banqiao",
+          "latitude": 23.019393,
+          "longitude": 113.382628
+        },
+        {
+          "id": "gz-higher-education-mega-center-s",
+          "name": "Higher Education Mega Center S.",
+          "latitude": 23.045938,
+          "longitude": 113.394959
+        },
+        {
+          "id": "gz-shenjing",
+          "name": "Shenjing",
+          "latitude": 23.071229,
+          "longitude": 113.404038
+        },
+        {
+          "id": "gz-changzhou",
+          "name": "Changzhou",
+          "latitude": 23.078723,
+          "longitude": 113.423876
+        },
+        {
+          "id": "gz-yufengwei",
+          "name": "Yufengwei",
+          "latitude": 23.097402,
+          "longitude": 113.450335
+        },
+        {
+          "id": "gz-dashadong",
+          "name": "Dashadong",
+          "latitude": 23.108775,
+          "longitude": 113.45306
+        },
+        {
+          "id": "gz-jitang",
+          "name": "Jitang",
+          "latitude": 23.134669,
+          "longitude": 113.450451
+        },
+        {
+          "id": "gz-jiazhuang",
+          "name": "Jiazhuang",
+          "latitude": 23.150376,
+          "longitude": 113.454653
+        },
+        {
+          "id": "gz-kefeng-lu",
+          "name": "Kefeng Lu",
+          "latitude": 23.165411,
+          "longitude": 113.460673
+        },
+        {
+          "id": "gz-luogang",
+          "name": "Luogang",
+          "latitude": 23.178177,
+          "longitude": 113.475705
+        },
+        {
+          "id": "gz-shuixi",
+          "name": "Shuixi",
+          "latitude": 23.190067,
+          "longitude": 113.473378
+        },
+        {
+          "id": "gz-yanshan",
+          "name": "Yanshan",
+          "latitude": 23.197745,
+          "longitude": 113.469606
+        }
+      ]
+    },
+    {
+      "id": "gz-l8",
+      "lineNumber": "8",
+      "name": "Линия 8",
+      "color": "#00858a",
+      "stations": [
+        {
+          "id": "gz-jiaoxin",
+          "name": "Jiaoxin",
+          "latitude": 23.239502,
+          "longitude": 113.211626
+        },
+        {
+          "id": "gz-tinggang",
+          "name": "Tinggang",
+          "latitude": 23.225238,
+          "longitude": 113.214611
+        },
+        {
+          "id": "gz-shijing",
+          "name": "Shijing",
+          "latitude": 23.21374,
+          "longitude": 113.226461
+        },
+        {
+          "id": "gz-xiaoping",
+          "name": "Xiaoping",
+          "latitude": 23.203168,
+          "longitude": 113.237721
+        },
+        {
+          "id": "gz-shitan",
+          "name": "Shitan",
+          "latitude": 23.190496,
+          "longitude": 113.235679
+        },
+        {
+          "id": "gz-julong",
+          "name": "Julong",
+          "latitude": 23.183765,
+          "longitude": 113.233392
+        },
+        {
+          "id": "gz-shangbu",
+          "name": "Shangbu",
+          "latitude": 23.173634,
+          "longitude": 113.230426
+        },
+        {
+          "id": "gz-tongde",
+          "name": "Tongde",
+          "latitude": 23.166183,
+          "longitude": 113.229372
+        },
+        {
+          "id": "gz-ezhangtan",
+          "name": "Ezhangtan",
+          "latitude": 23.159025,
+          "longitude": 113.230517
+        },
+        {
+          "id": "gz-xicun",
+          "name": "Xicun",
+          "latitude": 23.144893,
+          "longitude": 113.236798
+        },
+        {
+          "id": "gz-caihong-bridge",
+          "name": "Caihong Bridge",
+          "latitude": 23.137578,
+          "longitude": 113.241199
+        },
+        {
+          "id": "gz-chen-clan-academy",
+          "name": "Chen Clan Academy",
+          "latitude": 23.128407,
+          "longitude": 113.241114
+        },
+        {
+          "id": "gz-hualinsi-buddhist-temple",
+          "name": "Hualinsi Buddhist Temple",
+          "latitude": 23.120359,
+          "longitude": 113.242008
+        },
+        {
+          "id": "gz-cultural-park",
+          "name": "Cultural Park",
+          "latitude": 23.111873,
+          "longitude": 113.243653
+        },
+        {
+          "id": "gz-tongfuxi",
+          "name": "Tongfuxi",
+          "latitude": 23.10438,
+          "longitude": 113.24705
+        },
+        {
+          "id": "gz-fenghuang-xincun",
+          "name": "Fenghuang Xincun",
+          "latitude": 23.097399,
+          "longitude": 113.250672
+        },
+        {
+          "id": "gz-shayuan",
+          "name": "Shayuan",
+          "latitude": 23.091321,
+          "longitude": 113.255261
+        },
+        {
+          "id": "gz-baogang-dadao",
+          "name": "Baogang Dadao",
+          "latitude": 23.08872,
+          "longitude": 113.264373
+        },
+        {
+          "id": "gz-changgang",
+          "name": "Changgang",
+          "latitude": 23.09334,
+          "longitude": 113.271552
+        },
+        {
+          "id": "gz-xiaogang",
+          "name": "Xiaogang",
+          "latitude": 23.095747,
+          "longitude": 113.276545
+        },
+        {
+          "id": "gz-sun-yat-sen-university",
+          "name": "Sun Yat-sen University",
+          "latitude": 23.094793,
+          "longitude": 113.287511
+        },
+        {
+          "id": "gz-lujiang",
+          "name": "Lujiang",
+          "latitude": 23.097976,
+          "longitude": 113.302841
+        },
+        {
+          "id": "gz-kecun",
+          "name": "Kecun",
+          "latitude": 23.09882,
+          "longitude": 113.31493
+        },
+        {
+          "id": "gz-chigang",
+          "name": "Chigang",
+          "latitude": 23.099044,
+          "longitude": 113.329152
+        },
+        {
+          "id": "gz-modiesha",
+          "name": "Modiesha",
+          "latitude": 23.101271,
+          "longitude": 113.335841
+        },
+        {
+          "id": "gz-xingangdong",
+          "name": "Xingangdong",
+          "latitude": 23.101276,
+          "longitude": 113.351536
+        },
+        {
+          "id": "gz-pazhou",
+          "name": "Pazhou",
+          "latitude": 23.101055,
+          "longitude": 113.361209
+        },
+        {
+          "id": "gz-wanshengwei",
+          "name": "Wanshengwei",
+          "latitude": 23.100229,
+          "longitude": 113.379283
+        }
+      ]
+    },
+    {
+      "id": "gz-l9",
+      "lineNumber": "9",
+      "name": "Линия 9",
+      "color": "#5ec998",
+      "stations": [
+        {
+          "id": "gz-fei-eling",
+          "name": "Fei’eling",
+          "latitude": 23.380814,
+          "longitude": 113.149655
+        },
+        {
+          "id": "gz-huadu-autocity",
+          "name": "Huadu Autocity",
+          "latitude": 23.382186,
+          "longitude": 113.174941
+        },
+        {
+          "id": "gz-guangzhou-north-railway-station",
+          "name": "Guangzhou North Railway Station",
+          "latitude": 23.378973,
+          "longitude": 113.19618
+        },
+        {
+          "id": "gz-huachenglu",
+          "name": "Huachenglu",
+          "latitude": 23.382193,
+          "longitude": 113.207369
+        },
+        {
+          "id": "gz-huaguoshan-park",
+          "name": "Huaguoshan Park",
+          "latitude": 23.389696,
+          "longitude": 113.213025
+        },
+        {
+          "id": "gz-huadu-square",
+          "name": "Huadu Square",
+          "latitude": 23.403887,
+          "longitude": 113.217268
+        },
+        {
+          "id": "gz-ma-anshan-park",
+          "name": "Ma’anshan Park",
+          "latitude": 23.402293,
+          "longitude": 113.232499
+        },
+        {
+          "id": "gz-liantang",
+          "name": "Liantang",
+          "latitude": 23.391701,
+          "longitude": 113.239806
+        },
+        {
+          "id": "gz-qingbu",
+          "name": "Qingbu",
+          "latitude": 23.382072,
+          "longitude": 113.241928
+        },
+        {
+          "id": "gz-qingtang",
+          "name": "Qingtang",
+          "latitude": 23.374809,
+          "longitude": 113.257516
+        },
+        {
+          "id": "gz-gaozeng",
+          "name": "Gaozeng",
+          "latitude": 23.357741,
+          "longitude": 113.29013
+        }
+      ]
+    },
+    {
+      "id": "gz-l10",
+      "lineNumber": "10",
+      "name": "Линия 10",
+      "color": "#6e90b6",
+      "stations": [
+        {
+          "id": "gz-xilang",
+          "name": "Xilang",
+          "latitude": 23.067759,
+          "longitude": 113.226185
+        },
+        {
+          "id": "gz-huawei",
+          "name": "Huawei",
+          "latitude": 23.060256,
+          "longitude": 113.239772
+        },
+        {
+          "id": "gz-dongsha",
+          "name": "Dongsha",
+          "latitude": 23.059749,
+          "longitude": 113.258805
+        },
+        {
+          "id": "gz-daganwei",
+          "name": "Daganwei",
+          "latitude": 23.063218,
+          "longitude": 113.2782
+        },
+        {
+          "id": "gz-gongye-avenue-south",
+          "name": "Gongye Avenue South",
+          "latitude": 23.07054,
+          "longitude": 113.283502
+        },
+        {
+          "id": "gz-dongxiao-south",
+          "name": "Dongxiao South",
+          "latitude": 23.074009,
+          "longitude": 113.288821
+        },
+        {
+          "id": "gz-wufeng",
+          "name": "Wufeng",
+          "latitude": 23.084675,
+          "longitude": 113.290714
+        },
+        {
+          "id": "gz-sun-yat-sen-university-south-gate",
+          "name": "Sun Yat-sen University South Gate",
+          "latitude": 23.091618,
+          "longitude": 113.29096
+        },
+        {
+          "id": "gz-binjiang-east-road",
+          "name": "Binjiang East Road",
+          "latitude": 23.106749,
+          "longitude": 113.286496
+        },
+        {
+          "id": "gz-donghu",
+          "name": "Donghu",
+          "latitude": 23.117767,
+          "longitude": 113.283235
+        },
+        {
+          "id": "gz-wuyangcun",
+          "name": "Wuyangcun",
+          "latitude": 23.122391,
+          "longitude": 113.306255
+        },
+        {
+          "id": "gz-yangji-east",
+          "name": "Yangji East",
+          "latitude": 23.127039,
+          "longitude": 113.310447
+        }
+      ]
+    },
+    {
+      "id": "gz-l11",
+      "lineNumber": "11",
+      "name": "Линия 11",
+      "color": "#f5bb17",
+      "isCircular": true,
+      "stations": [
+        {
+          "id": "gz-chisha",
+          "name": "Chisha",
+          "latitude": 23.087296,
+          "longitude": 113.358027
+        },
+        {
+          "id": "gz-pazhou",
+          "name": "Pazhou",
+          "latitude": 23.101055,
+          "longitude": 113.361209
+        },
+        {
+          "id": "gz-yuancun",
+          "name": "Yuancun",
+          "latitude": 23.118051,
+          "longitude": 113.358269
+        },
+        {
+          "id": "gz-tianhe-park",
+          "name": "Tianhe Park",
+          "latitude": 23.127435,
+          "longitude": 113.358537
+        },
+        {
+          "id": "gz-huajing-road",
+          "name": "Huajing Road",
+          "latitude": 23.136803,
+          "longitude": 113.354618
+        },
+        {
+          "id": "gz-south-china-normal-university",
+          "name": "South China Normal University",
+          "latitude": 23.142848,
+          "longitude": 113.339875
+        },
+        {
+          "id": "gz-longkou-west",
+          "name": "Longkou West",
+          "latitude": 23.144043,
+          "longitude": 113.332229
+        },
+        {
+          "id": "gz-guangzhou-east-railway-station",
+          "name": "Guangzhou East Railway Station",
+          "latitude": 23.15367,
+          "longitude": 113.31908
+        },
+        {
+          "id": "gz-shahe",
+          "name": "Shahe",
+          "latitude": 23.155043,
+          "longitude": 113.307363
+        },
+        {
+          "id": "gz-yuntai-garden",
+          "name": "Yuntai Garden",
+          "latitude": 23.156546,
+          "longitude": 113.287194
+        },
+        {
+          "id": "gz-dajinzhong-road",
+          "name": "Dajinzhong Road",
+          "latitude": 23.164392,
+          "longitude": 113.271572
+        },
+        {
+          "id": "gz-guangzhou-university-of-chinese-medicine",
+          "name": "Guangzhou University of Chinese Medicine",
+          "latitude": 23.160029,
+          "longitude": 113.26376
+        },
+        {
+          "id": "gz-ziyuangang",
+          "name": "Ziyuangang",
+          "latitude": 23.156126,
+          "longitude": 113.257751
+        },
+        {
+          "id": "gz-liuhua",
+          "name": "Liuhua",
+          "latitude": 23.142559,
+          "longitude": 113.25187
+        },
+        {
+          "id": "gz-caihong-bridge",
+          "name": "Caihong Bridge",
+          "latitude": 23.137578,
+          "longitude": 113.241199
+        },
+        {
+          "id": "gz-zhongshanba",
+          "name": "Zhongshanba",
+          "latitude": 23.128979,
+          "longitude": 113.228026
+        },
+        {
+          "id": "gz-ruyifang",
+          "name": "Ruyifang",
+          "latitude": 23.117838,
+          "longitude": 113.225778
+        },
+        {
+          "id": "gz-shiweitang",
+          "name": "Shiweitang",
+          "latitude": 23.106443,
+          "longitude": 113.21951
+        },
+        {
+          "id": "gz-fangcun",
+          "name": "Fangcun",
+          "latitude": 23.101255,
+          "longitude": 113.230542
+        },
+        {
+          "id": "gz-dachongkou",
+          "name": "Dachongkou",
+          "latitude": 23.091697,
+          "longitude": 113.239228
+        },
+        {
+          "id": "gz-shachong",
+          "name": "Shachong",
+          "latitude": 23.085794,
+          "longitude": 113.241433
+        },
+        {
+          "id": "gz-hedong-east",
+          "name": "Hedong East",
+          "latitude": 23.073968,
+          "longitude": 113.245863
+        },
+        {
+          "id": "gz-diyuan",
+          "name": "Diyuan",
+          "latitude": 23.075609,
+          "longitude": 113.258945
+        },
+        {
+          "id": "gz-yangang",
+          "name": "Yangang",
+          "latitude": 23.077838,
+          "longitude": 113.26666
+        },
+        {
+          "id": "gz-jiangtai-road",
+          "name": "Jiangtai Road",
+          "latitude": 23.084918,
+          "longitude": 113.275234
+        },
+        {
+          "id": "gz-wufeng",
+          "name": "Wufeng",
+          "latitude": 23.084675,
+          "longitude": 113.290714
+        },
+        {
+          "id": "gz-yijing-road",
+          "name": "Yijing Road",
+          "latitude": 23.084648,
+          "longitude": 113.299728
+        },
+        {
+          "id": "gz-shangchong",
+          "name": "Shangchong",
+          "latitude": 23.082487,
+          "longitude": 113.307487
+        },
+        {
+          "id": "gz-datang",
+          "name": "Datang",
+          "latitude": 23.080602,
+          "longitude": 113.316274
+        },
+        {
+          "id": "gz-longtan",
+          "name": "Longtan",
+          "latitude": 23.081828,
+          "longitude": 113.33546
+        }
+      ]
+    },
+    {
+      "id": "gz-l12w",
+      "lineNumber": "12W",
+      "name": "Линия 12 — западный участок",
+      "color": "#69ab5c",
+      "stations": [
+        {
+          "id": "gz-xunfenggang",
+          "name": "Xunfenggang",
+          "latitude": 23.166727,
+          "longitude": 113.196568
+        },
+        {
+          "id": "gz-xunfenggang-north",
+          "name": "Xunfenggang North",
+          "latitude": 23.175388,
+          "longitude": 113.201708
+        },
+        {
+          "id": "gz-xizhou",
+          "name": "Xizhou",
+          "latitude": 23.187253,
+          "longitude": 113.218762
+        },
+        {
+          "id": "gz-julong",
+          "name": "Julong",
+          "latitude": 23.183765,
+          "longitude": 113.233392
+        },
+        {
+          "id": "gz-guangzhou-baiyun-railway-station",
+          "name": "Guangzhou Baiyun Railway Station",
+          "latitude": 23.193638,
+          "longitude": 113.242315
+        },
+        {
+          "id": "gz-tangchong",
+          "name": "Tangchong",
+          "latitude": 23.198635,
+          "longitude": 113.248943
+        },
+        {
+          "id": "gz-xinshixu",
+          "name": "Xinshixu",
+          "latitude": 23.197055,
+          "longitude": 113.259948
+        },
+        {
+          "id": "gz-baiyun-culture-square",
+          "name": "Baiyun Culture Square",
+          "latitude": 23.192223,
+          "longitude": 113.270264
+        },
+        {
+          "id": "gz-guangzhou-gymnasium",
+          "name": "Guangzhou Gymnasium",
+          "latitude": 23.183301,
+          "longitude": 113.273048
+        }
+      ]
+    },
+    {
+      "id": "gz-l12e",
+      "lineNumber": "12E",
+      "name": "Линия 12 — восточный участок",
+      "color": "#69ab5c",
+      "stations": [
+        {
+          "id": "gz-ersha-island",
+          "name": "Ersha Island",
+          "latitude": 23.112504,
+          "longitude": 113.298595
+        },
+        {
+          "id": "gz-chigang-pagoda",
+          "name": "Chigang Pagoda",
+          "latitude": 23.104746,
+          "longitude": 113.319249
+        },
+        {
+          "id": "gz-chigang",
+          "name": "Chigang",
+          "latitude": 23.099044,
+          "longitude": 113.329152
+        },
+        {
+          "id": "gz-chisha-north",
+          "name": "Chisha North",
+          "latitude": 23.09275,
+          "longitude": 113.341399
+        },
+        {
+          "id": "gz-chisha",
+          "name": "Chisha",
+          "latitude": 23.087296,
+          "longitude": 113.358027
+        },
+        {
+          "id": "gz-beishan",
+          "name": "Beishan",
+          "latitude": 23.087758,
+          "longitude": 113.369788
+        },
+        {
+          "id": "gz-guanzhou",
+          "name": "Guanzhou",
+          "latitude": 23.070301,
+          "longitude": 113.371457
+        },
+        {
+          "id": "gz-higher-education-mega-center-n",
+          "name": "Higher Education Mega Center N.",
+          "latitude": 23.06047,
+          "longitude": 113.380284
+        },
+        {
+          "id": "gz-higher-education-mega-center-s",
+          "name": "Higher Education Mega Center S.",
+          "latitude": 23.045938,
+          "longitude": 113.394959
+        }
+      ]
+    },
+    {
+      "id": "gz-l13",
+      "lineNumber": "13",
+      "name": "Линия 13",
+      "color": "#888600",
+      "stations": [
+        {
+          "id": "gz-tianhe-park",
+          "name": "Tianhe Park",
+          "latitude": 23.127435,
+          "longitude": 113.358537
+        },
+        {
+          "id": "gz-tangxia",
+          "name": "Tangxia",
+          "latitude": 23.128114,
+          "longitude": 113.376139
+        },
+        {
+          "id": "gz-chebei",
+          "name": "Chebei",
+          "latitude": 23.127202,
+          "longitude": 113.390966
+        },
+        {
+          "id": "gz-tianhe-zhucun",
+          "name": "Tianhe Zhucun",
+          "latitude": 23.119155,
+          "longitude": 113.415154
+        },
+        {
+          "id": "gz-yuzhu",
+          "name": "Yuzhu",
+          "latitude": 23.102949,
+          "longitude": 113.426756
+        },
+        {
+          "id": "gz-yufengwei",
+          "name": "Yufengwei",
+          "latitude": 23.097402,
+          "longitude": 113.450335
+        },
+        {
+          "id": "gz-shuanggang",
+          "name": "Shuanggang",
+          "latitude": 23.09707,
+          "longitude": 113.468922
+        },
+        {
+          "id": "gz-nanhai-god-temple",
+          "name": "Nanhai God Temple",
+          "latitude": 23.086391,
+          "longitude": 113.492102
+        },
+        {
+          "id": "gz-xiayuan",
+          "name": "Xiayuan",
+          "latitude": 23.085637,
+          "longitude": 113.513117
+        },
+        {
+          "id": "gz-nangang",
+          "name": "Nangang",
+          "latitude": 23.098047,
+          "longitude": 113.536254
+        },
+        {
+          "id": "gz-shacun",
+          "name": "Shacun",
+          "latitude": 23.113436,
+          "longitude": 113.565287
+        },
+        {
+          "id": "gz-baijiang",
+          "name": "Baijiang",
+          "latitude": 23.126098,
+          "longitude": 113.590547
+        },
+        {
+          "id": "gz-xintang",
+          "name": "Xintang",
+          "latitude": 23.134592,
+          "longitude": 113.599397
+        },
+        {
+          "id": "gz-guanhu",
+          "name": "Guanhu",
+          "latitude": 23.140062,
+          "longitude": 113.631482
+        },
+        {
+          "id": "gz-xinsha",
+          "name": "Xinsha",
+          "latitude": 23.13968,
+          "longitude": 113.644316
+        }
+      ]
+    },
+    {
+      "id": "gz-l14",
+      "lineNumber": "14",
+      "name": "Линия 14",
+      "color": "#792720",
+      "stations": [
+        {
+          "id": "gz-lejia-road",
+          "name": "Lejia Road",
+          "latitude": 23.173836,
+          "longitude": 113.254963
+        },
+        {
+          "id": "gz-yunxiao-road",
+          "name": "Yunxiao Road",
+          "latitude": 23.186207,
+          "longitude": 113.255386
+        },
+        {
+          "id": "gz-xinshixu",
+          "name": "Xinshixu",
+          "latitude": 23.197055,
+          "longitude": 113.259948
+        },
+        {
+          "id": "gz-mawu",
+          "name": "Mawu",
+          "latitude": 23.204642,
+          "longitude": 113.258457
+        },
+        {
+          "id": "gz-hebian",
+          "name": "Hebian",
+          "latitude": 23.21565,
+          "longitude": 113.261278
+        },
+        {
+          "id": "gz-helong",
+          "name": "Helong",
+          "latitude": 23.225214,
+          "longitude": 113.266906
+        },
+        {
+          "id": "gz-pengbian",
+          "name": "Pengbian",
+          "latitude": 23.229824,
+          "longitude": 113.27623
+        },
+        {
+          "id": "gz-jiahewanggang",
+          "name": "Jiahewanggang",
+          "latitude": 23.240079,
+          "longitude": 113.283886
+        },
+        {
+          "id": "gz-baiyun-dongping",
+          "name": "Baiyun Dongping",
+          "latitude": 23.25374,
+          "longitude": 113.312434
+        },
+        {
+          "id": "gz-xialiang",
+          "name": "Xialiang",
+          "latitude": 23.280255,
+          "longitude": 113.318085
+        },
+        {
+          "id": "gz-taihe",
+          "name": "Taihe ",
+          "latitude": 23.301785,
+          "longitude": 113.341727
+        },
+        {
+          "id": "gz-zhuliao",
+          "name": "Zhuliao",
+          "latitude": 23.35095,
+          "longitude": 113.362822
+        },
+        {
+          "id": "gz-zhongluotan",
+          "name": "Zhongluotan",
+          "latitude": 23.378067,
+          "longitude": 113.395144
+        },
+        {
+          "id": "gz-mali",
+          "name": "Mali",
+          "latitude": 23.396332,
+          "longitude": 113.444895
+        },
+        {
+          "id": "gz-xinhe",
+          "name": "Xinhe",
+          "latitude": 23.415747,
+          "longitude": 113.461607
+        },
+        {
+          "id": "gz-taiping",
+          "name": "Taiping",
+          "latitude": 23.454641,
+          "longitude": 113.486579
+        },
+        {
+          "id": "gz-shengang",
+          "name": "Shengang",
+          "latitude": 23.477727,
+          "longitude": 113.512108
+        },
+        {
+          "id": "gz-chicao",
+          "name": "Chicao",
+          "latitude": 23.503952,
+          "longitude": 113.555096
+        },
+        {
+          "id": "gz-conghua-coach-terminal",
+          "name": "Conghua Coach Terminal",
+          "latitude": 23.53454,
+          "longitude": 113.589614
+        },
+        {
+          "id": "gz-dongfeng",
+          "name": "Dongfeng",
+          "latitude": 23.569006,
+          "longitude": 113.595695
+        }
+      ]
+    },
+    {
+      "id": "gz-l14a",
+      "lineNumber": "14A",
+      "name": "Линия 14 — ветка Чжэньлуна",
+      "color": "#792720",
+      "stations": [
+        {
+          "id": "gz-xinhe",
+          "name": "Xinhe",
+          "latitude": 23.415747,
+          "longitude": 113.461607
+        },
+        {
+          "id": "gz-hongwei",
+          "name": "Hongwei",
+          "latitude": 23.401805,
+          "longitude": 113.482027
+        },
+        {
+          "id": "gz-xinnan",
+          "name": "Xinnan",
+          "latitude": 23.379803,
+          "longitude": 113.489868
+        },
+        {
+          "id": "gz-fengxia",
+          "name": "Fengxia",
+          "latitude": 23.365672,
+          "longitude": 113.503009
+        },
+        {
+          "id": "gz-sino-singapore-guangzhou-knowledge-city",
+          "name": "Sino-Singapore Guangzhou Knowledge City",
+          "latitude": 23.352043,
+          "longitude": 113.519945
+        },
+        {
+          "id": "gz-hetangxia",
+          "name": "Hetangxia",
+          "latitude": 23.33391,
+          "longitude": 113.538495
+        },
+        {
+          "id": "gz-wangcun",
+          "name": "Wangcun",
+          "latitude": 23.325996,
+          "longitude": 113.546579
+        },
+        {
+          "id": "gz-tangcun",
+          "name": "Tangcun",
+          "latitude": 23.310151,
+          "longitude": 113.559549
+        },
+        {
+          "id": "gz-zhenlongbei",
+          "name": "Zhenlongbei",
+          "latitude": 23.292375,
+          "longitude": 113.571832
+        },
+        {
+          "id": "gz-zhenlong",
+          "name": "Zhenlong",
+          "latitude": 23.28732,
+          "longitude": 113.587908
+        }
+      ]
+    },
+    {
+      "id": "gz-l18",
+      "lineNumber": "18",
+      "name": "Линия 18",
+      "color": "#364c9c",
+      "stations": [
+        {
+          "id": "gz-xiancun",
+          "name": "Xiancun",
+          "latitude": 23.128318,
+          "longitude": 113.322738
+        },
+        {
+          "id": "gz-modiesha",
+          "name": "Modiesha",
+          "latitude": 23.101271,
+          "longitude": 113.335841
+        },
+        {
+          "id": "gz-longtan",
+          "name": "Longtan",
+          "latitude": 23.081828,
+          "longitude": 113.33546
+        },
+        {
+          "id": "gz-shaxi",
+          "name": "Shaxi",
+          "latitude": 23.038067,
+          "longitude": 113.332746
+        },
+        {
+          "id": "gz-nancun-wanbo",
+          "name": "Nancun Wanbo",
+          "latitude": 23.0074,
+          "longitude": 113.342105
+        },
+        {
+          "id": "gz-panyu-square",
+          "name": "Panyu Square",
+          "latitude": 22.938068,
+          "longitude": 113.380139
+        },
+        {
+          "id": "gz-hengli",
+          "name": "Hengli",
+          "latitude": 22.756165,
+          "longitude": 113.505826
+        },
+        {
+          "id": "gz-wanqingsha",
+          "name": "Wanqingsha",
+          "latitude": 22.701381,
+          "longitude": 113.551928
+        }
+      ]
+    },
+    {
+      "id": "gz-l21",
+      "lineNumber": "21",
+      "name": "Линия 21",
+      "color": "#230b55",
+      "stations": [
+        {
+          "id": "gz-tianhe-park",
+          "name": "Tianhe Park",
+          "latitude": 23.127435,
+          "longitude": 113.358537
+        },
+        {
+          "id": "gz-tangdong",
+          "name": "Tangdong",
+          "latitude": 23.133479,
+          "longitude": 113.38381
+        },
+        {
+          "id": "gz-huangcun",
+          "name": "Huangcun",
+          "latitude": 23.134306,
+          "longitude": 113.401749
+        },
+        {
+          "id": "gz-daguannanlu",
+          "name": "Daguannanlu",
+          "latitude": 23.147062,
+          "longitude": 113.401421
+        },
+        {
+          "id": "gz-tianhe-smart-city",
+          "name": "Tianhe Smart City",
+          "latitude": 23.165755,
+          "longitude": 113.397657
+        },
+        {
+          "id": "gz-shenzhoulu",
+          "name": "Shenzhoulu",
+          "latitude": 23.167706,
+          "longitude": 113.425823
+        },
+        {
+          "id": "gz-science-city",
+          "name": "Science City",
+          "latitude": 23.168168,
+          "longitude": 113.44377
+        },
+        {
+          "id": "gz-suyuan",
+          "name": "Suyuan",
+          "latitude": 23.173527,
+          "longitude": 113.46305
+        },
+        {
+          "id": "gz-shuixi",
+          "name": "Shuixi",
+          "latitude": 23.190067,
+          "longitude": 113.473378
+        },
+        {
+          "id": "gz-changping",
+          "name": "Changping",
+          "latitude": 23.212941,
+          "longitude": 113.484337
+        },
+        {
+          "id": "gz-jinkeng",
+          "name": "Jinkeng",
+          "latitude": 23.252025,
+          "longitude": 113.521486
+        },
+        {
+          "id": "gz-zhenlongxi",
+          "name": "Zhenlongxi",
+          "latitude": 23.280879,
+          "longitude": 113.568676
+        },
+        {
+          "id": "gz-zhenlong",
+          "name": "Zhenlong",
+          "latitude": 23.28732,
+          "longitude": 113.587908
+        },
+        {
+          "id": "gz-zhongxin",
+          "name": "Zhongxin",
+          "latitude": 23.288108,
+          "longitude": 113.608047
+        },
+        {
+          "id": "gz-kengbei",
+          "name": "Kengbei",
+          "latitude": 23.281547,
+          "longitude": 113.637504
+        },
+        {
+          "id": "gz-fenggang",
+          "name": "Fenggang",
+          "latitude": 23.278692,
+          "longitude": 113.665493
+        },
+        {
+          "id": "gz-zhucun",
+          "name": "Zhucun",
+          "latitude": 23.274991,
+          "longitude": 113.696228
+        },
+        {
+          "id": "gz-shantian",
+          "name": "Shantian ",
+          "latitude": 23.279054,
+          "longitude": 113.739328
+        },
+        {
+          "id": "gz-zhonggang",
+          "name": "Zhonggang",
+          "latitude": 23.281964,
+          "longitude": 113.786884
+        },
+        {
+          "id": "gz-zengcheng-square",
+          "name": "Zengcheng Square",
+          "latitude": 23.280706,
+          "longitude": 113.809361
+        }
+      ]
+    },
+    {
+      "id": "gz-l22",
+      "lineNumber": "22",
+      "name": "Линия 22",
+      "color": "#d14d23",
+      "stations": [
+        {
+          "id": "gz-panyu-square",
+          "name": "Panyu Square",
+          "latitude": 22.938068,
+          "longitude": 113.380139
+        },
+        {
+          "id": "gz-shiguanglu",
+          "name": "Shiguanglu",
+          "latitude": 22.974014,
+          "longitude": 113.331571
+        },
+        {
+          "id": "gz-guangzhou-south-railway-station",
+          "name": "Guangzhou South Railway Station",
+          "latitude": 22.991508,
+          "longitude": 113.264495
+        },
+        {
+          "id": "gz-chentougang",
+          "name": "Chentougang",
+          "latitude": 23.015944,
+          "longitude": 113.260316
+        },
+        {
+          "id": "gz-nanpu-west",
+          "name": "Nanpu West",
+          "latitude": 23.04114,
+          "longitude": 113.255194
+        },
+        {
+          "id": "gz-nanjiao",
+          "name": "Nanjiao",
+          "latitude": 23.053409,
+          "longitude": 113.243633
+        },
+        {
+          "id": "gz-xilang",
+          "name": "Xilang",
+          "latitude": 23.067759,
+          "longitude": 113.226185
+        },
+        {
+          "id": "gz-fangcun",
+          "name": "Fangcun",
+          "latitude": 23.101255,
+          "longitude": 113.230542
+        }
+      ]
+    },
+    {
+      "id": "gz-lapm",
+      "lineNumber": "APM",
+      "name": "APM",
+      "color": "#00bde2",
+      "stations": [
+        {
+          "id": "gz-linhexi",
+          "name": "Linhexi",
+          "latitude": 23.143961,
+          "longitude": 113.318491
+        },
+        {
+          "id": "gz-tianhe-sports-center-south",
+          "name": "Tianhe Sports Center South",
+          "latitude": 23.136876,
+          "longitude": 113.318465
+        },
+        {
+          "id": "gz-tianhenan",
+          "name": "Tianhenan",
+          "latitude": 23.134177,
+          "longitude": 113.319067
+        },
+        {
+          "id": "gz-huangpu-dadao",
+          "name": "Huangpu Dadao",
+          "latitude": 23.129657,
+          "longitude": 113.319078
+        },
+        {
+          "id": "gz-guangzhou-women-and-children-s-medical-center",
+          "name": "Guangzhou Women and Children's Medical Center",
+          "latitude": 23.125157,
+          "longitude": 113.319146
+        },
+        {
+          "id": "gz-huacheng-dadao",
+          "name": "Huacheng Dadao",
+          "latitude": 23.121833,
+          "longitude": 113.31911
+        },
+        {
+          "id": "gz-guangzhou-opera-house",
+          "name": "Guangzhou Opera House",
+          "latitude": 23.118411,
+          "longitude": 113.319017
+        },
+        {
+          "id": "gz-haixinsha",
+          "name": "Haixinsha",
+          "latitude": 23.113988,
+          "longitude": 113.318653
+        },
+        {
+          "id": "gz-canton-tower",
+          "name": "Canton Tower",
+          "latitude": 23.109096,
+          "longitude": 113.318056
+        }
+      ]
+    },
+    {
+      "id": "gz-lgf",
+      "lineNumber": "GF",
+      "name": "Гуанфо",
+      "color": "#bbd80a",
+      "stations": [
+        {
+          "id": "gz-lijiao",
+          "name": "Lijiao",
+          "latitude": 23.05744,
+          "longitude": 113.313832
+        },
+        {
+          "id": "gz-nanzhou",
+          "name": "Nanzhou",
+          "latitude": 23.067406,
+          "longitude": 113.292092
+        },
+        {
+          "id": "gz-shixi",
+          "name": "Shixi",
+          "latitude": 23.070624,
+          "longitude": 113.28061
+        },
+        {
+          "id": "gz-yangang",
+          "name": "Yangang",
+          "latitude": 23.077838,
+          "longitude": 113.26666
+        },
+        {
+          "id": "gz-shayuan",
+          "name": "Shayuan",
+          "latitude": 23.091321,
+          "longitude": 113.255261
+        },
+        {
+          "id": "gz-shachong",
+          "name": "Shachong",
+          "latitude": 23.085794,
+          "longitude": 113.241433
+        },
+        {
+          "id": "gz-hedong",
+          "name": "Hedong",
+          "latitude": 23.075194,
+          "longitude": 113.23483
+        },
+        {
+          "id": "gz-xilang",
+          "name": "Xilang",
+          "latitude": 23.067759,
+          "longitude": 113.226185
+        },
+        {
+          "id": "gz-jushu",
+          "name": "Jushu",
+          "latitude": 23.068542,
+          "longitude": 113.207513
+        },
+        {
+          "id": "gz-longxi",
+          "name": "Longxi",
+          "latitude": 23.068669,
+          "longitude": 113.187008
+        },
+        {
+          "id": "gz-financial-hi-tech-zone",
+          "name": "Financial Hi-Tech Zone",
+          "latitude": 23.068391,
+          "longitude": 113.153103
+        },
+        {
+          "id": "gz-qiandeng-lake",
+          "name": "Qiandeng Lake",
+          "latitude": 23.057395,
+          "longitude": 113.149907
+        },
+        {
+          "id": "gz-leigang",
+          "name": "Leigang",
+          "latitude": 23.045671,
+          "longitude": 113.149965
+        },
+        {
+          "id": "gz-nangui-lu",
+          "name": "Nangui Lu",
+          "latitude": 23.03675,
+          "longitude": 113.148689
+        },
+        {
+          "id": "gz-guicheng",
+          "name": "Guicheng",
+          "latitude": 23.034239,
+          "longitude": 113.135964
+        },
+        {
+          "id": "gz-chao-an",
+          "name": "Chao'an",
+          "latitude": 23.030232,
+          "longitude": 113.12806
+        },
+        {
+          "id": "gz-pujun-beilu",
+          "name": "Pujun Beilu",
+          "latitude": 23.030223,
+          "longitude": 113.116753
+        },
+        {
+          "id": "gz-zumiao",
+          "name": "Zumiao",
+          "latitude": 23.029613,
+          "longitude": 113.106608
+        },
+        {
+          "id": "gz-tongji-lu",
+          "name": "Tongji Lu",
+          "latitude": 23.021764,
+          "longitude": 113.103013
+        },
+        {
+          "id": "gz-jihua-park",
+          "name": "Jihua Park",
+          "latitude": 23.009651,
+          "longitude": 113.103057
+        },
+        {
+          "id": "gz-kuiqi-lu",
+          "name": "Kuiqi Lu",
+          "latitude": 22.996517,
+          "longitude": 113.103123
+        },
+        {
+          "id": "gz-lanshi",
+          "name": "Lanshi",
+          "latitude": 22.986542,
+          "longitude": 113.101619
+        },
+        {
+          "id": "gz-shijilian",
+          "name": "Shijilian",
+          "latitude": 22.967715,
+          "longitude": 113.109431
+        },
+        {
+          "id": "gz-dongping",
+          "name": "Dongping",
+          "latitude": 22.967844,
+          "longitude": 113.123713
+        },
+        {
+          "id": "gz-xincheng-dong",
+          "name": "Xincheng Dong",
+          "latitude": 22.961247,
+          "longitude": 113.134543
+        }
+      ]
+    }
+  ]
+}

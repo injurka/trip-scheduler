@@ -35,9 +35,10 @@ const saveRequestKey = computed(() => `trip-share:update:${props.trip.id}`)
 
 const isSaving = useRequestStatus(saveRequestKey)
 
-const activeSlug = computed(() => slug.value || props.initialSlug)
+const activeSlug = computed(() => props.canEdit ? slug.value || props.initialSlug : props.initialSlug)
 const shareUrl = computed(() => getTripWebUrl(activeSlug.value))
 const deepLinkUrl = computed(() => getTripDeepLinkUrl(activeSlug.value))
+const canShare = computed(() => !props.canEdit || (isSlugValid.value && isAvailable.value === true && !isChecking.value && !isSaving.value))
 const inputError = computed(() => {
   if (slug.value && !isSlugValid.value)
     return 'От 3 до 80 символов: латиница в нижнем регистре, цифры и дефисы между словами.'
@@ -49,6 +50,9 @@ const inputError = computed(() => {
 })
 
 watch(slug, (value) => {
+  if (!props.canEdit)
+    return
+
   const normalized = value.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '').replace(/-+/g, '-').replace(/^-|-$/g, '')
 
   if (normalized !== value) {
@@ -86,6 +90,9 @@ async function copyDeepLinkUrl() {
   toast.success('Deep link скопирован')
 }
 async function checkAvailability(value: string) {
+  if (!props.canEdit)
+    return
+
   if (!slugPattern.test(value) || value.length < 3 || value.length > 80) {
     isAvailable.value = null
     isChecking.value = false
@@ -149,7 +156,7 @@ async function shareOrCopyUrl(data: { title: string, text: string, url: string }
 }
 
 async function handleShare() {
-  if (!isSlugValid.value || isAvailable.value !== true || isChecking.value)
+  if (!canShare.value)
     return
 
   if (!await persistShareSlugIfChanged())
@@ -173,12 +180,13 @@ async function handleShare() {
     :visible="visible"
     title="Поделиться путешествием"
     icon="mdi:link-variant"
-    description="Настройте короткий адрес для ссылки на путешествие."
+    :description="canEdit ? 'Настройте короткий адрес для ссылки на путешествие.' : 'Скопируйте ссылку или отправьте её друзьям.'"
     :max-width="480"
     @update:visible="emit('update:visible', $event)"
   >
     <div class="share-dialog-content">
       <KitInput
+        v-if="canEdit"
         v-model="slug"
         label="Красивая ссылка"
         placeholder="например, taiwan-2026"
@@ -188,13 +196,13 @@ async function handleShare() {
         autocapitalize="none"
         spellcheck="false"
       />
-      <p v-if="isChecking" class="availability-message" role="status">
+      <p v-if="canEdit && isChecking" class="availability-message" role="status">
         Проверяем доступность…
       </p>
-      <p v-else-if="isAvailable && isSlugValid" class="availability-message availability-message--available" role="status">
+      <p v-else-if="canEdit && isAvailable && isSlugValid" class="availability-message availability-message--available" role="status">
         Адрес свободен
       </p>
-      <p v-else-if="isAvailable === false" class="availability-message availability-message--taken" role="status">
+      <p v-else-if="canEdit && isAvailable === false" class="availability-message availability-message--taken" role="status">
         Адрес уже занят
       </p>
 
@@ -246,7 +254,7 @@ async function handleShare() {
       </KitBtn>
       <KitBtn
         icon="mdi:share-variant-outline"
-        :disabled="!isSlugValid || isAvailable !== true || isChecking || isSaving"
+        :disabled="!canShare"
         @click="handleShare"
       >
         Поделиться
