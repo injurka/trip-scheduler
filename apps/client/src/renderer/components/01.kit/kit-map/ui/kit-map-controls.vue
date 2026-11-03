@@ -161,8 +161,17 @@ function handleLayerSelect(val: unknown) {
     font-size: 1.2rem;
   }
 
-  &:hover {
-    background-color: var(--bg-hover-color);
+  @include hover {
+    &:not(:disabled) {
+      background-color: var(--bg-secondary-color);
+      background-image: linear-gradient(var(--bg-hover-color), var(--bg-hover-color));
+      color: var(--fg-primary-color);
+    }
+  }
+
+  &:not(:disabled):active {
+    background-color: var(--bg-secondary-color);
+    background-image: linear-gradient(var(--bg-hover-color), var(--bg-hover-color));
     color: var(--fg-primary-color);
   }
 }

@@ -169,8 +169,17 @@ function zoomOut() {
     flex-shrink: 0;
     background-color: var(--bg-secondary-color);
 
-    &:hover {
-      background-color: var(--bg-hover-color);
+    // Keep the map hidden beneath the translucent interaction color.
+    @include hover {
+      &:not(:disabled) {
+        background-color: var(--bg-secondary-color);
+        background-image: linear-gradient(var(--bg-hover-color), var(--bg-hover-color));
+      }
+    }
+
+    &:not(:disabled):active {
+      background-color: var(--bg-secondary-color);
+      background-image: linear-gradient(var(--bg-hover-color), var(--bg-hover-color));
     }
   }
 }
