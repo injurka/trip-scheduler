@@ -1,8 +1,14 @@
-import { mount } from '@vue/test-utils'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { flushPromises, mount } from '@vue/test-utils'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import KitImage from '../src/renderer/components/01.kit/kit-image/ui/kit-image.vue'
 
 vi.mock('../src/renderer/shared/lib/url', () => ({ resolveApiUrl: (url?: string) => url || '' }))
+
+const offlineImage = vi.hoisted(() => vi.fn())
+vi.mock('../src/renderer/shared/lib/offline-cache', () => ({ getOfflineImageUrl: offlineImage }))
+beforeEach(() => {
+  offlineImage.mockResolvedValue(null)
+})
 
 const hash = 'InMBBYCHh4iIiIh/eHh3e3h4j4cI'
 const wrappers: ReturnType<typeof mount>[] = []
@@ -15,6 +21,8 @@ function render(props: { src?: string, variants?: { small?: string, thumbhash?: 
 afterEach(() => {
   wrappers.forEach(wrapper => wrapper.unmount())
   wrappers.length = 0
+  offlineImage.mockReset()
+  vi.restoreAllMocks()
   vi.useRealTimers()
 })
 
@@ -43,10 +51,25 @@ describe('kitImage loading', () => {
     expect(wrapper.find('.thumbhash-placeholder').exists()).toBe(true)
     expect(wrapper.find('.image').attributes('src')).toBe('/second.webp')
     await wrapper.find('.image').trigger('error')
+    await flushPromises()
     expect(wrapper.find('.error-placeholder').exists()).toBe(true)
     await wrapper.setProps({ src: '/third.jpg', variants: { thumbhash: hash } })
     expect(wrapper.find('.error-placeholder').exists()).toBe(false)
     expect(wrapper.find('.thumbhash-placeholder').exists()).toBe(true)
+  })
+
+  it('loads a saved image without a service worker and releases its blob on unmount', async () => {
+    offlineImage.mockResolvedValueOnce('blob:offline-photo')
+    const revoke = vi.spyOn(URL, 'revokeObjectURL')
+    const wrapper = render({ src: '/saved.jpg', variants: { small: '/saved-small.webp' } })
+    await wrapper.find('.image').trigger('error')
+    await flushPromises()
+    expect(wrapper.find('.image').attributes('src')).toBe('blob:offline-photo')
+    expect(wrapper.find('source').exists()).toBe(false)
+    await wrapper.find('.image').trigger('load')
+    expect(wrapper.find('.error-placeholder').exists()).toBe(false)
+    wrapper.unmount()
+    expect(revoke).toHaveBeenCalledWith('blob:offline-photo')
   })
 
   it('shows the error state after an eager load times out', async () => {

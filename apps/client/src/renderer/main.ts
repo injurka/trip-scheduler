@@ -1,7 +1,9 @@
 import { addCollection } from '@iconify/vue'
 import { addPluginListener } from '@tauri-apps/api/core'
 import { createHead } from '@vueuse/head'// файл генерируется скриптом
-import iconsBundle from '~/assets/icons-bundle.json'import { initializeDeepLinks } from '~/shared/lib/deep-link'
+import iconsBundle from '~/assets/icons-bundle.json'import { useTripPlanStore } from '~/components/04.features/trip-info/trip-plan/store/trip-plan.store'
+import { useRequestStore } from '~/plugins/request/store/request.store'
+import { initializeDeepLinks } from '~/shared/lib/deep-link'
 import { isMobileApp, isTauri } from '~/shared/lib/env'
 import router from '~/shared/lib/router'
 import { initializePwaUpdater } from '~/shared/services/pwa/pwa.service'
@@ -72,14 +74,39 @@ async function initializeApp() {
   await sessionReady
 
   const authStore = useAuthStore(pinia)
+  const offlineStore = useOfflineStore(pinia)
+  await offlineStore.initStorage()
+
+  // Old unscoped caches cannot be attributed to a downloader safely.
+  if (typeof caches !== 'undefined') {
+    const names = await caches.keys().catch(() => [])
+    await Promise.all(names.filter(name => name === 'trip-scheduler-offline-media' || name === 'trip-scheduler-images' || name.startsWith('trip-scheduler-api-')).map(name => caches.delete(name).catch(() => false)))
+  }
+
   const notificationStore = useNotificationStore(pinia)
   watch(() => authStore.user?.id, (userId, previousUserId) => {
-    if (userId !== previousUserId)
+    if (userId !== previousUserId) {
       notificationStore.subscribedTripIds.clear()
+      offlineStore.$reset()
+      void offlineStore.initStorage()
+
+      if (previousUserId) {
+        const requests = useRequestStore(pinia)
+
+        for (const controller of requests.controllers.values())
+          controller.abort()
+
+        requests.$reset()
+        useTripPlanStore(pinia).$reset()
+      }
+    }
 
     if (userId)
       void notificationStore.syncNativePushToken()
-  }, { immediate: true })
+  }, { flush: 'sync' })
+
+  if (authStore.user?.id)
+    void notificationStore.syncNativePushToken()
 
   if (isMobileApp) {
     addPluginListener<{ token: string }>('tracking', 'pushTokenUpdated', ({ token }) => {
@@ -100,10 +127,10 @@ async function initializeApp() {
   void trackingStore.startPolling()
   startSyncWorker()
 
-  // Инициализация офлайн-хранилища путешествий из IndexedDB
-  const offlineStore = useOfflineStore(pinia)
-  void offlineStore.initStorage()
-
+  window.addEventListener('storage', (event) => {
+    if (event.key === 'auth_user')
+      window.location.reload()
+  })
   app.mount('#app')
 }
 

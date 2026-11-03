@@ -1074,7 +1074,7 @@ export function parseTransportMarkdown(content: string, startDateStr: string): B
               trainNumber: transportCol.match(/№\s*([\w-]+)/)?.[1]
                 || paymentCol.match(/номер\s+поезда\s*:?\s*№?\s*([\w-]+)/i)?.[1],
               carriage: paymentCol.match(/вагон\s*(\d+)/i)?.[1],
-              seat: paymentCol.match(/место\s*(\d+)/i)?.[1],
+              seat: paymentCol.match(/место\s*(\d+[A-Z]?)/i)?.[1],
               bookingReference: paymentCol.match(/(?:номер\s+(?:бронирования|заказа)|booking\s+(?:reference|code)|заказ)\s*:?\s*`?([^;,.`]+)/i)?.[1].trim(),
               departureStation: from || undefined,
               arrivalStation: to || undefined,

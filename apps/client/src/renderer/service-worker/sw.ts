@@ -4,10 +4,9 @@ import { clientsClaim } from 'workbox-core'
 import { cleanupOutdatedCaches, createHandlerBoundToURL, getCacheKeyForURL, precacheAndRoute } from 'workbox-precaching'
 import { NavigationRoute, registerRoute } from 'workbox-routing'
 import { staticPages } from '../static-pages/registry'
-import { OFFLINE_MEDIA_CACHE_NAME } from './constant'
 import { messageHandlers } from './lib/message-handlers'
 import { AssetAnalyzer, CacheStrategyFactory } from './lib/utils'
-import { API_CACHE_RULES, CACHE_CONFIG } from './model/types'
+import { CACHE_CONFIG } from './model/types'
 
 declare let self: ServiceWorkerGlobalScope
 
@@ -16,6 +15,9 @@ clientsClaim()
 cleanupOutdatedCaches()
 
 precacheAndRoute(self.__WB_MANIFEST || [])
+
+// Explicit refresh must bypass runtime CacheFirst strategies as well.
+registerRoute(({ request }) => request.cache === 'reload' && request.mode !== 'navigate', ({ request }) => fetch(request))
 
 const runtimeImageStrategy = CacheStrategyFactory.createStaleWhileRevalidate(CACHE_CONFIG.names.images, {
   maxEntries: CACHE_CONFIG.limits.images,
@@ -33,25 +35,10 @@ registerRoute(({ request, url }) => request.destination === 'image' || url.pathn
     }
   }
 
-  try {
-    const offlineCache = await caches.open(OFFLINE_MEDIA_CACHE_NAME)
-    let offlineResponse = await offlineCache.match(request) || await offlineCache.match(url.href)
-
-    if (!offlineResponse && url.searchParams.has('token')) {
-      const cleanUrl = new URL(url.href)
-      cleanUrl.searchParams.delete('token')
-      offlineResponse = await offlineCache.match(cleanUrl.toString())
-    }
-
-    if (offlineResponse) {
-      if (import.meta.env.DEV)
-        console.log(`[SW] Served from Offline Cache: ${url.pathname}`)
-
-      return offlineResponse
-    }
-  }
-  catch {
-  }
+  // Private images are resolved by the account-scoped UI reader. Never share
+  // tokenless responses through a global service-worker cache.
+  if (url.searchParams.has('token') || url.pathname.startsWith('/image/'))
+    return fetch(request)
 
   return runtimeImageStrategy.handle({ event, request, url })
 })
@@ -124,33 +111,7 @@ registerRoute(options => isScriptOrStyle(options) && AssetAnalyzer.getAssetType(
 
 registerRoute(options => isScriptOrStyle(options) && AssetAnalyzer.getAssetType(options.url.href) === 'regular', regularAssetsStrategy)
 
-// --- API КЕШИРОВАНИЕ ---
-API_CACHE_RULES.forEach((rule) => {
-  let strategy
-
-  const options = {
-    maxEntries: rule.maxEntries,
-    maxAgeSeconds: rule.maxAgeSeconds,
-  }
-
-  switch (rule.strategy) {
-    case 'CacheFirst':
-      strategy = CacheStrategyFactory.createCacheFirst(rule.cacheName, { ...options, statuses: [200] })
-      break
-    case 'NetworkFirst':
-      strategy = CacheStrategyFactory.createNetworkFirst(rule.cacheName, options)
-      break
-    case 'StaleWhileRevalidate':
-      strategy = CacheStrategyFactory.createStaleWhileRevalidate(rule.cacheName, options)
-      break
-    default:
-      throw new Error(`Unknown cache strategy: ${rule.strategy}`)
-  }
-
-  registerRoute(({ request, url }) =>
-    request.method === 'GET'
-    && url.pathname.includes(rule.path), strategy)
-})
+// Private API responses are persisted only by the account-scoped offline store.
 
 // --- SPA НАВИГАЦИЯ ---
 

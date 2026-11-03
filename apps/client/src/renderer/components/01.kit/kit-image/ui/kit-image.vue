@@ -3,6 +3,7 @@ import { AspectRatio } from 'reka-ui'
 import { computed, nextTick, onBeforeUnmount, readonly, ref, watch } from 'vue'
 import smthWrongImage from '~/assets/images/smth-wrong.png'
 import { KitSkeleton } from '~/components/01.kit/kit-skeleton'
+import { getOfflineImageUrl } from '~/shared/lib/offline-cache'
 import { getThumbHashAverageColor, getThumbHashDataUrl } from '~/shared/lib/thumbhash'
 import { resolveApiUrl } from '~/shared/lib/url'
 
@@ -51,6 +52,8 @@ const isLoading = ref(true)
 const hasError = ref(false)
 const isAborted = ref(false)
 const retryCount = ref(0)
+const cachedSrc = ref<string | null>(null)
+let cacheRequest = 0
 const imageRef = ref<HTMLImageElement | null>(null)
 
 defineExpose({
@@ -106,7 +109,6 @@ const imageSourceKey = computed(() => JSON.stringify([
 const activeThumbhash = computed(() => props.thumbhash || props.variants?.thumbhash || null)
 const thumbHashDataUrl = computed(() => getThumbHashDataUrl(activeThumbhash.value))
 const thumbHashAvgColor = computed(() => getThumbHashAverageColor(activeThumbhash.value))
-
 const imageStyle = computed(() => {
   const isLoaded = !isLoading.value && !hasError.value
   const hasThumbhash = Boolean(thumbHashDataUrl.value)
@@ -120,6 +122,11 @@ const imageStyle = computed(() => {
 })
 
 watch(imageSourceKey, () => {
+  releaseCachedSrc()
+
+  if (typeof navigator !== 'undefined' && !navigator.onLine)
+    void restoreCachedImage()
+
   isLoading.value = true
   hasError.value = false
   isAborted.value = false
@@ -151,6 +158,41 @@ watch(imageSourceKey, () => {
   })
 }, { immediate: true })
 
+function releaseCachedSrc() {
+  cacheRequest++
+
+  if (cachedSrc.value)
+    URL.revokeObjectURL(cachedSrc.value)
+
+  cachedSrc.value = null
+}
+async function restoreCachedImage() {
+  const request = ++cacheRequest
+
+  for (const url of new Set([resolvedVariants.value.small, resolvedVariants.value.medium, resolvedVariants.value.large, resolvedSrc.value])) {
+    if (!url)
+      continue
+
+    const blobUrl = await getOfflineImageUrl(url)
+
+    if (request !== cacheRequest) {
+      if (blobUrl)
+        URL.revokeObjectURL(blobUrl)
+
+      return false
+    }
+
+    if (blobUrl) {
+      cachedSrc.value = blobUrl
+      hasError.value = false
+      isLoading.value = true
+
+      return true
+    }
+  }
+
+  return false
+}
 function handleLoad() {
   if (isAborted.value)
     return
@@ -160,8 +202,11 @@ function handleLoad() {
   isLoading.value = false
   hasError.value = false
 }
-function handleError() {
+async function handleError() {
   if (isAborted.value)
+    return
+
+  if (!cachedSrc.value && await restoreCachedImage())
     return
 
   clearLoadTimeout()
@@ -217,6 +262,7 @@ function cleanupObserver() {
 }
 
 onBeforeUnmount(() => {
+  releaseCachedSrc()
   clearLoadTimeout()
   cleanupObserver()
 })
@@ -260,23 +306,23 @@ onBeforeUnmount(() => {
 
       <picture v-if="src && !isAborted" :key="`${imageSourceKey}:${retryCount}`">
         <source
-          v-if="resolvedVariants.large"
+          v-if="!cachedSrc && resolvedVariants.large"
           :srcset="resolvedVariants.large"
           media="(min-width: 1200px)"
         >
         <source
-          v-if="resolvedVariants.medium"
+          v-if="!cachedSrc && resolvedVariants.medium"
           :srcset="resolvedVariants.medium"
           media="(min-width: 600px)"
         >
         <source
-          v-if="resolvedVariants.small"
+          v-if="!cachedSrc && resolvedVariants.small"
           :srcset="resolvedVariants.small"
         >
 
         <img
           ref="imageRef"
-          :src="resolvedVariants.small || resolvedSrc"
+          :src="cachedSrc || resolvedVariants.small || resolvedSrc"
           class="image"
           :alt="alt"
           :loading="loading"

@@ -2,6 +2,7 @@
 import DOMPurify from 'dompurify'
 import { Marked } from 'marked'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { getOfflineImageUrl } from '~/shared/lib/offline-cache'
 
 interface Props {
   markdown?: string | null
@@ -15,6 +16,7 @@ const props = withDefaults(defineProps<Props>(), {
 
 const markdownParser = new Marked({ gfm: true })
 const contentRef = ref<HTMLElement | null>(null)
+const imageBlobs = new Set<string>()
 let renderGeneration = 0
 let mermaidId = 0
 const calloutTypes: Record<string, { label: string, className: string }> = {
@@ -51,9 +53,55 @@ const renderedHtml = computed(() => {
 watch(renderedHtml, async () => {
   renderGeneration++
   await nextTick()
+  restoreImages()
   void renderMermaidBlocks()
 })
 
+function releaseImageBlobs() {
+  for (const url of imageBlobs)
+    URL.revokeObjectURL(url)
+
+  imageBlobs.clear()
+}
+function restoreImages() {
+  const generation = renderGeneration
+  releaseImageBlobs()
+
+  for (const image of contentRef.value?.querySelectorAll('img') ?? []) {
+    const raw = image.getAttribute('src')
+
+    if (!raw)
+      continue
+
+    let attempted = false
+    const restore = async () => {
+      if (attempted)
+        return
+
+      attempted = true
+      const blob = await getOfflineImageUrl(raw)
+
+      if (!blob)
+        return
+
+      if (generation !== renderGeneration) {
+        URL.revokeObjectURL(blob)
+
+        return
+      }
+
+      imageBlobs.add(blob)
+      image.removeAttribute('srcset')
+      image.src = blob
+    }
+    image.onerror = () => {
+      void restore()
+    }
+
+    if (!navigator.onLine || (image.complete && !image.naturalWidth))
+      void restore()
+  }
+}
 function decorateCallouts(html: string) {
   const parsed = new DOMParser().parseFromString(html, 'text/html')
 
@@ -61,7 +109,6 @@ function decorateCallouts(html: string) {
 
   return parsed.body.innerHTML
 }
-
 function decorateCalloutBlockquote(blockquote: HTMLElement, parsed: Document): void {
   const paragraph = blockquote.querySelector(':scope > p')
   const firstText = paragraph?.firstChild
@@ -91,7 +138,6 @@ function decorateCalloutBlockquote(blockquote: HTMLElement, parsed: Document): v
   if (!paragraph.textContent?.trim() && paragraph.children.length === 0)
     paragraph.remove()
 }
-
 function getCalloutType(type: string) {
   return calloutTypes[type.toLowerCase()] || {
     label: type.toUpperCase(),
@@ -164,9 +210,11 @@ async function renderMermaidBlocks() {
 }
 
 onMounted(() => {
+  restoreImages()
   void renderMermaidBlocks()
 })
 onBeforeUnmount(() => {
+  releaseImageBlobs()
   renderGeneration++
 })
 </script>

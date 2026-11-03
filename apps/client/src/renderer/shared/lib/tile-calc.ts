@@ -121,7 +121,7 @@ export function getTilesForBBox(
   bbox: BoundingBox,
   minZoom = 10,
   maxZoom = 15,
-  maxTiles = 450,
+  maxTiles = 50000,
 ): { z: number, x: number, y: number }[] {
   const tiles: { z: number, x: number, y: number }[] = []
 
@@ -136,11 +136,10 @@ export function getTilesForBBox(
 
     for (let x = startX; x <= endX; x++) {
       for (let y = startY; y <= endY; y++) {
-        tiles.push({ z, x, y })
+        if (tiles.length >= maxTiles)
+          throw new Error('Область карты превышает лимит тайлов.')
 
-        if (tiles.length >= maxTiles) {
-          return tiles
-        }
+        tiles.push({ z, x, y })
       }
     }
   }

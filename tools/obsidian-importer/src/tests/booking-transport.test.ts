@@ -161,6 +161,18 @@ it('imports pre-segments and station-local times, train number, carriage and sea
   expect(result[2]).toMatchObject({ type: 'train', data: { departureStation: 'Banqiao', arrivalStation: 'Chiayi', departureTimeZone: '+08:00', arrivalTimeZone: '+08:00' } })
 })
 
+it('preserves THSR seat letters alongside numeric TRA seats', () => {
+  const result = parseTransportMarkdown(`
+| Дата | Переезд | Транспорт | Время | Статус | Примечание |
+| --- | --- | --- | --- | --- | --- |
+| 21 ноя | Tainan → Xinzuoying | 🚆 TRA №371 | 08:49–09:15 | Оплачен | вагон 5, место 5 |
+| 22 ноя | Zuoying → Taichung | 🚄 THSR №672 | 18:00–18:58 | Оплачен | вагон 5, место 9A |
+`, '2026-11-04')
+  expect(result).toHaveLength(2)
+  expect(result[0]).toMatchObject({ type: 'train', data: { trainNumber: '371', carriage: '5', seat: '5' } })
+  expect(result[1]).toMatchObject({ type: 'train', data: { trainNumber: '672', carriage: '5', seat: '9A' } })
+})
+
 it('ignores marked reference tables and action checklists', () => {
   const result = parseTransportMarkdown(`
 | Когда | Сегмент | Статус | Действие |

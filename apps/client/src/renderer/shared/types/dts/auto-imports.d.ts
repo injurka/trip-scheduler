@@ -14,6 +14,8 @@ declare global {
   const EffectScope: typeof import('vue').EffectScope
   const MAPTILER_KEY: typeof import('../../lib/map-styles-sources').MAPTILER_KEY
   const MAPTILER_TERRAIN_SOURCE_ID: typeof import('../../lib/map-styles-sources').MAPTILER_TERRAIN_SOURCE_ID
+  const OFFLINE_CACHE_PREFIX: typeof import('../../lib/offline-cache').OFFLINE_CACHE_PREFIX
+  const OFFLINE_CACHE_READY_URL: typeof import('../../lib/offline-cache').OFFLINE_CACHE_READY_URL
   const OSM_STYLE: typeof import('../../lib/map-styles-sources').OSM_STYLE
   const SERVER_URL: typeof import('../../lib/env').SERVER_URL
   const TILE_SOURCES: typeof import('../../lib/map-styles-sources').TILE_SOURCES
@@ -62,6 +64,7 @@ declare global {
   const ensureMaplibreWorkerReady: typeof import('../../lib/map-styles-sources').ensureMaplibreWorkerReady
   const exportRouteToGpx: typeof import('../../lib/geo-export').exportRouteToGpx
   const extendRef: typeof import('@vueuse/core').extendRef
+  const findOfflineMediaResponse: typeof import('../../lib/offline-cache').findOfflineMediaResponse
   const formatDate: typeof import('../../lib/date-time').formatDate
   const formatTime: typeof import('../../lib/date-time').formatTime
   const formatTimestamp: typeof import('../../lib/date-time').formatTimestamp
@@ -79,6 +82,10 @@ declare global {
   const getLocalDate: typeof import('../../lib/date-time').getLocalDate
   const getMapStyle: typeof import('../../lib/map-styles-sources').getMapStyle
   const getMaplibreTransformRequest: typeof import('../../lib/map-tile-cache').getMaplibreTransformRequest
+  const getOfflineAccountId: typeof import('../../lib/offline-cache').getOfflineAccountId
+  const getOfflineCachePrefix: typeof import('../../lib/offline-cache').getOfflineCachePrefix
+  const getOfflineImageUrl: typeof import('../../lib/offline-cache').getOfflineImageUrl
+  const getOfflineRouteTiles: typeof import('../../lib/offline-map').getOfflineRouteTiles
   const getThumbHashApproximateAspectRatio: typeof import('../../lib/thumbhash').getThumbHashApproximateAspectRatio
   const getThumbHashAspectRatio: typeof import('../../lib/thumbhash').getThumbHashAspectRatio
   const getThumbHashAverageColor: typeof import('../../lib/thumbhash').getThumbHashAverageColor
@@ -117,6 +124,7 @@ declare global {
   const markRaw: typeof import('vue').markRaw
   const minutesToTime: typeof import('../../lib/date-time').minutesToTime
   const nextTick: typeof import('vue').nextTick
+  const normalizeMapResource: typeof import('../../lib/map-resource').normalizeMapResource
   const onActivated: typeof import('vue').onActivated
   const onBeforeMount: typeof import('vue').onBeforeMount
   const onBeforeRouteLeave: typeof import('vue-router').onBeforeRouteLeave
@@ -140,6 +148,7 @@ declare global {
   const onWatcherCleanup: typeof import('vue').onWatcherCleanup
   const openExternalUrl: typeof import('../../lib/opener').openExternalUrl
   const pausableWatch: typeof import('@vueuse/core').pausableWatch
+  const planOfflineMap: typeof import('../../lib/offline-map').planOfflineMap
   const provide: typeof import('vue').provide
   const provideLocal: typeof import('@vueuse/core').provideLocal
   const reactify: typeof import('@vueuse/core').reactify
@@ -432,6 +441,8 @@ declare module 'vue' {
     readonly EffectScope: UnwrapRef<typeof import('vue')['EffectScope']>
     readonly MAPTILER_KEY: UnwrapRef<typeof import('../../lib/map-styles-sources')['MAPTILER_KEY']>
     readonly MAPTILER_TERRAIN_SOURCE_ID: UnwrapRef<typeof import('../../lib/map-styles-sources')['MAPTILER_TERRAIN_SOURCE_ID']>
+    readonly OFFLINE_CACHE_PREFIX: UnwrapRef<typeof import('../../lib/offline-cache')['OFFLINE_CACHE_PREFIX']>
+    readonly OFFLINE_CACHE_READY_URL: UnwrapRef<typeof import('../../lib/offline-cache')['OFFLINE_CACHE_READY_URL']>
     readonly OSM_STYLE: UnwrapRef<typeof import('../../lib/map-styles-sources')['OSM_STYLE']>
     readonly SERVER_URL: UnwrapRef<typeof import('../../lib/env')['SERVER_URL']>
     readonly TILE_SOURCES: UnwrapRef<typeof import('../../lib/map-styles-sources')['TILE_SOURCES']>
@@ -480,6 +491,7 @@ declare module 'vue' {
     readonly ensureMaplibreWorkerReady: UnwrapRef<typeof import('../../lib/map-styles-sources')['ensureMaplibreWorkerReady']>
     readonly exportRouteToGpx: UnwrapRef<typeof import('../../lib/geo-export')['exportRouteToGpx']>
     readonly extendRef: UnwrapRef<typeof import('@vueuse/core')['extendRef']>
+    readonly findOfflineMediaResponse: UnwrapRef<typeof import('../../lib/offline-cache')['findOfflineMediaResponse']>
     readonly formatDate: UnwrapRef<typeof import('../../lib/date-time')['formatDate']>
     readonly formatTime: UnwrapRef<typeof import('../../lib/date-time')['formatTime']>
     readonly formatTimestamp: UnwrapRef<typeof import('../../lib/date-time')['formatTimestamp']>
@@ -497,6 +509,10 @@ declare module 'vue' {
     readonly getLocalDate: UnwrapRef<typeof import('../../lib/date-time')['getLocalDate']>
     readonly getMapStyle: UnwrapRef<typeof import('../../lib/map-styles-sources')['getMapStyle']>
     readonly getMaplibreTransformRequest: UnwrapRef<typeof import('../../lib/map-tile-cache')['getMaplibreTransformRequest']>
+    readonly getOfflineAccountId: UnwrapRef<typeof import('../../lib/offline-cache')['getOfflineAccountId']>
+    readonly getOfflineCachePrefix: UnwrapRef<typeof import('../../lib/offline-cache')['getOfflineCachePrefix']>
+    readonly getOfflineImageUrl: UnwrapRef<typeof import('../../lib/offline-cache')['getOfflineImageUrl']>
+    readonly getOfflineRouteTiles: UnwrapRef<typeof import('../../lib/offline-map')['getOfflineRouteTiles']>
     readonly getThumbHashApproximateAspectRatio: UnwrapRef<typeof import('../../lib/thumbhash')['getThumbHashApproximateAspectRatio']>
     readonly getThumbHashAspectRatio: UnwrapRef<typeof import('../../lib/thumbhash')['getThumbHashAspectRatio']>
     readonly getThumbHashAverageColor: UnwrapRef<typeof import('../../lib/thumbhash')['getThumbHashAverageColor']>
@@ -535,6 +551,7 @@ declare module 'vue' {
     readonly markRaw: UnwrapRef<typeof import('vue')['markRaw']>
     readonly minutesToTime: UnwrapRef<typeof import('../../lib/date-time')['minutesToTime']>
     readonly nextTick: UnwrapRef<typeof import('vue')['nextTick']>
+    readonly normalizeMapResource: UnwrapRef<typeof import('../../lib/map-resource')['normalizeMapResource']>
     readonly onActivated: UnwrapRef<typeof import('vue')['onActivated']>
     readonly onBeforeMount: UnwrapRef<typeof import('vue')['onBeforeMount']>
     readonly onBeforeRouteLeave: UnwrapRef<typeof import('vue-router')['onBeforeRouteLeave']>
@@ -558,6 +575,7 @@ declare module 'vue' {
     readonly onWatcherCleanup: UnwrapRef<typeof import('vue')['onWatcherCleanup']>
     readonly openExternalUrl: UnwrapRef<typeof import('../../lib/opener')['openExternalUrl']>
     readonly pausableWatch: UnwrapRef<typeof import('@vueuse/core')['pausableWatch']>
+    readonly planOfflineMap: UnwrapRef<typeof import('../../lib/offline-map')['planOfflineMap']>
     readonly provide: UnwrapRef<typeof import('vue')['provide']>
     readonly provideLocal: UnwrapRef<typeof import('@vueuse/core')['provideLocal']>
     readonly reactify: UnwrapRef<typeof import('@vueuse/core')['reactify']>

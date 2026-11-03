@@ -110,22 +110,12 @@ export function useNotesSection(tripIdRef: Ref<string> | string, readonlyRef: Re
       key: NOTES_KEYS.FETCH_NOTES,
       fn: db => db.notes.getByTripId(tripId.value),
       onSuccess: (data) => {
-        if (!data || data.length === 0) {
-          const cachedNotes = offlineStore.getSavedTripNotes(tripId.value)
-
-          if (cachedNotes && cachedNotes.length > 0) {
-            notes.value = cachedNotes
-
-            return
-          }
-        }
-
         notes.value = data ?? []
       },
       onError: ({ error }) => {
         const cachedNotes = offlineStore.getSavedTripNotes(tripId.value)
 
-        if (cachedNotes && cachedNotes.length > 0) {
+        if (offlineStore.isTripCached(tripId.value)) {
           notes.value = cachedNotes
           useToast().info('Нет подключения к сети. Загружены офлайн-заметки.')
 

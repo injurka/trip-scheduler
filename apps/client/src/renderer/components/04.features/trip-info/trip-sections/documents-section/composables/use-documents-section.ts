@@ -53,7 +53,7 @@ export function useDocumentsSection(props: UseDocumentsSectionProps, emit: (even
     if (typeof navigator !== 'undefined' && !navigator.onLine && offlineStore.isTripCached(props.section.tripId)) {
       const cachedDocs = offlineStore.getSavedTripDocuments(props.section.tripId)
 
-      if (cachedDocs && cachedDocs.length > 0) {
+      if (offlineStore.isTripCached(props.section.tripId)) {
         documents.value = cachedDocs.map(mapResponseToDoc)
         isFetching.value = false
 
@@ -65,22 +65,12 @@ export function useDocumentsSection(props: UseDocumentsSectionProps, emit: (even
       key: `documents:list:${props.section.tripId}`,
       fn: api => api.files.listDocuments(props.section.tripId),
       onSuccess: (res) => {
-        if ((!res || res.length === 0) && offlineStore.isTripCached(props.section.tripId)) {
-          const cachedDocs = offlineStore.getSavedTripDocuments(props.section.tripId)
-
-          if (cachedDocs && cachedDocs.length > 0) {
-            documents.value = cachedDocs.map(mapResponseToDoc)
-
-            return
-          }
-        }
-
         documents.value = res.map(mapResponseToDoc)
       },
       onError: () => {
         const cachedDocs = offlineStore.getSavedTripDocuments(props.section.tripId)
 
-        if (cachedDocs && cachedDocs.length > 0) {
+        if (offlineStore.isTripCached(props.section.tripId)) {
           documents.value = cachedDocs.map(mapResponseToDoc)
           toast.info('Нет подключения к сети. Загружены офлайн-документы.')
 

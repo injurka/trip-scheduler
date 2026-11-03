@@ -3,6 +3,7 @@ import type { IImageViewerImageMeta, ImageQuality, ImageViewerImage } from '@lim
 import type { Component } from 'vue'
 import { KitImageViewer as BaseKitImageViewer } from '@limiteddissolve/kit-image-viewer'
 import { KitMap } from '~/components/01.kit/kit-map'
+import { getOfflineImageUrl } from '~/shared/lib/offline-cache'
 import { resolveApiUrl } from '~/shared/lib/url'
 import { trpc } from '~/shared/services/trpc/trpc.service'
 
@@ -30,7 +31,6 @@ interface Props {
   mapComponent?: Component
   qualityLabels?: Record<string, string>
 }
-
 interface Emits {
   (e: 'update:visible', value: boolean): void
   (e: 'update:currentIndex', value: number): void
@@ -59,9 +59,54 @@ const props = withDefaults(defineProps<Props>(), {
   resolveUrl: (url: string) => resolveApiUrl(url),
   mapComponent: () => KitMap,
 })
-
 const emit = defineEmits<Emits>()
 
+const offlineUrls = ref<Record<string, string>>({})
+let imageGeneration = 0
+
+watch(() => [props.visible, props.images] as const, async ([visible]) => {
+  const generation = ++imageGeneration
+  releaseOfflineUrls()
+
+  if (!visible)
+    return
+
+  const urls = new Set<string>()
+  const collect = (value: unknown) => {
+    if (typeof value === 'string' && (/^https?:/.test(value) || /\.(?:png|webp|jpe?g|avif|gif|svg|mp4|webm)(?:[?#]|$)/i.test(value)))
+      urls.add(value)
+    else if (Array.isArray(value))
+      value.forEach(collect)
+    else if (value && typeof value === 'object')
+      Object.values(value).forEach(collect)
+  }
+  collect(props.images)
+
+  for (const url of urls) {
+    const blob = await getOfflineImageUrl(url)
+
+    if (!blob)
+      continue
+
+    if (generation !== imageGeneration) {
+      URL.revokeObjectURL(blob)
+
+      return
+    }
+
+    offlineUrls.value[url] = blob
+  }
+}, { immediate: true, deep: true })
+
+function releaseOfflineUrls() {
+  for (const url of Object.values(offlineUrls.value))
+    URL.revokeObjectURL(url)
+
+  offlineUrls.value = {}
+}
+function resolveViewerUrl(url: string) {
+  return offlineUrls.value[url] || props.resolveUrl(url)
+}
 async function handleFetchMetadata(image: ImageViewerImage): Promise<IImageViewerImageMeta | null | void> {
   if (props.fetchMetadata) {
     return props.fetchMetadata(image)
@@ -82,6 +127,11 @@ async function handleFetchMetadata(image: ImageViewerImage): Promise<IImageViewe
 
   return null
 }
+
+onBeforeUnmount(() => {
+  imageGeneration++
+  releaseOfflineUrls()
+})
 </script>
 
 <template>
@@ -104,7 +154,7 @@ async function handleFetchMetadata(image: ImageViewerImage): Promise<IImageViewe
     :has-next-page="hasNextPage"
     :has-prev-page="hasPrevPage"
     :is-fetching="isFetching"
-    :resolve-url="resolveUrl"
+    :resolve-url="resolveViewerUrl"
     :fetch-metadata="handleFetchMetadata"
     :map-component="mapComponent"
     :quality-labels="qualityLabels"

@@ -201,11 +201,11 @@ export const useAuthStore = defineStore('auth', {
     },
 
     saveUser(user: User) {
-      this.user = user
-
       if (typeof window !== 'undefined') {
         localStorage.setItem(USER_KEY, JSON.stringify(user))
       }
+
+      this.user = user
     },
 
     saveTokens(tokens: TokenPair) {
@@ -227,12 +227,13 @@ export const useAuthStore = defineStore('auth', {
     },
 
     clearAuth() {
-      this.user = null
       this.clearTokens()
 
       if (typeof window !== 'undefined') {
         localStorage.removeItem(USER_KEY)
       }
+
+      this.user = null
     },
 
     incrementTripCount() {

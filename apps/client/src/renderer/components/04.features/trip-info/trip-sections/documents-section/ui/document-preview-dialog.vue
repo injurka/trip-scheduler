@@ -8,8 +8,9 @@ import { KitDialogWithClose } from '~/components/01.kit/kit-dialog-with-close'
 import { KitDropdown } from '~/components/01.kit/kit-dropdown'
 import { useToast } from '~/shared/composables/use-toast'
 import { isTauri } from '~/shared/lib/env'
+import { findOfflineMediaResponse } from '~/shared/lib/offline-cache'
 import { openExternalUrl } from '~/shared/lib/opener'
-import { resolveApiUrl, stripAuthTokenFromUrl } from '~/shared/lib/url'
+import { resolveApiUrl } from '~/shared/lib/url'
 import { formatBytes, getFileTypeInfo } from '../constants'
 import DocumentPdfViewer from './document-pdf-viewer.vue'
 
@@ -78,17 +79,8 @@ watch(() => props.document, async (doc) => {
 }, { immediate: true })
 
 async function findCachedResponse(url: string): Promise<Response | null> {
-  if (typeof caches === 'undefined')
-    return null
-
-  const urlWithoutToken = stripAuthTokenFromUrl(url)
-
   try {
-    const cache = await caches.open('trip-scheduler-offline-media')
-
-    return await cache.match(url)
-      || (urlWithoutToken ? await cache.match(urlWithoutToken) : null)
-      || null
+    return await findOfflineMediaResponse(url)
   }
   catch {
     return null

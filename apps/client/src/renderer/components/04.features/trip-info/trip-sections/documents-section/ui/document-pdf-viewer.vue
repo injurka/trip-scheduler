@@ -6,7 +6,8 @@ import * as pdfjsLib from 'pdfjs-dist'
 import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
-import { resolveApiUrl, stripAuthTokenFromUrl } from '~/shared/lib/url'
+import { findOfflineMediaResponse } from '~/shared/lib/offline-cache'
+import { resolveApiUrl } from '~/shared/lib/url'
 
 interface Props {
   url: string
@@ -34,25 +35,11 @@ watch(() => props.url, () => {
 
 async function fetchPdfData(url: string): Promise<ArrayBuffer> {
   const absoluteUrl = resolveApiUrl(url)
-  const urlWithoutToken = stripAuthTokenFromUrl(absoluteUrl)
+  const cached = await findOfflineMediaResponse(absoluteUrl)
 
-  // 1. Попытка загрузить из оффлайн-кэша медиафайлов
-  if (typeof caches !== 'undefined') {
-    try {
-      const cache = await caches.open('trip-scheduler-offline-media')
-      const match = await cache.match(absoluteUrl)
-        || (urlWithoutToken ? await cache.match(urlWithoutToken) : null)
+  if (cached)
+    return await cached.arrayBuffer()
 
-      if (match) {
-        return await match.arrayBuffer()
-      }
-    }
-    catch {
-      // Игнорируем ошибку кэша
-    }
-  }
-
-  // 2. Сетевой запрос
   const response = await fetch(absoluteUrl)
 
   if (!response.ok) {

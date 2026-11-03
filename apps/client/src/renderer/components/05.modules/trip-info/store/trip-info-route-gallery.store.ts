@@ -1,6 +1,7 @@
 import type { TripMedia } from '~/shared/types/models/trip'
 import { defineStore } from 'pinia'
 import { useRequest, useRequestStatus, useRequestStatusByPrefix } from '~/plugins/request'
+import { useOfflineStore } from '~/shared/store/offline.store'
 import { TripMediaPlacement } from '~/shared/types/models/trip'
 
 export enum ETripGalleryKeys {
@@ -49,6 +50,7 @@ export const useTripInfoGalleryStore = defineStore('tripInfoRouteGallery', {
         return
       }
 
+      const offline = useOfflineStore()
       await useRequest<TripMedia[]>({
         key: ETripGalleryKeys.FETCH_IMAGES,
         abortOnUnmount: true,
@@ -58,6 +60,13 @@ export const useTripInfoGalleryStore = defineStore('tripInfoRouteGallery', {
           this.loadedTripId = this.currentTripId
         },
         onError: ({ error }) => {
+          if (this.currentTripId && offline.isTripCached(this.currentTripId)) {
+            this.tripImages = offline.getSavedTripMedia(this.currentTripId)
+            this.loadedTripId = this.currentTripId
+
+            return
+          }
+
           console.error(`Ошибка при загрузке изображений для путешествия ${this.currentTripId}:`, error.customMessage)
         },
       })

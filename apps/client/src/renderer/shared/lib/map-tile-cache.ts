@@ -1,5 +1,7 @@
 import type { RequestParameters, ResourceType } from 'maplibre-gl'
-import { isMobileApp } from '~/shared/lib/env'
+import { addProtocol } from 'maplibre-gl'
+import { normalizeMapResource } from './map-resource'
+import { findOfflineMediaResponse } from './offline-cache'
 
 /**
  * Высокопроизводительный и надежный кэш тайлов/ресурсов MapTiler для мобильного приложения Tauri (Android APK / iOS).
@@ -252,6 +254,27 @@ class MapTileCacheManager {
     return fetchPromise
   }
 
+  public async getResourceResponse(url: string, signal: AbortSignal): Promise<Response> {
+    const offline = await findOfflineMediaResponse(url)
+
+    if (offline)
+      return offline
+
+    if (typeof caches === 'undefined' || !/^https:\/\/(?:api\.maptiler\.com|[abc]\.tile\.openstreetmap\.org)\//.test(url))
+      return fetch(url, { signal })
+
+    const cache = await caches.open(CACHE_NAME)
+    const response = await cache.match(url) ?? await fetch(url, { signal })
+
+    if (response.ok) {
+      await cache.put(url, response.clone())
+      void this.recordAccess(url)
+      this.scheduleCleanup()
+    }
+
+    return response
+  }
+
   /**
    * Предзагрузка массива URL (тайлов, спрайтов, стилей) в кэш
    */
@@ -323,30 +346,27 @@ class MapTileCacheManager {
 
 export const mapTileCacheManager = new MapTileCacheManager()
 
-/**
- * Создаёт хук transformRequest для MapLibre GL.
- * Активируется ТОЛЬКО в мобильном приложении Tauri (isMobileApp).
- */
-export function getMaplibreTransformRequest(): ((url: string, resourceType?: ResourceType) => Promise<RequestParameters> | RequestParameters) | undefined {
-  if (!isMobileApp) {
-    return undefined
+let protocolRegistered = false
+
+/** The same protocol reads saved resources on Web, desktop and Android, including TileJSON. */
+export function getMaplibreTransformRequest(): (url: string, resourceType?: ResourceType) => RequestParameters {
+  if (!protocolRegistered) {
+    addProtocol('trip-cache', async (request, controller) => {
+      const url = request.url.slice('trip-cache://'.length)
+      const response = await mapTileCacheManager.getResourceResponse(url, controller.signal)
+
+      if (!response.ok)
+        throw new Error(`Map resource failed (${response.status})`)
+
+      return { data: request.type === 'json' ? normalizeMapResource(await response.json(), url) : await response.arrayBuffer() }
+    })
+    protocolRegistered = true
   }
 
   return (url: string) => {
-    // Перехватываем только запросы к API MapTiler
-    if (!url.includes('api.maptiler.com')) {
-      return { url }
-    }
+    // OSM subdomains serve identical tiles; save and request one canonical URL.
+    const normalized = url.replace(/^https:\/\/[abc]\.tile\.openstreetmap\.org\//, 'https://a.tile.openstreetmap.org/')
 
-    // Служебные запросы tiles.json не кэшируем в BLOB во избежание проблем со ссылками
-    if (url.includes('/tiles.json')) {
-      return { url }
-    }
-
-    return (async () => {
-      const blobUrl = await mapTileCacheManager.getCachedBlobUrl(url)
-
-      return { url: blobUrl }
-    })()
+    return { url: /^https?:\/\//.test(normalized) ? `trip-cache://${normalized}` : normalized }
   }
 }

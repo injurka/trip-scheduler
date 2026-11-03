@@ -5,9 +5,11 @@ import type { NodeView } from '@milkdown/kit/prose/view'
 import { Crepe } from '@milkdown/crepe'
 import { editorViewCtx, editorViewOptionsCtx, parserCtx } from '@milkdown/kit/core'
 import { listener, listenerCtx } from '@milkdown/kit/plugin/listener'
-import { codeBlockSchema, htmlSchema } from '@milkdown/preset-commonmark'
+import { codeBlockSchema, htmlSchema, imageSchema } from '@milkdown/preset-commonmark'
 import { $view } from '@milkdown/utils'
 import { Milkdown, useEditor } from '@milkdown/vue'
+import { getOfflineImageUrl } from '~/shared/lib/offline-cache'
+import { resolveApiUrl } from '~/shared/lib/url'
 import { calloutPlugin } from '../lib/callout-plugin'
 import { addFullscreenButton, renderMermaidDiagram } from '../lib/mermaid-renderer'
 import { remarkHtmlMergePlugin } from '../lib/remark-html-merge'
@@ -35,6 +37,70 @@ const markdown = defineModel<string | null>({ required: true })
 const crepeInstance = shallowRef<Crepe | null>(null)
 const isInternalUpdate = ref(false)
 const isEditorMounted = ref(false)
+// Read-only image views keep blob URLs outside the ProseMirror document.
+const offlineImageView = $view(imageSchema.node, () => (initialNode) => {
+  const dom = document.createElement('img')
+  let blobUrl: string | null = null
+  let generation = 0
+  const updateImage = (node: ProseMirrorNode) => {
+    const current = ++generation
+
+    if (blobUrl)
+      URL.revokeObjectURL(blobUrl)
+
+    blobUrl = null
+    const src = typeof node.attrs.src === 'string' ? node.attrs.src : ''
+    dom.alt = node.attrs.alt || ''
+    dom.title = node.attrs.title || ''
+    dom.src = resolveApiUrl(src)
+    let attempted = false
+    const restore = async () => {
+      if (attempted)
+        return
+
+      attempted = true
+      const cached = await getOfflineImageUrl(src)
+
+      if (!cached)
+        return
+
+      if (current !== generation) {
+        URL.revokeObjectURL(cached)
+
+        return
+      }
+
+      blobUrl = cached
+      dom.src = cached
+    }
+    dom.onerror = () => {
+      void restore()
+    }
+
+    if (!navigator.onLine)
+      void restore()
+  }
+  updateImage(initialNode)
+
+  return {
+    dom,
+    ignoreMutation: () => true,
+    update(node) {
+      if (node.type !== initialNode.type)
+        return false
+
+      updateImage(node)
+
+      return true
+    },
+    destroy() {
+      generation++
+
+      if (blobUrl)
+        URL.revokeObjectURL(blobUrl)
+    },
+  }
+})
 const htmlView = $view(htmlSchema.node, () => (node) => {
   const htmlContent = (node.attrs.value as string) || ''
   const isBlock = /<(?:iframe|div|table|p|blockquote)\b/i.test(htmlContent)
@@ -310,6 +376,7 @@ useEditor((root) => {
         emit('blur')
       })
     })
+    .use(props.readonly ? offlineImageView : [])
     .use(listener)
 
   crepeInstance.value = crepe

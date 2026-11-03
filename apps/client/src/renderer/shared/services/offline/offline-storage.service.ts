@@ -11,7 +11,11 @@ const DB_VERSION = 1
 const STORE_NAME = 'trips'
 const LEGACY_STORAGE_KEY = 'offline-trips-data'
 
-class OfflineStorageService {
+function belongsToAccount(entry: OfflineTripEntry, accountId: string | null | undefined) {
+  return accountId === undefined || (entry.downloadedByUserId ?? entry.data?.userId) === accountId
+}
+
+export class OfflineStorageService {
   private dbPromise: Promise<IDBDatabase | null> | null = null
 
   private getDB(): Promise<IDBDatabase | null> {
@@ -49,60 +53,59 @@ class OfflineStorageService {
     return this.dbPromise
   }
 
-  /**
-   * Загрузка всех сохраненных путешествий с автоматической миграцией из localStorage
-   */
-  public async loadAllTrips(): Promise<Record<string, OfflineTripEntry>> {
-    const db = await this.getDB()
-    const result: Record<string, OfflineTripEntry> = {}
+  private async readEntries(db: IDBDatabase | null): Promise<Record<string, OfflineTripEntry>> {
+    if (!db)
+      return {}
 
-    // 1. Попытка прочитать из IndexedDB
-    if (db) {
-      await new Promise<void>((resolve) => {
-        try {
-          const tx = db.transaction(STORE_NAME, 'readonly')
-          const store = tx.objectStore(STORE_NAME)
-          const req = store.getAll()
-          req.onsuccess = () => {
-            const list: OfflineTripEntry[] = req.result || []
-            list.forEach((item) => {
-              if (item?.id) {
-                result[item.id] = item
-              }
-            })
-            resolve()
-          }
-          req.onerror = () => resolve()
-        }
-        catch {
-          resolve()
-        }
-      })
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, 'readonly')
+      const request = tx.objectStore(STORE_NAME).getAll()
+      request.onsuccess = () => resolve(Object.fromEntries((request.result as OfflineTripEntry[]).map(entry => [entry.id, entry])))
+      request.onerror = () => reject(request.error)
+    })
+  }
+
+  private async mergeLegacy(db: IDBDatabase | null, entries: Record<string, OfflineTripEntry>) {
+    if (typeof localStorage === 'undefined')
+      return
+
+    const raw = localStorage.getItem(LEGACY_STORAGE_KEY)
+
+    if (!raw)
+      return
+
+    const legacy = JSON.parse(raw) as Record<string, OfflineTripEntry>
+
+    for (const [key, entry] of Object.entries(legacy)) {
+      if (entries[key])
+        continue
+
+      entries[key] = entry
+
+      if (db)
+        await this.saveTrip(entry)
     }
 
-    // 2. Если в IndexedDB пусто, проверяем legacy localStorage и мигрируем
-    if (Object.keys(result).length === 0 && typeof localStorage !== 'undefined') {
-      try {
-        const legacyRaw = localStorage.getItem(LEGACY_STORAGE_KEY)
+    // With no IndexedDB this remains the primary store, not a migration source.
+    if (db)
+      localStorage.removeItem(LEGACY_STORAGE_KEY)
+  }
 
-        if (legacyRaw) {
-          const parsed = JSON.parse(legacyRaw) as Record<string, OfflineTripEntry>
+  public async loadAllTrips(accountId?: string | null): Promise<Record<string, OfflineTripEntry>> {
+    const db = await this.getDB()
+    const entries = await this.readEntries(db)
+    await this.mergeLegacy(db, entries)
+    const result: Record<string, OfflineTripEntry> = {}
 
-          if (parsed && typeof parsed === 'object') {
-            for (const [id, entry] of Object.entries(parsed)) {
-              result[id] = entry
-              // Сохраняем в IndexedDB
-              await this.saveTrip(entry)
-            }
+    for (const entry of Object.values(entries)) {
+      if (!belongsToAccount(entry, accountId))
+        continue
 
-            // Очищаем localStorage, освобождая системную квоту 5 МБ
-            localStorage.removeItem(LEGACY_STORAGE_KEY)
-          }
-        }
-      }
-      catch (e) {
-        console.warn('[OfflineStorageService] Ошибка при миграции из localStorage:', e)
-      }
+      const tripId = entry.data?.id ?? entry.id
+
+      // Prefer scoped records over pre-migration copies of the same trip.
+      if (!result[tripId]?.downloadedByUserId || entry.downloadedByUserId)
+        result[tripId] = { ...entry, id: tripId }
     }
 
     return result
@@ -113,6 +116,7 @@ class OfflineStorageService {
    */
   public async saveTrip(entry: OfflineTripEntry): Promise<void> {
     const db = await this.getDB()
+    const stored = { ...entry, id: entry.downloadedByUserId ? `${entry.downloadedByUserId}:${entry.id}` : entry.id }
 
     if (db) {
       await new Promise<void>((resolve, reject) => {
@@ -122,7 +126,7 @@ class OfflineStorageService {
           tx.oncomplete = () => resolve()
           tx.onerror = () => reject(tx.error ?? new Error('IndexedDB save transaction failed'))
           tx.onabort = () => reject(tx.error ?? new Error('IndexedDB save transaction aborted'))
-          store.put(entry)
+          store.put(stored)
         }
         catch (e) {
           reject(e)
@@ -140,7 +144,7 @@ class OfflineStorageService {
     try {
       const raw = localStorage.getItem(LEGACY_STORAGE_KEY)
       const current = raw ? JSON.parse(raw) : {}
-      current[entry.id] = entry
+      current[stored.id] = stored
       localStorage.setItem(LEGACY_STORAGE_KEY, JSON.stringify(current))
     }
     catch (e) {
@@ -152,7 +156,7 @@ class OfflineStorageService {
   /**
    * Удаление путешествия из хранилища
    */
-  public async removeTrip(tripId: string): Promise<void> {
+  public async removeTrip(tripId: string, accountId?: string | null): Promise<void> {
     const db = await this.getDB()
 
     if (db) {
@@ -163,7 +167,15 @@ class OfflineStorageService {
           tx.oncomplete = () => resolve()
           tx.onerror = () => reject(tx.error ?? new Error('IndexedDB delete transaction failed'))
           tx.onabort = () => reject(tx.error ?? new Error('IndexedDB delete transaction aborted'))
-          store.delete(tripId)
+          store.delete(accountId ? `${accountId}:${tripId}` : tripId)
+
+          if (accountId) {
+            const legacy = store.get(tripId)
+            legacy.onsuccess = () => {
+              if (legacy.result && belongsToAccount(legacy.result, accountId))
+                store.delete(tripId)
+            }
+          }
         }
         catch (e) {
           reject(e)
@@ -183,7 +195,13 @@ class OfflineStorageService {
 
       if (raw) {
         const current = JSON.parse(raw)
-        delete current[tripId]
+
+        if (current[tripId] && belongsToAccount(current[tripId], accountId))
+          delete current[tripId]
+
+        if (accountId)
+          delete current[`${accountId}:${tripId}`]
+
         localStorage.setItem(LEGACY_STORAGE_KEY, JSON.stringify(current))
       }
     }

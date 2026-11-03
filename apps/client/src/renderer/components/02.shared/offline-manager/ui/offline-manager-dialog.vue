@@ -127,6 +127,9 @@ async function handleConfirmDownload(options: OfflineDownloadOptions) {
                 {{ item.imageCount }} файлов
               </span>
             </div>
+            <p v-if="!item.cacheName || item.unavailableCount" class="item-warning">
+              {{ !item.cacheName ? 'Обновите копию для восстановления оффлайн-файлов.' : `Сохранено не полностью: недоступно ${item.unavailableCount} элементов. Повторите загрузку.` }}
+            </p>
             <div
               v-if="offlineStore.isDownloading[item.id]"
               class="download-progress"
@@ -184,6 +187,10 @@ async function handleConfirmDownload(options: OfflineDownloadOptions) {
 </template>
 
 <style scoped lang="scss">
+.item-warning {
+  color: var(--color-warning, #b36b00);
+  font-size: 0.8rem;
+}
 .offline-manager {
   display: flex;
   flex-direction: column;

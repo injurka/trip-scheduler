@@ -253,7 +253,7 @@ function handleCancel() {
               <span class="option-title">Карта зоны маршрута</span>
             </div>
             <span class="option-description">
-              {{ hasCoordinates ? 'Векторные тайлы и рельеф зоны поездки (зум 10–15)' : 'В маршруте нет гео-точек для скачивания' }}
+              {{ hasCoordinates ? 'Обзор поездки и подробная карта вокруг точек и линий маршрута (зум 10–15), рельеф при наличии MapTiler' : 'В маршруте нет гео-точек для скачивания' }}
             </span>
           </div>
           <div

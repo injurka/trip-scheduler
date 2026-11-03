@@ -9,6 +9,7 @@ import { ToastManager } from '~/components/02.shared/toast-manager'
 import { useOnboarding } from '~/shared/composables/use-onboarding'
 import { AppRouteNames, AppRoutePaths } from '~/shared/constants/routes'
 import { lazyComponent } from '~/shared/lib/lazy-component'
+import { useAuthStore } from '~/shared/store/auth.store'
 import { useLayoutStore } from '~/shared/store/layout.store'
 import '~/assets/scss/global.scss'
 import '~/assets/scss/atomic.scss'
@@ -21,6 +22,7 @@ import '~/assets/scss/maplibre-markers.scss'
 const route = useRoute()
 const router = useRouter()
 const layoutStore = useLayoutStore()
+const authStore = useAuthStore()
 const onboarding = useOnboarding()
 
 const OfflineProgressDialog = lazyComponent(() => import('~/components/02.shared/offline-manager/ui/offline-progress-dialog.vue'))
@@ -109,7 +111,10 @@ onMounted(async () => {
   <ConfigProvider :scroll-body="false">
     <OfflineBanner />
 
-    <component :is="layouts[layout]" :key="layout">
+    <component
+      :is="layouts[layout]"
+      :key="`${layout}:${authStore.user?.id || 'guest'}`"
+    >
       <router-view v-slot="{ Component }">
         <transition v-if="transition" :name="transition" mode="out-in">
           <component :is="Component" />

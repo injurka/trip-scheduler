@@ -90,7 +90,7 @@ export const useTripPlanStore = defineStore('tripPlan', {
     isLoading: () => useRequestStatus(ETripPlanKeys.FETCH_TRIP_DETAILS).value,
     fetchError: (state) => {
       // If trip data was loaded (e.g., from offline store), don't block UI with error placeholder
-      if (state.trip && state.days.length > 0)
+      if (state.trip)
         return null
 
       return useRequestError(ETripPlanKeys.FETCH_TRIP_DETAILS).value
