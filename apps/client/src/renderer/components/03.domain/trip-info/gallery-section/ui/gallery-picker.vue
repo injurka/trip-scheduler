@@ -70,8 +70,37 @@ const globallyUsedUrls = computed(() => {
     trip.value.sections.forEach((section) => {
       const content = section.content
 
-      if (isRecord(content) && Array.isArray(content.imageUrls)) {
+      if (!isRecord(content))
+        return
+
+      if (Array.isArray(content.imageUrls)) {
         content.imageUrls.forEach((url: string) => used.add(url))
+      }
+
+      if (Array.isArray(content.transactions)) {
+        content.transactions.filter(isRecord).forEach((tx) => {
+          if (Array.isArray(tx.photos)) {
+            tx.photos.forEach((url) => {
+              if (typeof url === 'string' && url)
+                used.add(url)
+            })
+          }
+        })
+      }
+
+      if (Array.isArray(content.bookings)) {
+        content.bookings.filter(isRecord).forEach((booking) => {
+          const data = isRecord(booking.data) ? booking.data : {}
+
+          for (const field of ['photos', 'imageUrls']) {
+            if (Array.isArray(data[field])) {
+              data[field].forEach((url) => {
+                if (typeof url === 'string' && url)
+                  used.add(url)
+              })
+            }
+          }
+        })
       }
     })
   }

@@ -1,16 +1,26 @@
 <script setup lang="ts">
 import type { CalendarDate } from '@internationalized/date'
 import type { Category, Transaction } from '../../models/types'
+import type { ImageViewerImage } from '~/components/01.kit/kit-image-viewer'
+import type { TripMedia } from '~/shared/types/models/trip'
 import { Icon } from '@iconify/vue'
 import { getLocalTimeZone, parseDate, today } from '@internationalized/date'
-import { onClickOutside, useDateFormat } from '@vueuse/core'
+import { onClickOutside, useDateFormat, useEventListener } from '@vueuse/core'
 import { computed, ref, watch } from 'vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitCalendar } from '~/components/01.kit/kit-calendar'
 import { KitDialogWithClose } from '~/components/01.kit/kit-dialog-with-close'
+import { KitImage } from '~/components/01.kit/kit-image'
+import { KitImageViewer, useImageViewer } from '~/components/01.kit/kit-image-viewer'
 import { KitInput } from '~/components/01.kit/kit-input'
 import { KitSelectWithSearch } from '~/components/01.kit/kit-select-with-search'
+import { KitTooltip } from '~/components/01.kit/kit-tooltip'
+import { useRequest } from '~/plugins/request'
+import { deriveImageVariants } from '~/shared/lib/url'
+import { TripMediaPlacement } from '~/shared/types/models/trip'
+import { normalizeTransactionPhotos } from '../../composables'
 import { useCurrencyFormatter } from '../../composables/use-currency-formatter'
+import { MAX_TRANSACTION_PHOTOS } from '../../models/types'
 
 interface Props {
   visible: boolean
@@ -18,9 +28,12 @@ interface Props {
   categories: Category[]
   mainCurrency: string
   exchangeRates?: Record<string, number>
+  tripId?: string
 }
 
-const props = defineProps<Props>()
+const props = withDefaults(defineProps<Props>(), {
+  tripId: '',
+})
 const emit = defineEmits<{
   (e: 'update:visible', value: boolean): void
   (e: 'save', transaction: Partial<Transaction>): void
@@ -29,6 +42,8 @@ const emit = defineEmits<{
 
 // Formatting
 const { format: formatCurrency } = useCurrencyFormatter()
+// Photos
+const imageViewer = useImageViewer({ enableKeyboard: true })
 
 const form = ref<Partial<Transaction>>({})
 const isTimeless = ref(false)
@@ -40,6 +55,11 @@ const popularCurrencies = ['USD', 'EUR', 'RUB', 'CNY', 'JPY', 'TRY', 'GEL', 'AED
 // Date & Calendar
 const isCalendarOpen = ref(false)
 const datePickerWrapperRef = ref<HTMLElement | null>(null)
+const photoFileInput = ref<HTMLInputElement | null>(null)
+const isUploadingPhotos = ref(false)
+const isDragOverPhotos = ref(false)
+const isLinkInputOpen = ref(false)
+const photoLinkInput = ref('')
 
 // Title
 const title = computed(() => props.transaction ? 'Редактировать расход' : 'Новый расход')
@@ -90,7 +110,6 @@ const conversionPreview = computed(() => {
     formatCurrency,
   )
 })
-
 // Categories
 const categoryItems = computed(() =>
   props.categories.map(c => ({ value: c.id, label: c.name, icon: c.icon })))
@@ -127,12 +146,26 @@ const calendarDate = computed<CalendarDate>({
     isCalendarOpen.value = false
   },
 })
+// Photos Computed
+const photosList = computed(() => form.value.photos || [])
+const remainingPhotoSlots = computed(() => Math.max(0, MAX_TRANSACTION_PHOTOS - photosList.value.length))
+const canAddMorePhotos = computed(() => remainingPhotoSlots.value > 0 && !isUploadingPhotos.value)
+const viewerImages = computed<ImageViewerImage[]>(() => {
+  const txTitle = form.value.title?.trim() || 'Фото к расходу'
+
+  return photosList.value.map((url, idx) => ({
+    url,
+    alt: `${txTitle} (${idx + 1})`,
+    caption: `${txTitle} — ${idx + 1} из ${photosList.value.length}`,
+    variants: deriveImageVariants(url),
+  }))
+})
 // Validation
 const isSaveDisabled = computed(() => {
   const hasTitle = Boolean(form.value.title?.trim())
   const hasAmount = form.value.amount !== null && form.value.amount !== undefined && Number(form.value.amount) >= 0
 
-  return !hasTitle || !hasAmount
+  return !hasTitle || !hasAmount || isUploadingPhotos.value
 })
 
 watch(() => props.visible, (isVisible) => {
@@ -140,9 +173,15 @@ watch(() => props.visible, (isVisible) => {
     isCalendarOpen.value = false
     isCurrencyPickerOpen.value = false
     currencySearchQuery.value = ''
+    isLinkInputOpen.value = false
+    photoLinkInput.value = ''
+    isDragOverPhotos.value = false
 
     form.value = props.transaction
-      ? { ...props.transaction }
+      ? {
+          ...props.transaction,
+          photos: props.transaction.photos ? [...props.transaction.photos] : [],
+        }
       : {
           date: todayStr.value,
           currency: props.mainCurrency || 'RUB',
@@ -150,6 +189,7 @@ watch(() => props.visible, (isVisible) => {
           title: '',
           amount: '' as unknown as number,
           notes: '',
+          photos: [],
           isSpontaneous: false,
           status: 'paid',
         }
@@ -180,7 +220,6 @@ function getConversionPreview(
     rateText: `Курс для ${currency} не указан в настройках бюджета`,
   }
 }
-
 function selectCurrency(code: string) {
   form.value.currency = code.toUpperCase()
   isCurrencyPickerOpen.value = false
@@ -209,6 +248,139 @@ function setYesterday() {
   form.value.date = yesterdayStr.value
   isCalendarOpen.value = false
 }
+function openPhotoViewer(index: number) {
+  imageViewer.open(viewerImages.value, index)
+}
+function triggerPhotoFileInput() {
+  if (canAddMorePhotos.value)
+    photoFileInput.value?.click()
+}
+function removePhoto(index: number) {
+  form.value.photos = photosList.value.filter((_, i) => i !== index)
+}
+function isValidImageUrl(str: string): boolean {
+  const trimmed = str.trim()
+
+  if (!trimmed || !URL.canParse(trimmed))
+    return false
+
+  return /^https?:\/\//i.test(trimmed)
+}
+function handleAddPhotoLink() {
+  const trimmed = photoLinkInput.value.trim()
+
+  if (!isValidImageUrl(trimmed)) {
+    useToast().error('Введите корректную ссылку (http/https) на изображение.')
+
+    return
+  }
+
+  if (remainingPhotoSlots.value <= 0) {
+    useToast().warn(`Можно прикрепить не более ${MAX_TRANSACTION_PHOTOS} фото.`)
+
+    return
+  }
+
+  if (photosList.value.includes(trimmed)) {
+    useToast().warn('Это фото уже прикреплено.')
+
+    return
+  }
+
+  form.value.photos = [...photosList.value, trimmed]
+  photoLinkInput.value = ''
+  isLinkInputOpen.value = false
+}
+async function uploadSinglePhoto(file: File): Promise<string | null> {
+  if (!props.tripId) {
+    useToast().error('Не удалось определить путешествие для сохранения фото.')
+
+    return null
+  }
+
+  const res = await useRequest<TripMedia>({
+    key: `finance-photo-upload:${crypto.randomUUID()}`,
+    cancelPrevious: false,
+    fn: db => db.files.uploadFile(
+      file,
+      props.tripId!,
+      'trip',
+      TripMediaPlacement.ROUTE,
+    ),
+    onError: ({ error }) => {
+      useToast().error(`Ошибка при загрузке фото: ${error.customMessage || 'Ошибка сети'}`)
+    },
+  })
+
+  return res?.url || null
+}
+async function handlePhotoFiles(files: FileList | File[]) {
+  const imageFiles = Array.from(files).filter(f => f.type.startsWith('image/') || /\.(?:jpg|jpeg|png|webp|heic|heif|gif|avif)$/i.test(f.name))
+
+  if (imageFiles.length === 0) {
+    useToast().warn('Пожалуйста, выберите файлы изображений (PNG, JPG, WEBP, HEIC).')
+
+    return
+  }
+
+  if (remainingPhotoSlots.value <= 0) {
+    useToast().warn(`Можно прикрепить не более ${MAX_TRANSACTION_PHOTOS} фото к одной трате.`)
+
+    return
+  }
+
+  const filesToUpload = imageFiles.slice(0, remainingPhotoSlots.value)
+
+  if (imageFiles.length > remainingPhotoSlots.value) {
+    useToast().warn(`Лимит — ${MAX_TRANSACTION_PHOTOS} фото. Будут загружены первые ${filesToUpload.length}.`)
+  }
+
+  isUploadingPhotos.value = true
+
+  try {
+    const uploadedUrls = await Promise.all(filesToUpload.map(file => uploadSinglePhoto(file)))
+    const validUrls = uploadedUrls.filter((url): url is string => Boolean(url))
+
+    if (validUrls.length > 0) {
+      form.value.photos = normalizeTransactionPhotos([...photosList.value, ...validUrls]) || []
+    }
+  }
+  finally {
+    isUploadingPhotos.value = false
+
+    if (photoFileInput.value)
+      photoFileInput.value.value = ''
+  }
+}
+function onPhotoFileInputChange(event: Event) {
+  const target = event.target as HTMLInputElement
+
+  if (target.files && target.files.length > 0) {
+    void handlePhotoFiles(target.files)
+  }
+}
+function onPhotosDragOver(event: DragEvent) {
+  if (!canAddMorePhotos.value)
+    return
+
+  event.preventDefault()
+  isDragOverPhotos.value = true
+}
+function onPhotosDragLeave(event: DragEvent) {
+  event.preventDefault()
+  isDragOverPhotos.value = false
+}
+function onPhotosDrop(event: DragEvent) {
+  event.preventDefault()
+  isDragOverPhotos.value = false
+
+  if (!canAddMorePhotos.value)
+    return
+
+  if (event.dataTransfer?.files && event.dataTransfer.files.length > 0) {
+    void handlePhotoFiles(event.dataTransfer.files)
+  }
+}
 function handleSubmit() {
   if (isSaveDisabled.value)
     return
@@ -217,12 +389,44 @@ function handleSubmit() {
   payload.amount = Number(payload.amount) || 0
   payload.currency = (payload.currency || props.mainCurrency || 'RUB').toUpperCase()
 
+  const normalizedPhotos = normalizeTransactionPhotos(payload.photos)
+
+  if (normalizedPhotos)
+    payload.photos = normalizedPhotos
+  else
+    delete payload.photos
+
   if (isTimeless.value)
     delete payload.date
 
   emit('save', payload)
 }
 
+useEventListener('paste', (event: ClipboardEvent) => {
+  if (!props.visible || isUploadingPhotos.value)
+    return
+
+  const items = event.clipboardData?.items
+
+  if (!items)
+    return
+
+  const imageFiles: File[] = []
+
+  for (const item of Array.from(items)) {
+    if (item.kind === 'file' && item.type.startsWith('image/')) {
+      const file = item.getAsFile()
+
+      if (file)
+        imageFiles.push(file)
+    }
+  }
+
+  if (imageFiles.length > 0) {
+    event.preventDefault()
+    void handlePhotoFiles(imageFiles)
+  }
+})
 onClickOutside(currencyPickerRef, () => {
   isCurrencyPickerOpen.value = false
 })
@@ -518,7 +722,122 @@ onClickOutside(datePickerWrapperRef, () => {
         />
       </div>
 
-      <!-- 8. Form Actions -->
+      <!-- 8. Photos / Receipts Attachment -->
+      <div
+        class="form-row photos-attachment-group"
+        :class="{ 'is-drag-over': isDragOverPhotos }"
+        @dragover="onPhotosDragOver"
+        @dragleave="onPhotosDragLeave"
+        @drop="onPhotosDrop"
+      >
+        <div class="photos-header-row">
+          <div class="photos-label-wrap">
+            <label class="field-label">Фото и чеки</label>
+            <span class="photos-counter" :class="{ 'is-full': remainingPhotoSlots === 0 }">
+              {{ photosList.length }}/{{ MAX_TRANSACTION_PHOTOS }}
+            </span>
+          </div>
+
+          <div v-if="canAddMorePhotos" class="photos-quick-actions">
+            <button
+              type="button"
+              class="photo-action-link"
+              :class="{ active: isLinkInputOpen }"
+              @click="isLinkInputOpen = !isLinkInputOpen"
+            >
+              <Icon icon="mdi:link-variant" />
+              <span>По ссылке</span>
+            </button>
+          </div>
+        </div>
+
+        <input
+          ref="photoFileInput"
+          type="file"
+          accept="image/*"
+          multiple
+          class="hidden-file-input"
+          :disabled="!canAddMorePhotos"
+          @change="onPhotoFileInputChange"
+        >
+
+        <div class="photos-strip">
+          <div
+            v-for="(photoUrl, index) in photosList"
+            :key="`${photoUrl}-${index}`"
+            class="photo-mini-card"
+            role="button"
+            tabindex="0"
+            :aria-label="`Открыть фото ${index + 1}`"
+            @click="openPhotoViewer(index)"
+            @keydown.enter.prevent="openPhotoViewer(index)"
+            @keydown.space.prevent="openPhotoViewer(index)"
+          >
+            <KitImage
+              :src="photoUrl"
+              :variants="deriveImageVariants(photoUrl)"
+              :alt="`Фото ${index + 1}`"
+              object-fit="cover"
+              class="photo-mini-img"
+            />
+            <div class="photo-mini-overlay">
+              <Icon icon="mdi:magnify-plus-outline" class="zoom-hint-icon" />
+            </div>
+            <KitTooltip text="Удалить фото">
+              <button
+                type="button"
+                class="photo-remove-btn"
+                aria-label="Удалить фото"
+                @click.stop="removePhoto(index)"
+              >
+                <Icon icon="mdi:close" />
+              </button>
+            </KitTooltip>
+          </div>
+
+          <button
+            v-if="remainingPhotoSlots > 0"
+            type="button"
+            class="photo-add-tile"
+            :class="{ 'is-uploading': isUploadingPhotos }"
+            :disabled="isUploadingPhotos"
+            @click="triggerPhotoFileInput"
+          >
+            <Icon
+              :icon="isUploadingPhotos ? 'mdi:loading' : 'mdi:camera-plus-outline'"
+              class="add-tile-icon"
+              :class="{ 'is-spinning': isUploadingPhotos }"
+            />
+            <span class="add-tile-label">
+              {{ isUploadingPhotos ? 'Загрузка...' : (photosList.length === 0 ? 'Добавить фото / чек' : 'Ещё фото') }}
+            </span>
+            <span v-if="photosList.length === 0 && !isUploadingPhotos" class="add-tile-sub">
+              Файл, перетаскивание или Ctrl+V
+            </span>
+          </button>
+        </div>
+
+        <div v-if="isLinkInputOpen && canAddMorePhotos" class="photo-link-bar">
+          <KitInput
+            v-model="photoLinkInput"
+            placeholder="https://example.com/receipt.jpg"
+            size="sm"
+            icon="mdi:link-variant"
+            class="photo-link-input"
+            @keydown.enter.prevent="handleAddPhotoLink"
+          />
+          <KitBtn
+            size="sm"
+            variant="tonal"
+            :disabled="!isValidImageUrl(photoLinkInput)"
+            @click="handleAddPhotoLink"
+          >
+            Добавить
+          </KitBtn>
+        </div>
+      </div>
+
+      <!-- 9. Form Actions -->
       <div class="form-actions">
         <div class="actions-hint">
           <span class="kbd-badge"><kbd>Enter</kbd> сохранить</span>
@@ -528,12 +847,29 @@ onClickOutside(datePickerWrapperRef, () => {
           <KitBtn variant="text" @click="emit('update:visible', false)">
             Отмена
           </KitBtn>
-          <KitBtn type="submit" :disabled="isSaveDisabled" icon="mdi:check">
+          <KitBtn
+            type="submit"
+            :disabled="isSaveDisabled"
+            :loading="isUploadingPhotos"
+            icon="mdi:check"
+          >
             Сохранить
           </KitBtn>
         </div>
       </div>
     </form>
+
+    <KitImageViewer
+      v-if="imageViewer.isOpen.value"
+      v-model:visible="imageViewer.isOpen.value"
+      v-model:current-index="imageViewer.currentIndex.value"
+      :images="viewerImages"
+      :show-counter="true"
+      :enable-thumbnails="photosList.length > 1"
+      :close-on-overlay-click="true"
+      :show-quality-selector="false"
+      :show-info-button="false"
+    />
   </KitDialogWithClose>
 </template>
 
@@ -1178,7 +1514,240 @@ onClickOutside(datePickerWrapperRef, () => {
   transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-// 8. Actions
+// 8. Photos Attachment
+.hidden-file-input {
+  display: none;
+}
+
+.photos-attachment-group {
+  border-radius: var(--r-m);
+  transition:
+    outline-color 0.15s ease,
+    background-color 0.15s ease;
+
+  &.is-drag-over {
+    outline: 2px dashed var(--fg-accent-color);
+    outline-offset: 4px;
+    background-color: color-mix(in srgb, var(--fg-accent-color) 6%, transparent);
+  }
+}
+
+.photos-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.photos-label-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.photos-counter {
+  font-size: 0.72rem;
+  font-weight: 600;
+  font-family: var(--font-mono);
+  color: var(--fg-tertiary-color);
+  background-color: var(--bg-tertiary-color);
+  border: 1px solid var(--border-secondary-color);
+  padding: 1px 6px;
+  border-radius: var(--r-full);
+
+  &.is-full {
+    color: var(--fg-accent-color);
+    border-color: color-mix(in srgb, var(--fg-accent-color) 40%, transparent);
+  }
+}
+
+.photos-quick-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.photo-action-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: none;
+  background: none;
+  padding: 2px 6px;
+  border-radius: var(--r-xs);
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--fg-secondary-color);
+  cursor: pointer;
+  transition: all 0.15s ease;
+
+  &:hover,
+  &.active {
+    color: var(--fg-accent-color);
+    background-color: color-mix(in srgb, var(--fg-accent-color) 10%, transparent);
+  }
+}
+
+.photos-strip {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.photo-mini-card {
+  position: relative;
+  width: 60px;
+  height: 60px;
+  border-radius: var(--r-s);
+  overflow: hidden;
+  border: 1px solid var(--border-primary-color);
+  background-color: var(--bg-tertiary-color);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition:
+    transform 0.18s ease,
+    border-color 0.18s ease,
+    box-shadow 0.18s ease;
+
+  &:hover,
+  &:focus-visible {
+    transform: translateY(-1px);
+    border-color: var(--fg-accent-color);
+    box-shadow: var(--s-xs);
+
+    .photo-mini-overlay {
+      opacity: 1;
+    }
+  }
+
+  .photo-mini-img {
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+
+  .photo-mini-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.32);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.18s ease;
+    pointer-events: none;
+
+    .zoom-hint-icon {
+      color: #fff;
+      font-size: 1.2rem;
+      filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.4));
+    }
+  }
+}
+
+.photo-remove-btn {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 20px;
+  height: 20px;
+  border-radius: var(--r-full);
+  border: none;
+  background: rgba(15, 23, 42, 0.78);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.78rem;
+  cursor: pointer;
+  padding: 0;
+  z-index: 2;
+  transition:
+    background-color 0.15s ease,
+    transform 0.15s ease;
+
+  &:hover {
+    background: rgb(220, 38, 38);
+    transform: scale(1.08);
+  }
+}
+
+.photo-add-tile {
+  flex: 1;
+  min-width: 150px;
+  min-height: 60px;
+  padding: 0.55rem 0.85rem;
+  border-radius: var(--r-s);
+  border: 1px dashed var(--border-primary-color);
+  background-color: var(--bg-tertiary-color);
+  color: var(--fg-secondary-color);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  cursor: pointer;
+  transition: all 0.18s ease;
+
+  &:hover:not(:disabled) {
+    border-color: var(--fg-accent-color);
+    color: var(--fg-primary-color);
+    background-color: color-mix(in srgb, var(--fg-accent-color) 6%, var(--bg-secondary-color));
+
+    .add-tile-icon {
+      color: var(--fg-accent-color);
+    }
+  }
+
+  &:disabled {
+    cursor: wait;
+    opacity: 0.75;
+  }
+
+  .add-tile-icon {
+    font-size: 1.25rem;
+    color: var(--fg-tertiary-color);
+    transition: color 0.18s ease;
+
+    &.is-spinning {
+      animation: photoSpin 1s linear infinite;
+      color: var(--fg-accent-color);
+    }
+  }
+
+  .add-tile-label {
+    font-size: 0.8rem;
+    font-weight: 500;
+  }
+
+  .add-tile-sub {
+    font-size: 0.7rem;
+    color: var(--fg-tertiary-color);
+  }
+}
+
+.photo-link-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+
+  .photo-link-input {
+    flex: 1;
+  }
+}
+
+@keyframes photoSpin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+// 9. Actions
 .form-actions {
   display: flex;
   align-items: center;

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { CalendarDate } from '@internationalized/date'
 import type { FinancesSettings, Transaction } from '../../models/types'
+import type { TripMedia } from '~/shared/types/models/trip'
 import { Icon } from '@iconify/vue'
 import { getErrorMessage } from '@injurka/type-utils'
 import { getLocalTimeZone, parseDate, today } from '@internationalized/date'
@@ -11,6 +12,7 @@ import { KitSelectWithSearch } from '~/components/01.kit/kit-select-with-search'
 import { KitTooltip } from '~/components/01.kit/kit-tooltip'
 import { CalendarPopover } from '~/components/02.shared/calendar-popover'
 import { useRequest, useRequestStatus } from '~/plugins/request'
+import { TripMediaPlacement } from '~/shared/types/models/trip'
 
 interface FinancesCategory {
   id: string
@@ -21,6 +23,7 @@ interface FinancesCategory {
 interface Props {
   categories: FinancesCategory[]
   settings: FinancesSettings
+  tripId?: string
 }
 type CreatorState = 'input' | 'loading' | 'preview' | 'error'
 type GeneratedTransaction = Omit<Transaction, 'id' | 'categoryId' | 'status' | 'source'> & {
@@ -29,7 +32,9 @@ type GeneratedTransaction = Omit<Transaction, 'id' | 'categoryId' | 'status' | '
   isSpontaneous?: boolean
 }
 
-const props = defineProps<Props>()
+const props = withDefaults(defineProps<Props>(), {
+  tripId: '',
+})
 const emit = defineEmits<{
   (e: 'save', transactions: Partial<Transaction>[]): void
   (e: 'close'): void
@@ -40,6 +45,8 @@ const error = ref<string | null>(null)
 const userInput = ref('')
 const generatedTransactions = ref<GeneratedTransaction[]>([])
 const uploadedFile = ref<File | null>(null)
+const attachReceiptPhoto = ref(true)
+const isSavingWithPhoto = ref(false)
 const GENERATE_FINANCES_KEY = 'finances:generate'
 
 const isLoading = useRequestStatus(GENERATE_FINANCES_KEY)
@@ -73,6 +80,8 @@ function resetState() {
   error.value = null
   userInput.value = ''
   uploadedFile.value = null
+  attachReceiptPhoto.value = true
+  isSavingWithPhoto.value = false
   generatedTransactions.value = []
 }
 async function handleGenerate() {
@@ -136,8 +145,33 @@ async function handleGenerate() {
     state.value = 'error'
   }
 }
-function handleSave() {
-  if (generatedTransactions.value.length > 0) {
+async function handleSave() {
+  if (generatedTransactions.value.length === 0 || isSavingWithPhoto.value)
+    return
+
+  isSavingWithPhoto.value = true
+
+  try {
+    let uploadedReceiptUrl: string | null = null
+
+    if (attachReceiptPhoto.value && uploadedFile.value && props.tripId) {
+      const res = await useRequest<TripMedia>({
+        key: `ai-finance-receipt-upload:${crypto.randomUUID()}`,
+        cancelPrevious: false,
+        fn: db => db.files.uploadFile(
+          uploadedFile.value!,
+          props.tripId!,
+          'trip',
+          TripMediaPlacement.ROUTE,
+        ),
+        onError: () => {
+          useToast().warn('Не удалось прикрепить фото чека, траты будут сохранены без изображения.')
+        },
+      })
+
+      uploadedReceiptUrl = res?.url || null
+    }
+
     const transactionsToSave = generatedTransactions.value.map(tx => ({
       title: tx.title,
       amount: tx.amount,
@@ -146,9 +180,14 @@ function handleSave() {
       notes: tx.notes,
       categoryId: tx.categoryId,
       isSpontaneous: tx.isSpontaneous,
+      ...(uploadedReceiptUrl ? { photos: [uploadedReceiptUrl] } : {}),
     }))
+
     emit('save', transactionsToSave)
     resetState()
+  }
+  finally {
+    isSavingWithPhoto.value = false
   }
 }
 function getCalendarDate(tx: GeneratedTransaction): CalendarDate | null {
@@ -289,12 +328,29 @@ function updateTransactionDate(tx: GeneratedTransaction, newDate: CalendarDate |
           </div>
         </div>
       </div>
+      <button
+        v-if="uploadedFile && props.tripId"
+        type="button"
+        class="attach-receipt-toggle"
+        :class="{ active: attachReceiptPhoto }"
+        @click="attachReceiptPhoto = !attachReceiptPhoto"
+      >
+        <Icon
+          :icon="attachReceiptPhoto ? 'mdi:checkbox-marked-circle' : 'mdi:checkbox-blank-circle-outline'"
+          class="receipt-check-icon"
+        />
+        <div class="receipt-toggle-text">
+          <span class="receipt-toggle-title">Прикрепить фото чека к созданным тратам</span>
+          <span class="receipt-toggle-file">{{ uploadedFile.name }}</span>
+        </div>
+      </button>
+
       <div class="dialog-actions">
-        <KitBtn variant="text" @click="resetState">
+        <KitBtn variant="text" :disabled="isSavingWithPhoto" @click="resetState">
           <Icon icon="mdi:arrow-left" />
           Назад
         </KitBtn>
-        <KitBtn @click="handleSave">
+        <KitBtn :loading="isSavingWithPhoto" :disabled="isSavingWithPhoto" @click="handleSave">
           <Icon icon="mdi:check-all" />
           Добавить траты
         </KitBtn>
@@ -327,6 +383,62 @@ function updateTransactionDate(tx: GeneratedTransaction, newDate: CalendarDate |
 
   .iconify {
     font-size: 1.1rem;
+  }
+}
+
+.attach-receipt-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.65rem 0.9rem;
+  border-radius: var(--r-s);
+  border: 1px solid var(--border-secondary-color);
+  background-color: var(--bg-tertiary-color);
+  color: var(--fg-secondary-color);
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.18s ease;
+
+  .receipt-check-icon {
+    font-size: 1.25rem;
+    flex-shrink: 0;
+    color: var(--fg-tertiary-color);
+    transition: color 0.18s ease;
+  }
+
+  .receipt-toggle-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  .receipt-toggle-title {
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--fg-primary-color);
+  }
+
+  .receipt-toggle-file {
+    font-size: 0.75rem;
+    color: var(--fg-tertiary-color);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  &:hover {
+    border-color: var(--border-primary-color);
+  }
+
+  &.active {
+    border-color: color-mix(in srgb, var(--fg-accent-color) 45%, transparent);
+    background-color: color-mix(in srgb, var(--fg-accent-color) 8%, var(--bg-tertiary-color));
+
+    .receipt-check-icon {
+      color: var(--fg-accent-color);
+    }
   }
 }
 

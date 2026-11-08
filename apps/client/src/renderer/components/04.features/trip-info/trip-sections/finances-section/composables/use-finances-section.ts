@@ -1,6 +1,19 @@
 import type { Category, FinancesSectionContent, FinancesSettings, Transaction } from '../models/types'
 import { useDebounceFn } from '@vueuse/core'
 import { v4 as uuidv4 } from 'uuid'
+import { MAX_TRANSACTION_PHOTOS } from '../models/types'
+
+export function normalizeTransactionPhotos(photos?: string[] | null): string[] | undefined {
+  if (!Array.isArray(photos))
+    return undefined
+
+  const cleaned = Array.from(new Set(photos
+    .filter((url): url is string => typeof url === 'string')
+    .map(url => url.trim())
+    .filter(Boolean))).slice(0, MAX_TRANSACTION_PHOTOS)
+
+  return cleaned.length > 0 ? cleaned : undefined
+}
 
 const DEFAULT_CATEGORIES: Category[] = [
   { id: 'cat-food', name: 'Еда и напитки', icon: 'mdi:food-fork-drink', isDefault: true },
@@ -21,6 +34,7 @@ const DEFAULT_SETTINGS: FinancesSettings = {
 interface UseFinancesSectionProps {
   section: {
     id: string
+    tripId?: string
     type: 'finances'
     content: FinancesSectionContent
   }
@@ -31,7 +45,20 @@ export function useFinancesSection(props: UseFinancesSectionProps, emit: (event:
   const confirm = useConfirm()
   const content = computed(() => props.section.content)
 
-  const transactions = ref<Transaction[]>(JSON.parse(JSON.stringify(content.value?.transactions || [])).map((tx: Transaction) => ({ ...tx, status: tx.status || 'paid', source: tx.source || 'manual' })))
+  const transactions = ref<Transaction[]>(JSON.parse(JSON.stringify(content.value?.transactions || [])).map((tx: Transaction) => {
+    const normalizedPhotos = normalizeTransactionPhotos(tx.photos)
+    const mapped: Transaction = {
+      ...tx,
+      status: tx.status || 'paid',
+      source: tx.source || 'manual',
+      ...(normalizedPhotos ? { photos: normalizedPhotos } : {}),
+    }
+
+    if (!normalizedPhotos)
+      delete mapped.photos
+
+    return mapped
+  }))
   const categories = ref<Category[]>(JSON.parse(JSON.stringify(content.value?.categories || DEFAULT_CATEGORIES)))
   const settings = ref<FinancesSettings>(JSON.parse(JSON.stringify(content.value?.settings || DEFAULT_SETTINGS)))
   const selectedCategoryFilters = ref<string[]>([])
@@ -62,25 +89,47 @@ export function useFinancesSection(props: UseFinancesSectionProps, emit: (event:
     if (props.readonly)
       return
 
-    transactionToEdit.value = tx ? { ...tx } : null
+    transactionToEdit.value = tx
+      ? {
+          ...tx,
+          photos: tx.photos ? [...tx.photos] : undefined,
+        }
+      : null
     isTransactionFormOpen.value = true
   }
 
   function saveTransaction(tx: Partial<Transaction>) {
+    const normalizedPhotos = normalizeTransactionPhotos(tx.photos)
+
     if (transactionToEdit.value) {
       const index = transactions.value.findIndex(t => t.id === tx.id)
 
-      if (index !== -1)
-        transactions.value.splice(index, 1, tx as Transaction)
+      if (index !== -1) {
+        const updatedTx: Transaction = {
+          ...(tx as Transaction),
+          photos: normalizedPhotos,
+        }
+
+        if (!normalizedPhotos)
+          delete updatedTx.photos
+
+        transactions.value.splice(index, 1, updatedTx)
+      }
     }
     else {
-      transactions.value.unshift({
+      const newTx: Transaction = {
         ...tx,
         id: uuidv4(),
         categoryId: tx.categoryId || null,
         status: tx.status || 'paid',
         source: tx.source || 'manual',
-      } as Transaction)
+        photos: normalizedPhotos,
+      } as Transaction
+
+      if (!normalizedPhotos)
+        delete newTx.photos
+
+      transactions.value.unshift(newTx)
     }
 
     isTransactionFormOpen.value = false
@@ -104,14 +153,23 @@ export function useFinancesSection(props: UseFinancesSectionProps, emit: (event:
   }
 
   function addMultipleTransactions(newTransactions: Partial<Transaction>[]) {
-    const transactionsToAdd = newTransactions.map(tx => ({
-      ...tx,
-      id: uuidv4(),
-      categoryId: tx.categoryId || null,
-      currency: tx.currency || settings.value.mainCurrency,
-      status: tx.status || 'paid',
-      source: tx.source || 'manual',
-    } as Transaction))
+    const transactionsToAdd = newTransactions.map((tx) => {
+      const normalizedPhotos = normalizeTransactionPhotos(tx.photos)
+      const created: Transaction = {
+        ...tx,
+        id: uuidv4(),
+        categoryId: tx.categoryId || null,
+        currency: tx.currency || settings.value.mainCurrency,
+        status: tx.status || 'paid',
+        source: tx.source || 'manual',
+        photos: normalizedPhotos,
+      } as Transaction
+
+      if (!normalizedPhotos)
+        delete created.photos
+
+      return created
+    })
 
     transactions.value.unshift(...transactionsToAdd)
     isAiCreatorOpen.value = false

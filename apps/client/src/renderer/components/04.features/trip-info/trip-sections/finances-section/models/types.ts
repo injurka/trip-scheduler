@@ -1,5 +1,7 @@
 import type { FinancesSectionContent as ContractFinancesSectionContent, FinanceCategory, FinanceTransaction, TransactionSource, TransactionStatus } from '@injurka/finance-contract'
+import { MAX_TRANSACTION_PHOTOS } from '@injurka/finance-contract'
 
+export { MAX_TRANSACTION_PHOTOS }
 export type { TransactionSource, TransactionStatus }
 
 /**

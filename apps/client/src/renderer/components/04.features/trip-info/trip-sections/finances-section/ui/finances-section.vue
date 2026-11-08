@@ -17,6 +17,7 @@ import TransactionsList from './components/transactions-list.vue'
 interface Props {
   section: {
     id: string
+    tripId?: string
     type: 'finances'
     content: FinancesSectionContent
   }
@@ -395,6 +396,7 @@ onClickOutside(dateFilterWrapperRef, () => {
       <AiFinancesCreator
         :categories="categories"
         :settings="settings"
+        :trip-id="section.tripId"
         @close="isAiCreatorOpen = false"
         @save="addMultipleTransactions"
       />
@@ -418,6 +420,7 @@ onClickOutside(dateFilterWrapperRef, () => {
       :categories="categories"
       :main-currency="settings.mainCurrency"
       :exchange-rates="settings.exchangeRates"
+      :trip-id="section.tripId"
       @save="saveTransaction"
       @open-category-manager="handleOpenCategoryManager"
     />

@@ -1,7 +1,10 @@
 import { z } from 'zod'
 
+export const MAX_TRANSACTION_PHOTOS = 3
+
 export const TransactionStatusSchema = z.enum(['paid', 'planned'])
 export const TransactionSourceSchema = z.enum(['manual', 'imported'])
+export const FinanceTransactionPhotoSchema = z.string().trim().min(1).max(2048)
 
 export const FinanceTransactionSchema = z.object({
   id: z.string().min(1).max(160),
@@ -11,6 +14,7 @@ export const FinanceTransactionSchema = z.object({
   date: z.string().date().optional(),
   categoryId: z.string().min(1).max(160).nullable(),
   notes: z.string().max(4000).optional(),
+  photos: z.array(FinanceTransactionPhotoSchema).max(MAX_TRANSACTION_PHOTOS).optional(),
   isSpontaneous: z.boolean().optional().default(false),
   status: TransactionStatusSchema.optional().default('paid'),
   source: TransactionSourceSchema.optional().default('manual'),

@@ -1,12 +1,16 @@
 <script setup lang="ts">
 import type { Category, FinancesSettings, Transaction } from '../../models/types'
 import type { KitDropdownItem } from '~/components/01.kit/kit-dropdown'
+import type { ImageViewerImage } from '~/components/01.kit/kit-image-viewer'
 import { Icon } from '@iconify/vue'
 import { computed, ref } from 'vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitDropdown } from '~/components/01.kit/kit-dropdown'
+import { KitImage } from '~/components/01.kit/kit-image'
+import { KitImageViewer, useImageViewer } from '~/components/01.kit/kit-image-viewer'
 import { KitInput } from '~/components/01.kit/kit-input'
 import { KitTooltip } from '~/components/01.kit/kit-tooltip'
+import { deriveImageVariants } from '~/shared/lib/url'
 import { useCurrencyFormatter } from '../../composables/use-currency-formatter'
 
 interface Props {
@@ -33,8 +37,11 @@ const emit = defineEmits<{
 }>()
 
 const { format: formatCurrency } = useCurrencyFormatter()
+const imageViewer = useImageViewer({ enableKeyboard: true })
 
+const MAX_INLINE_PHOTOS = 2
 const searchQuery = ref('')
+const viewerImages = ref<ImageViewerImage[]>([])
 
 const searchedTransactions = computed(() => {
   if (!searchQuery.value.trim())
@@ -175,6 +182,28 @@ function getTransactionActions(tx: Transaction): KitDropdownItem[] {
 
   return items
 }
+function getVisibleTransactionPhotos(tx: Transaction): string[] {
+  return (tx.photos || []).slice(0, MAX_INLINE_PHOTOS)
+}
+function getRemainingTransactionPhotosCount(tx: Transaction): number {
+  return Math.max(0, (tx.photos?.length || 0) - MAX_INLINE_PHOTOS)
+}
+function openTransactionPhotos(tx: Transaction, startIndex = 0) {
+  const photos = tx.photos || []
+
+  if (photos.length === 0)
+    return
+
+  const formattedAmt = formatCurrency(tx.amount, tx.currency)
+  viewerImages.value = photos.map((url, idx) => ({
+    url,
+    alt: `${tx.title} — фото ${idx + 1}`,
+    caption: `${tx.title} (-${formattedAmt})${tx.notes ? ` • ${tx.notes}` : ''}`,
+    variants: deriveImageVariants(url),
+  }))
+
+  imageViewer.open(viewerImages.value, startIndex)
+}
 function handleTransactionAction(action: string, tx: Transaction) {
   if (action === 'toggle-status') {
     emit('toggleStatus', tx.id)
@@ -285,6 +314,31 @@ function handleTransactionAction(action: string, tx: Transaction) {
             </div>
 
             <div class="item-amount">
+              <div v-if="tx.photos?.length" class="item-photos" @click.stop>
+                <button
+                  v-for="(photoUrl, photoIdx) in getVisibleTransactionPhotos(tx)"
+                  :key="`${tx.id}-photo-${photoIdx}`"
+                  type="button"
+                  class="tx-photo-thumb"
+                  :title="`Открыть фото (${photoIdx + 1} из ${tx.photos.length})`"
+                  :aria-label="`Открыть фото ${photoIdx + 1} к трате ${tx.title}`"
+                  @click.stop="openTransactionPhotos(tx, photoIdx)"
+                >
+                  <KitImage
+                    :src="photoUrl"
+                    :variants="deriveImageVariants(photoUrl)"
+                    :alt="`${tx.title} — фото ${photoIdx + 1}`"
+                    object-fit="cover"
+                    class="tx-photo-img"
+                  />
+                  <span
+                    v-if="photoIdx === MAX_INLINE_PHOTOS - 1 && getRemainingTransactionPhotosCount(tx) > 0"
+                    class="tx-photo-more-badge"
+                  >
+                    +{{ getRemainingTransactionPhotosCount(tx) }}
+                  </span>
+                </button>
+              </div>
               <div class="amount-group">
                 <span class="original-amount" :class="{ 'is-planned': tx.status === 'planned' }">
                   -{{ formatCurrency(tx.amount, tx.currency) }}
@@ -329,6 +383,18 @@ function handleTransactionAction(action: string, tx: Transaction) {
       <Icon icon="mdi:receipt-text-outline" />
       <p>Трат пока нет. Начните учет, добавив первую запись.</p>
     </div>
+
+    <KitImageViewer
+      v-if="imageViewer.isOpen.value"
+      v-model:visible="imageViewer.isOpen.value"
+      v-model:current-index="imageViewer.currentIndex.value"
+      :images="viewerImages"
+      :show-counter="true"
+      :enable-thumbnails="viewerImages.length > 1"
+      :close-on-overlay-click="true"
+      :show-quality-selector="false"
+      :show-info-button="false"
+    />
   </div>
 </template>
 
@@ -662,8 +728,67 @@ function handleTransactionAction(action: string, tx: Transaction) {
 .item-amount {
   display: flex;
   align-items: center;
-  gap: 1.25rem;
+  gap: 1rem;
   flex-shrink: 0;
+}
+
+.item-photos {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-shrink: 0;
+}
+
+.tx-photo-thumb {
+  position: relative;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  margin: 0;
+  border-radius: var(--r-xs);
+  border: 1px solid var(--border-secondary-color);
+  background-color: var(--bg-tertiary-color);
+  overflow: hidden;
+  cursor: pointer;
+  flex-shrink: 0;
+  outline: none;
+  transition:
+    transform 0.16s ease,
+    border-color 0.16s ease,
+    box-shadow 0.16s ease;
+
+  &:hover,
+  &:focus-visible {
+    transform: scale(1.07);
+    border-color: var(--fg-accent-color);
+    box-shadow: var(--s-xs);
+    z-index: 1;
+  }
+
+  &:active {
+    transform: scale(0.96);
+  }
+
+  .tx-photo-img {
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+}
+
+.tx-photo-more-badge {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.64);
+  backdrop-filter: blur(1.5px);
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
 }
 
 .amount-group {
@@ -740,7 +865,12 @@ function handleTransactionAction(action: string, tx: Transaction) {
 
   .item-amount {
     justify-content: space-between;
+    gap: 0.75rem;
     padding-left: calc(36px + 0.85rem);
+
+    .item-photos + .amount-group {
+      margin-left: auto;
+    }
   }
 
   .item-actions {

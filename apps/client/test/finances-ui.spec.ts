@@ -1,12 +1,15 @@
 import type { FinancesSectionContent, Transaction } from '../src/renderer/components/04.features/trip-info/trip-sections/finances-section/models/types'
+import { FinanceTransactionSchema } from '@injurka/finance-contract'
 import { mount, shallowMount } from '@vue/test-utils'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { defineComponent, h, nextTick } from 'vue'
-import { useFinancesSection } from '../src/renderer/components/04.features/trip-info/trip-sections/finances-section/composables/use-finances-section'
+import { normalizeTransactionPhotos, useFinancesSection } from '../src/renderer/components/04.features/trip-info/trip-sections/finances-section/composables/use-finances-section'
 import Dashboard from '../src/renderer/components/04.features/trip-info/trip-sections/finances-section/ui/components/finances-dashboard.vue'
+import TransactionsList from '../src/renderer/components/04.features/trip-info/trip-sections/finances-section/ui/components/transactions-list.vue'
 import FinancesSection from '../src/renderer/components/04.features/trip-info/trip-sections/finances-section/ui/finances-section.vue'
 
 vi.mock('~/shared/composables/use-confirm', () => ({ useConfirm: () => async () => false }))
+vi.mock('~/plugins/request', () => ({ useRequest: vi.fn(), useRequestStatus: () => ({ value: false }) }))
 vi.mock('@iconify/vue', () => ({ Icon: { render: () => null } }))
 vi.mock('vue-chartjs', () => ({
   Doughnut: { name: 'Doughnut', props: ['data', 'options'], render: () => null },
@@ -14,6 +17,7 @@ vi.mock('vue-chartjs', () => ({
 }))
 // Editors are outside the filtering flow and require API services.
 vi.mock('../src/renderer/components/04.features/trip-info/trip-sections/finances-section/ui/components/ai-finances-creator.vue', () => ({ default: { render: () => null } }))
+vi.mock('../src/renderer/components/04.features/trip-info/trip-sections/finances-section/ui/components/transaction-form-dialog.vue', () => ({ default: { render: () => null } }))
 
 function transaction(
   id: string,
@@ -231,5 +235,84 @@ describe('finance filters and reactive charts', () => {
     await wrapper.find('.reset-filters-btn').trigger('click')
     expect(wrapper.find('.reset-filters-btn').exists()).toBe(false)
     expect(wrapper.find('.is-all').classes()).toContain('active')
+  })
+
+  it('normalizes, clones, and validates transaction photos up to the 3-photo limit', () => {
+    expect(normalizeTransactionPhotos(['  /trips/a.jpg  ', '', '/trips/a.jpg', '/trips/b.jpg', '/trips/c.jpg', '/trips/d.jpg'])).toEqual([
+      '/trips/a.jpg',
+      '/trips/b.jpg',
+      '/trips/c.jpg',
+    ])
+    expect(normalizeTransactionPhotos(['   ', ''])).toBeUndefined()
+
+    const state = useFinancesSection({ section: { id: 'finance', type: 'finances', content: content() }, readonly: false }, vi.fn())
+    state.openTransactionForm()
+    state.saveTransaction({
+      title: 'Ужин с чеком',
+      amount: 1200,
+      currency: 'RUB',
+      categoryId: 'food',
+      photos: [' /trips/r1.jpg ', '/trips/r1.jpg', '/trips/r2.jpg'],
+    })
+
+    const saved = state.transactions.value[0]
+    expect(saved.photos).toEqual(['/trips/r1.jpg', '/trips/r2.jpg'])
+
+    // Editing clones photos array so unsaved mutations do not leak
+    state.openTransactionForm(saved)
+    state.transactionToEdit.value!.photos!.push('/trips/unsaved.jpg')
+    expect(saved.photos).toEqual(['/trips/r1.jpg', '/trips/r2.jpg'])
+
+    // Validating via contract schema
+    expect(FinanceTransactionSchema.safeParse(saved).success).toBe(true)
+    expect(FinanceTransactionSchema.safeParse({
+      ...saved,
+      photos: ['1.jpg', '2.jpg', '3.jpg', '4.jpg'],
+    }).success).toBe(false)
+  })
+
+  it('renders miniature photo thumbnails in transaction rows and opens the image viewer on click', async () => {
+    const initial = content()
+    const listWrapper = mount(TransactionsList, {
+      props: {
+        transactions: [
+          transaction(
+            'tx-3-photos',
+            'food',
+            450,
+            {
+              title: 'Том Ям',
+              notes: 'Чек из кафе',
+              photos: ['/trips/p1.jpg', '/trips/p2.jpg', '/trips/p3.jpg'],
+            },
+          ),
+        ],
+        categories: initial.categories,
+        settings: initial.settings,
+        readonly: true,
+        filteredTotal: 450,
+        statusFilter: 'all',
+      },
+      global: {
+        stubs: {
+          KitImage: { name: 'KitImage', props: ['src', 'alt'], template: '<img class="stub-kit-image" :src="src" :alt="alt" />' },
+          KitImageViewer: { name: 'KitImageViewer', props: ['visible', 'currentIndex', 'images'], template: '<div class="stub-image-viewer" />' },
+        },
+      },
+    })
+    wrappers.push(listWrapper)
+
+    const thumbs = listWrapper.findAll('.tx-photo-thumb')
+    expect(thumbs).toHaveLength(2)
+    expect(thumbs[1].find('.tx-photo-more-badge').text()).toBe('+1')
+    expect(listWrapper.findComponent({ name: 'KitImageViewer' }).exists()).toBe(false)
+
+    await thumbs[1].trigger('click')
+    const viewer = listWrapper.findComponent({ name: 'KitImageViewer' })
+    expect(viewer.exists()).toBe(true)
+    expect(viewer.props('currentIndex')).toBe(1)
+    expect(viewer.props('images')).toHaveLength(3)
+    expect(viewer.props('images')[0].caption).toContain('Том Ям')
+    expect(viewer.props('images')[0].caption).toContain('Чек из кафе')
   })
 })

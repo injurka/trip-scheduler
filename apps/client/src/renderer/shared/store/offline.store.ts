@@ -159,6 +159,16 @@ function collectBookingMedia(content: Record<string, unknown>, urls: Set<string>
   }
 }
 
+function collectFinancesMedia(content: Record<string, unknown>, urls: Set<string>) {
+  if (!Array.isArray(content.transactions))
+    return
+
+  for (const tx of content.transactions.filter(isRecord)) {
+    if (Array.isArray(tx.photos))
+      tx.photos.forEach(url => addOfflineUrl(urls, url))
+  }
+}
+
 function collectMediaSectionUrls(section: unknown, urls: Set<string>) {
   if (!isRecord(section))
     return
@@ -169,6 +179,7 @@ function collectMediaSectionUrls(section: unknown, urls: Set<string>) {
     content.imageUrls.forEach((url: string) => addOfflineUrl(urls, url))
 
   collectBookingMedia(content, urls)
+  collectFinancesMedia(content, urls)
 
   if (typeof content.markdown === 'string')
     addMarkdownUrls(urls, content.markdown)
