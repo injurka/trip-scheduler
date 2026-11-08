@@ -21,6 +21,7 @@ import { useTripMemoriesVault } from '../composables/use-trip-memories-vault'
 import { getTimelineGroupKey, resolveMemoryImageSource } from '../lib'
 import AddActivityDialog from './dialogs/add-activity-dialog.vue'
 import AddNoteDialog from './dialogs/add-note-dialog.vue'
+import GenerateMemoriesDialog from './dialogs/generate-memories-dialog.vue'
 import MemoriesList from './memories-list.vue'
 import DownloadStatusBanner from './state/download-status-banner.vue'
 import MemoriesEmpty from './state/memories-empty.vue'
@@ -36,7 +37,6 @@ const confirm = useConfirm()
 const {
   vaultStore,
   handleDownloadVault,
-  handleToggleLocalMode,
   isNative,
   syncState,
 } = useTripMemoriesVault()
@@ -63,6 +63,7 @@ const cacheQualityOptions = [
   { label: 'Кеш: Оригинал', value: 'original', icon: 'mdi:image-outline' },
 ]
 const isFullScreen = ref(false)
+const isGenerateDialogVisible = ref(false)
 const isAddNoteDialogVisible = ref(false)
 const isAddActivityDialogVisible = ref(false)
 const isNotifyLoading = ref(false)
@@ -251,7 +252,7 @@ async function handleNotifyParticipants() {
 }
 
 onKeyStroke('Escape', (e) => {
-  if (isFullScreen.value && !isAddNoteDialogVisible.value && !isAddActivityDialogVisible.value && !isMemoriesTrackPlayerOpen.value) {
+  if (isFullScreen.value && !isAddNoteDialogVisible.value && !isAddActivityDialogVisible.value && !isGenerateDialogVisible.value && !isMemoriesTrackPlayerOpen.value) {
     e.preventDefault()
     isFullScreen.value = false
   }
@@ -280,23 +281,19 @@ onBeforeUnmount(() => {
           :is-loading="isLoadingMemories || memories.isCreatingMemory || memories.isMutateMemory"
         />
         <div class="controls-wrapper">
+          <KitTooltip v-if="!isViewMode && getSelectedDay?.date" text="Создать воспоминания по рассказу">
+            <button class="control-btn" aria-label="Создать воспоминания по рассказу" @click="isGenerateDialogVisible = true">
+              <Icon icon="mdi:auto-fix" />
+            </button>
+          </KitTooltip>
           <template v-if="isNative">
-            <KitTooltip :text="vaultStore.isLocalMode ? 'Локальный режим включён' : 'Включить локальный режим'">
-              <button
-                class="control-btn local-mode-btn"
-                :class="{ 'is-active': vaultStore.isLocalMode && vaultStore.isConfigured }"
-                @click="handleToggleLocalMode"
-              >
-                <Icon :icon="vaultStore.isLocalMode ? 'mdi:harddisk' : 'mdi:cloud-outline'" />
-              </button>
-            </KitTooltip>
-
             <KitTooltip
-              v-if="memoriesForSelectedDay.length > 0 && vaultStore.isLocalMode"
-              :text="syncState.isDownloading ? 'Скачивание...' : 'Скачать медиа локально'"
+              v-if="memoriesForSelectedDay.some(memory => memory.image)"
+              :text="syncState.isDownloading ? 'Скачивание...' : 'Скачать оригиналы воспоминаний на устройство'"
             >
               <button
                 class="control-btn sync-btn"
+                aria-label="Скачать оригиналы воспоминаний на устройство"
                 :class="{ 'is-active': syncState.isDownloading }"
                 :disabled="syncState.isDownloading"
                 @click="handleDownloadVault"
@@ -446,6 +443,14 @@ onBeforeUnmount(() => {
           </div>
         </div>
       </div>
+
+      <GenerateMemoriesDialog
+        v-if="getSelectedDay && isGenerateDialogVisible"
+        v-model:visible="isGenerateDialogVisible"
+        :day-id="getSelectedDay.id"
+        :existing="memoriesForSelectedDay"
+        @saved="memories.memories = $event"
+      />
 
       <AddNoteDialog
         v-model:visible="isAddNoteDialogVisible"

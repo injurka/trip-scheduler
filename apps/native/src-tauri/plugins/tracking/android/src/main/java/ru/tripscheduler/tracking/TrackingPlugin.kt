@@ -33,7 +33,8 @@ import java.io.File
 
 @TauriPlugin(
     permissions = [
-        Permission(strings = [Manifest.permission.POST_NOTIFICATIONS], alias = "postNotification")
+        Permission(strings = [Manifest.permission.POST_NOTIFICATIONS], alias = "postNotification"),
+        Permission(strings = [Manifest.permission.WRITE_EXTERNAL_STORAGE], alias = "exportStorage")
     ]
 )
 class TrackingPlugin(private val activity: Activity) : Plugin(activity) {
@@ -308,6 +309,101 @@ class TrackingPlugin(private val activity: Activity) : Plugin(activity) {
         } catch (e: Exception) {
             android.util.Log.e("TrackingPlugin", "Failed to open APK installer", e)
             invoke.reject("Failed to open APK installer: ${e.message}")
+        }
+    }
+
+    @Command
+    fun exportMemory(invoke: Invoke) {
+        val args = invoke.getArgs()
+        val fileName = args.getString("fileName") ?: return invoke.reject("Нет имени файла")
+        val url = args.getString("url") ?: return invoke.reject("Нет адреса файла")
+        val mimeType = args.getString("mimeType") ?: "application/octet-stream"
+        if (fileName.contains('/') || fileName.contains('\\') || fileName == "." || fileName == "..") {
+            invoke.reject("Некорректное имя файла")
+            return
+        }
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q && ContextCompat.checkSelfPermission(
+                activity, Manifest.permission.WRITE_EXTERNAL_STORAGE
+            ) != PackageManager.PERMISSION_GRANTED) {
+            requestPermissionForAlias("exportStorage", invoke, "onExportStoragePermissionResult")
+            return
+        }
+        // Network and disk IO must never block the Activity / WebView thread.
+        Thread {
+            val resolver = activity.contentResolver
+            var pendingUri: Uri? = null
+            var connection: java.net.HttpURLConnection? = null
+            var legacyFile: File? = null
+            try {
+                val activeConnection = java.net.URL(url).openConnection() as java.net.HttpURLConnection
+                connection = activeConnection
+                activeConnection.connectTimeout = 30_000
+                activeConnection.readTimeout = 60_000
+                activeConnection.instanceFollowRedirects = true
+                if (activeConnection.responseCode !in 200..299) {
+                    throw java.io.IOException("HTTP ${activeConnection.responseCode}")
+                }
+                val bytes: Long
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    val values = ContentValues().apply {
+                        put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
+                        put(MediaStore.MediaColumns.MIME_TYPE, mimeType)
+                        put(MediaStore.MediaColumns.RELATIVE_PATH, "${Environment.DIRECTORY_DOWNLOADS}/TripScheduler")
+                        put(MediaStore.MediaColumns.IS_PENDING, 1)
+                    }
+                    val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
+                        ?: throw java.io.IOException("Не удалось создать файл в Загрузках")
+                    pendingUri = uri
+                    bytes = resolver.openOutputStream(uri)?.use { output ->
+                        activeConnection.inputStream.use { input -> input.copyTo(output) }
+                    } ?: throw java.io.IOException("Нет доступа для записи файла")
+                    val expected = activeConnection.contentLengthLong
+                    if (expected >= 0 && bytes != expected) {
+                        throw java.io.IOException("Файл скачан не полностью")
+                    }
+                    values.clear()
+                    values.put(MediaStore.MediaColumns.IS_PENDING, 0)
+                    if (resolver.update(uri, values, null, null) != 1) {
+                        throw java.io.IOException("Не удалось завершить сохранение файла")
+                    }
+                    pendingUri = null
+                } else {
+                    val directory = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "TripScheduler")
+                    if (!directory.isDirectory && !directory.mkdirs()) {
+                        throw java.io.IOException("Не удалось создать папку Загрузок")
+                    }
+                    val file = File(directory, fileName)
+                    if (!file.createNewFile()) {
+                        throw java.io.IOException("Файл уже существует")
+                    }
+                    legacyFile = file
+                    bytes = file.outputStream().use { output ->
+                        activeConnection.inputStream.use { input -> input.copyTo(output) }
+                    }
+                    val expected = activeConnection.contentLengthLong
+                    if (expected >= 0 && bytes != expected) {
+                        throw java.io.IOException("Файл скачан не полностью")
+                    }
+                    android.media.MediaScannerConnection.scanFile(activity, arrayOf(file.absolutePath), arrayOf(mimeType), null)
+                    legacyFile = null
+                }
+                invoke.resolveObject(bytes)
+            } catch (e: Exception) {
+                pendingUri?.let { uri -> runCatching { resolver.delete(uri, null, null) } }
+                legacyFile?.delete()
+                invoke.reject("Не удалось сохранить воспоминание: ${e.message}")
+            } finally {
+                connection?.disconnect()
+            }
+        }.start()
+    }
+
+    @PermissionCallback
+    private fun onExportStoragePermissionResult(invoke: Invoke) {
+        if (ContextCompat.checkSelfPermission(activity, Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED) {
+            exportMemory(invoke)
+        } else {
+            invoke.reject("Разрешите сохранение файлов в память устройства и повторите скачивание")
         }
     }
 

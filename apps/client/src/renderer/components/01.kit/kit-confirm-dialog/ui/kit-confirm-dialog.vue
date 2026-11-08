@@ -26,13 +26,32 @@ const emit = defineEmits<{
   (e: 'confirm'): void
   (e: 'cancel'): void
 }>()
+
+let returnFocus: HTMLElement | null = null
+
+function handleOpenAutoFocus() {
+  returnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null
+}
+
+function handleCloseAutoFocus(event: Event) {
+  event.preventDefault()
+
+  if (returnFocus?.isConnected)
+    returnFocus.focus({ preventScroll: true })
+
+  returnFocus = null
+}
 </script>
 
 <template>
   <AlertDialogRoot :open="props.open">
     <AlertDialogPortal>
       <AlertDialogOverlay class="dialog-overlay" />
-      <AlertDialogContent class="dialog-content-wrapper">
+      <AlertDialogContent
+        class="dialog-content-wrapper"
+        @open-auto-focus="handleOpenAutoFocus"
+        @close-auto-focus="handleCloseAutoFocus"
+      >
         <AlertDialogTitle class="dialog-title">
           {{ props.title }}
         </AlertDialogTitle>

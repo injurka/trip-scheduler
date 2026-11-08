@@ -17,6 +17,10 @@ const ANDROID_APP_GRADLE_PATH = resolve(
   import.meta.dirname,
   '../src-tauri/gen/android/app/build.gradle.kts',
 )
+const GRADLE_WRAPPER_PROPERTIES_PATH = resolve(
+  import.meta.dirname,
+  '../src-tauri/gen/android/gradle/wrapper/gradle-wrapper.properties',
+)
 const FIREBASE_CONFIG_SOURCE = process.env.FIREBASE_ANDROID_CONFIG_PATH
   ? resolve(process.env.FIREBASE_ANDROID_CONFIG_PATH)
   : resolve(import.meta.dirname, '../firebase/google-services.json')
@@ -240,6 +244,30 @@ export function addFirebaseGradlePlugin(content: string, version?: string): stri
   return content.slice(0, insertionPoint) + declaration + content.slice(insertionPoint)
 }
 
+export function configureGradleWrapperProperties(content: string, timeoutMs = 60_000): string {
+  const timeoutPattern = /^networkTimeout\s*=\s*\d+[ \t]*$/m
+  if (timeoutPattern.test(content))
+    return content.replace(timeoutPattern, `networkTimeout=${timeoutMs}`)
+
+  const trimmed = content.trimEnd()
+  return `${trimmed}\nnetworkTimeout=${timeoutMs}\n`
+}
+
+export function configureAndroidGradleWrapper(): boolean {
+  if (!existsSync(GRADLE_WRAPPER_PROPERTIES_PATH)) {
+    console.log('[configure-android] gradle-wrapper.properties not found yet, skipping.')
+    return false
+  }
+
+  const content = readFileSync(GRADLE_WRAPPER_PROPERTIES_PATH, 'utf-8')
+  const updated = configureGradleWrapperProperties(content)
+  if (updated !== content) {
+    writeFileSync(GRADLE_WRAPPER_PROPERTIES_PATH, updated, 'utf-8')
+    console.log('[configure-android] Configured Gradle wrapper networkTimeout.')
+  }
+  return true
+}
+
 export function configureAndroidFirebase(): boolean {
   if (!existsSync(ANDROID_BUILD_GRADLE_PATH) || !existsSync(ANDROID_APP_GRADLE_PATH)) {
     console.log('[configure-android] Generated Android Gradle project not found yet; run `tauri android init` first.')
@@ -279,5 +307,6 @@ export function configureAndroidFirebase(): boolean {
 
 if (import.meta.main) {
   configureAndroidManifest()
+  configureAndroidGradleWrapper()
   configureAndroidFirebase()
 }

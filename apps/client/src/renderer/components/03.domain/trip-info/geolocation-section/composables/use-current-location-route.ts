@@ -1,6 +1,7 @@
 import type { Ref } from 'vue'
 import type { Coordinate, MapRoute } from '../models/types'
 import type { useGeolocationMap } from './use-geolocation-map'
+import { getErrorMessage } from '@injurka/type-utils'
 import { onBeforeUnmount, ref } from 'vue'
 import { useToast } from '~/shared/composables/use-toast'
 import { routingService } from '~/shared/services/geo'
@@ -60,7 +61,7 @@ export function useCurrentLocationRoute(controller: Ref<ReturnType<typeof useGeo
     }
     catch (error) {
       if (!disposed)
-        useToast().error(error instanceof Error ? error.message : 'Не удалось построить маршрут от GPS-позиции.')
+        useToast().error(getErrorMessage(error))
     }
     finally {
       isLocating.value = false

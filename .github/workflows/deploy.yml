@@ -280,6 +280,34 @@ jobs:
       - name: Configure Android Permissions
         run: bun run --cwd apps/native configure:android
 
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('apps/native/src-tauri/gen/android/gradle/wrapper/gradle-wrapper.properties', 'apps/native/src-tauri/gen/android/**/*.gradle*', 'apps/native/src-tauri/plugins/**/android/**/*.gradle*') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
+      - name: Warm up Gradle Wrapper
+        shell: bash
+        run: |
+          cd apps/native/src-tauri/gen/android
+          chmod +x ./gradlew
+          for attempt in 1 2 3; do
+            if ./gradlew --version; then
+              exit 0
+            fi
+            echo "::warning::Gradle wrapper download/init failed (attempt $attempt/3)"
+            rm -rf ~/.gradle/wrapper/dists/*/*.part ~/.gradle/wrapper/dists/*/*.lck 2>/dev/null || true
+            if [ "$attempt" -lt 3 ]; then
+              sleep 10
+            fi
+          done
+          echo "::error::Failed to initialize Gradle wrapper after 3 attempts"
+          exit 1
+
       - name: Generate Android Icons
         run: |
           cd apps/native

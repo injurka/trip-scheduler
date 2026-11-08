@@ -23,6 +23,21 @@ const props = withDefaults(defineProps<Props>(), {
   width: '340px',
 })
 const visible = defineModel<boolean>('open', { required: true })
+
+let returnFocus: HTMLElement | null = null
+
+function handleOpenAutoFocus() {
+  returnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null
+}
+
+function handleCloseAutoFocus(event: Event) {
+  event.preventDefault()
+
+  if (returnFocus?.isConnected)
+    returnFocus.focus({ preventScroll: true })
+
+  returnFocus = null
+}
 </script>
 
 <template>
@@ -33,6 +48,8 @@ const visible = defineModel<boolean>('open', { required: true })
         class="drawer-content-wrapper"
         :class="[`drawer--${side}`, props.class]"
         :style="{ width: props.width }"
+        @open-auto-focus="handleOpenAutoFocus"
+        @close-auto-focus="handleCloseAutoFocus"
         @pointer-down-outside="(event) => {
           const originalEvent = event.detail.originalEvent
           const target = originalEvent.target as HTMLElement

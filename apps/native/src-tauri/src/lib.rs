@@ -169,6 +169,75 @@ fn vault_delete_file(app: tauri::AppHandle, relative_path: String) {
     }
 }
 
+/// A destination selected for this export, independent of the offline vault.
+#[tauri::command]
+async fn memory_export_folder(app: tauri::AppHandle) -> Option<String> {
+    #[cfg(desktop)]
+    {
+        app.dialog().file()
+            .set_title("Выберите папку для скачивания воспоминаний")
+            .blocking_pick_folder().map(|path| path.to_string())
+    }
+    #[cfg(mobile)]
+    {
+        let _ = app;
+        Some("Downloads/TripScheduler".to_string())
+    }
+}
+
+#[tauri::command]
+async fn memory_export_file(
+    app: tauri::AppHandle,
+    folder: String,
+    url: String,
+    file_name: String,
+    mime_type: String,
+) -> Result<u64, String> {
+    // Filenames must be single path components on every supported platform.
+    if file_name.is_empty() || file_name.contains(['/', '\\']) || file_name == "." || file_name == ".." {
+        return Err("Invalid filename".into());
+    }
+    #[cfg(mobile)]
+    {
+        use tauri_plugin_tracking::TrackingExt;
+        let _ = folder;
+        app.tracking().export_memory(serde_json::json!({
+            "url": url, "fileName": file_name, "mimeType": mime_type
+        })).map_err(|e| e.to_string())
+    }
+    #[cfg(desktop)]
+    {
+        let _ = (app, mime_type);
+        let destination = safe_vault_path(&folder, &file_name)?;
+        // Never truncate an existing original. Each export uses a unique filename.
+        let mut output = fs::OpenOptions::new().write(true).create_new(true)
+            .open(&destination).map_err(|e| e.to_string())?;
+        let result: Result<u64, String> = async {
+            use std::io::Write;
+            let client = reqwest::Client::builder().timeout(std::time::Duration::from_secs(600))
+                .build().map_err(|e| e.to_string())?;
+            let mut response = client.get(url).send().await.map_err(|e| e.to_string())?
+                .error_for_status().map_err(|e| e.to_string())?;
+            let expected = response.content_length();
+            let mut bytes = 0u64;
+            while let Some(chunk) = response.chunk().await.map_err(|e| e.to_string())? {
+                output.write_all(&chunk).map_err(|e| e.to_string())?;
+                bytes += chunk.len() as u64;
+            }
+            if expected.is_some_and(|size| size != bytes) {
+                return Err("Incomplete download".into());
+            }
+            output.sync_all().map_err(|e| e.to_string())?;
+            Ok(bytes)
+        }.await;
+        drop(output);
+        if result.is_err() {
+            let _ = fs::remove_file(destination);
+        }
+        result
+    }
+}
+
 #[derive(Clone, serde::Serialize)]
 struct DownloadProgressPayload {
     downloaded: u64,
@@ -525,6 +594,8 @@ pub fn run() {
             vault_check_files,
             vault_download_file,
             vault_delete_file,
+            memory_export_folder,
+            memory_export_file,
             download_app_update,
             open_downloaded_apk,
             install_app_update,

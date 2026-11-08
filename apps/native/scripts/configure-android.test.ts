@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { addFirebaseGradlePlugin, configureAndroidKotlin } from './configure-android'
+import { addFirebaseGradlePlugin, configureAndroidKotlin, configureGradleWrapperProperties } from './configure-android'
 
 const ROOT_BUILD = `buildscript {
     repositories {
@@ -93,5 +93,24 @@ describe('Firebase Gradle configuration', () => {
   test('identifies the unsupported Gradle file in the error', () => {
     expect(() => addFirebaseGradlePlugin('allprojects {}', '4.5.0')).toThrow('root Android Gradle file')
     expect(() => addFirebaseGradlePlugin('android {}')).toThrow('app Android Gradle file')
+  })
+})
+
+describe('Gradle wrapper timeout configuration', () => {
+  const WRAPPER_PROPS = `distributionBase=GRADLE_USER_HOME
+distributionPath=wrapper/dists
+distributionUrl=https\\://services.gradle.org/distributions/gradle-8.14.3-bin.zip
+zipStoreBase=GRADLE_USER_HOME
+zipStorePath=wrapper/dists
+`
+
+  test('updates existing networkTimeout or appends it if missing', () => {
+    const withDefault = `${WRAPPER_PROPS}networkTimeout=10000\n`
+    expect(configureGradleWrapperProperties(withDefault)).toContain('networkTimeout=60000\n')
+    expect(configureGradleWrapperProperties(withDefault)).not.toContain('10000')
+
+    const withoutTimeout = configureGradleWrapperProperties(WRAPPER_PROPS)
+    expect(withoutTimeout).toContain('networkTimeout=60000\n')
+    expect(configureGradleWrapperProperties(withoutTimeout)).toBe(withoutTimeout)
   })
 })

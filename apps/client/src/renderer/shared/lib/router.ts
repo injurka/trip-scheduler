@@ -283,6 +283,9 @@ const scrollBehavior: RouterScrollBehavior = (to, from, savedPosition) => {
     return savedPosition
   }
 
+  if (to.path === from.path)
+    return false
+
   return { top: 0 }
 }
 

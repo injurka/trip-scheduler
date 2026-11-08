@@ -6,6 +6,7 @@ import { Icon } from '@iconify/vue'
 import { useFullscreen, useMediaQuery } from '@vueuse/core'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitSelectWithSearch } from '~/components/01.kit/kit-select-with-search'
+import { useCurrentLocationRoute } from '~/components/03.domain/trip-info/geolocation-section/composables/use-current-location-route'
 import GeolocationMap from '~/components/03.domain/trip-info/geolocation-section/ui/geolocation-map.vue'
 import { timeToMinutes } from '~/shared/lib/date-time'
 import { EActivitySectionType } from '~/shared/types/models/activity'
@@ -40,6 +41,9 @@ const { isFullscreen: isNativeFullscreen, isSupported: isFullscreenSupported, to
 
 const isCustomFullscreen = ref(false)
 const mapController = ref<ReturnType<typeof useGeolocationMap>>()
+
+const { routeTo, isLocating, navigationRoute, clearNavigation } = useCurrentLocationRoute(mapController)
+
 const selectedDayId = ref('all')
 const selectedItemId = ref<string | null>(null)
 const isSidebarVisible = ref(!isSmallScreen.value)
@@ -159,6 +163,7 @@ const geolocationMapPoints = computed<MapPoint[]>(() => {
 
   return [...filteredPoints.value, ...routePoints]
 })
+const selectedPoint = computed(() => geolocationMapPoints.value.find(point => point.id === selectedItemId.value))
 const geolocationMapRoutes = computed<MapRoute[]>(() => filteredRoutes.value)
 
 async function handleToggleFullscreen() {
@@ -395,14 +400,31 @@ function focusOnItem(item: MapPoint | MapRoute) {
 
             <div class="details-header">
               <h4>Активность: {{ selectedActivity.title }}</h4>
-              <KitBtn
-                icon="mdi:close"
-                variant="text"
-                size="sm"
-                @click="selectedItemId = null"
-              />
+              <div class="details-header-actions">
+                <KitBtn
+                  v-if="selectedPoint"
+                  icon="mdi:directions"
+                  size="sm"
+                  :disabled="isLocating"
+                  @click="selectedPoint && routeTo(selectedPoint.coordinates)"
+                >
+                  {{ isLocating ? 'Определяем GPS…' : 'Пешком отсюда' }}
+                </KitBtn>
+                <KitBtn
+                  icon="mdi:close"
+                  variant="text"
+                  size="sm"
+                  @click="selectedItemId = null"
+                />
+              </div>
             </div>
             <div class="details-content">
+              <div v-if="navigationRoute" class="details-navigation-banner">
+                <span>От GPS · {{ ((navigationRoute.distance || 0) / 1000).toFixed(1) }} км · {{ Math.ceil((navigationRoute.duration || 0) / 60) }} мин</span>
+                <KitBtn variant="text" size="sm" @click="clearNavigation">
+                  Убрать маршрут
+                </KitBtn>
+              </div>
               <TripMapDetailsItem :activity="selectedActivity" />
             </div>
           </div>
@@ -680,12 +702,33 @@ function focusOnItem(item: MapPoint | MapRoute) {
       overflow: hidden;
       text-overflow: ellipsis;
     }
+
+    .details-header-actions {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-shrink: 0;
+    }
   }
 
   .details-content {
     overflow-y: auto;
     padding: 1rem;
     flex: 1;
+  }
+
+  .details-navigation-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 12px;
+    padding: 6px 10px;
+    border-radius: var(--r-s);
+    background-color: rgba(var(--bg-tertiary-color-rgb), 0.7);
+    border: 1px solid var(--border-secondary-color);
+    font-size: 0.85rem;
+    color: var(--fg-primary-color);
   }
 }
 

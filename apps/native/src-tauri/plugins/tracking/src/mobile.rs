@@ -71,6 +71,10 @@ impl<R: Runtime> Tracking<R> {
         self.0.run_mobile_plugin("installApk", payload).map_err(Into::into)
     }
 
+    pub fn export_memory(&self, payload: serde_json::Value) -> Result<u64> {
+        self.0.run_mobile_plugin("exportMemory", payload).map_err(Into::into)
+    }
+
     pub fn open_kmz_in_maps_me(&self, payload: OpenKmzPayload) -> Result<OpenKmzResult> {
         self.0.run_mobile_plugin("openKmzInMapsMe", payload).map_err(Into::into)
     }

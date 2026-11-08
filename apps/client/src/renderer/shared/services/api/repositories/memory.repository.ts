@@ -1,6 +1,6 @@
-import type { RouterInput } from '~/shared/types/trpc'
 import type { IMemoryRepository } from '../model/types'
 import type { CreateMemoryInput, Memory, MemoryProposal, UpdateMemoryInput } from '~/shared/types/models/memory'
+import type { RouterInput } from '~/shared/types/trpc'
 import { trpc } from '~/shared/services/trpc/trpc.service'
 import { throttle } from '../lib/decorators'
 

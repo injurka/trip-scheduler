@@ -111,7 +111,7 @@ onMounted(() => {
         if (currentScrollY > lastScrollY.value && currentScrollY > 100) {
           isHeaderVisible.value = false
         }
-        else {
+        else if (currentScrollY < lastScrollY.value || currentScrollY <= 100) {
           isHeaderVisible.value = true
         }
 

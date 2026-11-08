@@ -5,19 +5,34 @@ import GenerateDialog from '../src/renderer/components/04.features/trip-info/tri
 const api = vi.hoisted(() => ({ generate: vi.fn(), applyGenerated: vi.fn() }))
 vi.mock('~/plugins/request', () => ({
   useRequest: async (options: { fn: (db: unknown) => Promise<unknown>, onSuccess: (data: unknown) => void, onError: (error: unknown) => void }) => {
-    try { options.onSuccess(await options.fn({ memories: api })) }
-    catch { options.onError({ error: { customMessage: 'Ошибка сервера' } }) }
+    try {
+      options.onSuccess(await options.fn({ memories: api }))
+    }
+    catch {
+      options.onError({ error: { customMessage: 'Ошибка сервера' } })
+    }
   },
 }))
 vi.mock('~/components/01.kit/kit-dialog-with-close', () => ({ KitDialogWithClose: { template: '<div><slot /></div>' } }))
 vi.mock('~/components/01.kit/kit-btn', () => ({ KitBtn: { template: '<button><slot /></button>' } }))
-vi.mock('~/components/01.kit/kit-input', () => ({ KitInput: {
-  props: ['modelValue'], emits: ['update:modelValue'],
-  template: '<textarea :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" />',
-} }))
+vi.mock('~/components/01.kit/kit-input', () => ({
+  KitInput: {
+    props: ['modelValue'],
+    emits: ['update:modelValue'],
+    template: '<textarea :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" />',
+  },
+}))
 vi.mock('~/components/01.kit/kit-markdown-viewer', () => ({ KitMarkdownViewer: { props: ['markdown'], template: '<div>{{ markdown }}</div>' } }))
 
-const block = { type: 'activity', targetId: null, title: 'Прогулка', comment: 'Гуляли у моря.', time: '10:00', timeEstimated: true, tag: 'walk' }
+const block = {
+  type: 'activity',
+  targetId: null,
+  title: 'Прогулка',
+  comment: 'Гуляли у моря.',
+  time: '10:00',
+  timeEstimated: true,
+  tag: 'walk',
+}
 const dayId = '405a53ea-0ccb-4a64-aaaf-a19103b276af'
 beforeEach(() => {
   vi.clearAllMocks()
