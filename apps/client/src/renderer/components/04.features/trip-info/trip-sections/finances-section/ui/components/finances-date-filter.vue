@@ -237,7 +237,7 @@ function handleReset() {
           <!-- Календарь на всю ширину экрана -->
           <div class="calendar-container">
             <KitCalendarRange
-              v-model="(draftCalendarModel as any)"
+              v-model="draftCalendarModel"
               :full-width="true"
               :min-value="(props.minValue as any)"
               :max-value="(props.maxValue as any)"
@@ -326,7 +326,7 @@ function handleReset() {
 
               <!-- Календарь -->
               <KitCalendarRange
-                v-model="(draftCalendarModel as any)"
+                v-model="draftCalendarModel"
                 :min-value="(props.minValue as any)"
                 :max-value="(props.maxValue as any)"
                 :initial-focus-date="(focusDate as any)"
