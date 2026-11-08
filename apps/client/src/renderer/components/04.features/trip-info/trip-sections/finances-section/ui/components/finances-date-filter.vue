@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { DateValue } from '@internationalized/date'
 import {
   endOfMonth,
   getLocalTimeZone,
@@ -17,8 +18,6 @@ import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitCalendarRange } from '~/components/01.kit/kit-calendar-range'
 import { useDisplay } from '~/shared/composables/use-display'
 import { formatDate } from '~/shared/lib/date-time'
-
-type DateValue = Parameters<typeof startOfMonth>[0]
 
 interface DateFilterValue {
   start: string | null
@@ -239,9 +238,9 @@ function handleReset() {
             <KitCalendarRange
               v-model="draftCalendarModel"
               :full-width="true"
-              :min-value="(props.minValue as any)"
-              :max-value="(props.maxValue as any)"
-              :initial-focus-date="(focusDate as any)"
+              :min-value="props.minValue"
+              :max-value="props.maxValue"
+              :initial-focus-date="focusDate"
             />
           </div>
         </div>
@@ -327,9 +326,9 @@ function handleReset() {
               <!-- Календарь -->
               <KitCalendarRange
                 v-model="draftCalendarModel"
-                :min-value="(props.minValue as any)"
-                :max-value="(props.maxValue as any)"
-                :initial-focus-date="(focusDate as any)"
+                :min-value="props.minValue"
+                :max-value="props.maxValue"
+                :initial-focus-date="focusDate"
               />
 
               <!-- Кнопки действий -->
