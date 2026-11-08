@@ -1,14 +1,8 @@
 /* eslint-disable no-console */
 import type { Pinia } from 'pinia'
 import { useRegisterSW } from 'virtual:pwa-register/vue'
+import { isAppOnline } from '~/shared/lib/connectivity'
 import { usePwaStore } from '~/shared/store/pwa.store'
-
-function isOnline(): boolean {
-  if (!navigator || !navigator.onLine)
-    return false
-
-  return !('connection' in navigator) || navigator.onLine
-}
 
 async function isServiceWorkerScriptAvailable(swUrl?: string): Promise<boolean> {
   if (!swUrl)
@@ -33,7 +27,7 @@ async function updateCurrentServiceWorker(): Promise<void> {
 }
 
 async function checkForServiceWorkerUpdate(swUrl?: string): Promise<void> {
-  if (!isOnline())
+  if (!isAppOnline())
     return
 
   try {

@@ -2,7 +2,8 @@
 import { AspectRatio } from 'reka-ui'
 import { computed, nextTick, onBeforeUnmount, readonly, ref, watch } from 'vue'
 import smthWrongImage from '~/assets/images/smth-wrong.png'
-import { KitSkeleton } from '~/components/01.kit/kit-skeleton'
+import { KitBtn } from '~/components/01.kit/kit-btn'
+import { useConnectivity } from '~/shared/lib/connectivity'
 import { getOfflineImageUrl } from '~/shared/lib/offline-cache'
 import { getThumbHashAverageColor, getThumbHashDataUrl } from '~/shared/lib/thumbhash'
 import { resolveApiUrl } from '~/shared/lib/url'
@@ -48,44 +49,23 @@ const props = withDefaults(defineProps<Props>(), {
   loadTimeout: 0,
 })
 
+const { isOnline } = useConnectivity()
+
 const isLoading = ref(true)
 const hasError = ref(false)
+
+defineExpose({
+  isLoading: readonly(isLoading),
+  hasError: readonly(hasError),
+  retry,
+})
+
+const previewLoaded = ref(false)
 const isAborted = ref(false)
 const retryCount = ref(0)
 const cachedSrc = ref<string | null>(null)
 let cacheRequest = 0
 const imageRef = ref<HTMLImageElement | null>(null)
-
-defineExpose({
-  isLoading: readonly(isLoading),
-  hasError: readonly(hasError),
-  retry: () => {
-    if (props.src && hasError.value) {
-      isLoading.value = true
-      hasError.value = false
-      isAborted.value = false
-      retryCount.value++
-
-      nextTick(() => {
-        if (imageRef.value) {
-          if (imageRef.value.complete && imageRef.value.naturalWidth > 0) {
-            handleLoad()
-
-            return
-          }
-
-          if (props.loading === 'eager') {
-            setLoadTimeout()
-          }
-          else {
-            setupIntersectionObserver()
-          }
-        }
-      })
-    }
-  },
-})
-
 const loadTimeoutId = ref<ReturnType<typeof setTimeout> | undefined>()
 const imageObserver = ref<IntersectionObserver | undefined>()
 
@@ -101,6 +81,7 @@ const resolvedVariants = computed(() => {
 })
 const resolvedSrc = computed(() => resolveApiUrl(props.src))
 const imageSourceKey = computed(() => JSON.stringify([
+  isOnline.value,
   resolvedSrc.value,
   resolvedVariants.value.small,
   resolvedVariants.value.medium,
@@ -108,6 +89,7 @@ const imageSourceKey = computed(() => JSON.stringify([
 ]))
 const activeThumbhash = computed(() => props.thumbhash || props.variants?.thumbhash || null)
 const thumbHashDataUrl = computed(() => getThumbHashDataUrl(activeThumbhash.value))
+const hasPreview = computed(() => previewLoaded.value || !!thumbHashDataUrl.value)
 const thumbHashAvgColor = computed(() => getThumbHashAverageColor(activeThumbhash.value))
 const imageStyle = computed(() => {
   const isLoaded = !isLoading.value && !hasError.value
@@ -124,9 +106,10 @@ const imageStyle = computed(() => {
 watch(imageSourceKey, () => {
   releaseCachedSrc()
 
-  if (typeof navigator !== 'undefined' && !navigator.onLine)
+  if (!isOnline.value)
     void restoreCachedImage()
 
+  previewLoaded.value = false
   isLoading.value = true
   hasError.value = false
   isAborted.value = false
@@ -158,6 +141,31 @@ watch(imageSourceKey, () => {
   })
 }, { immediate: true })
 
+function retry() {
+  if (props.src && hasError.value) {
+    isLoading.value = true
+    hasError.value = false
+    isAborted.value = false
+    retryCount.value++
+
+    nextTick(() => {
+      if (imageRef.value) {
+        if (imageRef.value.complete && imageRef.value.naturalWidth > 0) {
+          handleLoad()
+
+          return
+        }
+
+        if (props.loading === 'eager') {
+          setLoadTimeout()
+        }
+        else {
+          setupIntersectionObserver()
+        }
+      }
+    })
+  }
+}
 function releaseCachedSrc() {
   cacheRequest++
 
@@ -193,8 +201,8 @@ async function restoreCachedImage() {
 
   return false
 }
-function handleLoad() {
-  if (isAborted.value)
+function handleLoad(event?: Event) {
+  if ((event && event.target !== imageRef.value) || isAborted.value)
     return
 
   clearLoadTimeout()
@@ -202,11 +210,16 @@ function handleLoad() {
   isLoading.value = false
   hasError.value = false
 }
-async function handleError() {
-  if (isAborted.value)
+async function handleError(event?: Event) {
+  if ((event && event.target !== imageRef.value) || isAborted.value)
     return
 
+  const sourceKey = imageSourceKey.value
+
   if (!cachedSrc.value && await restoreCachedImage())
+    return
+
+  if (sourceKey !== imageSourceKey.value)
     return
 
   clearLoadTimeout()
@@ -277,7 +290,7 @@ onBeforeUnmount(() => {
     <div class="kit-image-container">
       <transition name="faded">
         <div
-          v-if="isLoading"
+          v-if="isLoading || (hasError && hasPreview)"
           class="placeholder-wrapper"
           :style="thumbHashAvgColor ? { backgroundColor: thumbHashAvgColor } : undefined"
         >
@@ -289,13 +302,13 @@ onBeforeUnmount(() => {
               :style="{ objectFit: props.objectFit }"
               alt=""
             >
-            <KitSkeleton v-else class="skeleton-placeholder" />
+            <div v-else-if="!previewLoaded" class="neutral-placeholder" aria-hidden="true" />
           </slot>
         </div>
       </transition>
 
       <transition name="faded">
-        <div v-if="hasError" class="placeholder-wrapper">
+        <div v-if="hasError && !hasPreview" class="placeholder-wrapper">
           <slot name="error">
             <div class="error-placeholder">
               <img :src="smthWrongImage" alt="Ошибка загрузки" class="error-image">
@@ -304,25 +317,45 @@ onBeforeUnmount(() => {
         </div>
       </transition>
 
+      <img
+        v-if="isOnline && resolvedVariants.small && (resolvedVariants.medium || resolvedVariants.large)"
+        :key="resolvedVariants.small"
+        :src="resolvedVariants.small"
+        class="image-preview"
+        :class="{ 'is-loaded': previewLoaded }"
+        :style="{ objectFit: props.objectFit }"
+        :loading="loading"
+        alt=""
+        aria-hidden="true"
+        @load="previewLoaded = true"
+      >
+      <KitBtn
+        v-if="hasError"
+        class="image-retry"
+        size="xs"
+        icon="mdi:refresh"
+        aria-label="Повторить загрузку изображения"
+        @click.stop="retry"
+      />
       <picture v-if="src && !isAborted" :key="`${imageSourceKey}:${retryCount}`">
         <source
-          v-if="!cachedSrc && resolvedVariants.large"
+          v-if="isOnline && !cachedSrc && resolvedVariants.large"
           :srcset="resolvedVariants.large"
           media="(min-width: 1200px)"
         >
         <source
-          v-if="!cachedSrc && resolvedVariants.medium"
+          v-if="isOnline && !cachedSrc && resolvedVariants.medium"
           :srcset="resolvedVariants.medium"
           media="(min-width: 600px)"
         >
         <source
-          v-if="!cachedSrc && resolvedVariants.small"
+          v-if="isOnline && !cachedSrc && resolvedVariants.small"
           :srcset="resolvedVariants.small"
         >
 
         <img
           ref="imageRef"
-          :src="cachedSrc || resolvedVariants.small || resolvedSrc"
+          :src="cachedSrc || (isOnline ? resolvedVariants.small || resolvedSrc : undefined)"
           class="image"
           :alt="alt"
           :loading="loading"
@@ -359,9 +392,10 @@ onBeforeUnmount(() => {
     width: 100%;
     height: 100%;
 
-    .skeleton-placeholder {
-      width: 100% !important;
-      height: 100% !important;
+    .neutral-placeholder {
+      width: 100%;
+      height: 100%;
+      background: var(--bg-tertiary-color);
     }
 
     .thumbhash-placeholder {
@@ -369,6 +403,26 @@ onBeforeUnmount(() => {
       height: 100%;
       pointer-events: none;
     }
+  }
+
+  .image-preview {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    pointer-events: none;
+
+    &.is-loaded {
+      opacity: 1;
+    }
+  }
+
+  .image-retry {
+    position: absolute;
+    right: 8px;
+    bottom: 8px;
+    z-index: 1;
   }
 
   .image {

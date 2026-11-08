@@ -15,7 +15,6 @@ export interface MemoryImageSource {
 export type MemoryMediaSource = MemoryImageSource
 
 interface VaultContext {
-  isLocalMode: boolean
   isConfigured: boolean
   localFilesSet: Set<string>
   getRelPath: (tripId: string, imageId: string, dayId?: string) => string
@@ -40,7 +39,7 @@ function getLocalMemorySource(
   tripId: string | null,
   dayId: string | undefined,
 ): MemoryImageSource | null {
-  if (!vault.isLocalMode || !vault.isConfigured || !tripId || !dayId)
+  if (!vault.isConfigured || !tripId || !dayId)
     return null
 
   const relPath = vault.getRelPath(tripId, image.id, dayId)

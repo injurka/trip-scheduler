@@ -403,6 +403,12 @@ async fn tracking_get_buffered(
 }
 
 #[tauri::command]
+async fn tracking_ack_buffered(app: tauri::AppHandle, timestamps: Vec<i64>) -> Result<bool, String> {
+    use tauri_plugin_tracking::TrackingExt;
+    app.tracking().acknowledge_buffered_locations(timestamps).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
 async fn tracking_get_push_token(
     app: tauri::AppHandle,
 ) -> Result<String, String> {
@@ -527,6 +533,7 @@ pub fn run() {
             tracking_stop,
             tracking_is_running,
             tracking_get_buffered,
+            tracking_ack_buffered,
             tracking_get_push_token,
             tracking_check_permissions,
             tracking_request_notification_permission,

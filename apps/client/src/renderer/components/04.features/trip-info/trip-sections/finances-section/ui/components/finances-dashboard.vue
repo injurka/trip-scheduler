@@ -4,13 +4,12 @@ import type { ViewSwitcherItem } from '~/components/01.kit/kit-view-switcher'
 import { Icon } from '@iconify/vue'
 import { useMutationObserver } from '@vueuse/core'
 import { ArcElement, BarElement, CategoryScale, Chart as ChartJS, Legend, LinearScale, Title, Tooltip } from 'chart.js'
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { Bar, Doughnut } from 'vue-chartjs'
 import { KitViewSwitcher } from '~/components/01.kit/kit-view-switcher'
 import { useCurrencyFormatter } from '../../composables/use-currency-formatter'
 
 type DisplayTooltip = Pick<TooltipModel<'bar' | 'doughnut'>, 'title' | 'body' | 'caretX' | 'caretY' | 'xAlign' | 'yAlign' | 'opacity'>
-
 interface CategorySpendingItem {
   id?: string
   name: string
@@ -158,6 +157,7 @@ const doughnutChartData = computed(() => {
     ],
   }
 })
+const doughnutTotal = computed(() => doughnutChartItems.value.reduce((sum, item) => sum + item.value, 0))
 const hasDoughnutData = computed(() => doughnutChartData.value.datasets[0].data.length > 0)
 const emptyChartMessage = computed(() => {
   if (props.statusFilter === 'planned')
@@ -190,9 +190,7 @@ const doughnutChartOptions = computed(() => ({
         },
         label: (context: TooltipItem<'doughnut'>) => {
           const val = context.parsed || 0
-          const base = props.statusFilter === 'planned'
-            ? (effectivePlannedTotal.value || 1)
-            : (isDoughnutPlanMode.value ? effectiveOverallBudget.value : (effectivePaidTotal.value || 1))
+          const base = doughnutTotal.value
           const pct = Number(((val / (base || 1)) * 100).toFixed(1))
 
           return `${formatCurrency(val, props.mainCurrency)} (${pct}%)`
@@ -205,6 +203,9 @@ const doughnutChartOptions = computed(() => ({
       const itemIndex = elements[0].index
       const targetItem = doughnutChartItems.value[itemIndex]
       hoveredIndex.value = targetItem ? targetItem.spendingCategoryIndex : null
+    }
+    else {
+      hoveredIndex.value = null
     }
   },
 }))
@@ -284,6 +285,10 @@ const barChartOptions = computed(() => ({
   },
 }))
 
+watch(doughnutChartData, () => {
+  hoveredIndex.value = null
+})
+
 function getStatusValue(category: CategorySpendingItem, statusFilter: Props['statusFilter']): number {
   if (statusFilter === 'planned')
     return category.plannedAmount || category.amount
@@ -293,18 +298,15 @@ function getStatusValue(category: CategorySpendingItem, statusFilter: Props['sta
 
   return category.paidAmount !== undefined ? category.paidAmount : category.amount
 }
-
 function getPlanModeValue(category: CategorySpendingItem): number {
   return category.budgetLimit || ((category.paidAmount || 0) + (category.plannedAmount || 0)) || category.amount
 }
-
 function getDoughnutValue(category: CategorySpendingItem, statusFilter: Props['statusFilter'], usePlanMode: boolean): number {
   if (statusFilter === 'planned' || statusFilter === 'paid')
     return getStatusValue(category, statusFilter)
 
   return usePlanMode ? getPlanModeValue(category) : getStatusValue(category, statusFilter)
 }
-
 function getCategoryColor(index: number): string {
   const safeIndex = Math.max(0, Math.abs(index || 0)) % CATEGORY_COLORS.length
 
@@ -334,7 +336,7 @@ function getCategoryWord(count: number): string {
   return 'категорий'
 }
 function getCategoryPercent(amount: number): number {
-  const total = categoryTotal.value > 0 ? categoryTotal.value : totalSpend.value
+  const total = doughnutTotal.value
 
   if (total === 0)
     return 0
@@ -401,7 +403,6 @@ function getTooltipElement(parent: ParentNode): HTMLElement {
 
   return element
 }
-
 function renderTooltipContent(tooltip: DisplayTooltip, tooltipEl: HTMLElement) {
   if (tooltip.body) {
     const titleLines = tooltip.title || []
@@ -417,7 +418,6 @@ function renderTooltipContent(tooltip: DisplayTooltip, tooltipEl: HTMLElement) {
     tooltipEl.innerHTML = innerHtml
   }
 }
-
 function getTooltipTransform(tooltip: DisplayTooltip): string {
   if (tooltip.yAlign === 'top')
     return 'translate(-50%, 10px)'
@@ -433,7 +433,6 @@ function getTooltipTransform(tooltip: DisplayTooltip): string {
 
   return 'translate(-50%, calc(-100% - 10px))'
 }
-
 function positionTooltip(tooltipEl: HTMLElement, chart: { canvas: HTMLCanvasElement }, tooltip: DisplayTooltip) {
   const { offsetLeft: positionX, offsetTop: positionY } = chart.canvas
 
@@ -443,7 +442,6 @@ function positionTooltip(tooltipEl: HTMLElement, chart: { canvas: HTMLCanvasElem
   tooltipEl.style.top = `${positionY + tooltip.caretY}px`
   tooltipEl.style.transform = getTooltipTransform(tooltip)
 }
-
 function externalTooltipHandler(context: { chart: { canvas: HTMLCanvasElement }, tooltip: DisplayTooltip }) {
   const { chart, tooltip } = context
   const parent = chart.canvas?.parentElement
@@ -591,10 +589,10 @@ onMounted(() => {
                 {{ hoveredCategory ? hoveredCategory.name : (props.statusFilter === 'planned' ? 'В планах' : 'Оплачено') }}
               </span>
               <span class="center-amount">
-                {{ formatCurrency(hoveredCategory ? (props.statusFilter === 'planned' || props.statusFilter === 'paid' ? hoveredCategory.amount : getCategoryActiveAmount(hoveredCategory)) : (props.statusFilter === 'planned' ? effectivePlannedTotal : effectivePaidTotal), mainCurrency) }}
+                {{ formatCurrency(hoveredCategory ? getCategoryActiveAmount(hoveredCategory) : doughnutTotal, mainCurrency) }}
               </span>
               <span class="center-meta">
-                {{ hoveredCategory ? `${getCategoryPercent(hoveredCategory.amount)}%` : `${spendingByCategory.length} ${getCategoryWord(spendingByCategory.length)}` }}
+                {{ hoveredCategory ? `${getCategoryPercent(getCategoryActiveAmount(hoveredCategory))}%` : `${doughnutChartItems.length} ${getCategoryWord(doughnutChartItems.length)}` }}
               </span>
             </div>
           </div>
@@ -628,7 +626,7 @@ onMounted(() => {
                   >
                     {{ getCategoryBudgetPercent(cat) }}%
                   </span>
-                  <span v-else class="legend-percentage">{{ getCategoryPercent(cat.amount) }}%</span>
+                  <span v-else class="legend-percentage">{{ getCategoryPercent(getCategoryActiveAmount(cat)) }}%</span>
                   <span class="legend-separator" />
                   <span
                     class="legend-amount"
@@ -638,7 +636,7 @@ onMounted(() => {
                       {{ formatCurrency(getCategoryActiveAmount(cat), mainCurrency) }} / {{ formatCurrency(cat.budgetLimit, mainCurrency) }}
                     </template>
                     <template v-else>
-                      {{ formatCurrency(cat.amount, mainCurrency) }}
+                      {{ formatCurrency(getCategoryActiveAmount(cat), mainCurrency) }}
                     </template>
                   </span>
                 </div>
@@ -648,7 +646,7 @@ onMounted(() => {
                   <div
                     class="legend-progress-fill"
                     :style="{
-                      width: `${getCategoryPercent(cat.amount)}%`,
+                      width: `${getCategoryPercent(getCategoryActiveAmount(cat))}%`,
                       backgroundColor: getCategoryColor(cat.colorIndex ?? index),
                     }"
                     :title="getCategoryAmountTitle(cat)"
@@ -659,7 +657,7 @@ onMounted(() => {
                     class="legend-progress-fill"
                     :class="{ 'is-over': cat.budgetLimit && (cat.paidAmount || 0) > cat.budgetLimit }"
                     :style="{
-                      width: `${cat.budgetLimit && cat.budgetLimit > 0 ? Math.min(100, Math.round(((cat.paidAmount || 0) / cat.budgetLimit) * 100)) : getCategoryPercent(cat.amount)}%`,
+                      width: `${cat.budgetLimit && cat.budgetLimit > 0 ? Math.min(100, Math.round(((cat.paidAmount || 0) / cat.budgetLimit) * 100)) : getCategoryPercent(getCategoryActiveAmount(cat))}%`,
                       backgroundColor: (cat.budgetLimit && (cat.paidAmount || 0) > cat.budgetLimit) ? '#EF4444' : getCategoryColor(cat.colorIndex ?? index),
                     }"
                     :title="`Оплачено: ${formatCurrency(cat.paidAmount || 0, mainCurrency)}`"
@@ -689,7 +687,7 @@ onMounted(() => {
     <div v-else-if="currentView === 'day'">
       <div v-if="spendingByDay.length > 0" class="days-content">
         <p class="day-chart-caption">
-          Факт по дням: учитываются только оплаченные траты с датой.
+          {{ props.statusFilter === 'planned' ? 'Планы по дням: учитываются запланированные траты с датой.' : 'Факт по дням: учитываются только оплаченные траты с датой.' }}
         </p>
         <div class="days-stats-grid">
           <div class="days-stat-card">

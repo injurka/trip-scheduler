@@ -5,6 +5,7 @@ import { computed, ref } from 'vue'
 import { KitDropdown } from '~/components/01.kit/kit-dropdown'
 import { KitTooltip } from '~/components/01.kit/kit-tooltip'
 import { useToast } from '~/shared/composables/use-toast'
+import { onlineFetch } from '~/shared/lib/connectivity'
 import { isTauri } from '~/shared/lib/env'
 import { findOfflineMediaResponse } from '~/shared/lib/offline-cache'
 import { openExternalUrl } from '~/shared/lib/opener'
@@ -112,7 +113,7 @@ async function fetchFileBlob(absoluteUrl: string, _rawUrl: string): Promise<Blob
     return await cached.blob()
 
   try {
-    const response = await fetch(absoluteUrl)
+    const response = await onlineFetch(absoluteUrl)
 
     if (response.ok) {
       return await response.blob()

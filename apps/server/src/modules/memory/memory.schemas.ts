@@ -52,3 +52,28 @@ export const GetMemoriesInputSchema = z.object({
   maxRating: z.number().min(1).max(5).optional(),
   tags: z.array(z.string()).optional(),
 })
+
+// The same contract validates model output and the edited preview before saving.
+export const MemoryProposalSchema = z.object({
+  blocks: z.array(z.object({
+    type: z.enum(['activity', 'note', 'description']),
+    targetId: z.string().uuid().nullable(),
+    title: z.string().trim().max(300),
+    comment: z.string().trim().min(1).max(10000),
+    time: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
+    timeEstimated: z.boolean(),
+    tag: z.enum(['activity', 'transport', 'walk', 'food', 'attraction', 'relax']),
+  }).superRefine((block, ctx) => {
+    if (block.type === 'description' && !block.targetId)
+      ctx.addIssue({ code: 'custom', message: 'Для описания нужен существующий блок.' })
+    if (block.type !== 'description' && block.targetId)
+      ctx.addIssue({ code: 'custom', message: 'Новый блок не должен иметь targetId.' })
+    if (block.type === 'activity' && !block.title)
+      ctx.addIssue({ code: 'custom', message: 'Укажите название активности.' })
+  })).min(1).max(30),
+})
+export const GenerateMemoriesInputSchema = z.object({
+  dayId: z.string().uuid(),
+  text: z.string().trim().min(1).max(20000),
+})
+export const ApplyMemoriesInputSchema = MemoryProposalSchema.extend({ dayId: z.string().uuid() })

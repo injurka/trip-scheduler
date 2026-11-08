@@ -6,6 +6,7 @@ import * as pdfjsLib from 'pdfjs-dist'
 import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
+import { onlineFetch } from '~/shared/lib/connectivity'
 import { findOfflineMediaResponse } from '~/shared/lib/offline-cache'
 import { resolveApiUrl } from '~/shared/lib/url'
 
@@ -40,7 +41,7 @@ async function fetchPdfData(url: string): Promise<ArrayBuffer> {
   if (cached)
     return await cached.arrayBuffer()
 
-  const response = await fetch(absoluteUrl)
+  const response = await onlineFetch(absoluteUrl)
 
   if (!response.ok) {
     throw new Error(`Ошибка загрузки (${response.status}: ${response.statusText})`)

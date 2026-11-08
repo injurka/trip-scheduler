@@ -110,6 +110,18 @@ class TrackingPlugin(private val activity: Activity) : Plugin(activity) {
     }
 
     @Command
+    fun acknowledgeBufferedLocations(invoke: Invoke) {
+        try {
+            val values = invoke.getArgs().getJSONArray("timestamps")
+            val timestamps = (0 until values.length()).map { values.getLong(it) }.toSet()
+            TrackingService.acknowledgeBuffer(activity.applicationContext, timestamps)
+            invoke.resolveObject(true)
+        } catch (e: Exception) {
+            invoke.reject("Failed to acknowledge GPS buffer: ${e.message}")
+        }
+    }
+
+    @Command
     fun getPushToken(invoke: Invoke) {
         try {
             FirebaseMessaging.getInstance().token

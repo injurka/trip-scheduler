@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { Icon } from '@iconify/vue'
-import { useOnline } from '@vueuse/core'
 import { useDataTimestamp } from '~/shared/composables/use-data-timestamp'
+import { useConnectivity } from '~/shared/lib/connectivity'
 
-const isOnline = useOnline()
+const { isOnline, forcedOffline } = useConnectivity()
 const { lastDataTimestamp } = useDataTimestamp()
 
 const formattedDate = computed(() => {
@@ -31,12 +31,12 @@ const formattedDate = computed(() => {
     <div v-if="!isOnline" class="offline-banner">
       <div class="banner-content">
         <div class="main-info">
-          <span class="connection-label">Нет соединения</span>
+          <span class="connection-label">{{ forcedOffline ? 'Офлайн-режим включён' : 'Нет соединения' }}</span>
           <Icon
             class="connection-icon"
             icon="mdi:wifi-off"
             role="img"
-            aria-label="Нет соединения"
+            :aria-label="forcedOffline ? 'Офлайн-режим включён' : 'Нет соединения'"
           />
         </div>
 

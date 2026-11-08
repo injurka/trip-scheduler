@@ -42,9 +42,9 @@ export function useDialogHistory(dialogId: string, visible: Ref<boolean>) {
     if (!isUnloading && window.history.state && window.history.state.dialogId === dialogId) {
       isProgrammaticBack = true
       window.history.back()
-      setTimeout(() => {
+      window.addEventListener('popstate', () => {
         isProgrammaticBack = false
-      }, 50)
+      }, { once: true })
     }
   }
 
@@ -54,7 +54,11 @@ export function useDialogHistory(dialogId: string, visible: Ref<boolean>) {
 
     if (isOpen) {
       openModalsStack.push(dialogId)
-      const currentState = window.history.state || {}
+      const currentState = {
+        ...window.history.state,
+        scroll: { left: window.scrollX, top: window.scrollY },
+      }
+      window.history.replaceState(currentState, '')
       window.history.pushState({ ...currentState, isModal: true, dialogId }, '')
       window.addEventListener('popstate', handlePopState)
     }

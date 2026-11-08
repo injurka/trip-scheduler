@@ -4,6 +4,7 @@ import type { TripMedia, TripWithDays } from '~/shared/types/models/trip'
 import { isRecord } from '@injurka/type-utils'
 import { defineStore } from 'pinia'
 import { useToast } from '~/shared/composables/use-toast'
+import { onlineFetch } from '~/shared/lib/connectivity'
 import { getOfflineAccountId, getOfflineCachePrefix, OFFLINE_CACHE_READY_URL } from '~/shared/lib/offline-cache'
 import { downloadOfflineMapAreas } from '~/shared/lib/offline-map-download'
 import { resolveApiUrl, stripAuthTokenFromUrl } from '~/shared/lib/url'
@@ -320,7 +321,7 @@ async function cacheOfflineUrl(cache: Cache, rawUrl: string, accountId: string |
   const cleanUrl = stripAuthTokenFromUrl(url)
 
   try {
-    const response = await fetch(url, { mode: 'cors', cache: 'reload', signal: AbortSignal.timeout(30000) })
+    const response = await onlineFetch(url, { mode: 'cors', cache: 'reload', signal: AbortSignal.timeout(30000) })
 
     if (!response.ok || response.type === 'opaque')
       return false

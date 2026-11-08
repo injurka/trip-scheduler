@@ -35,6 +35,7 @@ export function useFinancesSection(props: UseFinancesSectionProps, emit: (event:
   const categories = ref<Category[]>(JSON.parse(JSON.stringify(content.value?.categories || DEFAULT_CATEGORIES)))
   const settings = ref<FinancesSettings>(JSON.parse(JSON.stringify(content.value?.settings || DEFAULT_SETTINGS)))
   const selectedCategoryFilters = ref<string[]>([])
+  const excludedCategoryFilters = ref<string[]>([])
   const dateFilter = ref<{ start: string | null, end: string | null }>({ start: null, end: null })
   const typeFilter = ref<'all' | 'planned' | 'spontaneous'>('all')
   const statusFilter = ref<'all' | 'paid' | 'planned'>('all')
@@ -181,6 +182,11 @@ export function useFinancesSection(props: UseFinancesSectionProps, emit: (event:
     })
   })
 
+  function matchesCategoryFilter(categoryId: string) {
+    return (selectedCategoryFilters.value.length === 0 || selectedCategoryFilters.value.includes(categoryId))
+      && !excludedCategoryFilters.value.includes(categoryId)
+  }
+
   // Фильтруем транзакции по всем фильтрам кроме type/status (для подсчета общих сумм)
   const baseFilteredTransactions = computed(() => {
     let result = sortedTransactions.value
@@ -200,13 +206,7 @@ export function useFinancesSection(props: UseFinancesSectionProps, emit: (event:
       })
     }
 
-    if (selectedCategoryFilters.value.length > 0) {
-      result = result.filter((tx) => {
-        const effectiveCategoryId = tx.categoryId || 'cat-other'
-
-        return selectedCategoryFilters.value.includes(effectiveCategoryId)
-      })
-    }
+    result = result.filter(tx => matchesCategoryFilter(tx.categoryId || 'cat-other'))
 
     return result
   })
@@ -336,9 +336,11 @@ export function useFinancesSection(props: UseFinancesSectionProps, emit: (event:
 
     return Array.from(spendingMap.values())
       .filter((cat) => {
-        if (selectedCategoryFilters.value.length > 0) {
-          return selectedCategoryFilters.value.includes(cat.id)
-        }
+        if (!matchesCategoryFilter(cat.id))
+          return false
+
+        if (selectedCategoryFilters.value.includes(cat.id))
+          return true
 
         if (statusFilter.value !== 'all' || typeFilter.value !== 'all') {
           return cat.amount > 0
@@ -386,6 +388,7 @@ export function useFinancesSection(props: UseFinancesSectionProps, emit: (event:
   function toggleCategoryFilter(categoryId: string | null) {
     if (categoryId === null) {
       selectedCategoryFilters.value = []
+      excludedCategoryFilters.value = []
 
       return
     }
@@ -394,6 +397,10 @@ export function useFinancesSection(props: UseFinancesSectionProps, emit: (event:
 
     if (index > -1) {
       selectedCategoryFilters.value.splice(index, 1)
+      excludedCategoryFilters.value.push(categoryId)
+    }
+    else if (excludedCategoryFilters.value.includes(categoryId)) {
+      excludedCategoryFilters.value = excludedCategoryFilters.value.filter(id => id !== categoryId)
     }
     else {
       selectedCategoryFilters.value.push(categoryId)
@@ -413,6 +420,7 @@ export function useFinancesSection(props: UseFinancesSectionProps, emit: (event:
     isAiCreatorOpen,
     transactionToEdit,
     selectedCategoryFilters,
+    excludedCategoryFilters,
     dateFilter,
     typeFilter,
     statusFilter,

@@ -15,6 +15,10 @@ export interface Props<T extends string | number> {
 }
 
 const props = defineProps<Props<T>>()
+const emit = defineEmits<{
+  (e: 'beforeLeave'): void
+  (e: 'afterEnter'): void
+}>()
 const model = defineModel<T>({ required: true })
 
 const { smAndDown } = useDisplay()
@@ -38,6 +42,7 @@ watch(model, (newVal, oldVal) => {
 
 function onBeforeLeave(el: Element) {
   isTransitioning.value = true
+  emit('beforeLeave')
 
   if (contentWrapperRef.value) {
     const htmlEl = el as HTMLElement
@@ -60,6 +65,8 @@ function onAfterEnter() {
   if (contentWrapperRef.value) {
     contentWrapperRef.value.style.height = 'auto'
   }
+
+  emit('afterEnter')
 }
 </script>
 

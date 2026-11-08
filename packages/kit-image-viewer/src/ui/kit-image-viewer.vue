@@ -3,7 +3,7 @@ import type { Component } from 'vue'
 import type { IImageViewerImageMeta, ImageQuality, ImageViewerImage } from '../models/types'
 import { Icon } from '@iconify/vue'
 import { toRef, useEventListener, useIdle } from '@vueuse/core'
-import { computed, onUnmounted, reactive, ref, toRaw, watch } from 'vue'
+import { computed, nextTick, onUnmounted, reactive, ref, toRaw, watch } from 'vue'
 import {
   useImageViewerSwipe,
   useImageViewerThumbnails,
@@ -227,7 +227,19 @@ const visibleIndices = computed(() => {
   return indices
 })
 
-const imageLoadStates = reactive<Record<number, { loaded: boolean, error: boolean, loader: boolean }>>({})
+interface ImageLoadState {
+  identity: string
+  url: string
+  loaded: boolean
+  error: boolean
+  loader: boolean
+  preview?: string
+  previewLoaded?: boolean
+  previous?: string
+  attempt: number
+}
+const imageLoadStates = reactive<Record<number, ImageLoadState>>({})
+const imageElements = new Map<number, HTMLImageElement>()
 const loaderTimeouts = new Map<number, ReturnType<typeof setTimeout>>()
 
 function clearImageLoaderTimeout(index: number) {
@@ -236,14 +248,6 @@ function clearImageLoaderTimeout(index: number) {
     clearTimeout(timer)
     loaderTimeouts.delete(index)
   }
-}
-
-function resetImageLoadState() {
-  loaderTimeouts.forEach(timer => clearTimeout(timer))
-  loaderTimeouts.clear()
-  Object.keys(imageLoadStates).forEach((index) => {
-    delete imageLoadStates[Number(index)]
-  })
 }
 
 function getImageUrl(image: ImageViewerImage, quality: ImageQuality): string {
@@ -270,19 +274,17 @@ function getImageUrl(image: ImageViewerImage, quality: ImageQuality): string {
 }
 
 function handleImageLoad(index: number, event: Event) {
-  if (!imageLoadStates[index]) {
-    imageLoadStates[index] = { loaded: true, error: false, loader: false }
-  }
-  else {
-    imageLoadStates[index].loaded = true
-    imageLoadStates[index].error = false
-    imageLoadStates[index].loader = false
-  }
+  const state = imageLoadStates[index]
+  const target = event.target as HTMLImageElement
+  if (!state || imageElements.get(index) !== target || target.getAttribute('src') !== state.url)
+    return
+  state.loaded = true
+  state.error = false
+  state.loader = false
   clearImageLoaderTimeout(index)
 
   if (index === props.currentIndex) {
     onImageLoad()
-    const target = event.target as HTMLImageElement
     naturalSize.width = target.naturalWidth
     naturalSize.height = target.naturalHeight
     if (currentImage.value)
@@ -290,15 +292,33 @@ function handleImageLoad(index: number, event: Event) {
   }
 }
 
+function hasPreview(index: number) {
+  const state = imageLoadStates[index]
+  return !!(state?.previous || state?.previewLoaded || getPlaceholderUrl(props.images[index]))
+}
+
+function handlePreviewLoad(index: number, event: Event) {
+  const state = imageLoadStates[index]
+  if (state && (event.target as HTMLImageElement).getAttribute('src') === (state.previous || state.preview))
+    state.previewLoaded = true
+}
+
+function retryImage(index: number) {
+  const state = imageLoadStates[index]
+  if (!state)
+    return
+  state.error = false
+  state.loaded = false
+  state.attempt++
+}
+
 function handleVideoLoadedMetadata(index: number, event: Event) {
-  if (!imageLoadStates[index]) {
-    imageLoadStates[index] = { loaded: true, error: false, loader: false }
-  }
-  else {
-    imageLoadStates[index].loaded = true
-    imageLoadStates[index].error = false
-    imageLoadStates[index].loader = false
-  }
+  const state = imageLoadStates[index]
+  if (!state)
+    return
+  state.loaded = true
+  state.error = false
+  state.loader = false
   clearImageLoaderTimeout(index)
 
   if (index === props.currentIndex) {
@@ -330,14 +350,12 @@ function retryVideo() {
 }
 
 function handleImageError(index: number, event: Event) {
-  if (!imageLoadStates[index]) {
-    imageLoadStates[index] = { loaded: false, error: true, loader: false }
-  }
-  else {
-    imageLoadStates[index].error = true
-    imageLoadStates[index].loaded = false
-    imageLoadStates[index].loader = false
-  }
+  const state = imageLoadStates[index]
+  if (!state || (!isVideoImage(props.images[index]) && (imageElements.get(index) !== event.target || (event.target as HTMLImageElement).getAttribute('src') !== state.url)))
+    return
+  state.error = true
+  state.loaded = false
+  state.loader = false
   clearImageLoaderTimeout(index)
 
   if (index === props.currentIndex) {
@@ -347,65 +365,65 @@ function handleImageError(index: number, event: Event) {
 }
 
 function setRef(el: unknown, index: number) {
+  if (el instanceof HTMLImageElement)
+    imageElements.set(index, el)
+  else
+    imageElements.delete(index)
   if (index === props.currentIndex) {
     imageRef.value = el as HTMLImageElement
+    if (!imageLoadStates[index]?.loaded && imageRef.value?.complete && imageRef.value.naturalWidth > 0)
+      handleImageLoad(index, { target: imageRef.value } as unknown as Event)
   }
 }
 
-watch(visibleIndices, (indices) => {
-  const visible = new Set(indices)
-  Object.keys(imageLoadStates).forEach((key) => {
+// Track the actual request, including quality, list replacement and resolved offline URLs.
+watch(() => visibleIndices.value.map((index) => {
+  const image = props.images[index]
+  return {
+    index,
+    identity: JSON.stringify([image.url, image.variants]),
+    url: getImageUrl(image, index === props.currentIndex ? selectedQuality.value : 'large'),
+    preview: image.variants?.small ? getImageUrl(image, 'small') : undefined,
+  }
+}), (requests) => {
+  const visible = new Set(requests.map(request => request.index))
+  for (const key of Object.keys(imageLoadStates)) {
     const index = Number(key)
     if (!visible.has(index)) {
       clearImageLoaderTimeout(index)
       delete imageLoadStates[index]
-    }
-  })
-
-  indices.forEach((i) => {
-    if (!imageLoadStates[i]) {
-      imageLoadStates[i] = { loaded: false, error: false, loader: false }
-      const timer = setTimeout(() => {
-        if (!imageLoadStates[i].loaded && !imageLoadStates[i].error) {
-          imageLoadStates[i].loader = true
-        }
-        loaderTimeouts.delete(i)
-      }, 500)
-      loaderTimeouts.set(i, timer)
-    }
-  })
-}, { immediate: true })
-
-watch(() => props.images, resetImageLoadState)
-
-watch(() => [props.currentIndex, selectedQuality.value] as const, ([newIndex, newQuality], [oldIndex, oldQuality]) => {
-  const image = props.images[newIndex]
-  if (!image)
-    return
-
-  const oldUrl = newIndex === oldIndex
-    ? getImageUrl(image, oldQuality || 'large')
-    : getImageUrl(image, 'large')
-
-  const newUrl = getImageUrl(image, newQuality)
-
-  if (oldUrl !== newUrl) {
-    if (imageLoadStates[newIndex]) {
-      imageLoadStates[newIndex].loaded = false
-      imageLoadStates[newIndex].error = false
-      if (!imageLoadStates[newIndex].loader) {
-        clearImageLoaderTimeout(newIndex)
-        const timer = setTimeout(() => {
-          if (!imageLoadStates[newIndex].loaded && !imageLoadStates[newIndex].error) {
-            imageLoadStates[newIndex].loader = true
-          }
-          loaderTimeouts.delete(newIndex)
-        }, 500)
-        loaderTimeouts.set(newIndex, timer)
-      }
+      imageElements.delete(index)
     }
   }
-})
+  for (const request of requests) {
+    const old = imageLoadStates[request.index]
+    if (old?.identity === request.identity && old.url === request.url)
+      continue
+    clearImageLoaderTimeout(request.index)
+    const sameImage = old?.identity === request.identity
+    const state: ImageLoadState = {
+      ...request,
+      loaded: false,
+      error: false,
+      loader: false,
+      previous: sameImage ? (old.loaded ? old.url : old.previous) : undefined,
+      previewLoaded: sameImage && old.preview === request.preview ? old.previewLoaded : false,
+      attempt: 0,
+    }
+    imageLoadStates[request.index] = state
+    loaderTimeouts.set(request.index, setTimeout(() => {
+      if (toRaw(imageLoadStates[request.index]) === state && !state.loaded && !state.error)
+        imageLoadStates[request.index].loader = true
+      loaderTimeouts.delete(request.index)
+    }, 500))
+  }
+  // Cached images can complete before Vue attaches a load listener.
+  nextTick(() => {
+    const image = imageRef.value
+    if (image?.complete && image.naturalWidth > 0)
+      handleImageLoad(props.currentIndex, { target: image } as unknown as Event)
+  })
+}, { immediate: true })
 
 const currentImageMeta = computed((): IImageViewerImageMeta | null => {
   return toRaw(props.images[props.currentIndex]?.meta) ?? null
@@ -618,6 +636,7 @@ onUnmounted(() => {
     document.body.style.overflow = ''
   loaderTimeouts.forEach(timer => clearTimeout(timer))
   loaderTimeouts.clear()
+  imageElements.clear()
 })
 </script>
 
@@ -719,18 +738,42 @@ onUnmounted(() => {
                   <div class="current-image-wrapper">
                     <div
                       class="image-slot"
-                      :class="{ 'has-error': imageLoadStates[i]?.error, 'video-slot': isVideoImage(images[i]) }"
-                      :style="!isVideoImage(images[i]) && !imageLoadStates[i]?.error && images[i]?.meta?.width && images[i]?.meta?.height
-                        ? { aspectRatio: `${images[i].meta?.width}/${images[i].meta?.height}` }
-                        : undefined"
+                      :class="{ 'has-error': imageLoadStates[i]?.error && !hasPreview(i), 'video-slot': isVideoImage(images[i]), 'photo-slot': !isVideoImage(images[i]) }"
                     >
+                      <div
+                        v-if="!isVideoImage(images[i]) && !imageLoadStates[i]?.loaded && !imageLoadStates[i]?.error && !hasPreview(i)"
+                        class="viewer-empty-placeholder"
+                        role="status"
+                        aria-label="Загрузка изображения"
+                      >
+                        <Icon icon="mdi:image-outline" width="32" height="32" />
+                      </div>
                       <img
-                        v-if="!isVideoImage(images[i]) && !imageLoadStates[i]?.loaded && !imageLoadStates[i]?.error && getPlaceholderUrl(images[i])"
+                        v-if="!isVideoImage(images[i]) && getPlaceholderUrl(images[i])"
                         :src="getPlaceholderUrl(images[i]) || undefined"
                         class="viewer-thumbhash-placeholder"
                         alt=""
                         aria-hidden="true"
                       >
+                      <img
+                        v-if="!isVideoImage(images[i]) && (imageLoadStates[i]?.previous || imageLoadStates[i]?.preview)"
+                        :key="imageLoadStates[i]?.previous || imageLoadStates[i]?.preview"
+                        :src="imageLoadStates[i]?.previous || imageLoadStates[i]?.preview"
+                        class="viewer-preview"
+                        :class="{ loaded: imageLoadStates[i]?.previous || imageLoadStates[i]?.previewLoaded }"
+                        :style="i === currentIndex ? [imageStyle, currentImageStyle] : adjacentImageStyle"
+                        alt=""
+                        aria-hidden="true"
+                        :loading="i === currentIndex ? 'eager' : 'lazy'"
+                        @load="e => handlePreviewLoad(i, e)"
+                      >
+                      <button
+                        v-if="!isVideoImage(images[i]) && imageLoadStates[i]?.error && hasPreview(i)"
+                        class="preview-retry"
+                        @click.stop="retryImage(i)"
+                      >
+                        Не удалось загрузить полное качество. Повторить
+                      </button>
                       <KitVideoPlayer
                         v-if="isVideoImage(images[i]) && i === currentIndex"
                         v-show="!imageLoadStates[i]?.error"
@@ -743,6 +786,7 @@ onUnmounted(() => {
                       />
                       <img
                         v-else-if="!isVideoImage(images[i])"
+                        :key="`${imageLoadStates[i]?.url}:${imageLoadStates[i]?.attempt}`"
                         :ref="el => setRef(el, i)"
                         :src="getImageUrl(images[i], i === currentIndex ? selectedQuality : 'large')"
                         :alt="images[i]?.alt || `Image ${i + 1}`"
@@ -766,7 +810,7 @@ onUnmounted(() => {
 
                       <Transition name="loader-fade">
                         <div
-                          v-if="(!imageLoadStates[i]?.loaded && imageLoadStates[i]?.loader && (isVideoImage(images[i]) || !getPlaceholderUrl(images[i]))) || imageLoadStates[i]?.error"
+                          v-if="isVideoImage(images[i]) ? ((!imageLoadStates[i]?.loaded && imageLoadStates[i]?.loader) || imageLoadStates[i]?.error) : (imageLoadStates[i]?.error && !hasPreview(i))"
                           class="placeholder-wrapper"
                           :class="{ 'is-error': imageLoadStates[i]?.error }"
                         >
@@ -777,7 +821,7 @@ onUnmounted(() => {
                               </div>
                               <span class="error-title">Не удалось загрузить {{ isVideoImage(images[i]) ? 'видео' : 'изображение' }}</span>
                               <span class="error-subtitle">{{ isVideoImage(images[i]) ? 'Проверьте сеть. Формат или кодек видео может не поддерживаться браузером.' : 'Проверьте подключение к сети или корректность ссылки' }}</span>
-                              <button v-if="isVideoImage(images[i])" class="retry-video" @click.stop="retryVideo">
+                              <button class="retry-video" @click.stop="isVideoImage(images[i]) ? retryVideo() : retryImage(i)">
                                 Повторить
                               </button>
                             </div>
@@ -1049,8 +1093,53 @@ onUnmounted(() => {
   object-fit: contain;
 }
 
+.viewer-empty-placeholder {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.3);
+  pointer-events: none;
+}
+
+.viewer-preview {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  opacity: 0;
+  pointer-events: none;
+
+  &.loaded {
+    opacity: 1;
+  }
+}
+
+.preview-retry {
+  position: absolute;
+  bottom: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 11;
+  max-width: 90%;
+  padding: 8px 12px;
+  border: 1px solid #777;
+  border-radius: 8px;
+  background: #222;
+  color: #fff;
+  line-height: 1.4;
+  cursor: pointer;
+}
+
 .thumbnail-thumbhash-placeholder {
   object-fit: cover;
+}
+
+.photo-slot {
+  width: 100%;
+  height: 100%;
 }
 
 .image-slot {
@@ -1190,7 +1279,7 @@ onUnmounted(() => {
   transition:
     opacity 0.4s ease,
     border-radius 0.3s ease;
-  opacity: 0.5;
+  opacity: 0;
   border-radius: var(--r-2xs, 4px);
 
   &.fill-slot {
@@ -1211,9 +1300,6 @@ onUnmounted(() => {
   &.has-error {
     opacity: 0 !important;
     visibility: hidden !important;
-    position: absolute !important;
-    width: 0 !important;
-    height: 0 !important;
     pointer-events: none !important;
   }
 

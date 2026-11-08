@@ -1,4 +1,5 @@
 import type { TrackPoint } from './geotrack-client'
+import { isAppOnline } from '~/shared/lib/connectivity'
 import { trpc } from '~/shared/services/trpc/trpc.service'
 import { useAuthStore } from '~/shared/store/auth.store'
 import { useTrackingStore } from '~/shared/store/tracking.store'
@@ -14,7 +15,7 @@ const MAX_BATCHES_PER_RUN = 20
 const INTERVAL_IDLE_MS = 60_000 // 1 мин периодический опрос
 
 let timer: ReturnType<typeof setInterval> | null = null
-let running = false
+let activeSync: Promise<number> | null = null
 
 function normalizeFiniteValue(value: number | null, allowNegative: boolean): number | null {
   if (value == null || !Number.isFinite(value))
@@ -80,15 +81,8 @@ async function syncOnce(): Promise<number> {
         points.push(p)
     }
 
-    if (points.length === 0) {
-      const invalidIds = raw.map(r => r.clientPointId).filter(Boolean)
-
-      if (invalidIds.length > 0) {
-        await useTrackingStore().markSynced(invalidIds)
-      }
-
-      break
-    }
+    if (points.length !== raw.length)
+      throw new Error('В очереди есть некорректные GPS-точки. Они сохранены и не удалены.')
 
     const result = await (trpc).tracking.ingestBatch.mutate({
       points: points.map(toTrackingInput),
@@ -102,7 +96,10 @@ async function syncOnce(): Promise<number> {
 
     total += syncedIds.length
 
-    if (points.length < BATCH_SIZE)
+    if (syncedIds.length !== points.length)
+      throw new Error('Сервер подтвердил только часть GPS-точек. Остальные сохранены для повторной отправки.')
+
+    if (raw.length < BATCH_SIZE)
       break
   }
 
@@ -110,18 +107,35 @@ async function syncOnce(): Promise<number> {
 }
 
 /** Однократная попытка синка */
-export async function runSync(): Promise<number> {
-  if (running)
-    return 0
+export function runSync(): Promise<number> {
+  if (!isAppOnline())
+    return Promise.resolve(0)
 
-  running = true
+  if (activeSync)
+    return activeSync
 
-  try {
-    return await syncOnce()
-  }
-  finally {
-    running = false
-  }
+  const store = useTrackingStore()
+  store.isSyncing = true
+  store.syncError = null
+  activeSync = syncOnce().then((count) => {
+    if (count > 0)
+      store.lastSyncAt = Date.now()
+
+    return count
+  }).catch((error: unknown) => {
+    const raw = error instanceof Error ? error.message : String(error)
+    store.syncError = /Failed to fetch|NetworkError|Load failed/.test(raw)
+      ? 'Сервер недоступен. GPS-точки сохранены на устройстве и будут отправлены повторно.'
+      : `${raw} Не подтверждённые сервером точки остаются на устройстве.`
+    throw error
+  }).finally(async () => {
+    // Clear the shared flight before refresh can schedule another attempt.
+    activeSync = null
+    store.isSyncing = false
+    await store.refreshStatus()
+  })
+
+  return activeSync
 }
 
 export function startSyncWorker(): void {

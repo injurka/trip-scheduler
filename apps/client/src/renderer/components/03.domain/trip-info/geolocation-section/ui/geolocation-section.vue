@@ -6,6 +6,7 @@ import { useDebounceFn, useIntersectionObserver } from '@vueuse/core'
 import { computed, nextTick, onMounted, onUnmounted, ref, shallowRef, toRaw, watch } from 'vue'
 import { useToast } from '~/shared/composables/use-toast'
 import { lazyComponent } from '~/shared/lib/lazy-component'
+import { useCurrentLocationRoute } from '../composables/use-current-location-route'
 import { useGeolocationPoints } from '../composables/use-geolocation-points'
 import { useGeolocationRoutes } from '../composables/use-geolocation-routes'
 import { POI_COLORS } from '../constant'
@@ -45,6 +46,7 @@ const { stop: stopMapObserver } = useIntersectionObserver(mapMountTargetRef, ([e
 }, { rootMargin: '500px 0px' })
 
 const mapController = shallowRef<ReturnType<typeof useGeolocationMap>>()
+const { routeTo, isLocating, navigationRoute, clearNavigation } = useCurrentLocationRoute(mapController)
 
 const {
   points,
@@ -166,9 +168,6 @@ watch(activeView, () => {
 })
 
 async function handleMapClick(coords: Coordinate) {
-  if (props.readonly)
-    return
-
   if (mode.value === 'add_route_point') {
     if (!activeRouteId.value) {
       const newRoute = await createNewRoute(coords)
@@ -477,7 +476,7 @@ onUnmounted(() => {
       </div>
 
       <!-- ПОСТОЯННАЯ КАРТОЧКА ТОЧКИ: Фиксированная высота, без скачков контента -->
-      <div v-if="!readonly" class="selected-point-card" :class="{ 'is-active': !!selectedLocation }">
+      <div v-if="!readonly || selectedLocation" class="selected-point-card" :class="{ 'is-active': !!selectedLocation }">
         <!-- Верхняя строка: Координаты + адрес / текст-подсказка -->
         <div class="point-info-row">
           <div class="info-content">
@@ -512,57 +511,75 @@ onUnmounted(() => {
           <button
             type="button"
             class="action-chip primary"
-            :disabled="!selectedLocation"
-            @click="handleCreatePoiFromSelection"
+            :disabled="!selectedLocation || isLocating"
+            @click="selectedLocation && routeTo(selectedLocation.coords)"
           >
-            <Icon icon="mdi:map-marker-plus" />
-            <span>Метка</span>
+            <Icon :icon="isLocating ? 'mdi:loading' : 'mdi:directions'" :class="{ spin: isLocating }" />
+            <span>{{ isLocating ? 'Определяем GPS…' : 'Пешком отсюда' }}</span>
           </button>
+          <template v-if="!readonly">
+            <button
+              type="button"
+              class="action-chip primary"
+              :disabled="!selectedLocation"
+              @click="handleCreatePoiFromSelection"
+            >
+              <Icon icon="mdi:map-marker-plus" />
+              <span>Метка</span>
+            </button>
 
-          <button
-            type="button"
-            class="action-chip"
-            :disabled="!selectedLocation"
-            @click="handleStartRouteFromSelection"
-          >
-            <Icon icon="mdi:directions-fork" />
-            <span>Маршрут</span>
-          </button>
+            <button
+              type="button"
+              class="action-chip"
+              :disabled="!selectedLocation"
+              @click="handleStartRouteFromSelection"
+            >
+              <Icon icon="mdi:directions-fork" />
+              <span>Маршрут</span>
+            </button>
 
-          <button
-            v-if="activeRouteId"
-            type="button"
-            class="action-chip"
-            :disabled="!selectedLocation"
-            @click="handleAddToActiveRouteFromSelection"
-          >
-            <Icon icon="mdi:plus-circle-outline" />
-            <span>В маршрут</span>
-          </button>
+            <button
+              v-if="activeRouteId"
+              type="button"
+              class="action-chip"
+              :disabled="!selectedLocation"
+              @click="handleAddToActiveRouteFromSelection"
+            >
+              <Icon icon="mdi:plus-circle-outline" />
+              <span>В маршрут</span>
+            </button>
 
-          <button
-            type="button"
-            class="action-chip secondary"
-            :disabled="!selectedLocation || selectedLocation.isFetchingAddress || !!selectedLocation.address"
-            @click="handleFetchAddressForSelection"
-          >
-            <Icon
-              :icon="selectedLocation?.isFetchingAddress ? 'mdi:loading' : 'mdi:map-marker-question-outline'"
-              :class="{ spin: selectedLocation?.isFetchingAddress }"
-            />
-            <span>{{ selectedLocation?.address ? 'Адрес найден' : 'Адрес' }}</span>
-          </button>
+            <button
+              type="button"
+              class="action-chip secondary"
+              :disabled="!selectedLocation || selectedLocation.isFetchingAddress || !!selectedLocation.address"
+              @click="handleFetchAddressForSelection"
+            >
+              <Icon
+                :icon="selectedLocation?.isFetchingAddress ? 'mdi:loading' : 'mdi:map-marker-question-outline'"
+                :class="{ spin: selectedLocation?.isFetchingAddress }"
+              />
+              <span>{{ selectedLocation?.address ? 'Адрес найден' : 'Адрес' }}</span>
+            </button>
 
-          <button
-            type="button"
-            class="action-chip secondary icon-only"
-            title="Центрировать карту"
-            :disabled="!selectedLocation"
-            @click="handleCenterOnSelection"
-          >
-            <Icon icon="mdi:crosshairs" />
-          </button>
+            <button
+              type="button"
+              class="action-chip secondary icon-only"
+              title="Центрировать карту"
+              :disabled="!selectedLocation"
+              @click="handleCenterOnSelection"
+            >
+              <Icon icon="mdi:crosshairs" />
+            </button>
+          </template>
         </div>
+      </div>
+
+      <div v-if="navigationRoute" class="active-banner">
+        <span>Маршрут от GPS · {{ ((navigationRoute.distance || 0) / 1000).toFixed(1) }} км · {{ Math.ceil((navigationRoute.duration || 0) / 60) }} мин</span>
+        <button type="button" class="banner-cancel-btn" @click="clearNavigation">
+          Убрать
+        </button>
       </div>
 
       <!-- Активные баннеры системных режимов (перемещение точки / запись маршрута) -->
@@ -626,6 +643,7 @@ onUnmounted(() => {
             :points="poiPointsWithStyle"
             :readonly="readonly"
             @focus-on-point="handleFocusOnPoint"
+            @route-to-point="routeTo($event.coordinates)"
             @update-point="handlePointUpdate"
             @update-point-coords="updatePointCoords"
             @start-move-point="handleStartMovePoint"
@@ -653,6 +671,7 @@ onUnmounted(() => {
             :readonly="readonly"
             :active-route-id="activeRouteId"
             @focus-on-point="handleFocusOnPoint"
+            @route-to-point="routeTo($event.coordinates)"
             @update-point="handleRoutePointUpdate"
             @update-route="handleRouteUpdate"
             @update-point-coords="updatePointCoords"

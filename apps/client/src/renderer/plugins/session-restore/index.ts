@@ -1,9 +1,10 @@
 import type { Pinia } from 'pinia'
+import { isAppOnline } from '~/shared/lib/connectivity'
 import { isNetworkOrServerError } from '~/shared/lib/error'
 import { useAuthStore } from '~/shared/store/auth.store'
 
 function restoreOfflineSessionIfAvailable(authStore: ReturnType<typeof useAuthStore>): boolean {
-  if (typeof navigator === 'undefined' || navigator.onLine)
+  if (isAppOnline())
     return false
 
   if (authStore.tokenPair?.accessToken && authStore.user) {

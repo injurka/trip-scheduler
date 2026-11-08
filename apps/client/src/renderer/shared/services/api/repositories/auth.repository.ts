@@ -5,6 +5,7 @@ import type {
   UpdateUserPayload,
   User,
 } from '~/shared/types/models/auth'
+import { onlineFetch } from '~/shared/lib/connectivity'
 import { SERVER_URL } from '~/shared/lib/env'
 import { refreshTokensIfNeeded } from '~/shared/services/trpc/auth-token.service'
 import { trpc } from '~/shared/services/trpc/trpc.service'
@@ -63,7 +64,7 @@ export class AuthRepository implements IAuthRepository {
     const authStore = useAuthStore()
     let accessToken = authStore.tokenPair?.accessToken || localStorage.getItem(TOKEN_KEY)
 
-    let response = await fetch(`${SERVER_URL}/api/upload`, {
+    let response = await onlineFetch(`${SERVER_URL}/api/upload`, {
       method: 'POST',
       body: formData,
       headers: { Authorization: `Bearer ${accessToken}` },
@@ -74,7 +75,7 @@ export class AuthRepository implements IAuthRepository {
 
       if (refreshed) {
         accessToken = authStore.tokenPair?.accessToken || localStorage.getItem(TOKEN_KEY)
-        response = await fetch(`${SERVER_URL}/api/upload`, {
+        response = await onlineFetch(`${SERVER_URL}/api/upload`, {
           method: 'POST',
           body: formData,
           headers: { Authorization: `Bearer ${accessToken}` },
@@ -98,7 +99,7 @@ export class AuthRepository implements IAuthRepository {
     const authStore = useAuthStore()
     let accessToken = authStore.tokenPair?.accessToken || localStorage.getItem(TOKEN_KEY)
 
-    let response = await fetch(`${SERVER_URL}/api/upload`, {
+    let response = await onlineFetch(`${SERVER_URL}/api/upload`, {
       method: 'POST',
       body: formData,
       headers: { Authorization: `Bearer ${accessToken}` },
@@ -109,7 +110,7 @@ export class AuthRepository implements IAuthRepository {
 
       if (refreshed) {
         accessToken = authStore.tokenPair?.accessToken || localStorage.getItem(TOKEN_KEY)
-        response = await fetch(`${SERVER_URL}/api/upload`, {
+        response = await onlineFetch(`${SERVER_URL}/api/upload`, {
           method: 'POST',
           body: formData,
           headers: { Authorization: `Bearer ${accessToken}` },

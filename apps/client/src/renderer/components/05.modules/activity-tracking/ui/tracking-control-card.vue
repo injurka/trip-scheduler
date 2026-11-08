@@ -22,7 +22,9 @@ async function onToggle(e: Event) {
   const enable = target.checked
 
   try {
+    target.checked = tracking.isRunning
     await tracking.toggle(enable)
+    target.checked = tracking.isRunning
 
     if (enable) {
       toast.success('Фоновый трекинг запущен: координаты и активность записываются.')
@@ -60,8 +62,8 @@ async function handleManualSync() {
     toast.success(`Синхронизировано ${count} ${formatPointsCount(count)} с сервером!`)
     emit('changed', tracking.isRunning)
   }
-  else if (tracking.lastError) {
-    toast.error(tracking.lastError)
+  else if (tracking.syncError) {
+    toast.error(tracking.syncError)
   }
   else if (tracking.unsentCount > 0) {
     toast.warn('Не удалось синхронизировать точки. Попробуйте позже.')
@@ -109,7 +111,10 @@ onBeforeUnmount(() => {
             <span class="card-title">GPS-трекинг маршрута</span>
           </div>
           <span class="card-subtitle">
-            <template v-if="tracking.isRunning">
+            <template v-if="tracking.isStarting">
+              Ожидание подтверждения GPS-сервиса…
+            </template>
+            <template v-else-if="tracking.isRunning">
               Запись перемещений в фоновом режиме с автоопределением активности
             </template>
             <template v-else>
@@ -161,7 +166,7 @@ onBeforeUnmount(() => {
     </div>
 
     <!-- Предупреждение об оптимизации батареи Android (Doze Mode) -->
-    <div v-if="isMobileApp && tracking.isRunning && !tracking.batteryIgnored" class="battery-banner">
+    <div v-if="isMobileApp && tracking.isRunning && !tracking.isStarting && tracking.batteryIgnored === false" class="battery-banner">
       <Icon icon="mdi:battery-alert" class="battery-icon" />
       <div class="battery-text">
         <div class="battery-title">
@@ -245,6 +250,21 @@ onBeforeUnmount(() => {
           >
             {{ tracking.telemetry.accuracyM !== null ? `±${tracking.telemetry.accuracyM} м` : 'Поиск...' }}
           </span>
+        </div>
+      </div>
+    </div>
+
+    <div v-if="tracking.syncError" class="error-banner" role="status">
+      <Icon icon="mdi:cloud-alert" class="error-icon" />
+      <div class="error-text">
+        <div class="error-title">
+          Не удалось отправить GPS-точки
+        </div>
+        <div class="error-desc">
+          {{ tracking.syncError }}
+        </div>
+        <div class="error-desc">
+          {{ tracking.isRunning ? 'Запись GPS продолжается.' : 'Запись GPS остановлена.' }}
         </div>
       </div>
     </div>

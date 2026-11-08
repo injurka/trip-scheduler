@@ -18,6 +18,7 @@ const props = defineProps<Props>()
 
 const emit = defineEmits<{
   (e: 'focusOnPoint', point: MapPoint): void
+  (e: 'routeToPoint', point: MapPoint): void
   (e: 'updatePoint', routeId: string, point: MapPoint): void
   (e: 'updateRoute', route: MapRoute): void
   (e: 'updatePointCoords', point: MapPoint): void
@@ -242,6 +243,7 @@ function getDecoratedRoutePoints(route: MapRoute): MapPoint[] {
               :readonly="!!readonly"
               :is-route-points="true"
               @focus-on-point="emit('focusOnPoint', $event)"
+              @route-to-point="emit('routeToPoint', $event)"
               @update-point="emit('updatePoint', route.id, $event)"
               @update-point-coords="emit('updatePointCoords', $event)"
               @start-move-point="emit('startMovePoint', $event)"

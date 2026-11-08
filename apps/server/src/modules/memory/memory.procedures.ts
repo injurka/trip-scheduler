@@ -1,15 +1,28 @@
 import z from 'zod'
 import { protectedProcedure, publicProcedure } from '~/lib/trpc'
+import { memoryDraftService } from './memory-generation.service'
 import {
+  ApplyMemoriesInputSchema,
   CreateMemoryInputSchema,
   DeleteMemoryInputSchema,
+  GenerateMemoriesInputSchema,
   GetMemoriesInputSchema,
+  MemoryProposalSchema,
   MemorySchema,
   UpdateMemoryInputSchema,
 } from './memory.schemas'
 import { memoryService } from './memory.service'
 
 export const memoryProcedures = {
+  generate: protectedProcedure
+    .input(GenerateMemoriesInputSchema)
+    .output(MemoryProposalSchema)
+    .mutation(({ input, ctx }) => memoryDraftService.generate(input.dayId, input.text, ctx.user.id, ctx.user.role)),
+  applyGenerated: protectedProcedure
+    .input(ApplyMemoriesInputSchema)
+    .output(z.array(MemorySchema))
+    .mutation(({ input, ctx }) => memoryDraftService.apply(input, ctx.user.id, ctx.user.role)),
+
   getByTripId: publicProcedure
     .meta({
       openapi: {

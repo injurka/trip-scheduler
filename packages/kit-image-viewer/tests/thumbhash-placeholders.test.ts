@@ -21,7 +21,9 @@ describe('viewer ThumbHash placeholders', () => {
     await wrapper.find('.thumbnail img:not(.thumbnail-thumbhash-placeholder)').trigger('load')
     expect(wrapper.find('.thumbnail-thumbhash-placeholder').exists()).toBe(false)
     await wrapper.find('.viewer-image').trigger('load')
-    expect(wrapper.find('.viewer-thumbhash-placeholder').exists()).toBe(false)
+    // Keep the hash beneath the image during its opacity transition.
+    expect(wrapper.find('.viewer-thumbhash-placeholder').exists()).toBe(true)
+    expect(wrapper.find('.viewer-image').classes()).toContain('loaded')
     wrapper.unmount()
   })
 })

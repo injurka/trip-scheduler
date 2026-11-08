@@ -1,5 +1,6 @@
 import type { RequestParameters, ResourceType } from 'maplibre-gl'
 import { addProtocol } from 'maplibre-gl'
+import { onlineFetch } from '~/shared/lib/connectivity'
 import { normalizeMapResource } from './map-resource'
 import { findOfflineMediaResponse } from './offline-cache'
 
@@ -222,7 +223,7 @@ class MapTileCacheManager {
         }
 
         // Сетевой запрос при промахе кэша
-        const networkResponse = await fetch(url)
+        const networkResponse = await onlineFetch(url)
 
         if (networkResponse.ok) {
           // Кэшируем только успешные ответы (200 OK)
@@ -261,10 +262,10 @@ class MapTileCacheManager {
       return offline
 
     if (typeof caches === 'undefined' || !/^https:\/\/(?:api\.maptiler\.com|[abc]\.tile\.openstreetmap\.org)\//.test(url))
-      return fetch(url, { signal })
+      return onlineFetch(url, { signal })
 
     const cache = await caches.open(CACHE_NAME)
-    const response = await cache.match(url) ?? await fetch(url, { signal })
+    const response = await cache.match(url) ?? await onlineFetch(url, { signal })
 
     if (response.ok) {
       await cache.put(url, response.clone())
@@ -301,7 +302,7 @@ class MapTileCacheManager {
             success = true
           }
           else {
-            const res = await fetch(url)
+            const res = await onlineFetch(url)
 
             if (res.ok) {
               await cache.put(url, res)

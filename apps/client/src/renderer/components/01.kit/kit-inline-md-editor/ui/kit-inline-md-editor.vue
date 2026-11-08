@@ -8,6 +8,7 @@ import { listener, listenerCtx } from '@milkdown/kit/plugin/listener'
 import { codeBlockSchema, htmlSchema, imageSchema } from '@milkdown/preset-commonmark'
 import { $view } from '@milkdown/utils'
 import { Milkdown, useEditor } from '@milkdown/vue'
+import { isAppOnline } from '~/shared/lib/connectivity'
 import { getOfflineImageUrl } from '~/shared/lib/offline-cache'
 import { resolveApiUrl } from '~/shared/lib/url'
 import { calloutPlugin } from '../lib/callout-plugin'
@@ -77,7 +78,7 @@ const offlineImageView = $view(imageSchema.node, () => (initialNode) => {
       void restore()
     }
 
-    if (!navigator.onLine)
+    if (!isAppOnline())
       void restore()
   }
   updateImage(initialNode)

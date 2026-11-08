@@ -1,7 +1,8 @@
 import { getErrorCode, getErrorMessage, getErrorStatus } from '@injurka/type-utils'
+import { isAppOnline } from '~/shared/lib/connectivity'
 
 export function isNetworkOrServerError(error: unknown): boolean {
-  if (typeof navigator !== 'undefined' && !navigator.onLine)
+  if (!isAppOnline())
     return true
 
   if (error instanceof TypeError && error.message.includes('fetch'))

@@ -35,6 +35,10 @@ impl<R: Runtime> Tracking<R> {
         self.0.run_mobile_plugin("getBufferedLocations", ()).map_err(Into::into)
     }
 
+    pub fn acknowledge_buffered_locations(&self, timestamps: Vec<i64>) -> Result<bool> {
+        self.0.run_mobile_plugin("acknowledgeBufferedLocations", serde_json::json!({ "timestamps": timestamps })).map_err(Into::into)
+    }
+
     pub fn get_push_token(&self) -> Result<String> {
         self.0.run_mobile_plugin("getPushToken", ()).map_err(Into::into)
     }

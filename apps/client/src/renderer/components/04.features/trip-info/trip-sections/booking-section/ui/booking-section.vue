@@ -35,6 +35,8 @@ const {
   bookingGroups,
   tabItems,
   timelineGroups,
+  activeTimelineEntries,
+  nextTimelineEntry,
   bookingHighlightMap,
   timelineHighlightMap,
   addBooking,
@@ -46,6 +48,9 @@ const {
   bookingTypeConfigs,
 } = useBookingSection(props, emit)
 
+const timelineRef = ref<HTMLElement | null>(null)
+const pendingEntryId = ref<string | null>(null)
+const isTabTransitioning = ref(false)
 const isAiCreatorViewOpen = ref(false)
 const isAddDialogOpen = ref(false)
 const cardComponents = {
@@ -57,6 +62,34 @@ const cardComponents = {
   other: OtherCard,
 }
 
+watch(activeTab, (tab) => {
+  if (tab !== 'timeline')
+    pendingEntryId.value = null
+})
+
+function scrollToPendingEntry() {
+  if (activeTab.value !== 'timeline' || isTabTransitioning.value || !pendingEntryId.value)
+    return
+
+  const target = Array.from(timelineRef.value?.querySelectorAll<HTMLElement>('[data-entry-id]') ?? [])
+    .find(element => element.dataset.entryId === pendingEntryId.value)
+
+  if (!target)
+    return
+
+  pendingEntryId.value = null
+  target.focus({ preventScroll: true })
+  target.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth', block: 'start' })
+}
+function navigateToEntry(id: string) {
+  pendingEntryId.value = id
+  activeTab.value = 'timeline'
+  void nextTick(scrollToPendingEntry)
+}
+function onTabReady() {
+  isTabTransitioning.value = false
+  void nextTick(scrollToPendingEntry)
+}
 function onAiSave(booking: Omit<Booking, 'id'>) {
   addCompletedBooking(booking)
   isAiCreatorViewOpen.value = false
@@ -95,9 +128,45 @@ function getCardComponent(type: Booking['type']) {
     </div>
 
     <div v-if="bookings.length > 0 && tabItems.length > 0" class="tabs-container">
-      <KitTabs v-model="activeTab" :items="tabItems">
+      <nav v-if="activeTimelineEntries.length || nextTimelineEntry" class="timeline-navigation" aria-label="Актуальные бронирования">
+        <KitBtn
+          v-for="entry in activeTimelineEntries"
+          :key="entry.id"
+          icon="mdi:play-circle-outline"
+          variant="outlined"
+          class="jump-active"
+          :aria-label="`Перейти к текущему бронированию: ${entry.sublabel || entry.booking.title || entry.label}`"
+          :title="entry.sublabel || entry.booking.title || entry.label"
+          @click="navigateToEntry(entry.id)"
+        >
+          <span class="jump-label">
+            <span class="jump-action">Перейти к текущему</span>
+            <span class="jump-title">{{ entry.sublabel || entry.booking.title || entry.label }}</span>
+          </span>
+        </KitBtn>
+        <KitBtn
+          v-if="nextTimelineEntry"
+          icon="mdi:skip-next-circle-outline"
+          variant="outlined"
+          class="jump-next"
+          :aria-label="`Перейти к следующему бронированию: ${nextTimelineEntry.sublabel || nextTimelineEntry.booking.title || nextTimelineEntry.label}`"
+          :title="nextTimelineEntry.sublabel || nextTimelineEntry.booking.title || nextTimelineEntry.label"
+          @click="navigateToEntry(nextTimelineEntry.id)"
+        >
+          <span class="jump-label">
+            <span class="jump-action">Перейти к следующему</span>
+            <span class="jump-title">{{ nextTimelineEntry.sublabel || nextTimelineEntry.booking.title || nextTimelineEntry.label }}</span>
+          </span>
+        </KitBtn>
+      </nav>
+      <KitTabs
+        v-model="activeTab"
+        :items="tabItems"
+        @before-leave="isTabTransitioning = true"
+        @after-enter="onTabReady"
+      >
         <template #timeline>
-          <div class="bookings-timeline">
+          <div ref="timelineRef" class="bookings-timeline">
             <section
               v-for="group in timelineGroups"
               :key="group.key"
@@ -118,7 +187,10 @@ function getCardComponent(type: Booking['type']) {
                   v-for="entry in group.entries"
                   :key="entry.id"
                   class="timeline-item"
-                  :class="[`timeline-tone-${entry.booking.type}`, { 'is-highlighted': timelineHighlightMap[entry.id] }]"
+                  :aria-label="timelineHighlightMap[entry.id] === 'active' ? 'Текущее бронирование' : timelineHighlightMap[entry.id] === 'next' ? 'Следующее бронирование' : undefined"
+                  :data-entry-id="entry.id"
+                  tabindex="-1"
+                  :class="[`timeline-tone-${entry.booking.type}`, { 'is-active': timelineHighlightMap[entry.id] === 'active', 'is-next': timelineHighlightMap[entry.id] === 'next' }]"
                 >
                   <div class="timeline-marker" aria-hidden="true">
                     <Icon :icon="entry.icon" />
@@ -200,6 +272,9 @@ function getCardComponent(type: Booking['type']) {
 }
 
 .tabs-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
   min-width: 0;
 }
 
@@ -242,6 +317,62 @@ function getCardComponent(type: Booking['type']) {
   flex-direction: column;
   gap: 1.75rem;
   padding: 0.5rem 0;
+}
+
+.timeline-navigation {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+
+  .jump-active {
+    color: var(--fg-success-color);
+    border-color: var(--fg-success-color);
+  }
+
+  .jump-next {
+    color: var(--fg-info-color);
+    border-color: var(--fg-info-color);
+  }
+
+  :deep(.kit-btn) {
+    flex: 1 1 240px;
+    min-width: 0;
+    max-width: 100%;
+    height: auto;
+    min-height: 46px;
+    text-align: left;
+    justify-content: flex-start;
+  }
+
+  :deep(.kit-btn-content) {
+    min-width: 0;
+    width: 100%;
+  }
+
+  :deep(.kit-btn-icon) {
+    flex-shrink: 0;
+  }
+
+  .jump-label {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    gap: 2px;
+  }
+
+  .jump-action {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .jump-title {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-weight: 400;
+    color: var(--fg-secondary-color);
+    font-size: 0.8rem;
+  }
 }
 
 .timeline-day {
@@ -373,8 +504,18 @@ function getCardComponent(type: Booking['type']) {
     --timeline-tone: #ec4899;
   }
 
-  &.is-highlighted .timeline-marker {
-    border-color: var(--timeline-tone);
+  scroll-margin-top: calc(var(--header-height, 60px) + var(--safe-area-inset-top, 0px) + 20px);
+
+  &.is-active .timeline-marker {
+    color: var(--fg-success-color);
+    border-color: var(--fg-success-color);
+    background-color: var(--bg-success-color);
+  }
+
+  &.is-next .timeline-marker {
+    color: var(--fg-info-color);
+    border-color: var(--fg-info-color);
+    background-color: var(--bg-info-color);
   }
 }
 

@@ -343,8 +343,8 @@ onBeforeUnmount(() => {
               @update:model-value="handleCacheAll"
             >
               <template #trigger>
-                <button class="control-btn cache-btn">
-                  <Icon icon="mdi:cached" />
+                <button class="control-btn cache-btn" aria-label="Скачать изображения страницы в кеш">
+                  <Icon icon="mdi:download-box-outline" />
                 </button>
               </template>
             </KitDropdown>

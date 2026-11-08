@@ -60,7 +60,7 @@ describe('kitImageViewer - quality change resets zoom', () => {
     await nextTick()
 
     // Zoom must be reset to default (scale(1))
-    expect(imgEl.style.transform).toBe('translate(0px, 0px) scale(1)')
+    expect((document.querySelector('img.viewer-image') as HTMLImageElement).style.transform).toBe('translate(0px, 0px) scale(1)')
 
     wrapper.unmount()
   })
@@ -110,7 +110,7 @@ describe('kitImageViewer - quality change resets zoom', () => {
     await nextTick()
 
     // Zoom must be reset to default (scale(1))
-    expect(imgEl.style.transform).toBe('translate(0px, 0px) scale(1)')
+    expect((document.querySelector('img.viewer-image') as HTMLImageElement).style.transform).toBe('translate(0px, 0px) scale(1)')
 
     wrapper.unmount()
   })

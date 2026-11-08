@@ -25,6 +25,10 @@ impl<R: Runtime> Tracking<R> {
         Ok(vec![])
     }
 
+    pub fn acknowledge_buffered_locations(&self, _timestamps: Vec<i64>) -> Result<bool> {
+        Ok(true)
+    }
+
     pub fn get_push_token(&self) -> Result<String> {
         Err(crate::Error::Generic("FCM push is available only on Android".to_string()))
     }

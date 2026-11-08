@@ -38,9 +38,9 @@ const highlightClass = computed(() => {
 })
 const statusBadge = computed(() => {
   switch (props.highlightStatus) {
-    case 'active': return { text: 'Сейчас', icon: 'mdi:play-circle-outline', color: 'var(--fg-success-color)' }
-    case 'next': return { text: 'Далее', icon: 'mdi:skip-next-circle-outline', color: 'var(--fg-info-color)' }
-    case 'closest': return { text: 'Ближайшее', icon: 'mdi:clock-start', color: 'var(--fg-accent-color)' }
+    case 'active': return { text: 'Сейчас', icon: 'mdi:play-circle-outline' }
+    case 'next': return { text: 'Далее', icon: 'mdi:skip-next-circle-outline' }
+    case 'closest': return { text: 'Ближайшее', icon: 'mdi:clock-start' }
     default: return null
   }
 })
@@ -90,7 +90,7 @@ async function handleDelete() {
           <slot name="badge" />
         </div>
 
-        <div v-if="statusBadge" class="status-badge" :style="{ color: statusBadge.color, borderColor: statusBadge.color }">
+        <div v-if="statusBadge" class="status-badge" :class="`status-badge--${highlightStatus}`">
           <Icon :icon="statusBadge.icon" />
           <span>{{ statusBadge.text }}</span>
         </div>
@@ -220,6 +220,7 @@ async function handleDelete() {
   flex: 1;
   min-width: 0;
   margin-right: 8px;
+  flex-wrap: wrap;
 
   :deep(.kit-tooltip-wrapper),
   :deep(.kit-tooltip-trigger) {
@@ -249,10 +250,18 @@ async function handleDelete() {
   margin-left: auto;
   white-space: nowrap;
 
-  @media (max-width: 600px) {
-    span {
-      display: none;
-    }
+  flex-shrink: 0;
+
+  &--active {
+    color: var(--fg-success-color);
+  }
+
+  &--next {
+    color: var(--fg-info-color);
+  }
+
+  &--closest {
+    color: var(--fg-accent-color);
   }
 }
 

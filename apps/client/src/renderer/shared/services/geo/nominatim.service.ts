@@ -1,3 +1,5 @@
+import { onlineFetch } from '~/shared/lib/connectivity'
+
 export interface GeoSearchResult {
   lat: number
   lon: number
@@ -49,7 +51,7 @@ class NominatimService {
   }
 
   private async fetchReverseData(url: string): Promise<NominatimReverseResponse | null> {
-    const response = await fetch(url)
+    const response = await onlineFetch(url)
 
     if (!response.ok)
       return null
@@ -94,7 +96,7 @@ class NominatimService {
 
     try {
       const url = `${NOMINATIM_SEARCH_URL}?q=${encodeURIComponent(trimmed)}&format=json&limit=${limit}&addressdetails=1&accept-language=${lang}`
-      const res = await fetch(url)
+      const res = await onlineFetch(url)
 
       if (!res.ok) {
         return []

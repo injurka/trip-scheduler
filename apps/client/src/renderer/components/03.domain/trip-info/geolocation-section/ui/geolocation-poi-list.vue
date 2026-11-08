@@ -27,6 +27,7 @@ withDefaults(defineProps<Props>(), {
 })
 const emit = defineEmits<{
   (e: 'focusOnPoint', point: MapPoint): void
+  (e: 'routeToPoint', point: MapPoint): void
   (e: 'updatePoint', point: MapPoint): void
   (e: 'updatePointCoords', point: MapPoint): void
   (e: 'deletePoint', pointId: string): void
@@ -238,6 +239,16 @@ onClickOutside(mapIframeContainerRef, () => {
               <KitTooltip v-if="!readonly" text="Обновить адрес">
                 <button type="button" class="mini-btn" @click.stop="emit('refreshAddress', point.id)">
                   <Icon icon="mdi:refresh" />
+                </button>
+              </KitTooltip>
+              <KitTooltip text="Пешком от моей GPS-позиции">
+                <button
+                  type="button"
+                  class="mini-btn"
+                  aria-label="Построить маршрут от моей GPS-позиции"
+                  @click.stop="emit('routeToPoint', point)"
+                >
+                  <Icon icon="mdi:directions" />
                 </button>
               </KitTooltip>
               <KitTooltip text="Открыть на внешней карте">

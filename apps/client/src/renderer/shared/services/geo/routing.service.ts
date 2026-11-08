@@ -1,4 +1,5 @@
 import Polyline from '@mapbox/polyline'
+import { onlineFetch } from '~/shared/lib/connectivity'
 
 export type RoutingTransportMode = 'foot' | 'bike' | 'car' | 'walk' | 'transit'
 
@@ -97,7 +98,7 @@ class RoutingService {
   }
 
   private async fetchRoute(url: string, signal: AbortSignal | undefined): Promise<OsrmRouteResponse> {
-    const response = await fetch(url, { signal })
+    const response = await onlineFetch(url, { signal })
 
     if (!response.ok)
       return {}

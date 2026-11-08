@@ -165,7 +165,7 @@ function handleMenuAction(action: string) {
             </div>
 
             <KitTooltip :text="visibilityIcon.title">
-              <div class="card-visibility">
+              <div class="card-visibility" :aria-label="visibilityIcon.title" role="img">
                 <Icon :icon="visibilityIcon.icon" />
               </div>
             </KitTooltip>
@@ -308,29 +308,6 @@ function handleMenuAction(action: string) {
   }
 }
 
-.active-trip-badge {
-  position: absolute;
-  top: 12px;
-  left: 16px;
-  z-index: 3;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 10px;
-  background-color: var(--fg-accent-color);
-  color: var(--fg-inverted-color);
-  border-radius: var(--r-full);
-  font-size: 0.85rem;
-  font-weight: 600;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-  animation: pulse-badge 2s infinite;
-
-  .badge-icon {
-    font-size: 1rem;
-    flex-shrink: 0;
-  }
-}
-
 @keyframes pulse-badge {
   0% {
     box-shadow: 0 0 0 0 rgba(var(--fg-accent-color-rgb), 0.4);
@@ -422,12 +399,16 @@ function handleMenuAction(action: string) {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 8px;
+  flex-shrink: 0;
   width: 100%;
   min-height: 32px;
 }
 
 .header-badges {
   display: flex;
+  flex: 1;
+  min-width: 0;
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
@@ -435,6 +416,10 @@ function handleMenuAction(action: string) {
 
 .active-trip-badge {
   display: inline-flex;
+  min-width: 0;
+  max-width: 100%;
+  min-height: 32px;
+  white-space: nowrap;
   align-items: center;
   gap: 5px;
   padding: 4px 10px;
@@ -445,6 +430,16 @@ function handleMenuAction(action: string) {
   font-weight: 600;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.25);
   animation: pulse-badge 2s infinite;
+
+  span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
 
   .badge-icon {
     font-size: 0.95rem;
@@ -495,6 +490,7 @@ function handleMenuAction(action: string) {
 
 .card-actions {
   display: flex;
+  flex-shrink: 0;
   align-items: center;
   z-index: 3;
   opacity: 0;

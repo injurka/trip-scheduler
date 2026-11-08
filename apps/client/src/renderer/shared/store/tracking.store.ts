@@ -4,7 +4,6 @@ import { defineStore } from 'pinia'
 import {
   geotrack,
   GeotrackUnavailableError,
-  hasActiveStoredSession,
   parseTrackPoint,
 } from '../services/tracking/geotrack-client'
 import { runSync } from '../services/tracking/track-sync'
@@ -19,7 +18,9 @@ export interface ITrackingState {
   network: 'wifi' | 'cellular' | 'offline' | 'other'
   lastError: string | null
   hasPermissionDenied: boolean
-  batteryIgnored: boolean
+  batteryIgnored: boolean | null
+  syncError: string | null
+  statusRevision: number
   lastSyncAt: number | null
   telemetry: TrackingTelemetry
 }
@@ -42,14 +43,16 @@ const defaultTelemetry: TrackingTelemetry = {
 export const useTrackingStore = defineStore('tracking', {
   state: (): ITrackingState => ({
     isSupported: true,
-    isRunning: hasActiveStoredSession(),
+    isRunning: false,
     isStarting: false,
     isSyncing: false,
     unsentCount: 0,
     network: 'other',
     lastError: null,
     hasPermissionDenied: false,
-    batteryIgnored: true,
+    batteryIgnored: null,
+    syncError: null,
+    statusRevision: 0,
     lastSyncAt: null,
     telemetry: { ...defaultTelemetry },
   }),
@@ -95,8 +98,39 @@ export const useTrackingStore = defineStore('tracking', {
   },
 
   actions: {
+    applyStatus(status: TrackingStatus) {
+      this.isRunning = status.running
+      this.unsentCount = status.unsentCount
+      this.network = status.network
+      this.batteryIgnored = status.batteryIgnored
+      this.lastError = status.error ?? null
+      this.hasPermissionDenied = Boolean(status.error?.includes('запрещ'))
+
+      if (status.telemetry)
+        this.telemetry = { ...status.telemetry }
+    },
+
+    handleStatusError(e: unknown) {
+      if (e instanceof GeotrackUnavailableError) {
+        this.isSupported = false
+      }
+      else {
+        const msg = e instanceof Error ? getErrorMessage(e) : String(e)
+        this.lastError = msg
+
+        if (msg.toLowerCase().includes('запрещ') || msg.toLowerCase().includes('denied')) {
+          this.hasPermissionDenied = true
+        }
+      }
+    },
+
     /** Обновление статуса трекера и телеметрии */
     async refreshStatus() {
+      if (this.isStarting)
+        return
+
+      const revision = ++this.statusRevision
+
       try {
         const available = await geotrack.isAvailable()
         this.isSupported = available
@@ -105,29 +139,17 @@ export const useTrackingStore = defineStore('tracking', {
           return
 
         const status: TrackingStatus = await geotrack.status()
-        this.isRunning = status.running
-        this.unsentCount = status.unsentCount
-        this.network = status.network
-        this.batteryIgnored = status.batteryIgnored
 
-        if (status.telemetry) {
-          this.telemetry = { ...status.telemetry }
-        }
+        if (this.isStarting || status.transitioning || revision !== this.statusRevision)
+          return
 
-        this.hasPermissionDenied = false
+        this.applyStatus(status)
       }
       catch (e) {
-        if (e instanceof GeotrackUnavailableError) {
-          this.isSupported = false
-        }
-        else {
-          const msg = e instanceof Error ? getErrorMessage(e) : String(e)
-          this.lastError = msg
+        if (this.isStarting || revision !== this.statusRevision)
+          return
 
-          if (msg.toLowerCase().includes('запрещ') || msg.toLowerCase().includes('denied')) {
-            this.hasPermissionDenied = true
-          }
-        }
+        this.handleStatusError(e)
       }
     },
 
@@ -177,34 +199,23 @@ export const useTrackingStore = defineStore('tracking', {
     },
 
     async toggle(enable: boolean) {
+      if (this.isStarting)
+        throw new Error('Дождитесь завершения переключения GPS')
+
       this.isStarting = true
+      this.statusRevision++
       this.lastError = null
       this.hasPermissionDenied = false
 
       try {
-        const actionPromise = enable ? geotrack.start() : geotrack.stop()
-        let timeoutTimer: ReturnType<typeof setTimeout> | undefined
-        const timeoutPromise = new Promise<never>((_, reject) => {
-          timeoutTimer = setTimeout(() => reject(new Error(enable ? 'Превышено время ожидания запуска трекинга' : 'Превышено время ожидания остановки трекинга')), 8000)
-        })
+        const status = await (enable ? geotrack.start() : geotrack.stop())
+        this.applyStatus(status)
 
-        try {
-          const status = await Promise.race([actionPromise, timeoutPromise])
-          this.isRunning = status.running
-          this.unsentCount = status.unsentCount
+        if (status.running !== enable)
+          throw new Error('GPS-сервис не подтвердил переключение записи')
 
-          if (status.telemetry) {
-            this.telemetry = { ...status.telemetry }
-          }
-
-          if (!enable) {
-            // При остановке сразу отправляем оставшиеся точки на сервер
-            void this.syncNow()
-          }
-        }
-        finally {
-          clearTimeout(timeoutTimer)
-        }
+        if (!enable)
+          void this.syncNow()
       }
       catch (e) {
         const msg = e instanceof Error ? getErrorMessage(e) : String(e)
@@ -218,54 +229,33 @@ export const useTrackingStore = defineStore('tracking', {
       }
       finally {
         this.isStarting = false
+        await this.refreshStatus()
       }
     },
 
     /** Принудительная синхронизация накопившихся точек */
     async syncNow(): Promise<number> {
-      if (this.isSyncing)
-        return 0
+      const auth = useAuthStore()
 
-      this.isSyncing = true
-      this.lastError = null
+      if (!auth.isAuthenticated) {
+        this.syncError = 'Для синхронизации точек войдите в аккаунт'
+
+        return 0
+      }
 
       try {
-        const auth = useAuthStore()
-
-        if (!auth.isAuthenticated) {
-          throw new Error('Для синхронизации точек войдите в аккаунт')
-        }
-
-        const synced = await runSync()
-        await this.refreshStatus()
-        this.lastSyncAt = Date.now()
-
-        return synced
+        return await runSync()
       }
-      catch (e) {
-        const raw = e instanceof Error ? getErrorMessage(e) : String(e)
-        let msg = raw
-
-        if (raw.includes('UNAUTHORIZED') || raw.includes('Not authenticated')) {
-          msg = 'Для синхронизации точек войдите в аккаунт'
-        }
-        else if (raw.includes('Failed to fetch') || raw.includes('NetworkError') || raw.includes('Load failed')) {
-          msg = 'Сервер недоступен. Проверьте подключение к сети'
-        }
-
-        this.lastError = msg
-
+      catch {
         return 0
-      }
-      finally {
-        this.isSyncing = false
       }
     },
 
     /** Отметить точки синхронизированными */
     async markSynced(clientPointIds: string[]) {
       await geotrack.markSynced(clientPointIds)
-      this.unsentCount = Math.max(0, this.unsentCount - clientPointIds.length)
+      const status = await geotrack.status()
+      this.unsentCount = status.unsentCount
       this.lastSyncAt = Date.now()
     },
 

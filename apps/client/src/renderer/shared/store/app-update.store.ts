@@ -4,6 +4,7 @@ import { invoke } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
 import { compareVersions } from 'compare-versions'
 import { defineStore } from 'pinia'
+import { onlineFetch } from '~/shared/lib/connectivity'
 import { isMobile, isTauri } from '~/shared/lib/env'
 import { openExternalUrl } from '~/shared/lib/opener'
 import { useToastStore } from './toast.store'
@@ -263,7 +264,7 @@ export const useAppUpdateStore = defineStore('appUpdate', {
       }
 
       try {
-        const response = await fetch(API_GITHUB_RELEASES_LATEST)
+        const response = await onlineFetch(API_GITHUB_RELEASES_LATEST)
 
         if (response.ok) {
           const latestRelease = await response.json() as GitHubRelease

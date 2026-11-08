@@ -6,6 +6,7 @@ import type {
 import type { TripDocumentResponse } from '~/shared/services/api/model/types'
 import { computed, onMounted, ref } from 'vue'
 import { useRequest } from '~/plugins/request'
+import { isAppOnline } from '~/shared/lib/connectivity'
 import { useOfflineStore } from '~/shared/store/offline.store'
 import { useDocumentFilters } from './use-document-filters'
 import { useDocumentFolders } from './use-document-folders'
@@ -50,7 +51,7 @@ export function useDocumentsSection(props: UseDocumentsSectionProps, emit: (even
   async function loadDocuments() {
     isFetching.value = true
 
-    if (typeof navigator !== 'undefined' && !navigator.onLine && offlineStore.isTripCached(props.section.tripId)) {
+    if (!isAppOnline() && offlineStore.isTripCached(props.section.tripId)) {
       const cachedDocs = offlineStore.getSavedTripDocuments(props.section.tripId)
 
       if (offlineStore.isTripCached(props.section.tripId)) {

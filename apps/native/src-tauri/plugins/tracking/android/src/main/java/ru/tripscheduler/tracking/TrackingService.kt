@@ -38,8 +38,6 @@ import org.json.JSONObject
 import java.io.BufferedReader
 import java.io.File
 import java.io.FileReader
-import java.io.FileWriter
-import java.util.concurrent.ConcurrentLinkedQueue
 
 class TrackingService : Service() {
 
@@ -73,6 +71,9 @@ class TrackingService : Service() {
         @Volatile
         var isRunning: Boolean = false
             private set
+
+        @Volatile
+        private var isStarting = false
 
         /**
          * Текущий способ передвижения по данным Activity Recognition (акселерометр).
@@ -109,25 +110,16 @@ class TrackingService : Service() {
         @Volatile
         var onStateChanged: ((Boolean) -> Unit)? = null
 
-        val locationBuffer = ConcurrentLinkedQueue<Location>()
-        private const val MAX_RAM_BUFFER_SIZE = 5000
 
         fun drainBuffer(context: Context): List<Location> {
             val list = mutableListOf<Location>()
 
-            // 1. Извлекаем точки из оперативной памяти
-            while (true) {
-                val loc = locationBuffer.poll() ?: break
-                list.add(loc)
-            }
-
-            // 2. Считываем сохраненный на диск буфер (для защиты от выгрузки процесса ОС)
             synchronized(fileLock) {
                 readPersistedPoints(context, list)
             }
 
             // Дедупликация и сортировка по времени
-            return list.distinctBy { it.time }.sortedBy { it.time }
+            return list.distinctBy { it.time }.sortedBy { it.time }.take(500)
         }
 
         private fun readPersistedPoints(context: Context, out: MutableList<Location>) {
@@ -164,10 +156,27 @@ class TrackingService : Service() {
                             line = reader.readLine()
                         }
                     }
-                    file.delete()
+
                 }
             } catch (e: Exception) {
                 android.util.Log.w("TrackingService", "Error reading persistent buffer", e)
+            }
+        }
+
+        fun acknowledgeBuffer(context: Context, timestamps: Set<Long>) {
+            synchronized(fileLock) {
+                val file = File(context.filesDir, BUFFER_FILENAME)
+                if (!file.exists()) return
+                val remaining = file.readLines().filter { line ->
+                    try { !timestamps.contains(JSONObject(line).getLong("time")) }
+                    catch (_: Exception) { true }
+                }
+                val temporary = File(context.filesDir, "$BUFFER_FILENAME.tmp")
+                java.io.FileOutputStream(temporary).use { stream ->
+                    stream.write(remaining.joinToString("\n", postfix = if (remaining.isEmpty()) "" else "\n").toByteArray(Charsets.UTF_8))
+                    stream.fd.sync()
+                }
+                check(temporary.renameTo(file)) { "Could not acknowledge GPS buffer" }
             }
         }
 
@@ -194,8 +203,9 @@ class TrackingService : Service() {
                             )
                         }
                     }
-                    FileWriter(file, true).use { writer ->
-                        writer.write(json.toString() + "\n")
+                    java.io.FileOutputStream(file, true).use { stream ->
+                        stream.write((json.toString() + "\n").toByteArray(Charsets.UTF_8))
+                        stream.fd.sync()
                     }
                 } catch (e: Exception) {
                     android.util.Log.w("TrackingService", "Error persisting location to disk", e)
@@ -295,12 +305,13 @@ class TrackingService : Service() {
             }
         } catch (e: Exception) {
             android.util.Log.e("TrackingService", "Failed to start foreground", e)
+            stopSelf()
+            return
         }
 
-        if (isRunning) return
-        isRunning = true
+        if (isRunning || isStarting) return
+        isStarting = true
         recordedCount = 0
-        onStateChanged?.invoke(true)
 
         // 1. Захватываем CPU Partial WakeLock для предотвращения сна процессора при заблокированном экране
         try {
@@ -342,9 +353,22 @@ class TrackingService : Service() {
                 locationRequest,
                 locationCallback!!,
                 looper
-            )
+            )?.addOnSuccessListener {
+                if (isStarting) {
+                    isStarting = false
+                    isRunning = true
+                    onStateChanged?.invoke(true)
+                }
+            }?.addOnFailureListener { error ->
+                android.util.Log.e("TrackingService", "Location subscription failed", error)
+                stopTracking()
+                stopSelf()
+            }
         } catch (e: Exception) {
             android.util.Log.e("TrackingService", "Failed to request location updates", e)
+            stopTracking()
+            stopSelf()
+            return
         }
 
         // 3. Подписываемся на смену способа передвижения (акселерометр, независимо от GPS)
@@ -477,12 +501,6 @@ class TrackingService : Service() {
             putInt(EXTRA_DEVICE_ACTIVITY_CONFIDENCE, if (applicable) currentDeviceActivityConfidence else 0)
         }
 
-        // 1. Сохраняем в оперативную очередь
-        if (locationBuffer.size >= MAX_RAM_BUFFER_SIZE) {
-            locationBuffer.poll()
-        }
-        locationBuffer.offer(location)
-
         // 2. Сохраняем в файл на диске на случай выгрузки процесса системой
         persistPoint(applicationContext, location)
 
@@ -503,7 +521,8 @@ class TrackingService : Service() {
     }
 
     private fun stopTracking() {
-        if (!isRunning) return
+        if (!isRunning && !isStarting) return
+        isStarting = false
         isRunning = false
         onStateChanged?.invoke(false)
 

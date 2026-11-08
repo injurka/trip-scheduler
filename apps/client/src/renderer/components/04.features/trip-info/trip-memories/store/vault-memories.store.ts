@@ -1,5 +1,4 @@
 import { invoke } from '@tauri-apps/api/core'
-import { useStorage } from '@vueuse/core'
 import { defineStore } from 'pinia'
 import { isTauri } from '~/shared/lib/env'
 
@@ -47,7 +46,6 @@ const backend = createVaultBackend()
 export const useVaultMemoriesStore = defineStore('vaultMemories', {
   state: () => ({
     vaultPath: null as string | null,
-    isLocalMode: useStorage('vault-local-mode', false),
     localFilesSet: new Set<string>(),
 
     syncState: {

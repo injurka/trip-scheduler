@@ -1,6 +1,7 @@
 import type { OfflineMapOptions } from './offline-map-options'
 import type { TripWithDays } from '~/shared/types/models/trip'
 import { isRecord } from '@injurka/type-utils'
+import { onlineFetch } from '~/shared/lib/connectivity'
 import { normalizeMapResource } from './map-resource'
 import { getEffectiveMapTilerKey, getMapStyle } from './map-styles-sources'
 import { getOfflineMapStyle, getSelectedMapAreas } from './offline-map-options'
@@ -231,7 +232,7 @@ export async function planOfflineMap(
   const urls = new Set<string>()
   const json: JsonLoader = async (url) => {
     const cached = options.refresh && !refreshedMetadata.has(url) ? undefined : await cache.match(url)
-    const response = cached ?? await fetch(url, { cache: 'reload', signal: AbortSignal.timeout(30000) })
+    const response = cached ?? await onlineFetch(url, { cache: 'reload', signal: AbortSignal.timeout(30000) })
 
     if (!response.ok)
       throw new Error(`Не удалось загрузить описание карты (${response.status}).`)

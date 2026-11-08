@@ -39,7 +39,10 @@ const emit = defineEmits<{
 }>()
 const visible = defineModel<boolean>('visible', { required: true })
 const isFullscreen = defineModel<boolean>('fullscreen', { default: false })
+
 const dialogId = useId()
+
+let returnFocus: HTMLElement | null = null
 
 const maxWidthPx = computed(() => `${maxWidth}px`)
 
@@ -49,6 +52,17 @@ watch(visible, (isOpen) => {
   }
 })
 
+function handleOpenAutoFocus() {
+  returnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null
+}
+function handleCloseAutoFocus(event: Event) {
+  event.preventDefault()
+
+  if (returnFocus?.isConnected)
+    returnFocus.focus({ preventScroll: true })
+
+  returnFocus = null
+}
 function toggleFullscreen() {
   isFullscreen.value = !isFullscreen.value
   emit('toggleFullscreen', isFullscreen.value)
@@ -91,6 +105,8 @@ useDialogHistory(dialogId, visible)
         :class="[contentClass, { 'is-fullscreen': isFullscreen }]"
         :style="{ maxWidth: isFullscreen ? 'none' : maxWidthPx }"
         @pointer-down-outside="handlePointerDownOutside"
+        @open-auto-focus="handleOpenAutoFocus"
+        @close-auto-focus="handleCloseAutoFocus"
       >
         <div class="dialog-header" @dblclick="handleHeaderDblClick">
           <slot v-if="$slots.header" name="header" />

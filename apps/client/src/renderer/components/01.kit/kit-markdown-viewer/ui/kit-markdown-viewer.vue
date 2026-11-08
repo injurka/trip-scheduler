@@ -2,6 +2,7 @@
 import DOMPurify from 'dompurify'
 import { Marked } from 'marked'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { isAppOnline } from '~/shared/lib/connectivity'
 import { getOfflineImageUrl } from '~/shared/lib/offline-cache'
 
 interface Props {
@@ -98,7 +99,7 @@ function restoreImages() {
       void restore()
     }
 
-    if (!navigator.onLine || (image.complete && !image.naturalWidth))
+    if (!isAppOnline() || (image.complete && !image.naturalWidth))
       void restore()
   }
 }

@@ -8,6 +8,7 @@ import { KitDialogWithClose } from '~/components/01.kit/kit-dialog-with-close'
 import { KitDropdown } from '~/components/01.kit/kit-dropdown'
 import { KitMarkdownViewer } from '~/components/01.kit/kit-markdown-viewer'
 import { useToast } from '~/shared/composables/use-toast'
+import { onlineFetch } from '~/shared/lib/connectivity'
 import { isTauri } from '~/shared/lib/env'
 import { findOfflineMediaResponse } from '~/shared/lib/offline-cache'
 import { openExternalUrl } from '~/shared/lib/opener'
@@ -101,7 +102,7 @@ async function loadTextContent(url: string): Promise<string | null> {
     }
   }
 
-  const response = await fetch(url)
+  const response = await onlineFetch(url)
 
   return response.ok ? response.text() : null
 }
@@ -161,7 +162,7 @@ async function loadDocumentBlob(url: string): Promise<Blob | null> {
     return cached.blob()
 
   try {
-    const response = await fetch(url)
+    const response = await onlineFetch(url)
 
     return response.ok ? response.blob() : null
   }

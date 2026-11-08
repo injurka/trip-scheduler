@@ -1,5 +1,6 @@
 import type { OfflineMapCoverage, OfflineMapOptions } from './offline-map-options'
 import type { TripWithDays } from '~/shared/types/models/trip'
+import { onlineFetch } from '~/shared/lib/connectivity'
 import { getOfflineAccountId, OFFLINE_CACHE_READY_URL } from './offline-cache'
 import { planOfflineMap } from './offline-map'
 import { getOfflineMapStyle, getSelectedMapAreas } from './offline-map-options'
@@ -35,7 +36,7 @@ async function saveMapResource(
     return 0
 
   try {
-    const response = await fetch(url, { cache: 'reload', mode: 'cors', signal: AbortSignal.timeout(30000) })
+    const response = await onlineFetch(url, { cache: 'reload', mode: 'cors', signal: AbortSignal.timeout(30000) })
 
     if (!response.ok)
       return null

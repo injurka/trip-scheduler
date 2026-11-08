@@ -6,6 +6,7 @@ import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitDivider } from '~/components/01.kit/kit-divider'
 import { KitTooltip } from '~/components/01.kit/kit-tooltip'
 import { useModuleStore } from '~/components/05.modules/trip-info/composables/use-trip-info-module'
+import { useFullscreenBackground } from '~/shared/composables/use-fullscreen-background'
 import { lazyComponent } from '~/shared/lib/lazy-component'
 import { EActivityStatus, EActivityTag } from '~/shared/types/models/activity'
 import DayActivitiesList from './list.vue'
@@ -68,6 +69,7 @@ function handleAddNewActivity() {
   plan.addActivity(getSelectedDay.value.id, newActivity)
 }
 
+useFullscreenBackground(isFullScreen)
 onKeyStroke('Escape', (e) => {
   if (isFullScreen.value) {
     e.preventDefault()
@@ -124,6 +126,9 @@ onKeyStroke('Escape', (e) => {
           <KitTooltip :text="isFullScreen ? 'Выйти из полноэкранного режима (Esc)' : 'На весь экран'">
             <button
               class="fullscreen-toggle-btn"
+              type="button"
+              :aria-label="isFullScreen ? 'Выйти из полноэкранного режима' : 'Открыть маршрут на весь экран'"
+              :aria-pressed="isFullScreen"
               :class="{ active: isFullScreen }"
               @click="toggleFullScreen"
             >
@@ -152,7 +157,7 @@ onKeyStroke('Escape', (e) => {
         </div>
 
         <div
-          v-if="hasRenderedCanvas"
+          v-if="hasRenderedCanvas && (!isFullScreen || isParallelPlanView || viewMode === 'canvas')"
           v-show="isParallelPlanView || viewMode === 'canvas'"
           class="canvas-column"
         >
@@ -168,23 +173,26 @@ onKeyStroke('Escape', (e) => {
 <style scoped lang="scss">
 .plan-view {
   position: relative;
-  transition: all 0.3s ease;
+  transition: background-color 0.3s ease;
 
   &.is-full-screen {
     position: fixed;
     top: 0;
     left: 0;
     width: 100vw;
-    height: 100vh;
+    height: 100dvh;
+    box-sizing: border-box;
     z-index: 995;
     background-color: var(--bg-primary-color);
-    padding: 16px 32px;
+    padding: calc(16px + var(--safe-area-inset-top, 0px)) calc(32px + var(--safe-area-inset-right, 0px))
+      calc(16px + var(--safe-area-inset-bottom, 0px)) calc(32px + var(--safe-area-inset-left, 0px));
     display: flex;
     flex-direction: column;
     overflow: hidden;
 
     @include media-down(sm) {
-      padding: 16px 2px;
+      padding-right: calc(2px + var(--safe-area-inset-right, 0px));
+      padding-left: calc(2px + var(--safe-area-inset-left, 0px));
     }
 
     .divider-with-action {
@@ -197,13 +205,12 @@ onKeyStroke('Escape', (e) => {
     }
 
     .plan-content {
-      flex-grow: 1;
-      height: 100%;
+      flex: 1;
+      min-height: 0;
       overflow: hidden;
       margin-bottom: 0;
       padding-bottom: 0;
       align-items: stretch;
-      height: 100%;
 
       &::after {
         height: 100%;
@@ -214,6 +221,7 @@ onKeyStroke('Escape', (e) => {
       .canvas-column {
         height: 100%;
         overflow-y: auto;
+        overscroll-behavior: contain;
         padding-left: 8px;
         padding-bottom: 32px;
 

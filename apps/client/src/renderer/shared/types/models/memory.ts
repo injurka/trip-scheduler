@@ -31,3 +31,5 @@ export type CreateMemoryInput = RouterInput['memory']['create']
  * Используется в API-запросах.
  */
 export type UpdateMemoryInput = RouterInput['memory']['update']
+
+export type MemoryProposal = RouterInput['memory']['applyGenerated']

@@ -44,6 +44,7 @@ const {
   plannedTotal,
   spontaneousTotal,
   selectedCategoryFilters,
+  excludedCategoryFilters,
   dateFilter,
   typeFilter,
   statusFilter,
@@ -66,6 +67,7 @@ const hasActiveFilters = computed(() => {
   return statusFilter.value !== 'all'
     || typeFilter.value !== 'all'
     || selectedCategoryFilters.value.length > 0
+    || excludedCategoryFilters.value.length > 0
     || !!dateFilter.value.start
     || !!dateFilter.value.end
 })
@@ -78,7 +80,7 @@ const activeFiltersCount = computed(() => {
   if (typeFilter.value !== 'all')
     count++
 
-  count += selectedCategoryFilters.value.length
+  count += selectedCategoryFilters.value.length + excludedCategoryFilters.value.length
 
   if (dateFilter.value.start || dateFilter.value.end)
     count++
@@ -182,7 +184,7 @@ function clearDateFilter() {
 function resetAllFilters() {
   statusFilter.value = 'all'
   typeFilter.value = 'all'
-  selectedCategoryFilters.value = []
+  toggleCategoryFilter(null)
   dateFilter.value = { start: null, end: null }
 }
 
@@ -285,7 +287,7 @@ onClickOutside(dateFilterWrapperRef, () => {
             v-ripple
             type="button"
             class="filter-pill category-pill is-all"
-            :class="{ active: selectedCategoryFilters.length === 0 }"
+            :class="{ active: selectedCategoryFilters.length === 0 && excludedCategoryFilters.length === 0 }"
             @click="toggleCategoryFilter(null)"
           >
             <Icon icon="mdi:format-list-bulleted" class="pill-icon" />
@@ -313,11 +315,16 @@ onClickOutside(dateFilterWrapperRef, () => {
             class="filter-pill category-pill"
             :class="{
               active: selectedCategoryFilters.includes(item.value),
+              excluded: excludedCategoryFilters.includes(item.value),
             }"
+            :aria-label="`${item.label}: ${selectedCategoryFilters.includes(item.value) ? 'только эта категория; нажмите, чтобы исключить' : excludedCategoryFilters.includes(item.value) ? 'исключена; нажмите, чтобы сбросить' : 'без фильтра; нажмите, чтобы выбрать только эту категорию'}`"
+            :aria-pressed="selectedCategoryFilters.includes(item.value) || excludedCategoryFilters.includes(item.value)"
             @click="toggleCategoryFilter(item.value)"
           >
             <Icon :icon="item.icon" class="pill-icon" />
             <span>{{ item.label }}</span>
+            <span v-if="selectedCategoryFilters.includes(item.value)" class="pill-state">Только</span>
+            <span v-else-if="excludedCategoryFilters.includes(item.value)" class="pill-state">Исключено</span>
           </button>
         </div>
       </div>
@@ -675,6 +682,21 @@ onClickOutside(dateFilterWrapperRef, () => {
         color: #bd10e0;
       }
     }
+  }
+
+  &.excluded {
+    border-style: dashed;
+    border-color: var(--fg-secondary-color);
+    background-color: var(--bg-tertiary-color);
+
+    > span:first-of-type {
+      text-decoration: line-through;
+    }
+  }
+
+  .pill-state {
+    font-size: 0.7rem;
+    font-weight: 700;
   }
 
   &.is-spontaneous:not(.active) {

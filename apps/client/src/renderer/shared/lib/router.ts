@@ -274,12 +274,13 @@ const scrollBehavior: RouterScrollBehavior = (to, from, savedPosition) => {
     return { top: 0, left: 0 }
   }
 
-  if (savedPosition) {
-    return savedPosition
+  // Dialog history entries keep the same URL; never restore an older route scroll.
+  if (to.fullPath === from.fullPath) {
+    return false
   }
 
-  if (to.path === from.path) {
-    return false
+  if (savedPosition) {
+    return savedPosition
   }
 
   return { top: 0 }

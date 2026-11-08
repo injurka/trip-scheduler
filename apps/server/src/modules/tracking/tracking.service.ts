@@ -2,7 +2,7 @@ import type { GetTrackDayInput, IngestBatchInput } from './tracking.schemas'
 import { processDayTrack } from '@limiteddissolve/track-processing'
 import { db } from 'db'
 import { trackPoints, trackSegments } from 'db/schema'
-import { and, eq, gte, lt, lte } from 'drizzle-orm'
+import { and, eq, gte, inArray, lt, lte } from 'drizzle-orm'
 import { measureDbQuery } from '~/lib/db-monitoring'
 
 /** Активность в терминах пакета @limiteddissolve/track-processing. */
@@ -70,11 +70,12 @@ export const trackingService = {
     const CHUNK = 500
     for (let i = 0; i < rows.length; i += CHUNK) {
       const chunk = rows.slice(i, i + CHUNK)
-      await db
-        .insert(trackPoints)
-        .values(chunk)
-        .onConflictDoNothing({ target: trackPoints.clientPointId })
-      accepted.push(...chunk.map(r => r.clientPointId))
+      const confirmed = await measureDbQuery('track_points', 'insert', () => db.transaction(async (tx) => {
+        await tx.insert(trackPoints).values(chunk).onConflictDoNothing({ target: trackPoints.clientPointId })
+        // A retry after a lost response is acknowledged only for this user's rows.
+        return tx.select({ clientPointId: trackPoints.clientPointId }).from(trackPoints).where(and(eq(trackPoints.userId, userId), inArray(trackPoints.clientPointId, chunk.map(row => row.clientPointId))))
+      }))
+      accepted.push(...confirmed.map(row => row.clientPointId))
     }
 
     // Автоматическая генерация сегментов для поступивших сессий

@@ -3,6 +3,7 @@ import type { Day } from '~/shared/types/models/activity'
 import { Icon } from '@iconify/vue'
 import { KitTooltip } from '~/components/01.kit/kit-tooltip'
 import { useModuleStore } from '~/components/05.modules/trip-info/composables/use-trip-info-module'
+import { useCurrentTime } from '~/shared/composables/use-current-time'
 import { useDisplay } from '~/shared/composables/use-display'
 
 interface Props {
@@ -10,6 +11,7 @@ interface Props {
   selectedDayId?: string
   isOpen: boolean
 }
+
 const props = defineProps<Props>()
 const emit = defineEmits<{
   (e: 'selectDay', dayId: string): void
@@ -21,30 +23,34 @@ const emit = defineEmits<{
 const { ui } = useModuleStore(['ui'])
 const { mdAndDown } = useDisplay()
 const appStore = useAppStore(['layout'])
-const { isHeaderVisible } = storeToRefs(appStore.layout)
+const now = useCurrentTime()
 
+const { isHeaderVisible } = storeToRefs(appStore.layout)
 const { isDaysPanelPinned, isViewMode } = storeToRefs(ui)
 const { toggleDaysPanelPinned } = ui
 
+const today = computed(() => {
+  const date = now.value
+
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+})
 const calendarDays = computed(() =>
   props.days
     .filter(d => !!d.date)
     .sort((a, b) => new Date(a.date!).getTime() - new Date(b.date!).getTime()))
-
 const draftDays = computed(() =>
   props.days.filter(d => !d.date))
 
+const isToday = (day: Day) => day.date?.slice(0, 10) === today.value
 function onSelectDay(dayId: string) {
   emit('selectDay', dayId)
 
   if (!isDaysPanelPinned.value)
     emit('close')
 }
-
 function getShortWeekday(date: string): string {
   return new Date(date).toLocaleDateString('ru-RU', { weekday: 'short' }).toUpperCase()
 }
-
 function getDayActivitiesCount(day: Day): number {
   return day.activities?.length || 0
 }
@@ -101,11 +107,13 @@ function getDayActivitiesCount(day: Day): number {
           <li v-for="(day, index) in calendarDays" :key="day.id">
             <button
               class="day-item"
-              :class="{ active: selectedDayId === day.id }"
+              :class="{ 'active': selectedDayId === day.id, 'is-today': isToday(day) }"
+              :aria-current="isToday(day) ? 'date' : undefined"
               @click="onSelectDay(day.id)"
             >
               <div class="day-item-main">
                 <span class="day-number">{{ index + 1 }}</span>
+                <span v-if="isToday(day)" class="today-badge">Сегодня</span>
                 <span class="day-title">{{ day.title || `День ${index + 1}` }}</span>
               </div>
               <div class="day-item-meta">
@@ -516,5 +524,22 @@ function getDayActivitiesCount(day: Day): number {
       color: var(--fg-accent-color);
     }
   }
+}
+.day-item.is-today .day-number {
+  background-color: var(--fg-success-color);
+  color: var(--fg-inverted-color);
+  box-shadow:
+    0 0 0 2px var(--bg-primary-color),
+    0 0 0 3px var(--fg-success-color);
+}
+
+.today-badge {
+  flex-shrink: 0;
+  padding: 2px 6px;
+  border-radius: var(--r-full);
+  background-color: rgba(var(--fg-success-color-rgb), 0.12);
+  color: var(--fg-success-color);
+  font-size: 0.65rem;
+  font-weight: 700;
 }
 </style>

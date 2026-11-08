@@ -1,114 +1,79 @@
+import { invoke } from '@tauri-apps/api/core'
 import { useModuleStore } from '~/components/05.modules/trip-info/composables/use-trip-info-module'
-import { useConfirm } from '~/shared/composables/use-confirm'
 import { useToast } from '~/shared/composables/use-toast'
-import { AppRoutePaths } from '~/shared/constants/routes'
-import { isMobileApp } from '~/shared/lib/env'
-import { useAuthStore } from '~/shared/store/auth.store'
+import { isMobileApp, isTauri } from '~/shared/lib/env'
+import { resolveApiUrl } from '~/shared/lib/url'
 import { useVaultMemoriesStore } from '../store/vault-memories.store'
 
 export function useTripMemoriesVault() {
   const vaultStore = useVaultMemoriesStore()
-  const authStore = useAuthStore()
-  const router = useRouter()
-  const confirm = useConfirm()
-
   const { plan: tripData, memories } = useModuleStore(['plan', 'memories'])
   const { memoriesForSelectedDay } = storeToRefs(memories)
-  const { getSelectedDay } = storeToRefs(tripData)
-
-  onMounted(() => {
-    vaultStore.init()
-  })
-
-  watch([() => tripData.currentTripId, () => getSelectedDay.value, () => memories.memories], async ([tId, day, mems]) => {
-    if (tId && day && mems && mems.length > 0 && vaultStore.isConfigured) {
-      const imageItems = mems
-        .filter(m => m.imageId && m.image)
-        .map(m => ({
-          imageId: m.image!.id,
-          dayId: day.id,
-        }))
-
-      await vaultStore.checkFilesAvailability(tId as string, imageItems)
-    }
-  }, { deep: true, immediate: true })
-
-  async function ensureVaultConfigured(description: string): Promise<boolean> {
-    if (vaultStore.isConfigured)
-      return true
-
-    if (isMobileApp) {
-      await vaultStore.selectFolder()
-
-      if (vaultStore.isConfigured) {
-        return true
-      }
-    }
-
-    const isConfirmed = await confirm({
-      title: 'Папка не выбрана',
-      description,
-      confirmText: 'Перейти в настройки',
-      type: 'default',
-    })
-
-    if (isConfirmed && authStore.user) {
-      router.push(AppRoutePaths.User.Settings(authStore.user.id))
-    }
-
-    return false
-  }
-
-  async function handleToggleLocalMode() {
-    const isConfigured = await ensureVaultConfigured(isMobileApp
-      ? 'Включить локальный режим невозможно: хранилище не инициализировано.'
-      : 'Включить локальный режим невозможно, пока не выбрана папка хранилища.')
-
-    if (isConfigured) {
-      vaultStore.isLocalMode = !vaultStore.isLocalMode
-    }
-  }
+  const syncState = reactive({ isDownloading: false, current: 0, total: 0, loadedBytes: 0 })
 
   async function handleDownloadVault() {
-    if (!tripData.currentTripId || !getSelectedDay.value)
+    if (!isTauri || syncState.isDownloading)
       return
 
-    const isConfigured = await ensureVaultConfigured(isMobileApp
-      ? 'Требуется инициализировать хранилище устройства для сохранения медиа.'
-      : 'Выберите папку на компьютере для сохранения медиа, чтобы просматривать их оффлайн.')
+    // Snapshot the day before the folder dialog: switching days cannot change this export.
+    const media = [...new Map(memoriesForSelectedDay.value
+      .filter(memory => memory.image)
+      .map(memory => [memory.image!.id, memory.image!])).values()]
 
-    if (!isConfigured)
+    if (!tripData.currentTripId || !media.length)
       return
 
-    const currentDayId = getSelectedDay.value.id
+    syncState.isDownloading = true
+    syncState.current = 0
+    syncState.total = media.length
+    syncState.loadedBytes = 0
+    let failed = 0
 
-    const imagesToSync = memoriesForSelectedDay.value
-      .filter(m => m.image && m.imageId)
-      .map(m => ({
-        id: m.image!.id,
-        url: resolveApiUrl(m.image!.url),
-        sizeBytes: m.image!.sizeBytes || 0,
-        dayId: currentDayId,
-      }))
+    try {
+      const folder = await invoke<string | null>('memory_export_folder')
 
-    if (imagesToSync.length === 0) {
-      const toast = useToast()
-      toast.info('Нет медиа для скачивания в этом дне')
+      if (!folder)
+        return
 
-      return
+      const exportId = crypto.randomUUID().slice(0, 8)
+
+      for (const image of media) {
+        try {
+          const originalName = (image.originalName || image.name || `${image.id}.jpg`)
+            .replace(/[<>:"/\\|?*\u0000-\u001F]/g, '_')
+            .slice(-160)
+          const fileName = `${exportId}-${syncState.current + 1}-${originalName}`
+          syncState.loadedBytes += await invoke<number>('memory_export_file', {
+            folder,
+            url: resolveApiUrl(image.url),
+            fileName,
+            mimeType: image.fileType || 'application/octet-stream',
+          })
+        }
+        catch (error) {
+          failed++
+          console.error('Memory export failed:', image.id, error)
+        }
+        finally {
+          syncState.current++
+        }
+      }
+
+      const saved = media.length - failed
+      const location = isMobileApp ? 'Загрузки/TripScheduler' : folder
+
+      if (failed)
+        useToast().error(`Сохранено ${saved} из ${media.length}. Не удалось скачать: ${failed}. Повторите скачивание. Папка: ${location}`)
+      else
+        useToast().success(`Сохранено ${saved} медиа. Папка: ${location}`)
     }
-
-    await vaultStore.syncImages(tripData.currentTripId, imagesToSync)
+    catch (error) {
+      useToast().error(error instanceof Error ? error.message : String(error))
+    }
+    finally {
+      syncState.isDownloading = false
+    }
   }
 
-  return {
-    vaultStore,
-    handleToggleLocalMode,
-    handleDownloadVault,
-
-    isNative: computed(() => vaultStore.isNative),
-    syncState: computed(() => vaultStore.syncState),
-    isLocalMode: computed(() => vaultStore.isLocalMode),
-    isConfigured: computed(() => vaultStore.isConfigured),
-  }
+  return { vaultStore, handleDownloadVault, isNative: computed(() => isTauri), syncState }
 }

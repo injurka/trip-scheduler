@@ -1,7 +1,8 @@
 import type { EntityType, IFileRepository, TripDocumentResponse } from '../model/types'
 import type { ImageMetadata, TripMedia, TripMediaPlacement } from '~/shared/types/models/trip'
 import { getErrorStatus } from '@injurka/type-utils'
-import { ofetch } from 'ofetch'
+import { ofetch as baseOfetch } from 'ofetch'
+import { onlineFetch, requireAppOnline } from '~/shared/lib/connectivity'
 import { SERVER_URL } from '~/shared/lib/env'
 import { resolveApiUrl } from '~/shared/lib/url'
 import { refreshTokensIfNeeded } from '~/shared/services/trpc/auth-token.service'
@@ -58,6 +59,8 @@ function getAccessToken(): string | null {
 
   return authStore.tokenPair?.accessToken || localStorage.getItem(TOKEN_KEY)
 }
+
+const ofetch = baseOfetch.create({}, { fetch: onlineFetch })
 
 export class FileRepository implements IFileRepository {
   /**
@@ -204,6 +207,7 @@ export class FileRepository implements IFileRepository {
         const chunk = file.slice(start, end)
 
         const partResult = await new Promise<{ PartNumber: number, ETag: string }>((resolve, reject) => {
+          requireAppOnline()
           const xhr = new XMLHttpRequest()
           const chunkUrl = `${serverUrl}/api/upload/multipart/chunk?uploadId=${encodeURIComponent(uploadId)}&key=${encodeURIComponent(key)}&partNumber=${partNumber}`
 
@@ -307,6 +311,7 @@ export class FileRepository implements IFileRepository {
     }
 
     return new Promise((resolve, reject) => {
+      requireAppOnline()
       const xhr = new XMLHttpRequest()
       const url = `${SERVER_URL}/api/upload`
 

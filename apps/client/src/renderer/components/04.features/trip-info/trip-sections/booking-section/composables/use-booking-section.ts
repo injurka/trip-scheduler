@@ -1,8 +1,11 @@
+import type { HighlightStatus } from '../lib/booking-highlights'
 import type { TimelineDayContext } from '../lib/booking-timeline'
 import type { Booking, BookingSectionContent, BookingType } from '../models/types'
 import { useDebounceFn } from '@vueuse/core'
 import { v4 as uuidv4 } from 'uuid'
+import { useCurrentTime } from '~/shared/composables/use-current-time'
 import { BOOKING_TYPES_CONFIG } from '../constants/booking-types'
+import { buildRangeHighlightMap } from '../lib/booking-highlights'
 import { buildTimelineEntries, getTimelineEntryRealTimeRange, groupTimelineBookings } from '../lib/booking-timeline'
 
 export { BOOKING_TYPES_CONFIG }
@@ -15,91 +18,6 @@ interface UseBookingSectionProps {
   }
   days?: TimelineDayContext[]
   readonly: boolean
-}
-
-interface BookingDateStrings {
-  start?: string
-  end?: string
-}
-
-function normalizeHotelCheckIn(checkInDate?: string, checkInTime?: string): string | undefined {
-  if (!checkInDate)
-    return undefined
-
-  const datePart = checkInDate.split('T')[0]
-
-  if (checkInTime && /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(checkInTime.trim()))
-    return `${datePart}T${checkInTime.trim()}:00`
-
-  if (checkInDate.includes('T') && !checkInDate.includes('T00:00'))
-    return checkInDate
-
-  return `${datePart}T15:00:00`
-}
-
-function getBookingDateStrings(booking: Booking): BookingDateStrings {
-  switch (booking.type) {
-    case 'flight':
-      return getFlightBookingDateStrings(booking)
-    case 'hotel':
-      return { start: normalizeHotelCheckIn(booking.data.checkInDate, booking.data.checkInTime) }
-    case 'train':
-      return { start: booking.data.departureDateTime, end: booking.data.arrivalDateTime }
-    case 'car':
-      return { start: booking.data.pickupDateTime, end: booking.data.dropoffDateTime }
-    case 'attraction':
-      return { start: booking.data.dateTime }
-    case 'other':
-      return { start: booking.data.startDateTime, end: booking.data.endDateTime }
-  }
-}
-
-function getFlightBookingDateStrings(booking: Extract<Booking, { type: 'flight' }>): BookingDateStrings {
-  const segments = booking.data.segments
-
-  return {
-    start: segments?.[0]?.departureDateTime,
-    end: segments?.[segments.length - 1]?.arrivalDateTime,
-  }
-}
-
-function parseBookingDate(value?: string): Date | null {
-  if (!value)
-    return null
-
-  const date = new Date(value)
-
-  return Number.isNaN(date.getTime()) ? null : date
-}
-
-function getBookingEndDate(startDate: Date, endValue?: string): Date {
-  if (!endValue)
-    return new Date(startDate.getTime() + 60 * 60 * 1000)
-
-  const parsedEndDate = parseBookingDate(endValue)
-
-  return parsedEndDate ?? startDate
-}
-
-/**
- * Возвращает интервал времени (начало, конец) для бронирования.
- * Если конец неизвестен, он равен началу (точечное событие).
- */
-function getBookingTimeRange(booking: Booking): { start: number, end: number } | null {
-  try {
-    const { start: startValue, end: endValue } = getBookingDateStrings(booking)
-    const startDate = parseBookingDate(startValue)
-
-    if (!startDate)
-      return null
-
-    const endDate = getBookingEndDate(startDate, endValue)
-
-    return { start: startDate.getTime(), end: endDate.getTime() }
-  }
-  catch {
-    return null
-  }
 }
 
 /**
@@ -115,33 +33,7 @@ function getCurrentTimeZoneOffset(): string {
   return `${sign}${hours}:${minutes}`
 }
 
-export type HighlightStatus = 'active' | 'next' | 'closest' | null
-
-function buildRangeHighlightMap<T>(items: T[], getId: (item: T) => string, getRange: (item: T) => { start: number, end: number } | null): Record<string, HighlightStatus> {
-  const map: Record<string, HighlightStatus> = {}
-  const now = Date.now()
-
-  const highlightable = items
-    .map(item => ({ id: getId(item), range: getRange(item) }))
-    .filter((entry): entry is { id: string, range: { start: number, end: number } } => entry.range !== null)
-
-  const activeIndex = highlightable.findIndex(({ range }) => now >= range.start && now <= range.end)
-
-  if (activeIndex !== -1) {
-    map[highlightable[activeIndex].id] = 'active'
-
-    if (activeIndex + 1 < highlightable.length)
-      map[highlightable[activeIndex + 1].id] = 'next'
-  }
-  else {
-    const closest = highlightable.find(({ range }) => range.start > now)
-
-    if (closest)
-      map[closest.id] = 'closest'
-  }
-
-  return map
-}
+export type { HighlightStatus } from '../lib/booking-highlights'
 
 /**
  * Хук для управления логикой секции бронирований.
@@ -151,11 +43,19 @@ function buildRangeHighlightMap<T>(items: T[], getId: (item: T) => string, getRa
 export function useBookingSection(props: UseBookingSectionProps, emit: (event: 'updateSection', payload: UseBookingSectionProps['section']) => void) {
   const bookings = ref<Booking[]>(JSON.parse(JSON.stringify(props.section.content?.bookings || [])))
   const activeTab = ref<string>('timeline')
+  const now = useCurrentTime()
+  let sourceSectionId = props.section.id
+  let sourceSnapshot = JSON.stringify(props.section.content?.bookings || [])
+  let publishedSnapshot: string | undefined
 
   const debouncedUpdate = useDebounceFn(() => {
+    if (props.readonly || JSON.stringify(bookings.value) === JSON.stringify(props.section.content?.bookings || []))
+      return
+
+    publishedSnapshot = JSON.stringify(bookings.value)
     emit('updateSection', {
       ...props.section,
-      content: { bookings: bookings.value },
+      content: { bookings: JSON.parse(JSON.stringify(bookings.value)) },
     })
   }, 700)
 
@@ -170,36 +70,28 @@ export function useBookingSection(props: UseBookingSectionProps, emit: (event: '
     }, {} as Record<string, Booking[]>)
   })
 
-  const allBookingsSorted = computed(() => {
-    return [...bookings.value].sort((a, b) => {
-      const rangeA = getBookingTimeRange(a)
-      const rangeB = getBookingTimeRange(b)
-
-      if (!rangeA && !rangeB)
-        return 0
-
-      if (!rangeA)
-        return 1
-
-      if (!rangeB)
-        return -1
-
-      return rangeA.start - rangeB.start
-    })
-  })
-
   const timelineEntries = computed(() => buildTimelineEntries(bookings.value, { days: props.days }))
   const timelineGroups = computed(() => groupTimelineBookings(bookings.value, { days: props.days }))
+  const timelineHighlightMap = computed(() => buildRangeHighlightMap(
+    timelineEntries.value,
+    entry => entry.id,
+    getTimelineEntryRealTimeRange,
+    now.value.getTime(),
+  ))
+  const bookingHighlightMap = computed(() => {
+    const map: Record<string, HighlightStatus> = {}
 
-  const bookingHighlightMap = computed<Record<string, HighlightStatus>>(() => {
-    const nonHotelBookings = allBookingsSorted.value.filter(b => b.type !== 'hotel')
+    for (const entry of timelineEntries.value) {
+      const status = timelineHighlightMap.value[entry.id]
 
-    return buildRangeHighlightMap(nonHotelBookings, b => b.id, getBookingTimeRange)
+      if (status && map[entry.booking.id] !== 'active')
+        map[entry.booking.id] = status
+    }
+
+    return map
   })
-
-  const timelineHighlightMap = computed<Record<string, HighlightStatus>>(() => {
-    return buildRangeHighlightMap(timelineEntries.value, entry => entry.id, getTimelineEntryRealTimeRange)
-  })
+  const activeTimelineEntries = computed(() => timelineEntries.value.filter(entry => timelineHighlightMap.value[entry.id] === 'active'))
+  const nextTimelineEntry = computed(() => timelineEntries.value.find(entry => timelineHighlightMap.value[entry.id] === 'next'))
 
   const tabItems = computed(() => {
     const bookingOrder = Object.keys(BOOKING_TYPES_CONFIG)
@@ -302,6 +194,27 @@ export function useBookingSection(props: UseBookingSectionProps, emit: (event: '
     bookings.value = [...otherBookings, ...newBookings]
   }
 
+  watch(() => [props.section.id, props.section.content?.bookings], () => {
+    const incoming = props.section.content?.bookings || []
+    const snapshot = JSON.stringify(incoming)
+    const sameSection = props.section.id === sourceSectionId
+
+    if (sameSection && snapshot === sourceSnapshot)
+      return
+
+    sourceSectionId = props.section.id
+    sourceSnapshot = snapshot
+
+    // Подтверждение предыдущего сохранения не должно стирать уже набранные новые правки.
+    if (sameSection && snapshot === publishedSnapshot)
+      return
+
+    publishedSnapshot = undefined
+
+    if (snapshot !== JSON.stringify(bookings.value))
+      bookings.value = JSON.parse(snapshot)
+  }, { deep: true })
+
   watch(bookings, () => {
     debouncedUpdate()
   }, { deep: true })
@@ -311,7 +224,8 @@ export function useBookingSection(props: UseBookingSectionProps, emit: (event: '
     activeTab,
     bookingGroups,
     tabItems,
-    allBookingsSorted,
+    activeTimelineEntries,
+    nextTimelineEntry,
     timelineEntries,
     timelineGroups,
     bookingHighlightMap,

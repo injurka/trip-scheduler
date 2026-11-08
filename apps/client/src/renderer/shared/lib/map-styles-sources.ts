@@ -5,6 +5,7 @@ import * as maplibregl from 'maplibre-gl'
 // а у него наверху `import ... from "./maplibre-gl-shared.mjs"` — этого файла в dist нет,
 // воркер падает с 404 (карта не рендерится).
 import maplibreModuleWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url'
+import { isAppOnline, onlineFetch } from '~/shared/lib/connectivity'
 
 let workerUrlReady: Promise<void> = Promise.resolve()
 
@@ -337,7 +338,7 @@ export const TILE_SOURCES: Record<TileSourceId, MapSourceConfig> = {
 let isAvailabilityChecked: boolean | null = null
 
 export async function checkMapTilerAvailability(): Promise<boolean> {
-  if (!MAPTILER_KEY)
+  if (!MAPTILER_KEY || !isAppOnline())
     return false
 
   if (isAvailabilityChecked !== null)
@@ -346,7 +347,7 @@ export async function checkMapTilerAvailability(): Promise<boolean> {
   try {
     const controller = new AbortController()
     const timeoutId = setTimeout(() => controller.abort(), 3500)
-    const res = await fetch(`https://api.maptiler.com/maps/outdoor-v4/tiles.json?key=${MAPTILER_KEY}`, {
+    const res = await onlineFetch(`https://api.maptiler.com/maps/outdoor-v4/tiles.json?key=${MAPTILER_KEY}`, {
       signal: controller.signal,
     })
     clearTimeout(timeoutId)

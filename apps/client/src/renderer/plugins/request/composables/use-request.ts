@@ -2,6 +2,7 @@ import type { IError } from '../lib/error-handler'
 import type { UseRequestOptions } from '../models/types'
 import { getErrorMessage, getErrorStatus, isRecord } from '@injurka/type-utils'
 import { useDataTimestamp } from '~/shared/composables/use-data-timestamp'
+import { isAppOnline } from '~/shared/lib/connectivity'
 import { createApiErrorHandler } from '../lib/error-handler'
 import { getDatabaseService } from '../lib/service'
 import { useRequestStore } from '../store/request.store'
@@ -106,7 +107,7 @@ async function handleRequestFailure(
 }
 
 function recordRequestTimestamp(key: string, touch: (key: string) => void, peek: (key: string) => void): void {
-  if (navigator.onLine)
+  if (isAppOnline())
     touch(key)
   else
     peek(key)

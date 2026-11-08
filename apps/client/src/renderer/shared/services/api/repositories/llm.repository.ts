@@ -1,4 +1,5 @@
 import type { ChecklistMatchResponse, GeneratedBooking, GeneratedTransaction, ILLMRepository } from '../model/types'
+import { onlineFetch } from '~/shared/lib/connectivity'
 import { SERVER_URL } from '~/shared/lib/env'
 import { refreshTokensIfNeeded } from '~/shared/services/trpc/auth-token.service'
 import { TOKEN_KEY, useAuthStore } from '~/shared/store/auth.store'
@@ -8,7 +9,7 @@ export class LLMRepository implements ILLMRepository {
     const authStore = useAuthStore()
     let accessToken = authStore.tokenPair?.accessToken || localStorage.getItem(TOKEN_KEY)
 
-    let response = await fetch(`${SERVER_URL}${endpoint}`, {
+    let response = await onlineFetch(`${SERVER_URL}${endpoint}`, {
       method: 'POST',
       body: formData,
       headers: {
@@ -21,7 +22,7 @@ export class LLMRepository implements ILLMRepository {
 
       if (refreshed) {
         accessToken = authStore.tokenPair?.accessToken || localStorage.getItem(TOKEN_KEY)
-        response = await fetch(`${SERVER_URL}${endpoint}`, {
+        response = await onlineFetch(`${SERVER_URL}${endpoint}`, {
           method: 'POST',
           body: formData,
           headers: {

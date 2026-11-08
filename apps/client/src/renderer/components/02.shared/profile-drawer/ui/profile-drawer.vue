@@ -1,15 +1,18 @@
 <script lang="ts" setup>
 import { Icon } from '@iconify/vue'
 import { KitAvatar } from '~/components/01.kit/kit-avatar'
+import { KitCheckbox } from '~/components/01.kit/kit-checkbox'
 import { KitDivider } from '~/components/01.kit/kit-divider'
 import { KitDrawer } from '~/components/01.kit/kit-drawer'
 import { OfflineManagerDialog } from '~/components/02.shared/offline-manager'
 import { StatusEditorDialog } from '~/components/02.shared/status-editor-dialog'
 import { UserQuotaWidget } from '~/components/02.shared/user-quota-widget'
 import { AppRouteNames } from '~/shared/constants/routes'
+import { useConnectivity } from '~/shared/lib/connectivity'
 
 const open = defineModel<boolean>('open', { required: true })
 
+const { forcedOffline, setForcedOffline } = useConnectivity()
 const router = useRouter()
 const store = useAppStore(['auth'])
 
@@ -20,6 +23,7 @@ const menuItems = [
 ]
 const logoutItem = { label: 'Выйти', icon: 'mdi:logout', action: () => handleLogout() }
 
+const offlineMode = computed({ get: () => forcedOffline.value, set: setForcedOffline })
 const user = computed(() => store.auth.user)
 const mainMenuItems = computed(() => [
   {
@@ -140,6 +144,13 @@ async function handleLogout() {
         />
       </div>
 
+      <div class="offline-mode-control">
+        <KitCheckbox v-model="offlineMode">
+          Принудительный офлайн-режим
+        </KitCheckbox>
+        <p>Только сохранённые данные. Для обновления отключите режим.</p>
+      </div>
+
       <nav class="drawer-nav">
         <ul>
           <li v-for="item in menuItems" :key="item.label" class="nav-item">
@@ -193,6 +204,16 @@ async function handleLogout() {
 </template>
 
 <style lang="scss" scoped>
+.offline-mode-control {
+  padding: 12px 8px;
+
+  p {
+    margin: 6px 0 0;
+    color: var(--fg-secondary-color);
+    font-size: 0.8rem;
+  }
+}
+
 .profile-drawer {
   display: flex;
   flex-direction: column;

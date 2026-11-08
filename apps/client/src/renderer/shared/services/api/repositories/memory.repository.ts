@@ -1,9 +1,18 @@
+import type { RouterInput } from '~/shared/types/trpc'
 import type { IMemoryRepository } from '../model/types'
-import type { CreateMemoryInput, Memory, UpdateMemoryInput } from '~/shared/types/models/memory'
+import type { CreateMemoryInput, Memory, MemoryProposal, UpdateMemoryInput } from '~/shared/types/models/memory'
 import { trpc } from '~/shared/services/trpc/trpc.service'
 import { throttle } from '../lib/decorators'
 
 export class MemoryRepository implements IMemoryRepository {
+  async generate(data: RouterInput['memory']['generate']) {
+    return trpc.memory.generate.mutate(data)
+  }
+
+  async applyGenerated(data: MemoryProposal): Promise<Memory[]> {
+    return await trpc.memory.applyGenerated.mutate(data) as Memory[]
+  }
+
   @throttle(500)
   async getByTripId(tripId: string): Promise<Memory[]> {
     const result = await trpc.memory.getByTripId.query({ tripId })

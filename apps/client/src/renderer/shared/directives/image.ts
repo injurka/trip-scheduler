@@ -1,5 +1,6 @@
 import type { Directive, DirectiveBinding } from 'vue'
 import type { ImageOptions } from '~/shared/lib/url'
+import { isAppOnline } from '~/shared/lib/connectivity'
 import { getOfflineImageUrl } from '~/shared/lib/offline-cache'
 import { getImageUrl, resolveApiUrl } from '~/shared/lib/url'
 
@@ -46,10 +47,14 @@ function applyImageSrc(el: HTMLImageElement, url: string | null | undefined) {
   el.onerror = () => {
     void restore()
   }
-  el.src = url
 
-  if (typeof navigator !== 'undefined' && !navigator.onLine)
+  if (isAppOnline()) {
+    el.src = url
+  }
+  else {
+    el.removeAttribute('src')
     void restore()
+  }
 }
 
 export const vResolveSrc: Directive<HTMLImageElement, string | null | undefined> = {

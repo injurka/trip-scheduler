@@ -5,7 +5,7 @@ import type { Comment, CreateCommentInput, UpdateCommentInput } from '~/shared/t
 import type { Country, CreateDestinationReviewInput, DestinationReview } from '~/shared/types/models/destination-review'
 import type { GeoCatalogStatus, GeoPlaceKind, GeoPlaceRef, GeoPlaceSearchResult, GeoResolutionResult } from '~/shared/types/models/geo-place'
 import type { CreateMarkInput, GetMarksParams, Mark } from '~/shared/types/models/mark'
-import type { CreateMemoryInput, Memory, UpdateMemoryInput } from '~/shared/types/models/memory'
+import type { CreateMemoryInput, Memory, MemoryProposal, UpdateMemoryInput } from '~/shared/types/models/memory'
 import type { Place, PlaceTag } from '~/shared/types/models/place'
 import type { CreatePostInput, ListPostsFilters, PostDetail, UpdatePostInput, WhitelistUser } from '~/shared/types/models/post'
 import type { CreateTripInput, ImageMetadata, Plan, Trip, TripMedia, TripMediaPlacement, TripSection, TripSectionType, TripStatus, TripWeatherData, TripWithDays, UpdateTripInput } from '~/shared/types/models/trip'
@@ -449,6 +449,9 @@ export interface IBlogRepository {
 }
 
 export interface IMemoryRepository {
+  generate: (data: RouterInput['memory']['generate']) => Promise<Omit<MemoryProposal, 'dayId'>>
+  applyGenerated: (data: MemoryProposal) => Promise<Memory[]>
+
   getByTripId: (tripId: string) => Promise<Memory[]>
   create: (data: CreateMemoryInput) => Promise<Memory>
   update: (data: UpdateMemoryInput) => Promise<Memory>

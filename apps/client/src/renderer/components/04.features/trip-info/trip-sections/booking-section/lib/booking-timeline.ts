@@ -118,23 +118,23 @@ function compareDateAndMinutes(
   return dateA !== dateB ? dateA.localeCompare(dateB) : minA - minB
 }
 
+const TIMESTAMP_OFFSET_RE = /(?:Z|[+-]\d{2}(?::?\d{2})?)$/
+const LOCAL_TIMESTAMP_RE = /^\d{4}-\d{2}-\d{2}T(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d{1,3})?)?$/
+
+function normalizeOffset(value: string): string | null {
+  if (value === 'Z')
+    return value
+
+  const match = value.match(/^([+-])([01]\d|2[0-3])(?::?([0-5]\d))?$/)
+
+  return match ? `${match[1]}${match[2]}:${match[3] ?? '00'}` : null
+}
+
 function parseTimestampWithTimezone(dateTime?: string, timeZone?: string): number | null {
-  if (!dateTime || !dateTime.includes('T'))
+  if (!dateTime?.includes('T') || (!TIMESTAMP_OFFSET_RE.test(dateTime) && !timeZone?.trim()))
     return null
 
-  if (/Z|[+-]\d{2}(?::\d{2})?$/.test(dateTime)) {
-    const ms = new Date(dateTime).getTime()
-
-    return Number.isNaN(ms) ? null : ms
-  }
-
-  if (timeZone && /^[+-]\d{2}:\d{2}$/.test(timeZone.trim())) {
-    const ms = new Date(`${dateTime}${timeZone.trim()}`).getTime()
-
-    return Number.isNaN(ms) ? null : ms
-  }
-
-  return null
+  return parseFlexibleTimestampMs(dateTime, timeZone)
 }
 
 function parseWallClockMs(dateTime?: string): number | null {
@@ -149,15 +149,45 @@ function parseWallClockMs(dateTime?: string): number | null {
   return Number.isNaN(ms) ? null : ms
 }
 
+function splitTimestamp(value: string): { wallTime: string, offset?: string } | null {
+  if (!getValidTimelineDate(value))
+    return null
+
+  // Дата без времени означает местную полночь, а не полночь UTC.
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value))
+    return { wallTime: `${value}T00:00:00` }
+
+  const offset = value.match(TIMESTAMP_OFFSET_RE)?.[0]
+  const wallTime = value.slice(0, offset ? -offset.length : undefined)
+
+  return LOCAL_TIMESTAMP_RE.test(wallTime) ? { wallTime, offset } : null
+}
+
 function parseFlexibleTimestampMs(dateTime?: string, timeZone?: string): number | null {
-  const withTz = parseTimestampWithTimezone(dateTime, timeZone)
+  if (!dateTime)
+    return null
 
-  if (withTz !== null || !dateTime)
-    return withTz
+  const parts = splitTimestamp(dateTime.trim())
 
-  const ms = new Date(dateTime).getTime()
+  if (!parts)
+    return null
 
-  return Number.isNaN(ms) ? null : ms
+  const offsetValue = parts.offset || timeZone?.trim()
+  const offset = offsetValue ? normalizeOffset(offsetValue) : ''
+
+  if (offset === null)
+    return null
+
+  const ms = new Date(`${parts.wallTime}${offset}`).getTime()
+
+  return Number.isFinite(ms) ? ms : null
+}
+
+function nextCalendarDate(value: string): string {
+  const date = new Date(`${value.slice(0, 10)}T00:00:00Z`)
+  date.setUTCDate(date.getUTCDate() + 1)
+
+  return date.toISOString().slice(0, 10)
 }
 
 function getLayoverDurationMs(prev: FlightSegment, next: FlightSegment): number | null {
@@ -600,6 +630,53 @@ function getFlightEndpoints(booking: Extract<Booking, { type: 'flight' }>, range
   }
 }
 
+type HotelTimelineEntry = TimelineEntry & { booking: Extract<Booking, { type: 'hotel' }> }
+
+function getHotelStartDateTime(entry: HotelTimelineEntry): string | undefined {
+  const checkIn = entry.booking.data.checkInDate
+  const hasInlineTime = getTimelineTime(checkIn, entry.date) && !checkIn?.includes('T00:00')
+
+  if (hasInlineTime && !parseStandaloneTime(entry.booking.data.checkInTime))
+    return checkIn
+
+  const minutes = entry.sortMinutes < 24 * 60 ? entry.sortMinutes : DEFAULT_HOTEL_CHECK_IN_MINUTES
+  const time = `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`
+  const offset = hasInlineTime ? checkIn?.match(TIMESTAMP_OFFSET_RE)?.[0] ?? '' : ''
+
+  return `${entry.date}T${time}:00${offset}`
+}
+
+function getHotelEndDateTime(checkOut?: string): string | undefined {
+  const date = getValidTimelineDate(checkOut)
+
+  if (!date)
+    return undefined
+
+  if (getTimelineTime(checkOut, date) && !checkOut?.includes('T00:00'))
+    return checkOut
+
+  // В модели нет отдельного времени выезда: для даты без времени используем 12:00.
+  return `${date}T12:00:00`
+}
+
+function getHotelEndpoints(entry: HotelTimelineEntry): DateTimeEndpoints | null {
+  if (!entry.date)
+    return null
+
+  const { checkInDate, checkOutDate, checkInTime } = entry.booking.data
+
+  if (checkInTime && !parseStandaloneTime(checkInTime))
+    return null
+
+  if (parseFlexibleTimestampMs(checkInDate) === null)
+    return null
+
+  if (checkOutDate && parseFlexibleTimestampMs(checkOutDate) === null)
+    return null
+
+  return { startDateTime: getHotelStartDateTime(entry), endDateTime: getHotelEndDateTime(checkOutDate) }
+}
+
 function getEntryEndpoints(entry: TimelineEntry): DateTimeEndpoints | null {
   const { booking } = entry
 
@@ -630,7 +707,7 @@ function getEntryEndpoints(entry: TimelineEntry): DateTimeEndpoints | null {
         endTimeZone: booking.data.endTimeZone,
       }
     case 'hotel':
-      return null
+      return getHotelEndpoints({ ...entry, booking })
   }
 }
 
@@ -645,9 +722,19 @@ export function getTimelineEntryRealTimeRange(entry: TimelineEntry): { start: nu
   if (start === null)
     return null
 
-  const end = endpoints.endDateTime
-    ? (parseFlexibleTimestampMs(endpoints.endDateTime, endpoints.endTimeZone) ?? start)
-    : start + 60 * 60 * 1000
+  const endSource = endpoints.endDateTime
+  const startIsDateOnly = /^\d{4}-\d{2}-\d{2}$/.test(endpoints.startDateTime ?? '')
+  const endIsDateOnly = /^\d{4}-\d{2}-\d{2}$/.test(endSource ?? '')
+  // Без конца не придумываем длительность. Дата без часов охватывает календарный день.
+  const endValue = endIsDateOnly ? nextCalendarDate(endSource!) : endSource
+  const end = endValue
+    ? parseFlexibleTimestampMs(endValue, endpoints.endTimeZone)
+    : startIsDateOnly
+      ? parseFlexibleTimestampMs(nextCalendarDate(endpoints.startDateTime!), endpoints.startTimeZone)
+      : start
 
-  return { start, end }
+  if (end === null)
+    return null
+
+  return end >= start ? { start, end } : null
 }
