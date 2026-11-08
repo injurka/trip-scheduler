@@ -289,7 +289,7 @@ onBeforeUnmount(() => {
         v-ripple
         :class="{ 'is-active': layout.activeTab.value?.id === item.id }"
         :style="{ '--section-theme-color': getSectionThemeColor(item.id) }"
-        @click="layout.selectSection(item.id), layout.isDrawerOpen.value = false"
+        @click="layout.selectSection(item.id)"
       >
         <div class="sheet-section-icon-wrapper">
           <Icon :icon="item.icon!" class="sheet-section-icon" />
@@ -338,7 +338,7 @@ onBeforeUnmount(() => {
   &.is-notes-view {
     flex: 0 0 auto;
     // Keyboard-Aware: редактор заметок сжимается до видимой области над клавиатурой
-    height: var(--visible-height, 100dvh);
+    height: calc(var(--visible-height, 100dvh) - var(--offline-banner-offset, 0px));
     min-height: 0;
     overflow: hidden;
   }
@@ -524,13 +524,6 @@ onBeforeUnmount(() => {
       padding-top: calc(var(--header-height) + var(--safe-area-inset-top));
       padding-bottom: calc(var(--footer-height) + var(--safe-area-inset-bottom) + 16px);
     }
-  }
-}
-
-:global(#app:has(.offline-banner:not(.slide-down-leave-active))) {
-  .trip-info-layout-content .content-wrapper,
-  .content-wrapper.is-wide-mode {
-    padding-top: var(--header-height) !important;
   }
 }
 

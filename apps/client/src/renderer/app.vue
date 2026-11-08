@@ -139,12 +139,19 @@ onMounted(async () => {
 </template>
 
 <style lang="scss">
-#app:has(.offline-banner) {
+#app {
   --offline-banner-height: 40px;
+  --offline-banner-offset: 0px;
+
+  padding-top: var(--offline-banner-offset);
+}
+
+#app:has(.offline-banner:not(.slide-down-leave-active)) {
+  --offline-banner-offset: var(--offline-banner-height);
 }
 
 @media (max-width: 600px) {
-  #app:has(.offline-banner) {
+  #app {
     --offline-banner-height: 36px;
   }
 }

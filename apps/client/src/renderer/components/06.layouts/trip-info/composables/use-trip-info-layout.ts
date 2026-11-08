@@ -4,6 +4,7 @@ import type { TripSection } from '~/shared/types/models/trip'
 import { onClickOutside } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { useRoute, useRouter } from 'vue-router'
+import { waitForDialogHistory } from '~/components/01.kit/kit-dialog-with-close/composables/use-dialog-history'
 import { useModuleStore } from '~/components/05.modules/trip-info/composables/use-trip-info-module'
 import { SECTION_TYPE_MAP } from '~/components/05.modules/trip-info/composables/use-trip-info-view'
 
@@ -114,10 +115,12 @@ export function useTripInfoLayout() {
     return baseItems
   })
 
-  function selectSection(id: string) {
+  async function selectSection(id: string) {
     isDrawerOpen.value = false
     isLayoutDropdownOpen.value = false
     isHeaderDropdownOpen.value = false
+
+    await waitForDialogHistory()
 
     const currentQuery = { ...route.query }
     delete currentQuery.day

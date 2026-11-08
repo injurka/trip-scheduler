@@ -66,6 +66,20 @@ describe('progressive photo loading', () => {
     expect(wrapper.find('.preview-retry').exists()).toBe(true)
   })
 
+  it('hides the hash after preview load and the preview after original load', async () => {
+    const wrapper = render({ small: '/small.jpg', large: '/large.jpg', thumbhash: 'InMBBYCHh4iIiIh/eHh3e3h4j4cI' })
+    const hash = wrapper.find('.viewer-thumbhash-placeholder')
+    expect(hash.classes()).not.toContain('is-hidden')
+    expect(hash.attributes('style')).toBe(wrapper.find('.viewer-preview').attributes('style'))
+    await wrapper.find('.viewer-preview').trigger('load')
+    expect(hash.classes()).toContain('is-hidden')
+    expect(wrapper.find('.viewer-preview').classes()).toContain('loaded')
+    expect(wrapper.find('.viewer-empty-placeholder').exists()).toBe(false)
+    await wrapper.find('.viewer-image').trigger('load')
+    expect(wrapper.find('.viewer-preview').classes()).not.toContain('loaded')
+    expect(wrapper.find('.viewer-image').classes()).toContain('loaded')
+  })
+
   it('recognizes an already completed cached image on mount', async () => {
     const wrapper = render()
     const image = wrapper.find('.viewer-image').element as HTMLImageElement

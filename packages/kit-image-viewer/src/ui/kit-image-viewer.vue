@@ -756,6 +756,8 @@ onUnmounted(() => {
                         v-if="!isVideoImage(images[i]) && getPlaceholderUrl(images[i])"
                         :src="getPlaceholderUrl(images[i]) || undefined"
                         class="viewer-thumbhash-placeholder"
+                        :class="{ 'is-hidden': imageLoadStates[i]?.loaded || imageLoadStates[i]?.previous || imageLoadStates[i]?.previewLoaded }"
+                        :style="i === currentIndex ? [imageStyle, currentImageStyle] : adjacentImageStyle"
                         alt=""
                         aria-hidden="true"
                       >
@@ -764,7 +766,7 @@ onUnmounted(() => {
                         :key="imageLoadStates[i]?.previous || imageLoadStates[i]?.preview"
                         :src="imageLoadStates[i]?.previous || imageLoadStates[i]?.preview"
                         class="viewer-preview"
-                        :class="{ loaded: imageLoadStates[i]?.previous || imageLoadStates[i]?.previewLoaded }"
+                        :class="{ loaded: !imageLoadStates[i]?.loaded && (imageLoadStates[i]?.previous || imageLoadStates[i]?.previewLoaded) }"
                         :style="i === currentIndex ? [imageStyle, currentImageStyle] : adjacentImageStyle"
                         alt=""
                         aria-hidden="true"
@@ -979,7 +981,7 @@ onUnmounted(() => {
 .image-viewer-overlay {
   position: fixed;
   inset: 0;
-  background: var(--viewer-overlay-bg, rgba(0, 0, 0, 0.95));
+  background: var(--viewer-overlay-bg, #111);
   z-index: var(--z-image-viewer, 1002);
   display: flex;
   flex-direction: column;
@@ -1095,6 +1097,11 @@ onUnmounted(() => {
 
 .viewer-thumbhash-placeholder {
   object-fit: contain;
+  transition: opacity 0.4s ease;
+
+  &.is-hidden {
+    opacity: 0;
+  }
 }
 
 .viewer-empty-placeholder {
@@ -1115,6 +1122,7 @@ onUnmounted(() => {
   object-fit: contain;
   opacity: 0;
   pointer-events: none;
+  transition: opacity 0.4s ease;
 
   &.loaded {
     opacity: 1;

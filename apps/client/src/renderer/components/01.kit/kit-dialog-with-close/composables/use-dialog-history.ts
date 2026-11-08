@@ -5,7 +5,6 @@ export interface UseDialogHistoryOptions {
   canClose?: () => boolean
 }
 
-const BACK_TIMEOUT_MS = 150
 const openModalsStack: string[] = []
 let pendingBack: Promise<void> | undefined
 let isUnloading = false
@@ -26,19 +25,29 @@ export function hasOpenModals() {
   return openModalsStack.length > 0
 }
 
+// Let v-model changes reach the dialog before waiting for its history cleanup.
+// Navigation must start after popstate, otherwise Back can cancel the router push.
+export async function waitForDialogHistory(): Promise<void> {
+  await nextTick()
+
+  let cleanup = pendingBack
+
+  while (cleanup) {
+    await cleanup
+    cleanup = pendingBack
+  }
+}
+
+// Only called for a modal entry we pushed: wait for traversal, even on slow devices.
 function waitForPopState(onPop?: () => void): Promise<void> {
   return new Promise<void>((resolve) => {
     let settled = false
-    let timeoutId: ReturnType<typeof setTimeout> | undefined
 
     function finish() {
       if (settled)
         return
 
       settled = true
-
-      if (timeoutId !== undefined)
-        clearTimeout(timeoutId)
 
       window.removeEventListener('popstate', onPopState)
       onPop?.()
@@ -54,7 +63,6 @@ function waitForPopState(onPop?: () => void): Promise<void> {
       finish()
     }
 
-    timeoutId = setTimeout(finish, BACK_TIMEOUT_MS)
     window.addEventListener('popstate', onPopState, { once: true })
     window.history.back()
   })

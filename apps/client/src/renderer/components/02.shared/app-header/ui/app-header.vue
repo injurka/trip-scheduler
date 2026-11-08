@@ -8,13 +8,11 @@ import { ProfileDrawer } from '~/components/02.shared/profile-drawer'
 import { ThemePopover } from '~/components/02.shared/theme-manager'
 import { useAppStore } from '~/shared/composables/use-store'
 import { AppRouteNames, AppRoutePaths } from '~/shared/constants/routes'
-import { useConnectivity } from '~/shared/lib/connectivity'
 import { isMobileApp } from '~/shared/lib/env'
 
 const router = useRouter()
 const route = useRoute()
 const appStore = useAppStore(['auth', 'layout'])
-const { isOnline } = useConnectivity()
 
 const isProfileDrawerOpen = ref(false)
 const isNavMenuOpen = ref(false)
@@ -24,7 +22,6 @@ let scrollTimeout: ReturnType<typeof setTimeout> | null = null
 const isHeaderVisible = ref(true)
 const lastScrollY = ref(0)
 const isSmallScreen = ref(false)
-const headerTopOffset = ref(0)
 const navItems = [
   {
     id: 'trips',
@@ -62,22 +59,8 @@ const activeRouteChecks: Record<string, () => boolean> = {
   blog: () => route.path.startsWith('/blog') || route.name === AppRouteNames.BlogList || route.name === AppRouteNames.BlogArticle,
 }
 
-watch(isOnline, () => {
-  updateHeaderTopOffset(typeof window !== 'undefined' ? window.scrollY : 0)
-})
 watch(isHeaderVisible, isVisible => appStore.layout.setHeaderVisibility(isVisible))
 
-function updateHeaderTopOffset(scrollY: number) {
-  if (isOnline.value) {
-    headerTopOffset.value = 0
-
-    return
-  }
-
-  const isMobileBanner = typeof window !== 'undefined' && window.innerWidth <= 600
-  const bannerHeight = isMobileBanner ? 36 : 40
-  headerTopOffset.value = Math.max(0, bannerHeight - scrollY)
-}
 function isItemActive(item: typeof navItems[0]): boolean {
   return activeRouteChecks[item.id]?.() ?? false
 }
@@ -104,7 +87,6 @@ function handleNavigation(item: typeof navItems[0]) {
 }
 function checkScreenSize() {
   isSmallScreen.value = window.innerWidth < 1400
-  updateHeaderTopOffset(typeof window !== 'undefined' ? window.scrollY : 0)
 }
 function goToSignIn() {
   router.push({
@@ -119,7 +101,6 @@ function handleClickProfile() {
 
 onMounted(() => {
   let ticking = false
-  updateHeaderTopOffset(window.scrollY)
 
   const handleScroll = () => {
     if (isNavMenuOpen.value) {
@@ -130,7 +111,6 @@ onMounted(() => {
       requestAnimationFrame(() => {
         const currentScrollY = window.scrollY
 
-        updateHeaderTopOffset(currentScrollY)
         isScrolling.value = true
 
         if (scrollTimeout) {
@@ -183,7 +163,6 @@ onMounted(() => {
       'header--mobile-app': isMobileApp,
       'header--scrolling': isScrolling,
     }"
-    :style="{ '--header-top-offset': `${headerTopOffset}px` }"
   >
     <!-- Топографический узор и фоновый градиент в зоне системного бара только в Tauri APK -->
     <div v-if="isMobileApp" class="header-topo-bg" aria-hidden="true">
@@ -354,7 +333,7 @@ onMounted(() => {
 <style lang="scss" scoped>
 .header {
   position: fixed;
-  top: var(--header-top-offset, 0px);
+  top: var(--offline-banner-offset, 0px);
   left: 0;
   right: 0;
   display: flex;

@@ -1,12 +1,16 @@
 <script lang="ts" setup>
+import type { RouteLocationRaw } from 'vue-router'
 import { Icon } from '@iconify/vue'
+import { isNavigationFailure, NavigationFailureType } from 'vue-router'
 import { KitAvatar } from '~/components/01.kit/kit-avatar'
+import { waitForDialogHistory } from '~/components/01.kit/kit-dialog-with-close/composables/use-dialog-history'
 import { KitDivider } from '~/components/01.kit/kit-divider'
 import { KitDrawer } from '~/components/01.kit/kit-drawer'
 import { KitSwitch } from '~/components/01.kit/kit-switch'
 import { OfflineManagerDialog } from '~/components/02.shared/offline-manager'
 import { StatusEditorDialog } from '~/components/02.shared/status-editor-dialog'
 import { UserQuotaWidget } from '~/components/02.shared/user-quota-widget'
+import { useToast } from '~/shared/composables/use-toast'
 import { AppRouteNames } from '~/shared/constants/routes'
 import { useConnectivity } from '~/shared/lib/connectivity'
 
@@ -14,6 +18,7 @@ const open = defineModel<boolean>('open', { required: true })
 
 const { forcedOffline, setForcedOffline } = useConnectivity()
 const router = useRouter()
+const toast = useToast()
 const store = useAppStore(['auth'])
 
 const isStatusEditorOpen = ref(false)
@@ -31,8 +36,7 @@ const mainMenuItems = computed(() => [
     icon: 'mdi:account-circle-outline',
     action: () => {
       if (user.value) {
-        router.push({ name: AppRouteNames.UserProfile, params: { id: user.value.id } })
-        open.value = false
+        navigate({ name: AppRouteNames.UserProfile, params: { id: user.value.id } })
       }
     },
   },
@@ -40,16 +44,14 @@ const mainMenuItems = computed(() => [
     label: 'Мои путешествия',
     icon: 'mdi:briefcase-outline',
     action: () => {
-      router.push({ name: AppRouteNames.TripList })
-      open.value = false
+      navigate({ name: AppRouteNames.TripList })
     },
   },
   {
     label: 'Трекинг активности',
     icon: 'mdi:map-marker-path',
     action: () => {
-      router.push({ name: AppRouteNames.ActivityTracking })
-      open.value = false
+      navigate({ name: AppRouteNames.ActivityTracking })
     },
   },
 ])
@@ -59,8 +61,7 @@ const secondaryMenuItems = computed(() => [
     icon: 'mdi:cog-outline',
     action: () => {
       if (user.value) {
-        router.push({ name: AppRouteNames.UserSettings, params: { id: user.value.id } })
-        open.value = false
+        navigate({ name: AppRouteNames.UserSettings, params: { id: user.value.id } })
       }
     },
   },
@@ -76,13 +77,27 @@ const secondaryMenuItems = computed(() => [
     label: 'Полезные ссылки',
     icon: 'mdi:link-variant',
     action: () => {
-      router.push({
+      navigate({
         name: AppRouteNames.UsefulLinks,
       })
-      open.value = false
     },
   },
 ])
+
+async function navigate(to: RouteLocationRaw) {
+  open.value = false
+  await waitForDialogHistory()
+
+  try {
+    const failure = await router.push(to)
+
+    if (isNavigationFailure(failure) && !isNavigationFailure(failure, NavigationFailureType.duplicated))
+      toast.error('Не удалось открыть страницу. Попробуйте ещё раз.')
+  }
+  catch {
+    toast.error('Не удалось открыть страницу. Проверьте соединение и попробуйте ещё раз.')
+  }
+}
 
 async function handleLogout() {
   await store.auth.signOut()

@@ -59,10 +59,12 @@ const formattedDate = computed(() => {
 
 <style scoped lang="scss">
 .offline-banner {
-  position: relative;
-  flex: 0 0 auto;
+  position: fixed;
+  top: var(--safe-area-inset-top, 0px);
+  left: 0;
+  right: 0;
   width: 100%;
-  height: calc(var(--safe-area-inset-top, 0px) + var(--offline-banner-height, 40px));
+  height: var(--offline-banner-height, 40px);
   box-sizing: border-box;
   z-index: 9999;
   background-color: var(--fg-warning-color);
@@ -70,7 +72,7 @@ const formattedDate = computed(() => {
   display: flex;
   justify-content: center;
   align-items: center;
-  padding: var(--safe-area-inset-top, 0px) 16px 0;
+  padding: 0 16px;
 }
 
 .banner-content {
@@ -123,8 +125,8 @@ const formattedDate = computed(() => {
 
 .slide-down-enter-active,
 .slide-down-leave-active {
-  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-  max-height: calc(var(--safe-area-inset-top, 0px) + var(--offline-banner-height, 40px));
+  transition: opacity 0.3s ease;
+  max-height: var(--offline-banner-height, 40px);
   overflow: hidden;
 }
 
@@ -138,7 +140,7 @@ const formattedDate = computed(() => {
 
 @media (max-width: 600px) {
   .offline-banner {
-    padding: var(--safe-area-inset-top, 0px) 8px 0;
+    padding: 0 8px;
   }
 
   .banner-content {
