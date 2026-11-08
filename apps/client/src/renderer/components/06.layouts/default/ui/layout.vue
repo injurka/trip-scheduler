@@ -73,6 +73,12 @@ import { ThemeManager } from '~/components/02.shared/theme-manager'
   }
 }
 
+:global(#app:has(.offline-banner:not(.slide-down-leave-active)))
+  .main-content
+  > :deep(.content-wrapper:not(.is-map-mode)) {
+  padding-top: var(--header-height) !important;
+}
+
 :global(.is-tauri .main-content > .content-wrapper.is-map-mode) {
   padding-top: calc(var(--header-height) + var(--safe-area-inset-top)) !important;
 }

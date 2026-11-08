@@ -1,7 +1,7 @@
 import type { Booking } from '../src/renderer/components/04.features/trip-info/trip-sections/booking-section/models/types'
 import { describe, expect, it } from 'bun:test'
 import { buildRangeHighlightMap } from '../src/renderer/components/04.features/trip-info/trip-sections/booking-section/lib/booking-highlights'
-import { buildTimelineEntries, getTimelineEntryRealTimeRange } from '../src/renderer/components/04.features/trip-info/trip-sections/booking-section/lib/booking-timeline'
+import { buildTimelineConflictsMap, buildTimelineEntries, getTimelineEntryRealTimeRange } from '../src/renderer/components/04.features/trip-info/trip-sections/booking-section/lib/booking-timeline'
 
 function highlights(bookings: Booking[], now: string) {
   return buildRangeHighlightMap(
@@ -194,5 +194,79 @@ describe('booking timestamp precision and malformed input', () => {
       item => item,
       10,
     )).toEqual({ next: 'next' })
+  })
+})
+
+describe('booking timeline conflict detection', () => {
+  it('flags short layover (< 50 min), negative layover, and airport change across flight segments', () => {
+    const flightBooking: Booking = {
+      id: 'flight-conflicts',
+      type: 'flight',
+      title: 'Multi-segment flight',
+      icon: '',
+      data: {
+        segments: [
+          {
+            departureAirport: 'LED',
+            arrivalAirport: 'SVO',
+            departureDateTime: '2026-11-08T08:00:00Z',
+            arrivalDateTime: '2026-11-08T09:30:00Z',
+          },
+          {
+            departureAirport: 'VKO',
+            arrivalAirport: 'IST',
+            departureDateTime: '2026-11-08T10:05:00Z',
+            arrivalDateTime: '2026-11-08T14:00:00Z',
+          },
+        ],
+      },
+    }
+
+    const entries = buildTimelineEntries([flightBooking])
+    expect(entries).toHaveLength(1)
+    const warnings = entries[0].warnings ?? []
+    expect(warnings.map(w => w.type)).toContain('short-layover')
+    expect(warnings.map(w => w.type)).toContain('airport-change')
+  })
+
+  it('flags negative layover when next flight segment departs before previous arrives', () => {
+    const flightBooking: Booking = {
+      id: 'flight-neg',
+      type: 'flight',
+      title: 'Impossible connection',
+      icon: '',
+      data: {
+        segments: [
+          {
+            departureAirport: 'SVO',
+            arrivalAirport: 'IST',
+            departureDateTime: '2026-11-08T10:00:00Z',
+            arrivalDateTime: '2026-11-08T14:00:00Z',
+          },
+          {
+            departureAirport: 'IST',
+            arrivalAirport: 'CDG',
+            departureDateTime: '2026-11-08T13:30:00Z',
+            arrivalDateTime: '2026-11-08T16:00:00Z',
+          },
+        ],
+      },
+    }
+
+    const entries = buildTimelineEntries([flightBooking])
+    const warnings = entries[0].warnings ?? []
+    expect(warnings.map(w => w.type)).toContain('negative-layover')
+  })
+
+  it('flags real-time overlap between two active non-hotel bookings', () => {
+    const bookings: Booking[] = [
+      train('train-a', '2026-11-08T10:00:00Z', '2026-11-08T13:00:00Z'),
+      train('train-b', '2026-11-08T12:00:00Z', '2026-11-08T15:00:00Z'),
+    ]
+    const entries = buildTimelineEntries(bookings)
+    const conflictMap = buildTimelineConflictsMap(entries)
+
+    expect(conflictMap['train-a']?.some(w => w.type === 'overlap')).toBe(true)
+    expect(conflictMap['train-b']?.some(w => w.type === 'overlap')).toBe(true)
   })
 })

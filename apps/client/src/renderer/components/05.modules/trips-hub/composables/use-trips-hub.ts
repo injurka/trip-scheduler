@@ -5,6 +5,7 @@ import type { UpdateTripInput } from '~/shared/types/models/trip'
 import { refDebounced, StorageSerializers, useLocalStorage } from '@vueuse/core'
 import { useAbortRequest, useRequest, useRequestError, useRequestStatus } from '~/plugins/request'
 import { useLastCounts } from '~/shared/composables/use-last-counts'
+import { isAppOnline } from '~/shared/lib/connectivity'
 import { useOfflineStore } from '~/shared/store/offline.store'
 import { TripStatus, TripVisibility } from '~/shared/types/models/trip'
 
@@ -144,6 +145,22 @@ export function useTripsHub() {
     })
   }
 
+  function applyLoadedTrips(loadedTrips: ITrip[]) {
+    trips.value = sortTripsByDate(loadedTrips)
+    isInitialized.value = true
+    hasLoadedOnce.value = true
+    setCount('trip-list', trips.value.length)
+  }
+
+  async function loadOfflineTrips(offlineStore: ReturnType<typeof useOfflineStore>) {
+    if (!offlineStore.isInitialized) {
+      await offlineStore.initStorage()
+    }
+
+    const savedOfflineTrips = offlineStore.sortedSavedTrips.map(entry => entry.data as unknown as ITrip)
+    applyLoadedTrips(savedOfflineTrips)
+  }
+
   async function fetchTrips(force = false) {
     if (isInitialized.value && !force) {
       return
@@ -160,6 +177,12 @@ export function useTripsHub() {
 
     const offlineStore = useOfflineStore()
 
+    if (!isAppOnline()) {
+      await loadOfflineTrips(offlineStore)
+
+      return
+    }
+
     await useRequest({
       force,
       cache: !Object.values(apiFilters).some(v => v !== undefined),
@@ -167,26 +190,22 @@ export function useTripsHub() {
       fn: db => db.trips.getAll(apiFilters),
       cancelPrevious: true,
       onSuccess: (result) => {
-        trips.value = sortTripsByDate(result)
-        isInitialized.value = true
-        hasLoadedOnce.value = true
-        setCount('trip-list', trips.value.length)
+        applyLoadedTrips(result)
       },
       onError: ({ error }) => {
         const savedOfflineTrips = offlineStore.sortedSavedTrips.map(entry => entry.data as unknown as ITrip)
 
         if (savedOfflineTrips.length > 0) {
-          trips.value = sortTripsByDate(savedOfflineTrips)
-          isInitialized.value = true
-          hasLoadedOnce.value = true
-          setCount('trip-list', trips.value.length)
-          toast.info('Нет подключения к сети. Загружены сохраненные офлайн-путешествия.')
+          applyLoadedTrips(savedOfflineTrips)
 
           return
         }
 
         trips.value = []
-        toast.error(`Не удалось загрузить список путешествий: ${error.customMessage}`)
+
+        if (isAppOnline()) {
+          toast.error(`Не удалось загрузить список путешествий: ${error.customMessage}`)
+        }
       },
     })
   }

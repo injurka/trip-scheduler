@@ -56,7 +56,54 @@ class TrackingService : Service() {
         const val ACTION_STOP = "ru.tripscheduler.tracking.STOP"
         const val ACTION_ACTIVITY_UPDATE = "ru.tripscheduler.tracking.ACTIVITY_UPDATE"
         private const val BUFFER_FILENAME = "tracking_buffered_points.jsonl"
+        private const val PREFS_NAME = "tracking_service_prefs"
+        private const val KEY_EXPLICITLY_STOPPED = "explicitly_stopped"
         private val fileLock = Any()
+
+        fun markExplicitlyStopped(context: Context, stopped: Boolean) {
+            try {
+                context.applicationContext
+                    .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                    .edit()
+                    .putBoolean(KEY_EXPLICITLY_STOPPED, stopped)
+                    .apply()
+            } catch (e: Exception) {
+                android.util.Log.w("TrackingService", "Error saving explicitly_stopped state", e)
+            }
+        }
+
+        fun isExplicitlyStopped(context: Context): Boolean {
+            return try {
+                context.applicationContext
+                    .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                    .getBoolean(KEY_EXPLICITLY_STOPPED, false)
+            } catch (_: Exception) {
+                false
+            }
+        }
+
+        fun countBufferedPoints(context: Context): Int {
+            synchronized(fileLock) {
+                return try {
+                    val file = File(context.filesDir, BUFFER_FILENAME)
+                    if (!file.exists()) {
+                        0
+                    } else {
+                        BufferedReader(FileReader(file)).use { reader ->
+                            var count = 0
+                            var line: String? = reader.readLine()
+                            while (line != null) {
+                                if (line.isNotBlank()) count++
+                                line = reader.readLine()
+                            }
+                            count
+                        }
+                    }
+                } catch (_: Exception) {
+                    0
+                }
+            }
+        }
 
         /** Ключи extras, которыми состояние Activity Recognition приклеивается к точке. */
         const val EXTRA_DEVICE_ACTIVITY = "ru.tripscheduler.tracking.DEVICE_ACTIVITY"
@@ -223,6 +270,15 @@ class TrackingService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == ACTION_STOP) {
+            markExplicitlyStopped(this, true)
+            stopTracking()
+            stopSelf()
+            return START_NOT_STICKY
+        }
+
+        if (intent?.action == ACTION_START) {
+            markExplicitlyStopped(this, false)
+        } else if (isExplicitlyStopped(this)) {
             stopTracking()
             stopSelf()
             return START_NOT_STICKY
@@ -291,6 +347,10 @@ class TrackingService : Service() {
 
     @SuppressLint("MissingPermission")
     private fun startTracking() {
+        if (!isRunning && !isStarting) {
+            recordedCount = countBufferedPoints(applicationContext)
+        }
+
         // Обязательно сразу вызываем startForeground, соблюдая 5-секундный контракт Android 8+
         val notification = buildNotification(if (recordedCount > 0) "Записано точек: $recordedCount" else "GPS-трекинг активен")
         try {
@@ -311,7 +371,7 @@ class TrackingService : Service() {
 
         if (isRunning || isStarting) return
         isStarting = true
-        recordedCount = 0
+        markExplicitlyStopped(this, false)
 
         // 1. Захватываем CPU Partial WakeLock для предотвращения сна процессора при заблокированном экране
         try {

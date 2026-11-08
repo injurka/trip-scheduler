@@ -50,64 +50,71 @@ function handleImportSelect(activity: Activity) {
 <template>
   <div class="memories-list" :class="{ 'fullscreen-layout': isFullScreen }">
     <div v-if="!isViewMode" class="upload-section">
+      <div class="panel-header">
+        <span class="panel-title">Добавить в этот день</span>
+        <Icon icon="mdi:plus" class="panel-header-icon" aria-hidden="true" />
+      </div>
+
       <button class="upload-button" :disabled="isProcessing" @click="emit('upload')">
-        <Icon :icon="isProcessing ? 'mdi:loading' : 'mdi:camera-plus-outline'" :class="{ spin: isProcessing }" />
+        <Icon :icon="isProcessing ? 'mdi:loading' : 'mdi:camera-outline'" class="upload-icon" :class="{ spin: isProcessing }" />
         <span>{{ isProcessing ? `Загрузка (${processingMemories.length})...` : 'Загрузить медиа' }}</span>
       </button>
 
-      <button class="add-note-button" @click="emit('addActivity')">
-        <Icon icon="mdi:plus-box-outline" />
-        <span>Добавить активность</span>
-      </button>
-
-      <button class="add-note-button" @click="emit('addNote')">
-        <Icon icon="mdi:note-plus-outline" />
-        <span>Добавить заметку</span>
-      </button>
-
-      <template v-if="isMobile">
-        <button
-          class="add-note-button"
-          :disabled="importOptions.length === 0"
-          @click="showImportSheet = true"
-        >
-          <Icon icon="mdi:import" />
-          <span>Импорт из плана</span>
+      <div class="secondary-actions-group">
+        <button class="secondary-action-btn" @click="emit('addActivity')">
+          <Icon icon="mdi:calendar-plus-outline" class="action-icon" />
+          <span>Активность</span>
         </button>
 
-        <KitBottomSheet
-          v-model="showImportSheet"
-          title="Импорт из плана"
-        >
-          <div class="import-sheet-list">
-            <button
-              v-for="item in importOptions"
-              :key="String(item.value)"
-              class="import-sheet-item"
-              @click="handleImportSelect(item.value)"
-            >
-              <span class="import-sheet-item-icon-wrap">
-                <Icon v-if="item.icon" :icon="item.icon" />
-              </span>
-              <span class="import-sheet-item-label">{{ item.label }}</span>
-            </button>
-          </div>
-        </KitBottomSheet>
-      </template>
+        <button class="secondary-action-btn" @click="emit('addNote')">
+          <Icon icon="mdi:notebook-edit-outline" class="action-icon" />
+          <span>Заметка</span>
+        </button>
 
-      <KitDropdown
-        v-else
-        :items="importOptions"
-        align="end"
-        @update:model-value="emit('import', $event)"
-      >
-        <template #trigger>
-          <button class="add-note-button" :disabled="importOptions.length === 0">
-            <Icon icon="mdi:import" />
-            <span>Импорт из плана</span>
+        <template v-if="isMobile">
+          <button
+            class="secondary-action-btn"
+            :disabled="importOptions.length === 0"
+            @click="showImportSheet = true"
+          >
+            <Icon icon="mdi:file-import-outline" class="action-icon" />
+            <span>Из плана</span>
           </button>
+
+          <KitBottomSheet
+            v-model="showImportSheet"
+            title="Импорт из плана"
+          >
+            <div class="import-sheet-list">
+              <button
+                v-for="item in importOptions"
+                :key="String(item.value)"
+                class="import-sheet-item"
+                @click="handleImportSelect(item.value)"
+              >
+                <span class="import-sheet-item-icon-wrap">
+                  <Icon v-if="item.icon" :icon="item.icon" />
+                </span>
+                <span class="import-sheet-item-label">{{ item.label }}</span>
+              </button>
+            </div>
+          </KitBottomSheet>
         </template>
-      </KitDropdown>
+
+        <KitDropdown
+          v-else
+          :items="importOptions"
+          align="end"
+          @update:model-value="emit('import', $event)"
+        >
+          <template #trigger>
+            <button class="secondary-action-btn" :disabled="importOptions.length === 0">
+              <Icon icon="mdi:file-import-outline" class="action-icon" />
+              <span>Из плана</span>
+            </button>
+          </template>
+        </KitDropdown>
+      </div>
     </div>
 
     <UploadingIndicator
@@ -116,6 +123,7 @@ function handleImportSelect(activity: Activity) {
       @cancel="memoriesStore.cancelMemoryUpload"
       @retry="memoriesStore.retryMemoryUpload"
       @remove="memoriesStore.removeProcessingMemory"
+      @retry-all="memoriesStore.retryAllFailedUploads"
     />
 
     <ProcessingQueue v-if="!isViewMode && memoriesToProcess.length > 0" />
@@ -162,20 +170,16 @@ function handleImportSelect(activity: Activity) {
 }
 
 .upload-section {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 16px;
-  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  padding: 16px 20px;
   background-color: var(--bg-secondary-color);
   border-radius: var(--r-l);
   border: 1px solid var(--border-secondary-color);
   margin-top: 16px;
 
-  @include media-up(sm) {
-    grid-template-columns: repeat(2, 1fr);
-  }
-  @include media-up(md) {
-    grid-template-columns: repeat(4, 1fr);
+  @include media-down(sm) {
+    padding: 14px 14px 12px;
   }
 
   .fullscreen-layout & {
@@ -185,52 +189,123 @@ function handleImportSelect(activity: Activity) {
   }
 }
 
-.upload-button,
-.add-note-button {
-  flex: 1;
-  padding: 16px;
-  border-radius: var(--r-s);
-  cursor: pointer;
+.panel-header {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 12px;
-  font-size: 0.9rem;
-  font-weight: 500;
-  transition: all 0.2s ease;
-  white-space: nowrap;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.panel-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--fg-primary-color);
+  letter-spacing: -0.01em;
+}
+
+.panel-header-icon {
+  font-size: 1.15rem;
+  color: var(--fg-secondary-color);
+  opacity: 0.6;
 }
 
 .upload-button {
-  background-color: transparent;
-  border: 2px dashed var(--border-primary-color);
-  color: var(--fg-accent-color);
-  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  padding: 13px 18px;
+  min-height: 48px;
+  border-radius: var(--r-m);
+  cursor: pointer;
+  background-color: rgba(var(--fg-accent-color-rgb, 255, 136, 86), 0.08);
+  border: 1px solid rgba(var(--fg-accent-color-rgb, 255, 136, 86), 0.35);
+  color: var(--fg-primary-color);
+  font-size: 0.95rem;
+  font-weight: 600;
+  font-family: inherit;
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    transform 0.1s ease;
+  white-space: nowrap;
 
-  @include media-up(sm) {
-    grid-column: auto;
+  .upload-icon {
+    font-size: 1.35rem;
+    color: var(--fg-accent-color);
+    flex-shrink: 0;
   }
 
   &:hover:not(:disabled) {
-    background-color: var(--bg-hover-color);
+    background-color: rgba(var(--fg-accent-color-rgb, 255, 136, 86), 0.16);
     border-color: var(--fg-accent-color);
   }
+
+  &:active:not(:disabled) {
+    transform: scale(0.99);
+  }
+
   &:disabled {
     cursor: wait;
     opacity: 0.7;
   }
 }
 
-.add-note-button {
-  background-color: var(--bg-tertiary-color);
-  border: 2px solid var(--bg-tertiary-color);
+.secondary-actions-group {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-top: 10px;
+  width: 100%;
+}
+
+.secondary-action-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  min-height: 54px;
+  padding: 10px 6px;
+  border-radius: var(--r-m);
+  background-color: transparent;
+  border: 1px solid transparent;
   color: var(--fg-primary-color);
+  cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    transform 0.1s ease;
+  font-size: 0.8rem;
+  font-weight: 500;
+  font-family: inherit;
+  line-height: 1.2;
+  white-space: nowrap;
+
+  .action-icon {
+    font-size: 1.35rem;
+    color: var(--fg-primary-color);
+    transition: transform 0.15s ease;
+  }
 
   &:hover:not(:disabled) {
     background-color: var(--bg-hover-color);
+    border-color: var(--border-secondary-color);
+
+    .action-icon {
+      transform: translateY(-1px);
+    }
   }
+
+  &:active:not(:disabled) {
+    transform: scale(0.97);
+    background-color: var(--bg-tertiary-color);
+  }
+
   &:disabled {
-    opacity: 0.5;
+    opacity: 0.45;
     cursor: not-allowed;
   }
 }

@@ -136,10 +136,11 @@ watch(isPanelOpen, (isOpen) => {
 
 <style lang="scss">
 .drawer-content-wrapper.comments-widget-drawer {
-  top: 0 !important;
-  bottom: 0 !important;
-  height: 100% !important;
-  max-height: 100dvh !important;
+  // Keyboard-Aware: поле ввода комментария остаётся над клавиатурой
+  top: var(--visible-top, 0px) !important;
+  bottom: auto !important;
+  height: var(--visible-height, 100dvh) !important;
+  max-height: var(--visible-height, 100dvh) !important;
   display: flex !important;
   flex-direction: column !important;
   overflow: hidden !important;

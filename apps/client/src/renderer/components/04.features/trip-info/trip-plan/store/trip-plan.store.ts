@@ -6,6 +6,7 @@ import { sanitizeActivity } from '~/components/05.modules/trip-info/lib/helpers'
 import { useRequest, useRequestError, useRequestStatus, useRequestStatusByPrefix, useRequestStore } from '~/plugins/request'
 import { createApiErrorHandler } from '~/plugins/request/lib/error-handler'
 import { AppRoutePaths } from '~/shared/constants/routes'
+import { isAppOnline } from '~/shared/lib/connectivity'
 import { timeRangeDurationMinutes } from '~/shared/lib/date-time'
 import { useOfflineStore } from '~/shared/store/offline.store'
 import { useActivityDiff } from '../composables/use-activity-diff'
@@ -26,6 +27,13 @@ export enum ETripPlanKeys {
   GENERATE_WEATHER = 'trip-plan:generate-weather',
 }
 
+export interface IDeletedActivityRecord {
+  dayId: string
+  activity: IActivity
+  index: number
+  deletedAt: number
+}
+
 export interface ITripPlanState {
   trip: Trip | null
   days: IDay[]
@@ -35,6 +43,7 @@ export interface ITripPlanState {
   /** Draft-версии конкретных активностей (activityId -> proposed Activity) */
   activityDrafts: Map<string, IActivity>
   deletedDraftsCache: Map<string, Map<string, IActivity>>
+  lastDeletedActivities: IDeletedActivityRecord[]
   isPreviewMode: boolean
 }
 
@@ -83,6 +92,7 @@ export const useTripPlanStore = defineStore('tripPlan', {
     dayNote: new Map(),
     activityDrafts: new Map(),
     deletedDraftsCache: new Map(),
+    lastDeletedActivities: [],
     isPreviewMode: false,
   }),
 
@@ -92,6 +102,17 @@ export const useTripPlanStore = defineStore('tripPlan', {
       // If trip data was loaded (e.g., from offline store), don't block UI with error placeholder
       if (state.trip)
         return null
+
+      if (!isAppOnline()) {
+        const offlineStore = useOfflineStore()
+
+        if (!offlineStore.isTripCached(state.currentTripId || '')) {
+          return {
+            isOffline: true,
+            customMessage: 'Это путешествие не сохранено для работы без интернета',
+          }
+        }
+      }
 
       return useRequestError(ETripPlanKeys.FETCH_TRIP_DETAILS).value
     },
@@ -205,6 +226,14 @@ export const useTripPlanStore = defineStore('tripPlan', {
         return null
 
       return state.dayNote.get(state.currentDayId) ?? null
+    },
+
+    canUndoActivityChange(state): boolean {
+      return state.lastDeletedActivities.length > 0
+    },
+
+    lastDeletedActivity(state): IDeletedActivityRecord | null {
+      return state.lastDeletedActivities.at(-1) ?? null
     },
   },
 
@@ -383,7 +412,7 @@ export const useTripPlanStore = defineStore('tripPlan', {
         this.setCurrentDay(this.getPreviousDayId)
     },
 
-    fetchTripDetails(tripId: string, initialDayIdFromQuery: string | undefined, onSectionsLoad?: (sections: TripSection[]) => void) {
+    async fetchTripDetails(tripId: string, initialDayIdFromQuery: string | undefined, onSectionsLoad?: (sections: TripSection[]) => void) {
       this.currentTripId = tripId
       const offlineStore = useOfflineStore()
 
@@ -414,6 +443,27 @@ export const useTripPlanStore = defineStore('tripPlan', {
         }
       }
 
+      if (!isAppOnline()) {
+        if (!offlineStore.isInitialized) {
+          await offlineStore.initStorage()
+        }
+
+        const savedTrip = offlineStore.getSavedTrip(tripId)
+
+        if (savedTrip) {
+          applyTripData(savedTrip)
+
+          return
+        }
+
+        this.trip = null
+        this.days = []
+        this.currentDayId = null
+        onSectionsLoad?.([])
+
+        return
+      }
+
       useRequest({
         key: ETripPlanKeys.FETCH_TRIP_DETAILS,
         abortOnUnmount: true,
@@ -424,7 +474,6 @@ export const useTripPlanStore = defineStore('tripPlan', {
 
             if (savedTrip) {
               applyTripData(savedTrip)
-              useToast().info('Отображается сохраненная офлайн-версия путешествия.')
 
               return
             }
@@ -445,7 +494,6 @@ export const useTripPlanStore = defineStore('tripPlan', {
 
           if (savedTrip) {
             applyTripData(savedTrip)
-            useToast().info('Нет подключения к сети. Загружена офлайн-версия.')
 
             return
           }
@@ -456,7 +504,10 @@ export const useTripPlanStore = defineStore('tripPlan', {
           onSectionsLoad?.([])
 
           console.error(`Ошибка при загрузке данных для путешествия ${tripId}: `, error)
-          useToast().error(`Ошибка при загрузке данных: ${error.customMessage}`)
+
+          if (isAppOnline()) {
+            useToast().error(`Ошибка при загрузке данных: ${error.customMessage}`)
+          }
         },
       })
     },
@@ -634,6 +685,15 @@ export const useTripPlanStore = defineStore('tripPlan', {
       }
 
       const removedActivity = day.activities.splice(activityIndex, 1)[0]
+      this.lastDeletedActivities.push({
+        dayId,
+        activity: JSON.parse(JSON.stringify(removedActivity)),
+        index: activityIndex,
+        deletedAt: Date.now(),
+      })
+
+      if (this.lastDeletedActivities.length > 10)
+        this.lastDeletedActivities.shift()
 
       useRequest({
         key: `${ETripPlanKeys.REMOVE_ACTIVITY}:${activityId}`,
@@ -645,11 +705,29 @@ export const useTripPlanStore = defineStore('tripPlan', {
           if (day)
             day.activities.splice(activityIndex, 0, removedActivity)
 
+          this.lastDeletedActivities = this.lastDeletedActivities.filter(item => item.activity.id !== activityId)
+
           console.error(`Ошибка при удалении активности ${activityId}: `, error)
           useToast().error(`Ошибка при удалении активности: ${error.customMessage}`)
         },
 
       })
+    },
+
+    undoLastActivityChange() {
+      const record = this.lastDeletedActivities.pop()
+
+      if (!record)
+        return
+
+      const { dayId, activity } = record
+      const { id: _removedId, ...activityData } = activity
+      this.addActivity(dayId, activityData)
+      useToast().success(`Активность «${activity.title || 'Без названия'}» восстановлена.`)
+    },
+
+    dismissLastDeletedActivity() {
+      this.lastDeletedActivities.pop()
     },
 
     updateActivity(dayId: string, updatedActivity: IActivity) {
@@ -702,12 +780,19 @@ export const useTripPlanStore = defineStore('tripPlan', {
         return
       }
 
-      const calDays = this.days.filter(d => !!d.date).sort((a, b) => new Date(a.date!).getTime() - new Date(b.date!).getTime())
+      const calDays = this.days
+        .filter(d => !!d.date)
+        .sort((a, b) => new Date(`${a.date!.slice(0, 10)}T00:00:00Z`).getTime() - new Date(`${b.date!.slice(0, 10)}T00:00:00Z`).getTime())
       const lastDay = calDays[calDays.length - 1]
-      const newDate = lastDay ? new Date(lastDay.date!) : (this.trip?.startDate ? new Date(this.trip.startDate) : new Date())
+      const now = new Date()
+      const fallbackDateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+      const baseDateStr = lastDay?.date
+        ? lastDay.date.slice(0, 10)
+        : (this.trip?.startDate ? this.trip.startDate.slice(0, 10) : fallbackDateStr)
+      const newDate = new Date(`${baseDateStr}T00:00:00Z`)
 
       if (lastDay)
-        newDate.setDate(newDate.getDate() + 1)
+        newDate.setUTCDate(newDate.getUTCDate() + 1)
 
       const newDayData: Omit<IDay, 'id'> = {
         tripId: this.currentTripId,
@@ -879,6 +964,7 @@ export const useTripPlanStore = defineStore('tripPlan', {
       })
     },
 
+    // eslint-disable-next-line complexity
     reorderActivities(newOrder: IActivity[]) {
       const day = this.days.find(d => d.id === this.currentDayId)
 
@@ -891,31 +977,52 @@ export const useTripPlanStore = defineStore('tripPlan', {
         return
       }
 
-      const originalSortedActivities = this.getActivitiesForSelectedDay
-      const anchorStartTimeMinutes = originalSortedActivities.length > 0
-        ? timeToMinutes(originalSortedActivities[0].startTime)
+      const originalStarts = newOrder.map(a => timeToMinutes(a.startTime))
+      const anchorStartTimeMinutes = originalStarts.length > 0
+        ? Math.min(...originalStarts)
         : 9 * 60
 
       const GAP_BETWEEN_ACTIVITIES_MINUTES = 15
       const recalculatedActivities: IActivity[] = []
-      let lastEndTimeMinutes = anchorStartTimeMinutes - GAP_BETWEEN_ACTIVITIES_MINUTES
+      let minAllowedStartMinutes = anchorStartTimeMinutes
 
-      for (const activity of newOrder) {
+      for (let i = 0; i < newOrder.length; i++) {
+        const activity = newOrder[i]
+        const currentStart = timeToMinutes(activity.startTime)
         const duration = timeRangeDurationMinutes(activity.startTime, activity.endTime)
-        const newStartTimeMinutes = lastEndTimeMinutes + GAP_BETWEEN_ACTIVITIES_MINUTES
-        const newEndTimeMinutes = newStartTimeMinutes + duration
+        const currentEnd = currentStart + duration
+        const hasLaterItemWithEarlierStart = newOrder
+          .slice(i + 1)
+          .some(later => timeToMinutes(later.startTime) < currentEnd)
 
-        recalculatedActivities.push(sanitizeActivity({
-          ...activity,
-          startTime: minutesToTime(newStartTimeMinutes),
-          endTime: minutesToTime(newEndTimeMinutes),
-        }))
-
-        lastEndTimeMinutes = newEndTimeMinutes
+        if (currentStart >= minAllowedStartMinutes && !hasLaterItemWithEarlierStart) {
+          const preserved = sanitizeActivity({ ...activity })
+          recalculatedActivities.push(preserved)
+          minAllowedStartMinutes = currentEnd + GAP_BETWEEN_ACTIVITIES_MINUTES
+        }
+        else {
+          const newStartTimeMinutes = minAllowedStartMinutes
+          const newEndTimeMinutes = newStartTimeMinutes + duration
+          const adjusted = sanitizeActivity({
+            ...activity,
+            startTime: minutesToTime(newStartTimeMinutes),
+            endTime: minutesToTime(newEndTimeMinutes),
+          })
+          recalculatedActivities.push(adjusted)
+          minAllowedStartMinutes = newEndTimeMinutes + GAP_BETWEEN_ACTIVITIES_MINUTES
+        }
       }
 
+      const previousById = new Map(day.activities.map(a => [a.id, a]))
       day.activities = recalculatedActivities
-      // TODO: Отправить batch-запрос на обновление на бэкенд
+
+      for (const updated of recalculatedActivities) {
+        const prev = previousById.get(updated.id)
+
+        if (prev && (prev.startTime !== updated.startTime || prev.endTime !== updated.endTime)) {
+          this.updateActivity(day.id, updated)
+        }
+      }
     },
 
     async fetchDayNote(dayId: string) {
@@ -1000,6 +1107,7 @@ export const useTripPlanStore = defineStore('tripPlan', {
       this.currentTripId = null
       this.currentDayId = null
       this.dayNote.clear()
+      this.lastDeletedActivities = []
       this.isPreviewMode = false
 
       const requestStore = useRequestStore()

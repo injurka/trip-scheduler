@@ -10,7 +10,7 @@ import type {
 } from '../models/types'
 import { useDebounceFn } from '@vueuse/core'
 import { v4 as uuidv4 } from 'uuid'
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { useTripPermissions } from '~/components/05.modules/trip-info/composables/use-trip-permissions'
 
 interface UseChecklistSectionProps {
@@ -42,30 +42,35 @@ export function useChecklistSection(props: UseChecklistSectionProps, emit: (even
 
   const tabs = ref<ChecklistTabConfig[]>(JSON.parse(JSON.stringify(initialTabs)))
 
+  function normalizeChecklistItems(rawItems: ChecklistItem[] | undefined): ChecklistItem[] {
+    return (rawItems || []).map((item): ChecklistItem => {
+      let priority: ChecklistPriority = 1
+
+      if (String(item.priority) === 'high') {
+        priority = 4
+      }
+      else if (String(item.priority) === 'normal') {
+        priority = 1
+      }
+      else if (typeof item.priority === 'number' && item.priority >= 1 && item.priority <= 5) {
+        priority = item.priority as ChecklistPriority
+      }
+
+      return {
+        ...item,
+        priority,
+        subtasks: item.subtasks || [],
+      }
+    })
+  }
+
   // Инициализация элементов
-  const initialItems = (props.section.content?.items || []).map((item): ChecklistItem => {
-    let priority: ChecklistPriority = 1
-
-    if (String(item.priority) === 'high') {
-      priority = 4
-    }
-    else if (String(item.priority) === 'normal') {
-      priority = 1
-    }
-    else if (typeof item.priority === 'number' && item.priority >= 1 && item.priority <= 5) {
-      priority = item.priority as ChecklistPriority
-    }
-
-    return {
-      ...item,
-      priority,
-      subtasks: item.subtasks || [],
-    }
-  })
+  const initialItems = normalizeChecklistItems(props.section.content?.items)
 
   const items = ref<ChecklistItem[]>(JSON.parse(JSON.stringify(initialItems)))
   const groups = ref<ChecklistGroup[]>(JSON.parse(JSON.stringify(props.section.content?.groups || [])))
   const activeTab = ref<ChecklistTab>(tabs.value[0]?.id || 'preparation')
+  let isSyncingFromProps = false
 
   const completionFilter = ref<'all' | 'pending' | 'completed'>('all')
   function cycleCompletionFilter() {
@@ -403,7 +408,46 @@ export function useChecklistSection(props: UseChecklistSectionProps, emit: (even
     return items.value.some(item => item.type === activeTab.value)
   })
 
+  // eslint-disable-next-line complexity
+  watch(() => props.section.content, (newContent) => {
+    const nextTabs = (newContent?.tabs && newContent.tabs.length > 0)
+      ? newContent.tabs
+      : DEFAULT_TABS
+    const nextItems = normalizeChecklistItems(newContent?.items)
+    const nextGroups = newContent?.groups || []
+
+    const nextSerialized = JSON.stringify({
+      items: nextItems,
+      groups: nextGroups,
+      tabs: nextTabs,
+    })
+    const currentSerialized = JSON.stringify({
+      items: items.value,
+      groups: groups.value,
+      tabs: tabs.value,
+    })
+
+    if (nextSerialized === currentSerialized)
+      return
+
+    isSyncingFromProps = true
+    tabs.value = JSON.parse(JSON.stringify(nextTabs))
+    items.value = JSON.parse(JSON.stringify(nextItems))
+    groups.value = JSON.parse(JSON.stringify(nextGroups))
+
+    if (!tabs.value.some(t => t.id === activeTab.value)) {
+      activeTab.value = tabs.value[0]?.id || 'preparation'
+    }
+
+    void nextTick(() => {
+      isSyncingFromProps = false
+    })
+  }, { deep: true })
+
   watch([items, groups, tabs], () => {
+    if (isSyncingFromProps)
+      return
+
     debouncedUpdate()
   }, { deep: true })
 

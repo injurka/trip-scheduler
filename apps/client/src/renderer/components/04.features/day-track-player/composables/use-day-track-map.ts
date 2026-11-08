@@ -415,7 +415,6 @@ export function useDayTrackMap(options: UseDayTrackMapOptions) {
   }
 
   const STOPS_SOURCE_ID = 'day-track-stops-source'
-  const STOP_CLUSTER_LAYER_ID = 'day-track-stop-clusters'
   const STOP_POINT_LAYER_ID = 'day-track-stop-points'
 
   function ensureStopLayers(map: maplibregl.Map) {
@@ -423,36 +422,44 @@ export function useDayTrackMap(options: UseDayTrackMapOptions) {
       map.addSource(STOPS_SOURCE_ID, {
         type: 'geojson',
         data: createEmptyFeatureCollection(),
-        cluster: true,
-        clusterRadius: 28,
-        clusterMaxZoom: 14,
-      })
-      map.addLayer({
-        id: STOP_CLUSTER_LAYER_ID,
-        type: 'circle',
-        source: STOPS_SOURCE_ID,
-        filter: ['has', 'point_count'],
-        paint: { 'circle-radius': ['interpolate', ['linear'], ['zoom'], 5, 5, 14, 9], 'circle-color': '#64748b', 'circle-stroke-color': '#ffffff', 'circle-stroke-width': 1 },
-      })
-      map.addLayer({
-        id: 'day-track-stop-cluster-count',
-        type: 'symbol',
-        source: STOPS_SOURCE_ID,
-        filter: ['has', 'point_count'],
-        minzoom: 10,
-        layout: { 'text-field': ['get', 'point_count_abbreviated'], 'text-size': 10 },
-        paint: { 'text-color': '#ffffff' },
       })
       map.addLayer({
         id: STOP_POINT_LAYER_ID,
         type: 'circle',
         source: STOPS_SOURCE_ID,
-        filter: ['!', ['has', 'point_count']],
         paint: {
-          'circle-radius': ['interpolate', ['linear'], ['zoom'], 7, 2, 12, 3.5, 16, 7],
+          'circle-radius': [
+            'interpolate',
+            ['linear'],
+            ['zoom'],
+            7,
+            1.5,
+            11,
+            2.2,
+            14,
+            3.0,
+            16,
+            4.5,
+            18,
+            6.0,
+          ],
           'circle-color': '#64748b',
           'circle-stroke-color': '#ffffff',
-          'circle-stroke-width': ['interpolate', ['linear'], ['zoom'], 7, 0.5, 16, 1.5],
+          'circle-stroke-width': [
+            'interpolate',
+            ['linear'],
+            ['zoom'],
+            7,
+            0.4,
+            11,
+            0.6,
+            14,
+            0.8,
+            16,
+            1.2,
+            18,
+            1.5,
+          ],
         },
       })
     }
@@ -631,8 +638,8 @@ export function useDayTrackMap(options: UseDayTrackMapOptions) {
         isStop: !!point.stop,
         kind: 'waypoint',
         color: ACTIVITY_COLORS[point.activity] || '#2196f3',
-        radius: point.stop ? 9 : isPointsMode ? 4 : 5,
-        strokeWidth: isPointsMode ? 1.5 : (point.stop ? 2 : 1.5),
+        radius: isPointsMode ? (point.stop ? 5 : 4) : 5,
+        strokeWidth: isPointsMode ? 1.5 : 1.5,
       },
       geometry: { type: 'Point', coordinates: [point.lng, point.lat] },
     }
@@ -663,9 +670,26 @@ export function useDayTrackMap(options: UseDayTrackMapOptions) {
       id: 'day-track-stop-labels',
       type: 'symbol',
       source: STOPS_SOURCE_ID,
-      minzoom: 15,
-      filter: ['all', ['!', ['has', 'point_count']], ['!=', ['get', 'stopLabel'], '']],
-      layout: { 'text-field': ['get', 'stopLabel'], 'text-size': 12, 'text-offset': [0, 1.6], 'text-anchor': 'top' },
+      minzoom: 16.5,
+      filter: ['!=', ['get', 'stopLabel'], ''],
+      layout: {
+        'text-field': ['get', 'stopLabel'],
+        'text-size': [
+          'interpolate',
+          ['linear'],
+          ['zoom'],
+          16.5,
+          11,
+          18,
+          12.5,
+        ],
+        'text-offset': [0, 1.2],
+        'text-anchor': 'top',
+        'text-optional': true,
+        'text-padding': 8,
+        'text-allow-overlap': false,
+        'text-ignore-placement': false,
+      },
       paint: { 'text-color': '#334155', 'text-halo-color': '#ffffff', 'text-halo-width': 2 },
     })
   }
@@ -710,7 +734,7 @@ export function useDayTrackMap(options: UseDayTrackMapOptions) {
       id: 'day-track-stop-areas',
       type: 'fill',
       source: 'day-track-stop-areas',
-      minzoom: 15,
+      minzoom: 16,
       paint: { 'fill-color': '#64748b', 'fill-opacity': 0.10, 'fill-outline-color': '#64748b' },
     }, ROUTE_CASING_LAYER_ID)
   }
@@ -968,18 +992,24 @@ export function useDayTrackMap(options: UseDayTrackMapOptions) {
   }
 
   function updatePointLayer(map: maplibregl.Map, points: DayPoint[], isPointsMode: boolean) {
+    const seenStopTimes = new Set<number>()
     const stops: GeoJSON.FeatureCollection = {
       type: 'FeatureCollection',
       features: isPointsMode
         ? []
-        : points.flatMap((point, index) => point.stop
-            ? [createTrackPointFeature(
-                point,
-                index,
-                points.length,
-                false,
-              )]
-            : []),
+        : points.flatMap((point, index) => {
+            if (!point.stop || seenStopTimes.has(point.stop.startedAt))
+              return []
+
+            seenStopTimes.add(point.stop.startedAt)
+
+            return [createTrackPointFeature(
+              point,
+              index,
+              points.length,
+              false,
+            )]
+          }),
     }
     ;(map.getSource(STOPS_SOURCE_ID) as maplibregl.GeoJSONSource)?.setData(stops)
     const data: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: createTrackPointFeatures(points, isPointsMode) }
@@ -1012,19 +1042,6 @@ export function useDayTrackMap(options: UseDayTrackMapOptions) {
   }
 
   function getPointSelectionFromMap(map: maplibregl.Map, event: maplibregl.MapMouseEvent, isTouch: boolean): SelectedPointInfo | null {
-    const cluster = map.queryRenderedFeatures(event.point, { layers: [STOP_CLUSTER_LAYER_ID] })[0]
-
-    if (cluster?.geometry.type === 'Point') {
-      const center = cluster.geometry.coordinates as [number, number]
-      const source = map.getSource(STOPS_SOURCE_ID) as maplibregl.GeoJSONSource
-      void source.getClusterExpansionZoom(Number(cluster.properties?.cluster_id)).then((zoom) => {
-        if (mapInstance.value === map)
-          map.easeTo({ center, zoom: Math.max(zoom, map.getZoom() + 1) })
-      }).catch(() => {})
-
-      return null
-    }
-
     return findPointFeatureSelection(map, event, isTouch) || findNearestTrackPoint(map, event, isTouch)
   }
 
@@ -1193,13 +1210,17 @@ export function useDayTrackMap(options: UseDayTrackMapOptions) {
     // Клик по карте использует расширенный хитбокс на мобильных устройствах.
     map.on('click', event => handleMapClick(map, event))
 
-    map.on('mouseenter', POINTS_LAYER_ID, () => {
-      map.getCanvas().style.cursor = 'pointer'
-    })
+    const clickableLayers = [POINTS_LAYER_ID, STOP_POINT_LAYER_ID]
 
-    map.on('mouseleave', POINTS_LAYER_ID, () => {
-      map.getCanvas().style.cursor = ''
-    })
+    for (const layerId of clickableLayers) {
+      map.on('mouseenter', layerId, () => {
+        map.getCanvas().style.cursor = 'pointer'
+      })
+
+      map.on('mouseleave', layerId, () => {
+        map.getCanvas().style.cursor = ''
+      })
+    }
 
     watch(isMapReady, (ready) => {
       if (ready)

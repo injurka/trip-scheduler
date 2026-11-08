@@ -2,25 +2,34 @@
 import type { IDay } from '~/components/04.features/trip-info/trip-plan/models/types'
 import { Icon } from '@iconify/vue'
 import { KitDialogWithClose } from '~/components/01.kit/kit-dialog-with-close'
+import { useCurrentTime } from '~/shared/composables/use-current-time'
 
 interface Props {
   visible: boolean
   days: IDay[]
 }
+
 const props = defineProps<Props>()
 const emit = defineEmits<{
   (e: 'update:visible', value: boolean): void
   (e: 'navigate', dayId: string): void
 }>()
 
+const now = useCurrentTime()
+
+const today = computed(() => {
+  const date = now.value
+
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+})
 const calendarDays = computed(() =>
   props.days
     .filter(d => !!d.date)
     .sort((a, b) => new Date(a.date!).getTime() - new Date(b.date!).getTime()))
-
 const draftDays = computed(() =>
   props.days.filter(d => !d.date))
 
+const isToday = (day: IDay) => day.date?.slice(0, 10) === today.value
 function handleNavigate(dayId: string) {
   emit('navigate', dayId)
   emit('update:visible', false)
@@ -37,7 +46,12 @@ function handleNavigate(dayId: string) {
   >
     <div class="dialog-scroll-content">
       <ul class="days-list">
-        <li v-for="(day, index) in calendarDays" :key="day.id" @click="handleNavigate(day.id)">
+        <li
+          v-for="(day, index) in calendarDays"
+          :key="day.id"
+          :class="{ 'is-today': isToday(day) }"
+          @click="handleNavigate(day.id)"
+        >
           <div class="day-number">
             {{ index + 1 }}
           </div>
@@ -129,6 +143,14 @@ function handleNavigate(dayId: string) {
     border: 1px dashed var(--border-secondary-color);
     background-color: transparent;
   }
+}
+
+.days-list li.is-today .day-number {
+  background-color: var(--fg-success-color);
+  color: var(--fg-inverted-color);
+  box-shadow:
+    0 0 0 2px var(--bg-primary-color),
+    0 0 0 3px var(--fg-success-color);
 }
 .day-info {
   display: flex;

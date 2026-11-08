@@ -6,8 +6,11 @@ import draggable from 'vuedraggable'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { useModuleStore } from '~/components/05.modules/trip-info/composables/use-trip-info-module'
 import AddDayActivity from '~/components/05.modules/trip-info/ui/controls/add-day-activity.vue'
+import { useCurrentTime } from '~/shared/composables/use-current-time'
 import { useToast } from '~/shared/composables/use-toast'
+import { timeToMinutes } from '~/shared/lib/date-time'
 import { trpc } from '~/shared/services/trpc/trpc.service'
+import { EActivityStatus } from '~/shared/types/models/activity'
 import ActivityItem from './item.vue'
 import LlmCanvasAssistant from './llm-canvas-assistant.vue'
 
@@ -17,6 +20,7 @@ const emit = defineEmits<{
 
 const toast = useToast()
 const { plan: data, ui } = useModuleStore(['plan', 'ui'])
+const now = useCurrentTime()
 
 const {
   getActivitiesForSelectedDay,
@@ -44,6 +48,50 @@ const generatingActivityId = ref<string | null>(null)
 const undoDayId = ref<string | null>(null)
 let undoTimer: ReturnType<typeof setTimeout> | null = null
 
+const isSelectedDayToday = computed(() => {
+  const dayDate = getSelectedDay.value?.date?.slice(0, 10)
+
+  if (!dayDate)
+    return false
+
+  const d = now.value
+  const todayStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+
+  return dayDate === todayStr
+})
+const currentMinutes = computed(() => now.value.getHours() * 60 + now.value.getMinutes())
+const currentActivityId = computed<string | null>(() => {
+  if (!isSelectedDayToday.value)
+    return null
+
+  const current = getActivitiesForSelectedDay.value.find((act) => {
+    if (act.status === EActivityStatus.SKIPPED || act.status === EActivityStatus.COMPLETED)
+      return false
+
+    const startMin = timeToMinutes(act.startTime)
+    const rawEndMin = timeToMinutes(act.endTime)
+    const endMin = rawEndMin >= startMin ? rawEndMin : rawEndMin + 24 * 60
+
+    return startMin <= currentMinutes.value && currentMinutes.value < endMin
+  })
+
+  return current?.id ?? null
+})
+const nextActivityId = computed<string | null>(() => {
+  if (!isSelectedDayToday.value)
+    return null
+
+  const next = getActivitiesForSelectedDay.value.find((act) => {
+    if (act.status === EActivityStatus.SKIPPED || act.status === EActivityStatus.COMPLETED)
+      return false
+
+    const startMin = timeToMinutes(act.startTime)
+
+    return startMin > currentMinutes.value
+  })
+
+  return next?.id ?? null
+})
 const draggableActivities = computed({
   get: () => getActivitiesForSelectedDay.value,
   set: (newOrder: IActivity[]) => {
@@ -53,6 +101,34 @@ const draggableActivities = computed({
   },
 })
 
+function getActivityOverlapWarning(index: number): string | null {
+  const list = draggableActivities.value
+  const curr = list[index]
+
+  if (!curr)
+    return null
+
+  const currStart = timeToMinutes(curr.startTime)
+  const currEnd = timeToMinutes(curr.endTime)
+
+  if (index > 0) {
+    const prev = list[index - 1]
+
+    if (prev && timeToMinutes(prev.endTime) > currStart) {
+      return `Накладка по времени с «${prev.title || 'предыдущей активностью'}» (${prev.startTime}–${prev.endTime})`
+    }
+  }
+
+  if (index < list.length - 1) {
+    const next = list[index + 1]
+
+    if (next && currEnd > timeToMinutes(next.startTime)) {
+      return `Накладка по времени с «${next.title || 'следующей активностью'}» (${next.startTime}–${next.endTime})`
+    }
+  }
+
+  return null
+}
 function getDraftForActivity(activityId: string) {
   return data.getDraftForActivity(activityId)
 }
@@ -114,7 +190,6 @@ async function handleGlobalGenerate({ prompt, useDaysContext, useCanvasAsRef }: 
     assistantRef.value?.finishGeneration()
   }
 }
-
 function applyGlobalGenerateResults(updatedActivities: IActivity[]) {
   const selectedDay = getSelectedDay.value
 
@@ -281,6 +356,10 @@ function handleUndo() {
             :is-first="index === 0"
             :is-last="index === draggableActivities.length - 1"
             :is-collapsed="collapsedActivities.has(activity.id)"
+            :has-time-overlap="!!getActivityOverlapWarning(index)"
+            :overlap-message="getActivityOverlapWarning(index)"
+            :is-current-activity="currentActivityId === activity.id"
+            :is-next-activity="nextActivityId === activity.id"
             @update="onUpdateActivity"
             @delete="onDeleteActivity"
             @move-up="onMoveActivity(activity, 'up')"

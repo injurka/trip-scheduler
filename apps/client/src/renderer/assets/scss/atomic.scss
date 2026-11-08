@@ -12,10 +12,26 @@
   --safe-area-inset-right: env(safe-area-inset-right, 0px);
   --header-height: var(--header-base-height);
   --footer-height: var(--footer-base-height);
+  // Keyboard-Aware Layout (обновляются useKeyboardAwareLayout): видимая область над клавиатурой
+  --visible-height: 100dvh;
+  --visible-top: 0px;
+  --keyboard-inset-height: 0px;
 
   @include media-down(sm) {
     --footer-height: 105px;
   }
+}
+
+// Клавиатура перекрывает системную навигацию — нижний safe-area отступ над ней не нужен
+html.is-keyboard-open {
+  --safe-area-inset-bottom: 0px;
+}
+
+// Keyboard-Aware: естественный отступ сверху и снизу при приведении активного поля в фокус
+input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='button']):not([type='submit']),
+textarea,
+[contenteditable='true'] {
+  scroll-margin-block: 16px 24px;
 }
 
 .content-wrapper {

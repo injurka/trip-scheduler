@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { CalendarDate } from '@internationalized/date'
+import type { DateValue } from '@internationalized/date'
 import type { DateRange as CalendarRange } from 'reka-ui'
 import { Icon } from '@iconify/vue'
 import { toCalendarDate } from '@internationalized/date'
@@ -18,17 +18,20 @@ import {
   RangeCalendarRoot,
 } from 'reka-ui'
 
-interface DateRange {
-  start: CalendarDate | null
-  end: CalendarDate | null
+export interface DateRange {
+  start: DateValue | null
+  end: DateValue | null
 }
 interface Props {
-  minValue?: CalendarDate
-  maxValue?: CalendarDate
-  initialFocusDate?: CalendarDate
+  minValue?: DateValue
+  maxValue?: DateValue
+  initialFocusDate?: DateValue
+  fullWidth?: boolean
 }
 
-const props = defineProps<Props>()
+const props = withDefaults(defineProps<Props>(), {
+  fullWidth: false,
+})
 const model = defineModel<DateRange | null>({ required: true })
 
 const locale = 'ru-RU'
@@ -44,6 +47,7 @@ const calendarModel = computed<CalendarRange | null>({
     v-slot="{ weekDays, grid }"
     v-model="calendarModel"
     class="calendar"
+    :class="{ 'is-full-width': props.fullWidth }"
     fixed-weeks
     :locale="locale"
     :min-value="props.minValue"
@@ -118,7 +122,13 @@ const calendarModel = computed<CalendarRange | null>({
 .calendar {
   border-radius: 8px;
   width: 300px;
+  max-width: 100%;
   z-index: 2000;
+
+  &.is-full-width {
+    width: 100%;
+    max-width: 100%;
+  }
 }
 
 .calendarHeader {
@@ -131,36 +141,40 @@ const calendarModel = computed<CalendarRange | null>({
   display: inline-flex;
   justify-content: center;
   align-items: center;
-  width: 2.5rem;
-  height: 2.5rem;
+  width: 2.25rem;
+  height: 2.25rem;
   color: var(--fg-primary-color);
   background-color: transparent;
   cursor: pointer;
-  border-radius: 0.375rem;
+  border-radius: var(--r-s);
+  border: 1px solid var(--border-secondary-color);
   transition:
     background-color 0.2s,
     color 0.2s;
 
   &:hover {
-    background-color: var(--bg-action-hover-color);
-    color: var(--bg-primary-color);
+    background-color: var(--bg-hover-color);
   }
 
   &[data-disabled] {
     color: var(--fg-muted-color);
+    opacity: 0.4;
     pointer-events: none;
   }
 }
 
 .calendarHeading {
-  font-weight: 400;
+  font-weight: 600;
+  font-size: 1rem;
   color: var(--fg-primary-color);
+  text-transform: capitalize;
 }
 
 .calendarWrapper {
   display: flex;
-  padding-top: 1rem;
+  padding-top: 0.75rem;
   flex-direction: column;
+  width: 100%;
 
   @include media-up(sm) {
     flex-direction: row;
@@ -186,6 +200,7 @@ const calendarModel = computed<CalendarRange | null>({
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
   width: 100%;
+  gap: 2px;
 
   & + & {
     margin-top: 0.25rem;
@@ -193,9 +208,9 @@ const calendarModel = computed<CalendarRange | null>({
 }
 
 .calendarHeadCell {
-  font-size: 1rem;
+  font-size: 0.875rem;
   color: var(--fg-secondary-color);
-  font-weight: 400;
+  font-weight: 500;
   text-align: center;
   padding-bottom: 0.5rem;
   border-bottom: 1px solid var(--border-secondary-color);
@@ -220,68 +235,71 @@ const calendarModel = computed<CalendarRange | null>({
   justify-content: center;
   align-items: center;
   width: 100%;
-  padding: 0.5rem 0;
-  border: 1px solid transparent;
+  min-height: 40px;
+  padding: 0.35rem 0;
+  border: 1.5px solid transparent;
   outline: none;
-  font-size: 1rem;
-  font-weight: 400;
+  font-size: 0.95rem;
+  font-weight: 500;
   color: var(--fg-primary-color);
   background-color: transparent;
+  border-radius: var(--r-xs);
   transition:
-    background-color 0.2s,
-    color 0.2s,
-    border-color 0.2s;
-  border-radius: 0;
+    background-color 0.15s ease,
+    color 0.15s ease,
+    border-color 0.15s ease;
 
   &:hover {
     background-color: var(--bg-hover-color);
-    border-radius: 0.375rem;
   }
 
-  &:focus {
-    box-shadow: 0 0 0 2px var(--border-accent-color);
-    border-radius: 0.375rem;
+  &:focus-visible {
+    box-shadow: 0 0 0 2px var(--fg-accent-color);
   }
 
   &[data-disabled] {
     cursor: default;
     color: var(--fg-muted-color);
+    opacity: 0.35;
   }
 
   &[data-unavailable] {
     cursor: default;
     color: var(--fg-muted-color);
     text-decoration: line-through;
+    opacity: 0.35;
   }
 
   &[data-today] {
-    border-color: var(--border-accent-color);
-    border-radius: 0.375rem;
+    border-color: var(--border-secondary-color);
+  }
+
+  &[data-within-range] {
+    background-color: color-mix(in srgb, var(--fg-accent-color) 16%, var(--bg-secondary-color));
+    color: var(--fg-primary-color);
+    border-radius: 0;
   }
 
   &[data-selection-start],
   &[data-selection-end] {
-    background-color: var(--bg-accent-color);
-    color: var(--fg-accent-color);
-    font-weight: 400;
+    border-color: var(--fg-accent-color);
+    background-color: color-mix(in srgb, var(--fg-accent-color) 24%, var(--bg-secondary-color));
+    color: var(--fg-primary-color);
+    font-weight: 600;
   }
 
   &[data-selection-start] {
-    border-top-left-radius: 0.375rem;
-    border-bottom-left-radius: 0.375rem;
+    border-top-left-radius: var(--r-s);
+    border-bottom-left-radius: var(--r-s);
   }
 
   &[data-selection-end] {
-    border-top-right-radius: 0.375rem;
-    border-bottom-right-radius: 0.375rem;
-  }
-
-  &[data-within-range] {
-    background-color: var(--bg-hover-color);
+    border-top-right-radius: var(--r-s);
+    border-bottom-right-radius: var(--r-s);
   }
 
   &[data-selection-start][data-selection-end] {
-    border-radius: 0.375rem;
+    border-radius: var(--r-s);
   }
 }
 </style>

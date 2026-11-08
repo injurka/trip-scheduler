@@ -34,10 +34,43 @@ export const tripService = {
     return await tripRepository.getUniqueTags(query)
   },
 
-  async getById(id: string) {
+  async verifyTripReadAccess(
+    trip: {
+      id: string
+      userId: string
+      visibility: 'public' | 'private'
+      shareSlug?: string | null
+      participants?: Array<{ id: string }>
+    },
+    user?: { id: string, role: string } | null,
+    shareSlug?: string | null,
+  ) {
+    if (trip.visibility !== 'private')
+      return
+
+    if (shareSlug && trip.shareSlug && shareSlug === trip.shareSlug)
+      return
+
+    if (user) {
+      if (user.role === 'admin' || trip.userId === user.id)
+        return
+
+      if (trip.participants?.some(p => p.id === user.id))
+        return
+
+      if (await tripRepository.hasAccess(trip.id, user.id))
+        return
+    }
+
+    throw createTRPCError('FORBIDDEN', 'У вас нет прав на просмотр этого путешествия.')
+  },
+
+  async getById(id: string, user?: { id: string, role: string } | null, shareSlug?: string | null) {
     const trip = await tripRepository.getById(id)
     if (!trip)
       throw createTRPCError('NOT_FOUND', `Путешествие с ID ${id} не найдено.`)
+
+    await this.verifyTripReadAccess(trip, user, shareSlug)
 
     if (trip.weatherByPlaceId)
       trip.weatherByPlaceId = weatherGenerationService.sanitizeTripWeatherPayload(trip.weatherByPlaceId, trip.startDate)
@@ -45,10 +78,12 @@ export const tripService = {
     return trip
   },
 
-  async getByIdWithDays(id: string) {
+  async getByIdWithDays(id: string, user?: { id: string, role: string } | null, shareSlug?: string | null) {
     const trip = await tripRepository.getByIdWithDays(id)
     if (!trip)
       throw createTRPCError('NOT_FOUND', `Путешествие с ID ${id} не найдено.`)
+
+    await this.verifyTripReadAccess(trip, user, shareSlug)
 
     if (trip.weatherByPlaceId)
       trip.weatherByPlaceId = weatherGenerationService.sanitizeTripWeatherPayload(trip.weatherByPlaceId, trip.startDate)
@@ -321,6 +356,9 @@ export const tripService = {
 
   async delete(id: string, userId: string, userRole: string) {
     const tripToDelete = await accessControlService.getTripAndVerifyAccess(id, userId, userRole)
+    if (tripToDelete.userId !== userId && userRole !== 'admin') {
+      throw createTRPCError('FORBIDDEN', 'У вас нет прав на удаление этого путешествия.')
+    }
     const tripWithDays = await tripRepository.getByIdWithDays(id)
     const tripWithImages = await tripRepository.getByIdWithImages(id)
 

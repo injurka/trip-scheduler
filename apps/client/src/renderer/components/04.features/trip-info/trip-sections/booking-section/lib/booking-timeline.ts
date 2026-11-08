@@ -14,8 +14,18 @@ const labels = {
 const DEFAULT_HOTEL_CHECK_IN_MINUTES = 15 * 60
 const UNTITLED_TIME_SORT_MINUTES = 24 * 60
 const LONG_LAYOVER_THRESHOLD_MS = 6 * 60 * 60 * 1000
+const SHORT_LAYOVER_THRESHOLD_MS = 50 * 60 * 1000
 const NON_TRANSIT_OTHER_KINDS = new Set(['cablecar', 'bike', 'pedestrian', 'luggage'])
 const CHECK_IN_ACTIVITY_RE = /заселен|чек-?ин|check-?in|заезд|регистрац/i
+
+export type TimelineConflictType = 'short-layover' | 'negative-layover' | 'airport-change' | 'overlap'
+export type TimelineConflictSeverity = 'warning' | 'error'
+
+export interface TimelineConflictWarning {
+  type: TimelineConflictType
+  severity: TimelineConflictSeverity
+  message: string
+}
 
 export interface TimelineDayActivitySection {
   type: string
@@ -50,6 +60,7 @@ export interface TimelineEntry {
   sortMinutes: number
   sortPriority: number
   originalIndex: number
+  warnings?: TimelineConflictWarning[]
 }
 
 export interface TimelineDayGroup {
@@ -587,7 +598,16 @@ export function buildTimelineEntries(bookings: Booking[], options?: TimelineOpti
     return [buildStandardTimelineEntry(booking, originalIndex)]
   })
 
-  return entries.sort(compareTimelineEntries)
+  const sorted = entries.sort(compareTimelineEntries)
+  const conflictsMap = buildTimelineConflictsMap(sorted)
+
+  for (const entry of sorted) {
+    if (conflictsMap[entry.id]?.length) {
+      entry.warnings = conflictsMap[entry.id]
+    }
+  }
+
+  return sorted
 }
 
 export function groupTimelineBookings(bookings: Booking[], options?: TimelineOptions): TimelineDayGroup[] {
@@ -737,4 +757,211 @@ export function getTimelineEntryRealTimeRange(entry: TimelineEntry): { start: nu
     return null
 
   return end >= start ? { start, end } : null
+}
+
+function addConflictWarning(map: Record<string, TimelineConflictWarning[]>, entryId: string, warning: TimelineConflictWarning) {
+  if (!map[entryId])
+    map[entryId] = []
+
+  if (!map[entryId].some(existing => existing.type === warning.type && existing.message === warning.message)) {
+    map[entryId].push(warning)
+  }
+}
+
+function inspectSegmentTransition(
+  map: Record<string, TimelineConflictWarning[]>,
+  entryId: string,
+  prev: FlightSegment,
+  next: FlightSegment,
+) {
+  const layoverMs = getLayoverDurationMs(prev, next)
+
+  if (layoverMs !== null && layoverMs < 0) {
+    addConflictWarning(map, entryId, {
+      type: 'negative-layover',
+      severity: 'error',
+      message: 'Вылет следующего сегмента раньше прилёта предыдущего',
+    })
+  }
+  else if (layoverMs !== null && layoverMs < SHORT_LAYOVER_THRESHOLD_MS) {
+    const mins = Math.max(0, Math.round(layoverMs / 60000))
+    addConflictWarning(map, entryId, {
+      type: 'short-layover',
+      severity: 'warning',
+      message: `Короткая пересадка (${mins} мин)`,
+    })
+  }
+
+  const prevAirport = prev.arrivalAirport?.trim().toUpperCase()
+  const nextAirport = next.departureAirport?.trim().toUpperCase()
+
+  if (prevAirport && nextAirport && prevAirport !== nextAirport) {
+    addConflictWarning(map, entryId, {
+      type: 'airport-change',
+      severity: 'warning',
+      message: `Смена аэропорта (${prevAirport} → ${nextAirport})`,
+    })
+  }
+}
+
+// eslint-disable-next-line complexity
+export function buildTimelineConflictsMap(entries: TimelineEntry[]): Record<string, TimelineConflictWarning[]> {
+  const map: Record<string, TimelineConflictWarning[]> = {}
+
+  for (const entry of entries) {
+    if (entry.booking.type === 'flight') {
+      const segments = entry.booking.data.segments || []
+      const startIdx = entry.segmentRange?.start ?? 0
+      const endIdx = entry.segmentRange?.end ?? Math.max(0, segments.length - 1)
+
+      for (let i = startIdx; i <= endIdx; i++) {
+        const seg = segments[i]
+
+        if (!seg)
+          continue
+
+        const depMs = parseFlexibleTimestampMs(seg.departureDateTime, seg.departureTimeZone)
+        const arrMs = parseFlexibleTimestampMs(seg.arrivalDateTime, seg.arrivalTimeZone)
+
+        if (depMs !== null && arrMs !== null && arrMs < depMs) {
+          addConflictWarning(map, entry.id, {
+            type: 'negative-layover',
+            severity: 'error',
+            message: 'Прилёт раньше вылета',
+          })
+        }
+
+        if (i < endIdx && segments[i + 1]) {
+          inspectSegmentTransition(
+            map,
+            entry.id,
+            seg,
+            segments[i + 1],
+          )
+        }
+      }
+
+      if (startIdx > 0 && segments[startIdx - 1] && segments[startIdx]) {
+        inspectSegmentTransition(
+          map,
+          entry.id,
+          segments[startIdx - 1],
+          segments[startIdx],
+        )
+      }
+    }
+    else {
+      const endpoints = getEntryEndpoints(entry)
+
+      if (endpoints?.startDateTime && endpoints?.endDateTime) {
+        const startMs = parseFlexibleTimestampMs(endpoints.startDateTime, endpoints.startTimeZone)
+        const endMs = parseFlexibleTimestampMs(endpoints.endDateTime, endpoints.endTimeZone)
+
+        if (startMs !== null && endMs !== null && endMs < startMs) {
+          addConflictWarning(map, entry.id, {
+            type: 'negative-layover',
+            severity: 'error',
+            message: 'Время окончания раньше времени начала',
+          })
+        }
+      }
+    }
+  }
+
+  for (let i = 0; i < entries.length; i++) {
+    const entryA = entries[i]
+    const rangeA = getTimelineEntryRealTimeRange(entryA)
+
+    if (!rangeA)
+      continue
+
+    for (let j = i + 1; j < entries.length; j++) {
+      const entryB = entries[j]
+
+      if (entryA.booking.id === entryB.booking.id)
+        continue
+
+      const rangeB = getTimelineEntryRealTimeRange(entryB)
+
+      if (!rangeB)
+        continue
+
+      const bothHotels = entryA.booking.type === 'hotel' && entryB.booking.type === 'hotel'
+      const neitherHotel = entryA.booking.type !== 'hotel' && entryB.booking.type !== 'hotel'
+
+      if (bothHotels) {
+        if (rangeA.start < rangeB.end && rangeB.start < rangeA.end) {
+          addConflictWarning(map, entryA.id, {
+            type: 'overlap',
+            severity: 'warning',
+            message: `Пересечение с «${entryB.booking.title || entryB.label}» (проживание)`,
+          })
+          addConflictWarning(map, entryB.id, {
+            type: 'overlap',
+            severity: 'warning',
+            message: `Пересечение с «${entryA.booking.title || entryA.label}» (проживание)`,
+          })
+        }
+
+        continue
+      }
+
+      if (!neitherHotel || !entryA.time || !entryB.time)
+        continue
+
+      const durationA = rangeA.end - rangeA.start
+      const durationB = rangeB.end - rangeB.start
+      const hasOverlap = (durationA > 0 && durationB > 0 && rangeA.start < rangeB.end && rangeB.start < rangeA.end)
+        || (durationA === 0 && durationB > 0 && rangeB.start <= rangeA.start && rangeA.start < rangeB.end)
+        || (durationB === 0 && durationA > 0 && rangeA.start <= rangeB.start && rangeB.start < rangeA.end)
+
+      if (hasOverlap) {
+        addConflictWarning(map, entryA.id, {
+          type: 'overlap',
+          severity: 'warning',
+          message: `Пересечение с «${entryB.booking.title || entryB.label}»`,
+        })
+        addConflictWarning(map, entryB.id, {
+          type: 'overlap',
+          severity: 'warning',
+          message: `Пересечение с «${entryA.booking.title || entryA.label}»`,
+        })
+      }
+
+      const isTransitA = entryA.booking.type === 'flight' || entryA.booking.type === 'train'
+      const isTransitB = entryB.booking.type === 'flight' || entryB.booking.type === 'train'
+
+      if (isTransitA && isTransitB && durationA > 0 && durationB > 0) {
+        const gapMs = rangeB.start - rangeA.end
+
+        if (gapMs >= 0 && gapMs < SHORT_LAYOVER_THRESHOLD_MS) {
+          const mins = Math.max(0, Math.round(gapMs / 60000))
+          addConflictWarning(map, entryB.id, {
+            type: 'short-layover',
+            severity: 'warning',
+            message: `Короткая пересадка (${mins} мин)`,
+          })
+        }
+
+        if (entryA.booking.type === 'flight' && entryB.booking.type === 'flight' && gapMs >= 0 && gapMs <= LONG_LAYOVER_THRESHOLD_MS) {
+          const segsA = entryA.booking.data.segments || []
+          const segsB = entryB.booking.data.segments || []
+          const lastSegA = segsA[entryA.segmentRange?.end ?? Math.max(0, segsA.length - 1)]
+          const firstSegB = segsB[entryB.segmentRange?.start ?? 0]
+          const prevAirport = lastSegA?.arrivalAirport?.trim().toUpperCase()
+          const nextAirport = firstSegB?.departureAirport?.trim().toUpperCase()
+
+          if (prevAirport && nextAirport && prevAirport !== nextAirport) {
+            addConflictWarning(map, entryB.id, {
+              type: 'airport-change',
+              severity: 'warning',
+              message: `Смена аэропорта (${prevAirport} → ${nextAirport})`,
+            })
+          }
+        }
+      }
+    }
+  }
+
+  return map
 }

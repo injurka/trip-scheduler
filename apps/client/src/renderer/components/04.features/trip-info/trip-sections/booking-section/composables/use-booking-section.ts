@@ -1,18 +1,19 @@
 import type { HighlightStatus } from '../lib/booking-highlights'
-import type { TimelineDayContext } from '../lib/booking-timeline'
+import type { TimelineConflictWarning, TimelineDayContext } from '../lib/booking-timeline'
 import type { Booking, BookingSectionContent, BookingType } from '../models/types'
 import { useDebounceFn } from '@vueuse/core'
 import { v4 as uuidv4 } from 'uuid'
 import { useCurrentTime } from '~/shared/composables/use-current-time'
 import { BOOKING_TYPES_CONFIG } from '../constants/booking-types'
 import { buildRangeHighlightMap } from '../lib/booking-highlights'
-import { buildTimelineEntries, getTimelineEntryRealTimeRange, groupTimelineBookings } from '../lib/booking-timeline'
+import { buildTimelineConflictsMap, buildTimelineEntries, getTimelineEntryRealTimeRange, groupTimelineBookings } from '../lib/booking-timeline'
 
 export { BOOKING_TYPES_CONFIG }
 
 interface UseBookingSectionProps {
   section: {
     id: string
+    updatedAt?: string
     type: 'booking'
     content: BookingSectionContent
   }
@@ -72,6 +73,28 @@ export function useBookingSection(props: UseBookingSectionProps, emit: (event: '
 
   const timelineEntries = computed(() => buildTimelineEntries(bookings.value, { days: props.days }))
   const timelineGroups = computed(() => groupTimelineBookings(bookings.value, { days: props.days }))
+  const timelineConflictMap = computed<Record<string, TimelineConflictWarning[]>>(() => buildTimelineConflictsMap(timelineEntries.value))
+  const bookingConflictMap = computed<Record<string, TimelineConflictWarning[]>>(() => {
+    const map: Record<string, TimelineConflictWarning[]> = {}
+
+    for (const entry of timelineEntries.value) {
+      const conflicts = timelineConflictMap.value[entry.id]
+
+      if (!conflicts?.length)
+        continue
+
+      if (!map[entry.booking.id])
+        map[entry.booking.id] = []
+
+      for (const warning of conflicts) {
+        if (!map[entry.booking.id].some(w => w.type === warning.type && w.message === warning.message)) {
+          map[entry.booking.id].push(warning)
+        }
+      }
+    }
+
+    return map
+  })
   const timelineHighlightMap = computed(() => buildRangeHighlightMap(
     timelineEntries.value,
     entry => entry.id,
@@ -194,21 +217,24 @@ export function useBookingSection(props: UseBookingSectionProps, emit: (event: '
     bookings.value = [...otherBookings, ...newBookings]
   }
 
-  watch(() => [props.section.id, props.section.content?.bookings], () => {
+  watch(() => [props.section.id, props.section.updatedAt, props.section.content, props.section.content?.bookings], () => {
     const incoming = props.section.content?.bookings || []
     const snapshot = JSON.stringify(incoming)
     const sameSection = props.section.id === sourceSectionId
 
-    if (sameSection && snapshot === sourceSnapshot)
+    // Подтверждение предыдущего сохранения не должно стирать уже набранные новые правки.
+    if (sameSection && snapshot === publishedSnapshot) {
+      sourceSnapshot = snapshot
+      publishedSnapshot = undefined
+
+      return
+    }
+
+    if (sameSection && snapshot === sourceSnapshot && !publishedSnapshot)
       return
 
     sourceSectionId = props.section.id
     sourceSnapshot = snapshot
-
-    // Подтверждение предыдущего сохранения не должно стирать уже набранные новые правки.
-    if (sameSection && snapshot === publishedSnapshot)
-      return
-
     publishedSnapshot = undefined
 
     if (snapshot !== JSON.stringify(bookings.value))
@@ -230,6 +256,8 @@ export function useBookingSection(props: UseBookingSectionProps, emit: (event: '
     timelineGroups,
     bookingHighlightMap,
     timelineHighlightMap,
+    timelineConflictMap,
+    bookingConflictMap,
     addBooking,
     addCompletedBooking,
     deleteBooking,

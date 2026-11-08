@@ -12,8 +12,8 @@ vi.mock('~/components/01.kit/kit-map/composables/use-kit-map', () => ({
 }))
 vi.mock('maplibre-gl', () => ({}))
 
-it('clusters stops independently, preserves popup indices and restores raw points', async () => {
-  const sources = new Map<string, { data: GeoJSON.FeatureCollection, config: SourceSpecification, setData: (data: GeoJSON.FeatureCollection) => void, getClusterExpansionZoom: ReturnType<typeof vi.fn> }>()
+it('renders stops as individual unclustered points, preserves popup indices and hides labels below close zoom', async () => {
+  const sources = new Map<string, { data: GeoJSON.FeatureCollection, config: SourceSpecification, setData: (data: GeoJSON.FeatureCollection) => void }>()
   const layers = new Map<string, LayerSpecification>()
   let click: ((event: unknown) => void) | undefined
   const easeTo = vi.fn()
@@ -27,19 +27,27 @@ it('clusters stops independently, preserves popup indices and restores raw point
         setData(data) {
           this.data = data
         },
-        getClusterExpansionZoom: vi.fn().mockResolvedValue(15),
       })
     },
     addLayer: (layer: LayerSpecification) => layers.set(layer.id, layer),
     setFilter: vi.fn(),
     fitBounds: vi.fn(),
-    getZoom: () => 10,
+    getZoom: () => 14,
+    project: vi.fn().mockReturnValue({ x: 0, y: 0 }),
     easeTo,
     on(event: string, ...args: unknown[]) {
       if (event === 'click')
         click = args[0] as typeof click
     },
-    queryRenderedFeatures: vi.fn().mockReturnValue([{ geometry: { type: 'Point', coordinates: [48, 54] }, properties: { cluster_id: 12 } }]),
+    queryRenderedFeatures: vi.fn().mockReturnValue([{ geometry: { type: 'Point', coordinates: [48.001, 54.001] }, properties: { pointIndex: 2 } }]),
+  }
+  const stopData: DayPoint['stop'] = {
+    startedAt: 10_000,
+    endedAt: 100_000,
+    radiusM: 20,
+    samplesCount: 10,
+    lat: 54.001,
+    lng: 48.001,
   }
   const points: DayPoint[] = [
     {
@@ -61,10 +69,23 @@ it('clusters stops independently, preserves popup indices and restores raw point
       accuracy: 5,
       activity: 'still',
       sessionId: 's',
-      stop: { startedAt: 10_000, endedAt: 100_000, radiusM: 20, samplesCount: 10 } as DayPoint['stop'],
+      stop: stopData,
+    },
+    // Вторая точка того же самого периода остановки (не должна дублировать маркер)
+    {
+      clientPointId: 'c',
+      tsUtc: 20_000,
+      lat: 54.001,
+      lng: 48.001,
+      speed: 0,
+      accuracy: 5,
+      activity: 'still',
+      sessionId: 's',
+      stop: stopData,
     },
   ]
   const mode = ref<'route' | 'points'>('route')
+  let selectedPointResult: unknown = null
   const options: UseDayTrackMapOptions = {
     mapHost: ref(document.createElement('div')),
     popupHost: ref(null),
@@ -81,27 +102,46 @@ it('clusters stops independently, preserves popup indices and restores raw point
   }
   const wrapper = mount(defineComponent({
     setup() {
-      useDayTrackMap(options)
+      const mapApi = useDayTrackMap(options)
+      selectedPointResult = mapApi.selectedPoint
 
       return () => h('div')
     },
   }))
   await nextTick()
   await nextTick()
+
   const stops = sources.get('day-track-stops-source')!
-  expect(stops.config).toMatchObject({ cluster: true, clusterRadius: 28, clusterMaxZoom: 14 })
+  // Без кластеризации пауз
+  expect((stops.config as Record<string, unknown>).cluster).toBeFalsy()
+  expect(layers.get('day-track-stop-clusters')).toBeUndefined()
+  expect(layers.get('day-track-stop-cluster-count')).toBeUndefined()
+
+  // Точки пауз существуют как отдельный слой
+  expect(layers.get('day-track-stop-points')).toBeDefined()
+
+  // Порог появления подписей и областей пауз: только на близком зуме
+  expect(layers.get('day-track-stop-labels')?.minzoom).toBe(16.5)
+  expect(layers.get('day-track-stop-areas')?.minzoom).toBe(16)
+
+  // Единичный период остановки дедуплицируется в 1 маркер паузы
   expect(stops.data.features).toHaveLength(1)
   expect(stops.data.features[0].properties?.pointIndex).toBe(2)
+  expect(stops.data.features[0].properties?.isStop).toBe(true)
+
+  // Путевые точки маршрута не содержат точку паузы
   expect(sources.get('day-track-points-source')!.data.features).toHaveLength(1)
-  expect(layers.get('day-track-stop-labels')?.minzoom).toBe(15)
-  expect(layers.get('day-track-stop-areas')?.minzoom).toBe(15)
+
+  // Клик по маркеру паузы выбирает именно эту точку
   click!({ point: { x: 0, y: 0 } })
   await Promise.resolve()
-  expect(stops.getClusterExpansionZoom).toHaveBeenCalledWith(12)
-  expect(easeTo).toHaveBeenCalledWith({ center: [48, 54], zoom: 15 })
+  expect((selectedPointResult as { value: { index: number, point: DayPoint } })?.value?.index).toBe(2)
+
+  // Переключение в режим всех точек Безье убирает слой пауз и выводит все точки в points-source
   mode.value = 'points'
   await nextTick()
   expect(stops.data.features).toHaveLength(0)
-  expect(sources.get('day-track-points-source')!.data.features).toHaveLength(2)
+  expect(sources.get('day-track-points-source')!.data.features).toHaveLength(3)
+
   wrapper.unmount()
 })

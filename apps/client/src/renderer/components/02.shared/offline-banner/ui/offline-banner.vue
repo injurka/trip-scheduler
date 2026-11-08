@@ -62,14 +62,15 @@ const formattedDate = computed(() => {
   position: relative;
   flex: 0 0 auto;
   width: 100%;
-  height: var(--offline-banner-height, 40px);
+  height: calc(var(--safe-area-inset-top, 0px) + var(--offline-banner-height, 40px));
   box-sizing: border-box;
   z-index: 9999;
   background-color: var(--fg-warning-color);
   color: var(--bg-primary-color);
   display: flex;
   justify-content: center;
-  padding: 8px 16px;
+  align-items: center;
+  padding: var(--safe-area-inset-top, 0px) 16px 0;
 }
 
 .banner-content {
@@ -81,6 +82,7 @@ const formattedDate = computed(() => {
   flex-wrap: nowrap;
   overflow: hidden;
   width: 100%;
+  height: var(--offline-banner-height, 40px);
 }
 
 .main-info {
@@ -122,7 +124,7 @@ const formattedDate = computed(() => {
 .slide-down-enter-active,
 .slide-down-leave-active {
   transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-  max-height: var(--offline-banner-height, 40px);
+  max-height: calc(var(--safe-area-inset-top, 0px) + var(--offline-banner-height, 40px));
   overflow: hidden;
 }
 
@@ -136,10 +138,11 @@ const formattedDate = computed(() => {
 
 @media (max-width: 600px) {
   .offline-banner {
-    padding: 6px 8px;
+    padding: var(--safe-area-inset-top, 0px) 8px 0;
   }
 
   .banner-content {
+    height: var(--offline-banner-height, 36px);
     gap: 4px;
   }
 

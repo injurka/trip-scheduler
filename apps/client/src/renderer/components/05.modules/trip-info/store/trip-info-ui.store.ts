@@ -1,6 +1,7 @@
 import type { RemovableRef } from '@vueuse/core'
 import type { ActiveView, InteractionMode } from '../models/types'
 import { useStorage } from '@vueuse/core'
+import { isAppOnline, useConnectivity } from '~/shared/lib/connectivity'
 
 export interface ITripInfoUiState {
   isDaysPanelOpen: boolean
@@ -31,7 +32,14 @@ export const useTripInfoUiStore = defineStore('tripInfoUi', {
   }),
 
   getters: {
-    isViewMode: state => state.interactionMode === 'view',
+    isViewMode: (state): boolean => {
+      const { isOnline } = useConnectivity()
+
+      if (!isOnline.value || !isAppOnline())
+        return true
+
+      return state.interactionMode === 'view'
+    },
     areAllActivitiesCollapsed: state => (allIds: string[]) => {
       if (allIds.length === 0)
         return false

@@ -20,6 +20,7 @@ import { ETripPlanKeys } from '~/components/04.features/trip-info/trip-plan/stor
 import { useModuleStore } from '~/components/05.modules/trip-info/composables/use-trip-info-module'
 import { useTripPermissions } from '~/components/05.modules/trip-info/composables/use-trip-permissions'
 import { useRequest, useRequestStatusByPrefix } from '~/plugins/request'
+import { useCurrentTime } from '~/shared/composables/use-current-time'
 import { AppRoutePaths } from '~/shared/constants/routes'
 import { vRipple } from '~/shared/directives/ripple'
 import { isMobileApp } from '~/shared/lib/env'
@@ -57,6 +58,7 @@ const router = useRouter()
 const confirm = useConfirm()
 const toast = useToast()
 const appStore = useAppStore(['auth', 'notif'])
+const now = useCurrentTime()
 const { canEdit, canDelete } = useTripPermissions()
 const offlineStore = useOfflineStore()
 const moduleStore = useModuleStore(['plan', 'ui'])
@@ -176,6 +178,11 @@ const citiesSummary = computed(() => {
     hasMore: count > 1,
     moreCount: count - 1,
   }
+})
+const today = computed(() => {
+  const date = now.value
+
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
 })
 const overviewCalendarDays = computed(() =>
   props.days
@@ -345,6 +352,7 @@ watch([() => props.trip?.id, () => appStore.auth.user?.id], ([tripId, userId]) =
     void appStore.notif.checkTripSubscription(tripId)
 }, { immediate: true })
 
+const isToday = (day: IDay) => day.date?.slice(0, 10) === today.value
 function formatTag(tag: string): string {
   if (!tag)
     return ''
@@ -731,6 +739,7 @@ async function handleConfirmOfflineDownload(options: OfflineDownloadOptions) {
             :key="day.id"
             v-ripple
             class="list-item day-item"
+            :class="{ 'is-today': isToday(day) }"
             :style="{ animationDelay: `${index * 50}ms` }"
             @click="navigateToDay(day.id)"
           >
@@ -1666,6 +1675,14 @@ async function handleConfirmOfflineDownload(options: OfflineDownloadOptions) {
     border: 1px dashed var(--border-secondary-color);
     color: var(--fg-secondary-color);
   }
+}
+
+.day-item.is-today .day-number {
+  background-color: var(--fg-success-color);
+  color: var(--fg-inverted-color);
+  box-shadow:
+    0 0 0 2px var(--bg-secondary-color),
+    0 0 0 3px var(--fg-success-color);
 }
 
 .drafts-overview-title {

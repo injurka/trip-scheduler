@@ -517,16 +517,20 @@ watch(areControlsVisible, (visible) => {
     scrollThumbnailIntoView(props.currentIndex, 'auto')
 })
 
+let previousBodyOverflow: string | null = null
+
 watch(() => props.visible, (isVisible) => {
   if (typeof document === 'undefined')
     return
   if (isVisible) {
+    previousBodyOverflow = document.body.style.overflow
     document.body.style.overflow = 'hidden'
     isUiVisible.value = true
     scrollThumbnailIntoView(props.currentIndex, 'auto')
   }
   else {
-    document.body.style.overflow = ''
+    document.body.style.overflow = previousBodyOverflow ?? ''
+    previousBodyOverflow = null
     resetTransform(false)
     closeMetadataPanel()
   }
@@ -1828,7 +1832,7 @@ onUnmounted(() => {
 }
 @media (max-width: 599px) {
   .is-video-viewer .current-image-wrapper {
-    padding: 76px 8px 72px;
+    padding: calc(76px + var(--safe-area-inset-top, env(safe-area-inset-top, 0px))) 8px 72px;
   }
   .is-video-viewer .nav-zone {
     top: auto;

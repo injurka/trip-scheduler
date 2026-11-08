@@ -1,6 +1,7 @@
 import type { OfflineMapCoverage, OfflineMapOptions } from '~/shared/lib/offline-map-options'
 import type { TripDocumentResponse, TripNote } from '~/shared/services/api/model/types'
-import type { TripMedia, TripWithDays } from '~/shared/types/models/trip'
+import type { Memory } from '~/shared/types/models/memory'
+import type { TripMedia, TripSection, TripWithDays } from '~/shared/types/models/trip'
 import { isRecord } from '@injurka/type-utils'
 import { defineStore } from 'pinia'
 import { useToast } from '~/shared/composables/use-toast'
@@ -8,9 +9,20 @@ import { onlineFetch } from '~/shared/lib/connectivity'
 import { getOfflineAccountId, getOfflineCachePrefix, OFFLINE_CACHE_READY_URL } from '~/shared/lib/offline-cache'
 import { downloadOfflineMapAreas } from '~/shared/lib/offline-map-download'
 import { resolveApiUrl, stripAuthTokenFromUrl } from '~/shared/lib/url'
-import { offlineStorageService } from '~/shared/services/offline/offline-storage.service'
+import { isQuotaExceededError, offlineStorageService } from '~/shared/services/offline/offline-storage.service'
 import { trpc } from '~/shared/services/trpc/trpc.service'
 import { useAppSettingsStore } from './app-settings.store'
+
+const downloadAbortControllers = new Map<string, AbortController>()
+
+function isAbortError(error: unknown): boolean {
+  return error instanceof Error && error.name === 'AbortError'
+}
+
+function throwIfAborted(signal?: AbortSignal) {
+  if (signal?.aborted)
+    throw new DOMException('Загрузка отменена пользователем.', 'AbortError')
+}
 
 export interface OfflineTripEntry {
   /** Version of the serialized trip payload, independent of IndexedDB schema version. */
@@ -22,6 +34,8 @@ export interface OfflineTripEntry {
   mapOptions?: OfflineMapOptions
   files?: Record<'media' | 'notes' | 'documents' | 'map', string[]>
   media?: TripMedia[]
+  memories?: Memory[]
+  sizeBytes?: number
   payloadSchemaVersion: number
   id: string
   title: string
@@ -273,13 +287,16 @@ interface OfflineMetadataResult {
   notesFetchSuccess: boolean
   documents: TripDocumentResponse[]
   documentsFetchSuccess: boolean
+  memories: Memory[]
+  memoriesFetchSuccess: boolean
   failureCount: number
 }
 
 async function fetchOfflineMetadata(tripId: string, options: NormalizedOfflineDownloadOptions): Promise<OfflineMetadataResult> {
-  const [notesResult, documentsResult] = await Promise.all([
+  const [notesResult, documentsResult, memoriesResult] = await Promise.all([
     options.includeNotes ? fetchOfflineNotes(tripId) : Promise.resolve({ items: [], success: false, failed: 0 }),
     options.includeDocuments ? fetchOfflineDocuments(tripId) : Promise.resolve({ items: [], success: false, failed: 0 }),
+    options.includeMedia ? fetchOfflineMemories(tripId) : Promise.resolve({ items: [], success: false, failed: 0 }),
   ])
 
   return {
@@ -287,7 +304,31 @@ async function fetchOfflineMetadata(tripId: string, options: NormalizedOfflineDo
     notesFetchSuccess: notesResult.success,
     documents: documentsResult.items,
     documentsFetchSuccess: documentsResult.success,
-    failureCount: notesResult.failed + documentsResult.failed,
+    memories: memoriesResult.items,
+    memoriesFetchSuccess: memoriesResult.success,
+    failureCount: notesResult.failed + documentsResult.failed + memoriesResult.failed,
+  }
+}
+
+async function fetchOfflineMemories(tripId: string) {
+  if (!trpc.memory?.getByTripId?.query) {
+    return { items: [] as Memory[], success: false, failed: 0 }
+  }
+
+  try {
+    const memories: unknown = await trpc.memory.getByTripId.query({ tripId })
+
+    if (Array.isArray(memories))
+      return { items: memories as unknown as Memory[], success: true, failed: 0 }
+
+    console.warn('[Offline] Не удалось загрузить свежие воспоминания: некорректный ответ')
+
+    return { items: [] as Memory[], success: false, failed: 1 }
+  }
+  catch (error) {
+    console.warn('[Offline] Не удалось загрузить свежие воспоминания:', error)
+
+    return { items: [] as Memory[], success: false, failed: 1 }
   }
 }
 
@@ -327,37 +368,72 @@ async function fetchOfflineDocuments(tripId: string) {
   }
 }
 
-async function cacheOfflineUrl(cache: Cache, rawUrl: string, accountId: string | null): Promise<boolean> {
+// eslint-disable-next-line complexity
+async function cacheOfflineUrl(
+  cache: Cache,
+  rawUrl: string,
+  accountId: string | null,
+  signal?: AbortSignal,
+): Promise<{ success: boolean, bytes: number }> {
   const url = resolveApiUrl(rawUrl)
   const cleanUrl = stripAuthTokenFromUrl(url)
 
   try {
-    const response = await onlineFetch(url, { mode: 'cors', cache: 'reload', signal: AbortSignal.timeout(30000) })
+    throwIfAborted(signal)
+    const fetchSignal = signal
+      ? AbortSignal.any([signal, AbortSignal.timeout(30000)])
+      : AbortSignal.timeout(30000)
+    const response = await onlineFetch(url, { mode: 'cors', cache: 'reload', signal: fetchSignal })
 
     if (!response.ok || response.type === 'opaque')
-      return false
+      return { success: false, bytes: 0 }
 
     if (getOfflineAccountId() !== accountId)
-      return false
+      return { success: false, bytes: 0 }
+
+    throwIfAborted(signal)
+
+    const contentLengthHeader = response.headers.get('content-length')
+    const parsedLength = contentLengthHeader ? Number.parseInt(contentLengthHeader, 10) : Number.NaN
+    const bytes = Number.isFinite(parsedLength) && parsedLength >= 0
+      ? parsedLength
+      : (await response.clone().blob()).size
 
     await cache.put(cleanUrl, response)
 
-    return true
+    return { success: true, bytes }
   }
-  catch {
-    return false
+  catch (error) {
+    if (isAbortError(error) || signal?.aborted) {
+      throw new DOMException('Загрузка отменена пользователем.', 'AbortError')
+    }
+
+    if (isQuotaExceededError(error)) {
+      const quotaError = new Error('Недостаточно свободного места на устройстве для кэширования файлов. Освободите память и попробуйте снова.')
+      quotaError.name = 'QuotaExceededError'
+      throw quotaError
+    }
+
+    return { success: false, bytes: 0 }
   }
 }
 
 interface CacheResult {
   loadedCount: number
   failedCount: number
+  totalBytes: number
 }
 
-async function cacheOfflineMediaUrls(cacheName: string, urls: string[], onProgress: (loadedCount: number) => void): Promise<CacheResult> {
+async function cacheOfflineMediaUrls(
+  cacheName: string,
+  urls: string[],
+  onProgress: (loadedCount: number) => void,
+  signal?: AbortSignal,
+): Promise<CacheResult> {
   const accountId = getOfflineAccountId()
   let loadedCount = 0
   let failedCount = 0
+  let totalBytes = 0
 
   try {
     if (typeof caches === 'undefined')
@@ -366,14 +442,23 @@ async function cacheOfflineMediaUrls(cacheName: string, urls: string[], onProgre
     const cache = await caches.open(cacheName)
 
     for (let offset = 0; offset < urls.length; offset += 4) {
+      throwIfAborted(signal)
+
       if (getOfflineAccountId() !== accountId)
         throw new Error('Аккаунт изменился во время скачивания.')
 
-      const results = await Promise.all(urls.slice(offset, offset + 4).map(url => cacheOfflineUrl(cache, url, accountId)))
+      const results = await Promise.all(urls.slice(offset, offset + 4).map(url => cacheOfflineUrl(
+        cache,
+        url,
+        accountId,
+        signal,
+      )))
 
-      results.forEach((success) => {
+      results.forEach(({ success, bytes }) => {
         if (!success)
           failedCount++
+        else
+          totalBytes += bytes
 
         loadedCount++
 
@@ -383,6 +468,10 @@ async function cacheOfflineMediaUrls(cacheName: string, urls: string[], onProgre
     }
   }
   catch (error) {
+    if (isAbortError(error) || isQuotaExceededError(error)) {
+      throw error
+    }
+
     console.warn('[Offline] caches API error:', error)
     const remaining = urls.length - loadedCount
     failedCount += remaining
@@ -392,7 +481,7 @@ async function cacheOfflineMediaUrls(cacheName: string, urls: string[], onProgre
       onProgress(loadedCount)
   }
 
-  return { loadedCount, failedCount }
+  return { loadedCount, failedCount, totalBytes }
 }
 
 function normalizeDownloadOptions(options?: OfflineDownloadOptions): NormalizedOfflineDownloadOptions {
@@ -460,11 +549,19 @@ function getNotesToSave(current: OfflineTripEntry | undefined, options: Normaliz
   return current?.notes ?? []
 }
 
+function getMemoriesToSave(current: OfflineTripEntry | undefined, options: NormalizedOfflineDownloadOptions, metadata: OfflineMetadataResult): Memory[] {
+  if (options.includeMedia && metadata.memoriesFetchSuccess)
+    return metadata.memories
+
+  return current?.memories ?? []
+}
+
 function createOfflineTripEntry(
   trip: TripWithDays,
   current: OfflineTripEntry | undefined,
   documents: TripDocumentResponse[],
   notes: TripNote[],
+  memories: Memory[],
   mediaCount: number,
   includesTiles: boolean,
 ): OfflineTripEntry {
@@ -478,6 +575,7 @@ function createOfflineTripEntry(
     data: JSON.parse(JSON.stringify(trip)),
     notes,
     documents,
+    memories,
     includesTiles,
   }
 }
@@ -662,6 +760,7 @@ async function saveTripMapAreas(
   entry: OfflineTripEntry,
   accountId: string,
   options: OfflineMapOptions,
+  signal?: AbortSignal,
 ) {
   const baseFailures = entry.unavailableCount ?? 0
   const result = await downloadOfflineMapAreas(
@@ -670,6 +769,7 @@ async function saveTripMapAreas(
     accountId,
     options,
     (part) => {
+      throwIfAborted(signal)
       requireSameAccount(accountId)
       const fraction = part.total ? part.loaded / part.total : 0
       const progress = Math.round(10 + 89 * (part.areaIndex + fraction) / part.areaCount)
@@ -684,6 +784,7 @@ async function saveTripMapAreas(
       }
     },
     async (coverage) => {
+      throwIfAborted(signal)
       entry.mapCoverage = [...(entry.mapCoverage ?? []).filter(item => item.areaId !== coverage.areaId || item.style !== coverage.style || item.terrain !== coverage.terrain), coverage]
       await commitOfflineEntry(state, entry, accountId)
     },
@@ -695,6 +796,7 @@ async function saveTripMapAreas(
   entry.mapPending = result.failedAreas > 0
   entry.includesTiles = result.completedAreas > 0 && result.failedAreas === 0
   entry.unavailableCount = baseFailures + result.failedAreas
+  entry.sizeBytes = (entry.sizeBytes ?? 0) + result.downloadedBytes
   await commitOfflineEntry(state, entry, accountId)
 
   return result.failedAreas
@@ -759,11 +861,15 @@ async function performOfflineDownload(
   options: NormalizedOfflineDownloadOptions,
   accountId: string,
   session: OfflineDownloadSession,
+  signal?: AbortSignal,
 ) {
   const cacheName = session.cacheName
   const previous = state.savedTrips[trip.id]
+  throwIfAborted(signal)
   await copyOfflineCache(previous, cacheName)
+  throwIfAborted(signal)
   const metadata = await fetchOfflineMetadata(trip.id, options)
+  throwIfAborted(signal)
   const media = await prepareMedia(
     trip.id,
     options.includeMedia,
@@ -772,6 +878,7 @@ async function performOfflineDownload(
   )
   const documents = getDocumentsToSave(previous, options, metadata)
   const notes = getNotesToSave(previous, options, metadata)
+  const memories = getMemoriesToSave(previous, options, metadata)
   const files = prepareFileManifest(
     trip,
     options,
@@ -782,20 +889,28 @@ async function performOfflineDownload(
     [],
   )
   const urls = getRequestedFileUrls(options, files)
+  throwIfAborted(signal)
   requireSameAccount(accountId)
   setInitialCacheStatus(state, trip.id, urls.size)
-  const mediaResult = await cacheOfflineMediaUrls(cacheName, [...urls], loaded => updateMediaCacheProgress(
-    state,
-    trip.id,
-    urls.size,
-    loaded,
-    options.includeMapTiles ? 10 : 100,
-  ))
+  const mediaResult = await cacheOfflineMediaUrls(
+    cacheName,
+    [...urls],
+    loaded => updateMediaCacheProgress(
+      state,
+      trip.id,
+      urls.size,
+      loaded,
+      options.includeMapTiles ? 10 : 100,
+    ),
+    signal,
+  )
+  throwIfAborted(signal)
   const entry = createOfflineTripEntry(
     trip,
     previous,
     documents,
     notes,
+    memories,
     urls.size,
     Boolean(previous?.includesTiles),
   )
@@ -804,6 +919,7 @@ async function performOfflineDownload(
   entry.media = media
   entry.files = files
   entry.unavailableCount = mediaResult.failedCount + metadata.failureCount
+  entry.sizeBytes = mediaResult.totalBytes
 
   configureEntryMap(entry, accountId, options)
   await commitBaseEntry(
@@ -819,6 +935,7 @@ async function performOfflineDownload(
         entry,
         accountId,
         options.map ?? {},
+        signal,
       )
     : 0
   setOfflineSaveCompletion(
@@ -844,7 +961,19 @@ async function handleOfflineDownloadError(
   if (getOfflineAccountId() !== accountId)
     return
 
-  const message = error instanceof Error ? error.message : 'Ошибка при сохранении оффлайн.'
+  if (isAbortError(error)) {
+    delete state.downloadProgress[trip.id]
+    delete state.downloadStatus[trip.id]
+    useToast().info('Скачивание офлайн-пакета отменено.')
+
+    return
+  }
+
+  const message = isQuotaExceededError(error)
+    ? (error instanceof Error && /\p{Script=Cyrillic}/u.test(error.message)
+        ? error.message
+        : 'Недостаточно свободного места на устройстве для сохранения офлайн-пакета. Освободите память и попробуйте снова.')
+    : (error instanceof Error ? error.message : 'Ошибка при сохранении оффлайн.')
   state.downloadStatus[trip.id] = {
     progress: state.downloadProgress[trip.id] || 0,
     total: 0,
@@ -893,6 +1022,7 @@ export const useOfflineStore = defineStore('offline', {
     getSavedTrip: state => (tripId: string) => state.savedTrips[tripId]?.data,
     getSavedTripNotes: state => (tripId: string) => state.savedTrips[tripId]?.notes ?? [],
     getSavedTripMedia: state => (tripId: string) => state.savedTrips[tripId]?.media ?? [],
+    getSavedTripMemories: state => (tripId: string) => state.savedTrips[tripId]?.memories ?? [],
     getSavedTripDocuments: state => (tripId: string) => state.savedTrips[tripId]?.documents ?? [],
     sortedSavedTrips: (state) => {
       return Object.values(state.savedTrips).sort((a, b) => b.savedAt - a.savedAt)
@@ -960,6 +1090,55 @@ export const useOfflineStore = defineStore('offline', {
       this.isProgressMinimized = true
     },
 
+    cancelOfflineDownload(tripId?: string) {
+      const targetId = tripId
+        || this.activeProgressTripId
+        || Object.keys(this.isDownloading).find(id => this.isDownloading[id])
+
+      if (!targetId)
+        return
+
+      const controller = downloadAbortControllers.get(targetId)
+
+      if (controller) {
+        controller.abort()
+        downloadAbortControllers.delete(targetId)
+      }
+
+      this.isDownloading[targetId] = false
+      delete this.downloadProgress[targetId]
+      delete this.downloadStatus[targetId]
+
+      if (this.activeProgressTripId === targetId) {
+        this.activeProgressTripId = null
+        this.isProgressMinimized = false
+      }
+    },
+
+    async syncSavedTripSections(tripId: string, sections: TripSection[]) {
+      const entry = this.savedTrips[tripId]
+
+      if (!entry)
+        return
+
+      const clonedSections = JSON.parse(JSON.stringify(sections)) as TripSection[]
+      const updatedEntry: OfflineTripEntry = {
+        ...entry,
+        data: {
+          ...entry.data,
+          sections: clonedSections,
+        },
+      }
+      this.savedTrips[tripId] = updatedEntry
+
+      try {
+        await offlineStorageService.saveTrip(updatedEntry)
+      }
+      catch (e) {
+        console.warn('[OfflineStore] Ошибка синхронизации секций в офлайн-хранилище:', e)
+      }
+    },
+
     async saveTripByIdForOffline(tripId: string, options?: OfflineDownloadOptions) {
       if (this.isDownloading[tripId]) {
         this.openProgressDialog(tripId)
@@ -1015,6 +1194,8 @@ export const useOfflineStore = defineStore('offline', {
         accountId,
         downloadOpts,
       )
+      const abortController = new AbortController()
+      downloadAbortControllers.set(trip.id, abortController)
       this.isProgressMinimized = false
       this.activeProgressTripId = trip.id
       setInitialDownloadStatus(this, trip.id, trip.title)
@@ -1026,6 +1207,7 @@ export const useOfflineStore = defineStore('offline', {
           downloadOpts,
           accountId,
           session,
+          abortController.signal,
         )
       }
       catch (error) {
@@ -1038,6 +1220,9 @@ export const useOfflineStore = defineStore('offline', {
         )
       }
       finally {
+        if (downloadAbortControllers.get(trip.id) === abortController)
+          downloadAbortControllers.delete(trip.id)
+
         finishOfflineDownload(this, trip.id, accountId)
       }
     },

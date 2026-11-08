@@ -2,15 +2,14 @@
 import type { FinancesSectionContent } from '../models/types'
 import { Icon } from '@iconify/vue'
 import { parseDate } from '@internationalized/date'
-import { onClickOutside } from '@vueuse/core'
 import { KitBtn } from '~/components/01.kit/kit-btn'
-import { KitCalendarRange } from '~/components/01.kit/kit-calendar-range'
 import { vRipple } from '~/shared/directives/ripple'
 import { useFinancesSection } from '../composables'
 import AiFinancesCreator from './components/ai-finances-creator.vue'
 import BudgetSettingsDialog from './components/budget-settings-dialog.vue'
 import CategoryManagerDialog from './components/category-manager-dialog.vue'
 import FinancesDashboard from './components/finances-dashboard.vue'
+import FinancesDateFilter from './components/finances-date-filter.vue'
 import TransactionFormDialog from './components/transaction-form-dialog.vue'
 import TransactionsList from './components/transactions-list.vue'
 
@@ -60,8 +59,6 @@ const {
   saveSettings,
 } = useFinancesSection(props, emit)
 
-const isDateFilterOpen = ref(false)
-const dateFilterWrapperRef = ref(null)
 const transactionFormVisibleBeforeCategoryManager = ref(false)
 
 const hasActiveFilters = computed(() => {
@@ -98,43 +95,6 @@ const categoryFilterList = computed(() => {
   }
 
   return items
-})
-const formattedDateFilter = computed(() => {
-  const { start, end } = dateFilter.value
-
-  if (!start && !end)
-    return 'За все время'
-
-  const format = (dateStr: string) => formatDate(dateStr, { month: 'short', day: 'numeric' })
-
-  if (start && end) {
-    if (start === end)
-      return format(start)
-
-    return `${format(start)} - ${format(end)}`
-  }
-
-  if (start)
-    return `С ${format(start)}`
-
-  if (end)
-    return `До ${format(end)}`
-
-  return 'За все время'
-})
-const calendarDateFilter = computed({
-  get() {
-    return {
-      start: dateFilter.value.start ? parseDate(dateFilter.value.start) : null,
-      end: dateFilter.value.end ? parseDate(dateFilter.value.end) : null,
-    }
-  },
-  set(range) {
-    dateFilter.value = {
-      start: range.start ? range.start.toString() : null,
-      end: range.end ? range.end.toString() : null,
-    }
-  },
 })
 const availableDateRange = computed(() => {
   const transactions = props.section.content.transactions
@@ -178,24 +138,92 @@ function handleOpenCategoryManager() {
 
   isCategoryManagerOpen.value = true
 }
-function clearDateFilter() {
-  dateFilter.value = { start: null, end: null }
-  isDateFilterOpen.value = false
-}
 function resetAllFilters() {
   statusFilter.value = 'all'
   typeFilter.value = 'all'
   toggleCategoryFilter(null)
   dateFilter.value = { start: null, end: null }
 }
-
-onClickOutside(dateFilterWrapperRef, () => {
-  isDateFilterOpen.value = false
-})
 </script>
 
 <template>
   <div class="finances-section">
+    <!-- IMP-027 Панель управления финансами -->
+    <div class="finances-control-card" :class="{ 'is-readonly': readonly }">
+      <div class="control-card-header">
+        <h2 class="control-card-title">
+          Финансы
+        </h2>
+        <KitBtn
+          v-if="!readonly"
+          icon="mdi:tune-variant"
+          variant="text"
+          size="md"
+          class="settings-btn"
+          title="Настройки бюджета и валют"
+          @click="isSettingsOpen = true"
+        >
+          <span>Настройки</span>
+        </KitBtn>
+      </div>
+
+      <div v-if="!readonly" class="control-card-actions">
+        <KitBtn
+          icon="mdi:plus"
+          variant="solid"
+          size="md"
+          class="action-primary"
+          title="Добавить трату вручную"
+          @click="openTransactionForm()"
+        >
+          <span>Добавить трату</span>
+        </KitBtn>
+
+        <KitBtn
+          icon="mdi:line-scan"
+          variant="tonal"
+          size="md"
+          class="action-secondary"
+          :class="{ 'is-active': isAiCreatorOpen }"
+          title="Быстрый ввод списка трат через AI или распознавание чека"
+          @click="isAiCreatorOpen = !isAiCreatorOpen"
+        >
+          <span>По чеку</span>
+        </KitBtn>
+      </div>
+
+      <div v-if="!readonly" class="control-card-footer">
+        <span class="control-card-subtitle">Управление расходами</span>
+        <KitBtn
+          icon="mdi:tag-outline"
+          variant="text"
+          size="md"
+          class="categories-btn"
+          title="Управление категориями расходов"
+          @click="handleOpenCategoryManager"
+        >
+          <span>Категории</span>
+          <Icon icon="mdi:chevron-right" class="chevron-icon" />
+        </KitBtn>
+      </div>
+    </div>
+
+    <!-- Быстрый AI-ввод по чеку -->
+    <div v-if="!readonly" v-show="isAiCreatorOpen" class="ai-creator-wrapper">
+      <AiFinancesCreator
+        :categories="categories"
+        :settings="settings"
+        :trip-id="section.tripId"
+        @close="isAiCreatorOpen = false"
+        @save="addMultipleTransactions"
+      />
+    </div>
+
+    <div v-if="missingCurrencyCodes.length" class="currency-warning">
+      <Icon icon="mdi:currency-usd-off" />
+      Курс для {{ missingCurrencyCodes.join(', ') }} не задан: такие траты исключены из итогов и диаграмм.
+    </div>
+
     <div class="finances-filters-bar">
       <!-- Строка 1: Статус + Период + Быстрый сброс -->
       <div class="filters-meta-row">
@@ -249,34 +277,11 @@ onClickOutside(dateFilterWrapperRef, () => {
           </button>
 
           <!-- Выбор периода по дате -->
-          <div ref="dateFilterWrapperRef" class="date-filter-wrapper">
-            <KitBtn
-              icon="mdi:calendar-blank-outline"
-              variant="tonal"
-              size="sm"
-              class="date-filter-btn"
-              :class="{ 'has-active-filter': dateFilter.start || dateFilter.end }"
-              @click="isDateFilterOpen = !isDateFilterOpen"
-            >
-              <span class="date-filter-label">{{ formattedDateFilter }}</span>
-            </KitBtn>
-            <div v-if="isDateFilterOpen" class="calendar-popover">
-              <KitCalendarRange
-                v-model="calendarDateFilter"
-                :min-value="availableDateRange.minValue"
-                :max-value="availableDateRange.maxValue"
-                :initial-focus-date="availableDateRange.maxValue"
-              />
-              <div class="popover-actions">
-                <KitBtn variant="text" size="sm" @click="clearDateFilter">
-                  Сбросить
-                </KitBtn>
-                <KitBtn size="sm" @click="isDateFilterOpen = false">
-                  Применить
-                </KitBtn>
-              </div>
-            </div>
-          </div>
+          <FinancesDateFilter
+            v-model="dateFilter"
+            :min-value="availableDateRange.minValue"
+            :max-value="availableDateRange.maxValue"
+          />
         </div>
       </div>
 
@@ -327,13 +332,22 @@ onClickOutside(dateFilterWrapperRef, () => {
             <span v-if="selectedCategoryFilters.includes(item.value)" class="pill-state">Только</span>
             <span v-else-if="excludedCategoryFilters.includes(item.value)" class="pill-state">Исключено</span>
           </button>
+
+          <!-- Управление категориями рядом с фильтрами -->
+          <button
+            v-if="!readonly"
+            v-ripple
+            type="button"
+            class="filter-pill manage-categories-filter-pill"
+            title="Управление категориями"
+            @click="handleOpenCategoryManager"
+          >
+            <Icon icon="mdi:tag-outline" class="pill-icon" />
+            <span>Категории</span>
+            <Icon icon="mdi:chevron-right" class="pill-chevron" />
+          </button>
         </div>
       </div>
-    </div>
-
-    <div v-if="missingCurrencyCodes.length" class="currency-warning">
-      <Icon icon="mdi:currency-usd-off" />
-      Курс для {{ missingCurrencyCodes.join(', ') }} не задан: такие траты исключены из итогов и диаграмм.
     </div>
 
     <FinancesDashboard
@@ -347,60 +361,6 @@ onClickOutside(dateFilterWrapperRef, () => {
       :filtered-total="filteredTotal"
       :status-filter="statusFilter"
     />
-
-    <div class="toolbar">
-      <div class="main-actions">
-        <KitBtn
-          v-if="!readonly"
-          icon="mdi:plus"
-          variant="solid"
-          size="sm"
-          @click="openTransactionForm()"
-        >
-          Добавить трату
-        </KitBtn>
-        <KitBtn
-          v-if="!readonly"
-          icon="mdi:auto-fix"
-          variant="tonal"
-          :class="{ active: isAiCreatorOpen }"
-          title="Быстрый ввод списка трат через AI или распознавание чека"
-          size="sm"
-          @click="isAiCreatorOpen = !isAiCreatorOpen"
-        >
-          Чек / AI-ввод
-        </KitBtn>
-      </div>
-
-      <div class="secondary-actions">
-        <KitBtn
-          v-if="!readonly"
-          size="sm"
-          icon="mdi:tag-outline"
-          variant="tonal"
-          title="Управление категориями"
-          @click="handleOpenCategoryManager"
-        />
-        <KitBtn
-          v-if="!readonly"
-          size="sm"
-          icon="mdi:cog-outline"
-          variant="tonal"
-          title="Настройки"
-          @click="isSettingsOpen = true"
-        />
-      </div>
-    </div>
-
-    <div v-if="!readonly" v-show="isAiCreatorOpen" class="ai-creator-wrapper">
-      <AiFinancesCreator
-        :categories="categories"
-        :settings="settings"
-        :trip-id="section.tripId"
-        @close="isAiCreatorOpen = false"
-        @save="addMultipleTransactions"
-      />
-    </div>
 
     <TransactionsList
       :transactions="filteredTransactions"
@@ -712,50 +672,168 @@ onClickOutside(dateFilterWrapperRef, () => {
       opacity: 0.7;
     }
   }
+
+  &.manage-categories-filter-pill {
+    border-style: dashed;
+    color: var(--fg-muted-color);
+    padding: 4px 10px;
+
+    .pill-chevron {
+      font-size: 0.95rem;
+      flex-shrink: 0;
+      opacity: 0.7;
+      margin-left: -2px;
+    }
+
+    &:hover {
+      color: var(--fg-accent-color);
+      border-color: var(--fg-accent-color);
+      background-color: color-mix(in srgb, var(--fg-accent-color) 8%, var(--bg-secondary-color));
+
+      .pill-icon,
+      .pill-chevron {
+        color: var(--fg-accent-color);
+        opacity: 1;
+      }
+    }
+  }
 }
 
-.toolbar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 1rem;
-  flex-wrap: wrap;
-}
-
-.main-actions {
-  display: flex;
-  gap: 0.5rem;
-}
-
-.secondary-actions {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.calendar-popover {
-  position: absolute;
-  top: 100%;
-  right: 0;
-  margin-top: 4px;
-  z-index: 100;
-  background-color: var(--bg-primary-color);
+/* IMP-027: Панель управления финансами */
+.finances-control-card {
+  width: 100%;
+  background-color: var(--bg-secondary-color);
   border: 1px solid var(--border-secondary-color);
   border-radius: var(--r-m);
-  padding: 0.5rem;
+  padding: 1.15rem 1.35rem;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  box-shadow: var(--shadow-l);
+  gap: 1rem;
+  box-shadow: var(--shadow-s);
+
+  &.is-readonly {
+    padding: 1rem 1.25rem;
+    gap: 0;
+  }
 }
 
-.popover-actions {
+.control-card-header {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  padding-top: 0.5rem;
-  margin-top: 0.5rem;
-  border-top: 1px solid var(--border-secondary-color);
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.control-card-title {
+  margin: 0;
+  font-size: 1.35rem;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--fg-primary-color);
+  letter-spacing: -0.01em;
+}
+
+.control-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+
+  .action-primary {
+    flex: 0 0 auto;
+    min-height: 44px;
+    height: 44px;
+    padding: 0 1.5rem;
+    border-radius: var(--r-s);
+    font-size: 0.9rem;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  .action-secondary {
+    flex: 0 0 auto;
+    min-height: 44px;
+    height: 44px;
+    padding: 0 1.25rem;
+    border-radius: var(--r-s);
+    border: 1px solid var(--border-secondary-color);
+    background-color: var(--bg-tertiary-color);
+    color: var(--fg-primary-color);
+    font-size: 0.9rem;
+    font-weight: 500;
+    white-space: nowrap;
+
+    .kit-btn-icon {
+      color: var(--fg-accent-color);
+      font-size: 1.2rem;
+    }
+
+    &:hover:not(:disabled) {
+      border-color: var(--border-primary-color);
+      background-color: var(--bg-hover-color, var(--bg-primary-color));
+    }
+
+    &.is-active {
+      border-color: var(--fg-accent-color);
+      background-color: color-mix(in srgb, var(--fg-accent-color) 14%, var(--bg-secondary-color));
+      color: var(--fg-accent-color);
+
+      .kit-btn-icon {
+        color: var(--fg-accent-color);
+      }
+    }
+  }
+}
+
+.control-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-top: 0.25rem;
+  border-top: 1px solid color-mix(in srgb, var(--border-secondary-color) 50%, transparent);
+}
+
+.control-card-subtitle {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--fg-muted-color);
+  user-select: none;
+}
+
+.settings-btn,
+.categories-btn {
+  min-height: 44px;
+  color: var(--fg-secondary-color);
+  border-radius: var(--r-s);
+  border: 1px solid transparent;
+  background-color: transparent;
+  box-shadow: none;
+  font-size: 0.84rem;
+  font-weight: 500;
+  padding: 0.375rem 0.65rem;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+
+  .chevron-icon {
+    font-size: 1.125rem;
+    margin-left: 2px;
+    opacity: 0.6;
+    transition:
+      transform 0.2s ease,
+      opacity 0.2s ease;
+  }
+
+  &:hover:not(:disabled) {
+    color: var(--fg-primary-color);
+    background-color: var(--bg-tertiary-color);
+    border-color: var(--border-secondary-color);
+    box-shadow: none;
+
+    .chevron-icon {
+      opacity: 1;
+      transform: translateX(2px);
+    }
+  }
 }
 
 .ai-creator-wrapper {
@@ -766,6 +844,77 @@ onClickOutside(dateFilterWrapperRef, () => {
 }
 
 @include media-down(sm) {
+  .finances-control-card {
+    padding: 0.95rem;
+    gap: 0.875rem;
+
+    .control-card-header {
+      .control-card-title {
+        font-size: 1.25rem;
+      }
+    }
+
+    .control-card-actions {
+      display: flex;
+      gap: 0.5rem;
+      width: 100%;
+
+      .action-primary {
+        flex: 6 1 0;
+        min-width: 0;
+        padding: 0 0.75rem;
+        font-size: 0.8125rem;
+
+        .kit-btn-content {
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+      }
+
+      .action-secondary {
+        flex: 4 1 0;
+        min-width: 0;
+        padding: 0 0.625rem;
+        font-size: 0.8125rem;
+
+        .kit-btn-content {
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+      }
+    }
+
+    .control-card-footer {
+      padding-top: 0.25rem;
+
+      .control-card-subtitle {
+        font-size: 0.75rem;
+      }
+
+      .categories-btn {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.8125rem;
+      }
+    }
+  }
+
+  @media (max-width: 360px) {
+    .finances-control-card {
+      .control-card-actions {
+        flex-direction: column;
+        gap: 0.5rem;
+
+        .action-primary,
+        .action-secondary {
+          width: 100%;
+          flex: none;
+        }
+      }
+    }
+  }
+
   .finances-filters-bar {
     gap: 0.65rem;
 
@@ -798,7 +947,8 @@ onClickOutside(dateFilterWrapperRef, () => {
       gap: 8px;
       justify-content: space-between;
 
-      .date-filter-wrapper {
+      .date-filter-wrapper,
+      :deep(.finances-date-filter) {
         flex: 1;
         min-width: 0;
 
@@ -849,34 +999,6 @@ onClickOutside(dateFilterWrapperRef, () => {
         }
       }
     }
-  }
-
-  .toolbar {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 8px;
-  }
-  .main-actions {
-    justify-content: flex-start;
-
-    button:first-of-type {
-      width: 100%;
-    }
-  }
-  .secondary-actions {
-    justify-content: space-between;
-    width: 100%;
-    > button {
-      min-width: 46px;
-    }
-  }
-  .calendar-popover {
-    right: auto;
-    left: 0;
-    width: auto;
-    max-width: calc(100vw - 32px);
-    display: flex;
-    flex-direction: column;
   }
 }
 </style>

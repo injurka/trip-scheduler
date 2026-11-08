@@ -9,6 +9,7 @@ import {
   AlertDialogRoot,
   AlertDialogTitle,
 } from 'reka-ui'
+import { hasOpenModals, useDialogHistory } from '~/components/01.kit/kit-dialog-with-close/composables/use-dialog-history'
 
 interface Props {
   open: boolean
@@ -21,26 +22,36 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {
   type: 'default',
 })
-
 const emit = defineEmits<{
   (e: 'confirm'): void
   (e: 'cancel'): void
 }>()
 
+const dialogId = useId()
+
 let returnFocus: HTMLElement | null = null
+
+const isHistoryOpen = computed({
+  get: () => props.open,
+  set: (val) => {
+    if (!val && props.open)
+      emit('cancel')
+  },
+})
 
 function handleOpenAutoFocus() {
   returnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null
 }
-
 function handleCloseAutoFocus(event: Event) {
   event.preventDefault()
 
-  if (returnFocus?.isConnected)
+  if (returnFocus?.isConnected && !hasOpenModals())
     returnFocus.focus({ preventScroll: true })
 
   returnFocus = null
 }
+
+useDialogHistory(dialogId, isHistoryOpen)
 </script>
 
 <template>
@@ -97,7 +108,8 @@ function handleCloseAutoFocus(event: Event) {
 
 .dialog-content-wrapper {
   position: fixed;
-  top: 50%;
+  // Keyboard-Aware: центр видимой области (над клавиатурой), без клавиатуры = 50%
+  top: calc(var(--visible-top, 0px) + var(--visible-height, 100dvh) / 2);
   left: 50%;
   transform: translate(-50%, -50%);
   background-color: var(--bg-primary-color);
@@ -112,7 +124,9 @@ function handleCloseAutoFocus(event: Event) {
   flex-direction: column;
   gap: 16px;
   overflow: hidden;
-  max-height: calc(100dvh - var(--safe-area-inset-top, 0px) - var(--safe-area-inset-bottom, 0px) - 32px);
+  max-height: calc(
+    var(--visible-height, 100dvh) - var(--safe-area-inset-top, 0px) - var(--safe-area-inset-bottom, 0px) - 32px
+  );
 
   &:focus {
     outline: none;

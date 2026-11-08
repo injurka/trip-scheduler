@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { AspectRatio } from 'reka-ui'
-import { computed, nextTick, onBeforeUnmount, readonly, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, readonly, ref, watch } from 'vue'
 import smthWrongImage from '~/assets/images/smth-wrong.png'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { useConnectivity } from '~/shared/lib/connectivity'
@@ -106,9 +106,6 @@ const imageStyle = computed(() => {
 watch(imageSourceKey, () => {
   releaseCachedSrc()
 
-  if (!isOnline.value)
-    void restoreCachedImage()
-
   previewLoaded.value = false
   isLoading.value = true
   hasError.value = false
@@ -116,6 +113,15 @@ watch(imageSourceKey, () => {
   retryCount.value = 0
   cleanupObserver()
   clearLoadTimeout()
+
+  if (!isOnline.value) {
+    void restoreCachedImage().then((restored) => {
+      if (!restored && !isOnline.value) {
+        isLoading.value = false
+        hasError.value = true
+      }
+    })
+  }
 
   if (!props.src) {
     isLoading.value = false
@@ -274,6 +280,17 @@ function cleanupObserver() {
   }
 }
 
+onMounted(() => {
+  if (!isOnline.value) {
+    void restoreCachedImage().then((restored) => {
+      if (!restored && !isOnline.value) {
+        isLoading.value = false
+        hasError.value = true
+      }
+    })
+  }
+})
+
 onBeforeUnmount(() => {
   releaseCachedSrc()
   clearLoadTimeout()
@@ -318,7 +335,7 @@ onBeforeUnmount(() => {
       </transition>
 
       <img
-        v-if="isOnline && resolvedVariants.small && (resolvedVariants.medium || resolvedVariants.large)"
+        v-if="isOnline && resolvedVariants.small && (resolvedVariants.medium || resolvedVariants.large) && (isLoading || hasError)"
         :key="resolvedVariants.small"
         :src="resolvedVariants.small"
         class="image-preview"

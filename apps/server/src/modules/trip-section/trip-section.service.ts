@@ -124,7 +124,10 @@ export const tripSectionService = {
     if (!trip)
       throw createTRPCError('NOT_FOUND', `Путешествие с ID ${data.tripId} не найдено.`)
 
-    if (trip.userId !== userId && userRole !== 'admin')
+    const canEdit = trip.userId === userId
+      || userRole === 'admin'
+      || await tripRepository.hasAccess(data.tripId, userId)
+    if (!canEdit)
       throw createTRPCError('FORBIDDEN', 'У вас нет прав на добавление раздела в это путешествие.')
 
     const result = await tripSectionRepository.create({
@@ -139,7 +142,10 @@ export const tripSectionService = {
     if (!section)
       throw createTRPCError('NOT_FOUND', `Раздел с ID ${data.id} не найден.`)
 
-    if (section.trip.userId !== userId && userRole !== 'admin')
+    const canEdit = section.trip.userId === userId
+      || userRole === 'admin'
+      || await tripRepository.hasAccess(section.tripId, userId)
+    if (!canEdit)
       throw createTRPCError('FORBIDDEN', 'У вас нет прав на изменение этого раздела.')
 
     const { id, expectedUpdatedAt, ...updateData } = data
@@ -162,7 +168,10 @@ export const tripSectionService = {
     if (!section)
       throw createTRPCError('NOT_FOUND', `Раздел с ID ${id} не найден.`)
 
-    if (section.trip.userId !== userId && userRole !== 'admin')
+    const canEdit = section.trip.userId === userId
+      || userRole === 'admin'
+      || await tripRepository.hasAccess(section.tripId, userId)
+    if (!canEdit)
       throw createTRPCError('FORBIDDEN', 'У вас нет прав на удаление этого раздела.')
 
     const deletedSection = await tripSectionRepository.delete(id)
@@ -177,7 +186,10 @@ export const tripSectionService = {
     if (!trip)
       throw createTRPCError('NOT_FOUND', `Путешествие с ID ${data.tripId} не найдено.`)
 
-    if (trip.userId !== userId && userRole !== 'admin')
+    const canEdit = trip.userId === userId
+      || userRole === 'admin'
+      || await tripRepository.hasAccess(data.tripId, userId)
+    if (!canEdit)
       throw createTRPCError('FORBIDDEN', 'У вас нет прав на изменение порядка разделов в этом путешествии.')
 
     await tripSectionRepository.reorder(data.tripId, data.updates)

@@ -1,4 +1,5 @@
 import type { ToastMessage } from '~/shared/types/models/toast'
+import { isAppOnline } from '~/shared/lib/connectivity'
 
 /**
  * Гибкий интерфейс ошибки, совместимый с форматом ошибок от tRPC и другими возможными форматами.
@@ -95,11 +96,31 @@ function getKnownErrorDescription(error: IError, statusCode: number, trpcCode?: 
   return undefined
 }
 
+const OFFLINE_ERROR_REGEX = /нет подключения|офлайн|failed to fetch|network\s*error|load failed/i
+
+function isOfflineNetworkError(error: IError): boolean {
+  if (isAppOnline())
+    return false
+
+  if (getStatusCode(error) === 0)
+    return true
+
+  const fullMessage = `${error.message || ''} ${error.customMessage || ''} ${error.shape?.message || ''}`
+
+  return OFFLINE_ERROR_REGEX.test(fullMessage)
+}
+
 function getUnknownErrorDescription(error: IError): string {
   try {
     return JSON.parse(error.shape!.message!)[0].message
   }
   catch {
+    if (error.customMessage && error.customMessage !== 'Произошла ошибка')
+      return error.customMessage
+
+    if (error.message && !error.message.includes('fetch'))
+      return error.message
+
     return 'Произошла неизвестная ошибка. Пожалуйста, попробуйте позже.'
   }
 }
@@ -128,6 +149,10 @@ function handleApiError(error: IError, options: IApiErrorHandlerOptions, addToas
   const trpcCode = getTrpcCode(error)
 
   console.error('[API Error Handler]', error)
+
+  if (isOfflineNetworkError(error)) {
+    return
+  }
 
   if (shouldStopErrorHandling(
     error,

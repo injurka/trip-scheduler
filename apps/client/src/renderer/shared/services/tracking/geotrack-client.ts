@@ -786,6 +786,16 @@ class WebGeolocationTracker {
     }
   }
 
+  private runTransition(action: () => Promise<TrackingStatus>): Promise<TrackingStatus> {
+    const promise = action().finally(() => {
+      if (this.transition === promise)
+        this.transition = null
+    })
+    this.transition = promise
+
+    return promise
+  }
+
   public async refreshNativeStatus(): Promise<void> {
     if (!isMobileApp || this.transition)
       return
@@ -796,8 +806,10 @@ class WebGeolocationTracker {
     if (running && !this.isRunning)
       await this.start()
 
-    if (!running && this.isRunning)
-      await this.stop()
+    if (!running && this.isRunning) {
+      await this.runTransition(() => this.stop())
+      void import('./track-sync').then(m => m.runSync()).catch(() => {})
+    }
 
     await this.drainNativeBufferedPoints()
   }
@@ -810,11 +822,7 @@ class WebGeolocationTracker {
     if (this.transition)
       return this.transition
 
-    this.transition = this.startInternal().finally(() => {
-      this.transition = null
-    })
-
-    return this.transition
+    return this.runTransition(() => this.startInternal())
   }
 
   private async startInternal(): Promise<TrackingStatus> {
@@ -880,8 +888,10 @@ class WebGeolocationTracker {
       // Android's service is authoritative: a stale WebView session must not undo
       // a stop requested from the notification while the UI was suspended.
       if (isMobileApp && !await invoke<boolean>('tracking_is_running')) {
+        await this.transferNativeBufferedPoints()
         this.isRunning = false
         writeStoredSession(null)
+        void import('./track-sync').then(m => m.runSync()).catch(() => {})
 
         return
       }
@@ -1025,14 +1035,14 @@ class WebGeolocationTracker {
     if (typeof document !== 'undefined') {
       document.addEventListener('visibilitychange', () => {
         if (document.visibilityState === 'visible') {
-          this.onAppResume()
+          void this.onAppResume()
         }
       })
     }
 
     if (typeof window !== 'undefined') {
       window.addEventListener('focus', () => {
-        this.onAppResume()
+        void this.onAppResume()
       })
       window.addEventListener('online', () => {
         void import('./track-sync').then(m => m.runSync()).catch(() => {})
@@ -1040,7 +1050,11 @@ class WebGeolocationTracker {
     }
   }
 
-  private onAppResume(): void {
+  private async onAppResume(): Promise<void> {
+    if (isMobileApp) {
+      await this.refreshNativeStatus()
+    }
+
     if (!this.isRunning)
       return
 
@@ -1065,85 +1079,128 @@ class WebGeolocationTracker {
     return this.nativeDrain
   }
 
-  private getBufferedActivity(pos: NativeTrackingPosition, fix: NormalizedFix): ResolvedFixActivity {
-    const device = normalizeDeviceActivity(pos.activity, pos.activityConfidence)
-
-    const speedMs = fix.speed ?? 0
-
-    if (device) {
-      return {
-        activity: device.activity,
-        confidence: device.confidence,
-        speedMs,
-        deviceActivity: device.activity,
-        deviceActivityConfidence: device.confidence,
-      }
-    }
-
-    return {
-      activity: estimateActivity(speedMs),
-      confidence: 50,
-      speedMs,
-      deviceActivity: null,
-      deviceActivityConfidence: null,
-    }
-  }
-
-  private createBufferedPoint(pos: NativeTrackingPosition): TrackPoint | null {
-    const update = toPositionUpdate(pos)
-    const fix = update && normalizePositionUpdate(update, null)
-
-    if (!fix || !pos.timestamp)
+  private createBufferedPoint(pos: NativeTrackingPosition, previousPoint: TrackPoint | null = null): TrackPoint | null {
+    if (!pos.timestamp)
       return null
 
-    const point = this.createTrackPoint(fix, this.getBufferedActivity(pos, fix))
-    point.sessionId = this.currentSessionId ?? uuidv5(`native:${new Date(pos.timestamp).toISOString().slice(0, 10)}`, uuidv5.URL)
-    point.clientPointId = uuidv5(`${pos.timestamp}:${pos.latitude}:${pos.longitude}`, uuidv5.URL)
+    const update = toPositionUpdate(pos)
+    const chronologicalPrev = previousPoint && previousPoint.tsUtc < pos.timestamp ? previousPoint : null
+    const fix = update && normalizePositionUpdate(update, chronologicalPrev)
+
+    if (!fix || !update || this.shouldRejectPosition(fix, chronologicalPrev))
+      return null
+
+    const activity = this.resolvePositionActivity(fix, update)
+    const point = this.createTrackPoint(fix, activity)
+    const sessionId = this.currentSessionId ?? uuidv5(`native:${new Date(pos.timestamp).toISOString().slice(0, 10)}`, uuidv5.URL)
+    point.sessionId = sessionId
+    point.clientPointId = uuidv5(`${sessionId}:${pos.timestamp}:${pos.latitude}:${pos.longitude}`, uuidv5.URL)
 
     return point
   }
 
+  // eslint-disable-next-line complexity
   private replayBufferedTelemetry(buffered: NativeTrackingPosition[]): void {
     const sorted = [...buffered].sort((a, b) => (a.timestamp ?? 0) - (b.timestamp ?? 0))
+    const firstTs = sorted[0]?.timestamp ?? 0
+    let previousPoint: TrackPoint | null = (this.lastFixPoint && firstTs > 0 && this.lastFixPoint.tsUtc < firstTs)
+      ? this.lastFixPoint
+      : null
 
     for (const position of sorted) {
-      if ((position.timestamp ?? 0) <= (this.lastFixPoint?.tsUtc ?? 0))
+      const ts = position.timestamp ?? 0
+
+      if (ts <= 0 || (previousPoint && ts <= previousPoint.tsUtc))
         continue
 
       const update = toPositionUpdate(position)
+      const fix = update && normalizePositionUpdate(update, previousPoint)
 
-      if (update)
-        this.handlePositionUpdate(update)
+      if (!fix || !update || this.shouldRejectPosition(fix, previousPoint))
+        continue
+
+      const activity = this.resolvePositionActivity(fix, update)
+      const point = this.createTrackPoint(fix, activity)
+
+      if (!this.lastFixPoint || point.tsUtc > this.lastFixPoint.tsUtc) {
+        this.lastFixPoint = point
+        const prepared = this.recalculateSessionDistance(point)
+        this.updateDisplayFix(prepared, point)
+      }
+      else if (previousPoint && point.activity !== 'still' && point.tsUtc - previousPoint.tsUtc <= 60_000) {
+        this.sessionDistanceM += haversineM(
+          previousPoint.lat,
+          previousPoint.lng,
+          point.lat,
+          point.lng,
+        )
+      }
+
+      previousPoint = point
+    }
+
+    if (this.lastFixPoint && this.isRunning) {
+      try {
+        this.persistSessionPoint(this.lastFixPoint)
+      }
+      catch (error) {
+        this.lastError = `Не удалось сохранить GPS-точку: ${getErrorMessage(error)}`
+      }
+
+      this.updateTrackingNotification(this.lastFixPoint.speed ?? 0)
     }
   }
 
+  // eslint-disable-next-line complexity
   private async transferNativeBufferedPoints(): Promise<void> {
-    try {
-      const buffered = await invoke<NativeTrackingPosition[]>('tracking_get_buffered')
+    const NATIVE_BUFFER_BATCH_LIMIT = 500
+    const MAX_DRAIN_ITERATIONS = 50
 
-      if (Array.isArray(buffered) && buffered.length > 0) {
+    try {
+      for (let iteration = 0; iteration < MAX_DRAIN_ITERATIONS; iteration++) {
+        const buffered = await invoke<NativeTrackingPosition[]>('tracking_get_buffered')
+
+        if (!Array.isArray(buffered) || buffered.length === 0)
+          break
+
+        const sorted = [...buffered].sort((a, b) => (a.timestamp ?? 0) - (b.timestamp ?? 0))
         const queue = readStoredPoints()
         const ids = new Set(queue.map(point => point.clientPointId))
         const timestamps: number[] = []
+        const newPositionsForReplay: NativeTrackingPosition[] = []
+        let previousPoint: TrackPoint | null = (this.lastFixPoint && sorted[0]?.timestamp && this.lastFixPoint.tsUtc < sorted[0].timestamp)
+          ? this.lastFixPoint
+          : null
 
-        for (const pos of buffered) {
-          const point = this.createBufferedPoint(pos)
+        for (const pos of sorted) {
+          if (typeof pos.timestamp === 'number' && Number.isFinite(pos.timestamp) && pos.timestamp > 0) {
+            timestamps.push(pos.timestamp)
+          }
+
+          const point = this.createBufferedPoint(pos, previousPoint)
 
           if (!point || !pos.timestamp)
             continue
 
+          previousPoint = point
+
           if (!ids.has(point.clientPointId)) {
             queue.push(point)
             ids.add(point.clientPointId)
+            newPositionsForReplay.push(pos)
           }
-
-          timestamps.push(pos.timestamp)
         }
 
         writeStoredPoints(queue)
         // Acknowledge native storage only after the durable browser write succeeded.
         await invoke('tracking_ack_buffered', { timestamps })
-        this.replayBufferedTelemetry(buffered)
+
+        if (newPositionsForReplay.length > 0) {
+          this.replayBufferedTelemetry(newPositionsForReplay)
+        }
+
+        if (buffered.length < NATIVE_BUFFER_BATCH_LIMIT)
+          break
       }
 
       if (this.lastError?.startsWith('Не удалось сохранить GPS-точки:'))
@@ -1277,9 +1334,13 @@ class WebGeolocationTracker {
 
     const stateListener = await addPluginListener<{ running: boolean }>('tracking', 'trackingStateChanged', (state) => {
       if (state && !state.running && isCurrent()) {
-        void this.stop().catch((error) => {
-          this.lastError = getErrorMessage(error)
-        })
+        void this.runTransition(() => this.stop())
+          .then(() => {
+            void import('./track-sync').then(m => m.runSync()).catch(() => {})
+          })
+          .catch((error) => {
+            this.lastError = getErrorMessage(error)
+          })
       }
     })
 
@@ -1606,9 +1667,7 @@ class WebGeolocationTracker {
     return { activity: 'still', confidence: 95 }
   }
 
-  private shouldRejectPosition(fix: NormalizedFix): boolean {
-    const previous = this.lastFixPoint
-
+  private shouldRejectPosition(fix: NormalizedFix, previous: TrackPoint | null = this.lastFixPoint): boolean {
     if (!previous)
       return false
 

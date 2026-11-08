@@ -1,6 +1,7 @@
 import type { TripMedia } from '~/shared/types/models/trip'
 import { defineStore } from 'pinia'
 import { useRequest, useRequestStatus, useRequestStatusByPrefix } from '~/plugins/request'
+import { isAppOnline } from '~/shared/lib/connectivity'
 import { useOfflineStore } from '~/shared/store/offline.store'
 import { TripMediaPlacement } from '~/shared/types/models/trip'
 
@@ -51,6 +52,19 @@ export const useTripInfoGalleryStore = defineStore('tripInfoRouteGallery', {
       }
 
       const offline = useOfflineStore()
+
+      if (!isAppOnline()) {
+        if (this.currentTripId && offline.isTripCached(this.currentTripId)) {
+          this.tripImages = offline.getSavedTripMedia(this.currentTripId)
+          this.loadedTripId = this.currentTripId
+        }
+        else {
+          this.tripImages = []
+        }
+
+        return
+      }
+
       await useRequest<TripMedia[]>({
         key: ETripGalleryKeys.FETCH_IMAGES,
         abortOnUnmount: true,

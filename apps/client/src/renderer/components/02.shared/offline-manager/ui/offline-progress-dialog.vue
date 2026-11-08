@@ -60,6 +60,13 @@ watch(activeDownloadId, (newVal) => {
 function handleRunInBackground() {
   offlineStore.minimizeProgressDialog()
 }
+
+function handleCancelDownload() {
+  if (activeDownloadId.value)
+    offlineStore.cancelOfflineDownload(activeDownloadId.value)
+  else
+    offlineStore.cancelOfflineDownload()
+}
 </script>
 
 <template>
@@ -108,6 +115,14 @@ function handleRunInBackground() {
       </div>
 
       <div class="actions">
+        <KitBtn
+          v-if="!isCompleted"
+          variant="outlined"
+          size="sm"
+          @click="handleCancelDownload"
+        >
+          Отменить
+        </KitBtn>
         <KitBtn variant="text" size="sm" @click="handleRunInBackground">
           {{ isCompleted ? 'Закрыть' : 'Свернуть в фон' }}
         </KitBtn>
@@ -233,5 +248,6 @@ function handleRunInBackground() {
 .actions {
   display: flex;
   justify-content: center;
+  gap: 8px;
 }
 </style>

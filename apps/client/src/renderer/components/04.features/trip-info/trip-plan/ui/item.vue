@@ -37,6 +37,10 @@ interface ActivityItemProps {
   isLast: boolean
   isCollapsed: boolean
   isPreviewMode?: boolean
+  hasTimeOverlap?: boolean
+  overlapMessage?: string | null
+  isCurrentActivity?: boolean
+  isNextActivity?: boolean
 }
 
 const props = defineProps<ActivityItemProps>()
@@ -464,6 +468,9 @@ onClickOutside(timeEditorRef, saveTimeChanges)
       'is-draft': isDraftMode,
       'is-accepting': isAccepting,
       'is-discarding': isDiscarding,
+      'is-current-activity': isCurrentActivity,
+      'is-next-activity': isNextActivity,
+      'has-time-overlap': hasTimeOverlap || !!overlapMessage,
     }"
   >
     <div v-if="!isReadOnly" class="drag-handle" />
@@ -556,6 +563,20 @@ onClickOutside(timeEditorRef, saveTimeChanges)
             </div>
           </div>
         </div>
+        <span v-if="isCurrentActivity" class="activity-live-badge is-current">
+          <Icon icon="mdi:play-circle-outline" />
+          <span>Сейчас</span>
+        </span>
+        <span v-else-if="isNextActivity" class="activity-live-badge is-next">
+          <Icon icon="mdi:skip-next-circle-outline" />
+          <span>Далее</span>
+        </span>
+        <KitTooltip v-if="hasTimeOverlap || overlapMessage" :text="overlapMessage || 'Накладка по времени'">
+          <span class="time-overlap-badge" data-testid="activity-time-overlap">
+            <Icon icon="mdi:clock-alert-outline" />
+            <span>Накладка по времени</span>
+          </span>
+        </KitTooltip>
       </div>
       <div v-if="tagInfo || !isReadOnly" class="activity-tag-wrapper">
         <KitDropdown
@@ -797,6 +818,59 @@ onClickOutside(timeEditorRef, saveTimeChanges)
 
   &.highlight-pulse {
     animation: activity-pulse 1.8s ease-in-out;
+  }
+
+  &.is-current-activity {
+    padding: 8px 10px;
+    border-radius: var(--r-s);
+    border: 1px solid rgba(var(--fg-success-color-rgb, 34, 197, 94), 0.45);
+    background-color: rgba(var(--fg-success-color-rgb, 34, 197, 94), 0.04);
+  }
+
+  &.is-next-activity {
+    padding: 8px 10px;
+    border-radius: var(--r-s);
+    border: 1px dashed rgba(var(--fg-info-color-rgb, 59, 130, 246), 0.45);
+    background-color: rgba(var(--fg-info-color-rgb, 59, 130, 246), 0.03);
+  }
+
+  .activity-live-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: var(--r-full);
+    font-size: 0.72rem;
+    font-weight: 700;
+    font-family: var(--font-accent);
+    white-space: nowrap;
+
+    &.is-current {
+      color: var(--fg-success-color, #22c55e);
+      background-color: rgba(var(--fg-success-color-rgb, 34, 197, 94), 0.14);
+      border: 1px solid rgba(var(--fg-success-color-rgb, 34, 197, 94), 0.35);
+    }
+
+    &.is-next {
+      color: var(--fg-info-color, #3b82f6);
+      background-color: rgba(var(--fg-info-color-rgb, 59, 130, 246), 0.14);
+      border: 1px solid rgba(var(--fg-info-color-rgb, 59, 130, 246), 0.35);
+    }
+  }
+
+  .time-overlap-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: var(--r-full);
+    font-size: 0.72rem;
+    font-weight: 600;
+    font-family: var(--font-accent);
+    color: #d97706;
+    background-color: color-mix(in srgb, #f59e0b 14%, transparent);
+    border: 1px solid color-mix(in srgb, #f59e0b 35%, transparent);
+    white-space: nowrap;
   }
 
   &.is-accepting {

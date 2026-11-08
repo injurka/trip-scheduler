@@ -5,8 +5,9 @@ import type { TripMedia } from '~/shared/types/models/trip'
 import { defineStore } from 'pinia'
 import { v4 as uuidv4 } from 'uuid'
 import { useTripPlanStore } from '~/components/04.features/trip-info/trip-plan'
-import { useAbortRequest, useRequest, useRequestStatus } from '~/plugins/request'
+import { useAbortRequest, useRequest, useRequestStatus, useRequestStore } from '~/plugins/request'
 import { getLocalDate } from '~/shared/lib/date-time'
+import { useOfflineStore } from '~/shared/store/offline.store'
 import { TripMediaPlacement } from '~/shared/types/models/trip'
 
 export enum ETripMemoriesKeys {
@@ -128,6 +129,7 @@ export const useTripMemoriesStore = defineStore('tripMemories', {
         return
 
       this.currentTripId = tripId
+      const offlineStore = useOfflineStore()
 
       useRequest<Memory[]>({
         key: ETripMemoriesKeys.FETCH,
@@ -135,6 +137,15 @@ export const useTripMemoriesStore = defineStore('tripMemories', {
         fn: db => db.memories.getByTripId(tripId),
         onSuccess: (result) => {
           this.memories = result
+        },
+        onError: () => {
+          if (offlineStore.isTripCached(tripId)) {
+            this.memories = offlineStore.getSavedTripMemories(tripId)
+            const requestStore = useRequestStore()
+            requestStore.setError(ETripMemoriesKeys.FETCH, null)
+            requestStore.setStatus(ETripMemoriesKeys.FETCH, 'success')
+            useToast().info('Нет подключения к сети. Загружены офлайн-воспоминания.')
+          }
         },
       })
     },
@@ -151,7 +162,7 @@ export const useTripMemoriesStore = defineStore('tripMemories', {
         await this.uploadMemoryImage(nextToUpload)
     },
 
-    enqueueFilesForUpload(files: File[]) {
+    addFilesToUploadQueue(files: File[]) {
       const tripPlanStore = useTripPlanStore()
 
       if (!tripPlanStore.currentTripId) {
@@ -161,6 +172,27 @@ export const useTripMemoriesStore = defineStore('tripMemories', {
       }
 
       files.forEach((file) => {
+        const isAlreadyInQueue = this.getProcessingMemories.some(item => item.file.name === file.name && item.file.size === file.size)
+
+        if (isAlreadyInQueue)
+          return
+
+        const isAlreadyInMemories = this.memories.some((memory) => {
+          const img = memory.image
+
+          if (!img)
+            return false
+
+          const sameName = (img.originalName && img.originalName === file.name) || (img.name && img.name === file.name)
+          const technicalFileSize = (img.metadata as { technical?: { fileSize?: number } } | null | undefined)?.technical?.fileSize
+          const sameSize = img.sizeBytes === file.size || technicalFileSize === file.size
+
+          return Boolean(sameName && sameSize)
+        })
+
+        if (isAlreadyInMemories)
+          return
+
         const tempId = uuidv4()
         const previewUrl = URL.createObjectURL(file)
         this.processingMemories.set(tempId, {
@@ -172,7 +204,11 @@ export const useTripMemoriesStore = defineStore('tripMemories', {
         })
       })
 
-      this._processUploadQueue()
+      void this._processUploadQueue()
+    },
+
+    enqueueFilesForUpload(files: File[]) {
+      this.addFilesToUploadQueue(files)
     },
 
     async uploadMemoryImage(item: IProcessingMemory) {
@@ -192,7 +228,7 @@ export const useTripMemoriesStore = defineStore('tripMemories', {
 
       if (processingItem) {
         processingItem.status = 'uploading'
-        processingItem.progress = 0
+        processingItem.progress = processingItem.uploadedImage ? 100 : 0
       }
 
       await useRequest<Memory>({
@@ -205,16 +241,31 @@ export const useTripMemoriesStore = defineStore('tripMemories', {
               currentItem.progress = progress
           }
 
-          const newImage = await db.files.uploadFileWithProgress(
-            file,
-            tripId,
-            'trip',
-            TripMediaPlacement.MEMORIES,
-            onProgress,
-            signal,
-          )
+          const currentItem = this.processingMemories.get(tempId)
+          let newImage = currentItem?.uploadedImage ?? item.uploadedImage
 
-          const selectedDay = tripPlanStore.getSelectedDay
+          if (!newImage) {
+            newImage = await db.files.uploadFileWithProgress(
+              file,
+              tripId,
+              'trip',
+              TripMediaPlacement.MEMORIES,
+              onProgress,
+              signal,
+            )
+
+            const latestItem = this.processingMemories.get(tempId)
+
+            if (latestItem) {
+              latestItem.uploadedImage = newImage
+            }
+
+            item.uploadedImage = newImage
+          }
+          else {
+            onProgress(100)
+          }
+
           const getTimestamp = () => {
             if (!newImage.takenAt)
               return null
@@ -222,14 +273,25 @@ export const useTripMemoriesStore = defineStore('tripMemories', {
             const imageDate = (newImage.metadata?.timezoneOffset)
               ? getLocalDate(newImage.takenAt, newImage.metadata?.timezoneOffset)
               : new Date(newImage.takenAt)
-            const imageDateStr = imageDate.toISOString().split('T')[0]
 
-            if (!selectedDay || !selectedDay.date)
+            if (Number.isNaN(imageDate.getTime()))
               return null
 
-            const selectedDayStr = new Date(selectedDay.date).toISOString().split('T')[0]
+            const imageDateStr = imageDate.toISOString().split('T')[0]
+            const allDays = tripPlanStore.days?.length
+              ? tripPlanStore.days
+              : (tripPlanStore.getSelectedDay ? [tripPlanStore.getSelectedDay] : [])
 
-            return imageDateStr === selectedDayStr ? imageDate.toISOString() : null
+            const matchesAnyTripDay = allDays.some((day) => {
+              if (!day?.date)
+                return false
+
+              const dayDateStr = new Date(day.date).toISOString().split('T')[0]
+
+              return dayDateStr === imageDateStr
+            })
+
+            return matchesAnyTripDay ? imageDate.toISOString() : null
           }
 
           return await db.memories.create({
@@ -242,7 +304,7 @@ export const useTripMemoriesStore = defineStore('tripMemories', {
           this.memories.push(newMemory)
           URL.revokeObjectURL(previewUrl)
           this.processingMemories.delete(tempId)
-          this._processUploadQueue()
+          void this._processUploadQueue()
         },
         onError: ({ error }) => {
           console.error(`Ошибка при загрузке (tempId: ${tempId}):`, error)
@@ -251,16 +313,16 @@ export const useTripMemoriesStore = defineStore('tripMemories', {
 
           if (pItem) {
             pItem.status = 'error'
-            pItem.progress = 0
+            pItem.progress = pItem.uploadedImage ? 100 : 0
             pItem.error = error.customMessage
           }
 
-          this._processUploadQueue()
+          void this._processUploadQueue()
         },
         onAbort: () => {
           URL.revokeObjectURL(previewUrl)
           this.processingMemories.delete(tempId)
-          this._processUploadQueue()
+          void this._processUploadQueue()
         },
       })
     },
@@ -277,8 +339,23 @@ export const useTripMemoriesStore = defineStore('tripMemories', {
       if (processingItem && processingItem.status === 'error') {
         processingItem.status = 'queued'
         processingItem.error = undefined
-        this._processUploadQueue()
+        void this._processUploadQueue()
       }
+    },
+
+    retryAllFailedUploads() {
+      let hasRetried = false
+
+      for (const item of this.processingMemories.values()) {
+        if (item.status === 'error') {
+          item.status = 'queued'
+          item.error = undefined
+          hasRetried = true
+        }
+      }
+
+      if (hasRetried)
+        void this._processUploadQueue()
     },
 
     removeProcessingMemory(tempId: string) {

@@ -165,6 +165,34 @@ describe('booking section with real UI components', () => {
     expect(wrapper.find('.timeline-navigation').exists()).toBe(false)
     expect(wrapper.find('.highlight-active').exists()).toBe(false)
   })
+
+  it('restores bookings when section props roll back after a published save', async () => {
+    const original = [train('edit', now + 120000, now + 180000)]
+    const wrapper = renderBookings(original, false)
+    const card = wrapper.findComponent({ name: 'TrainCard' })
+    card.vm.$emit('update:booking', { ...original[0], title: 'Optimistic save' })
+    await nextTick()
+    await vi.advanceTimersByTimeAsync(1000)
+
+    const emittedSave = wrapper.emitted('updateSection')![0][0] as { id: string, type: 'booking', content: { bookings: Booking[] } }
+    await wrapper.setProps({ section: emittedSave })
+    expect(wrapper.findComponent({ name: 'TrainCard' }).props('booking').title).toBe('Optimistic save')
+
+    // Simulate store rollback on server failure
+    await wrapper.setProps({ section: { id: 'section', type: 'booking', content: { bookings: original } } })
+    await nextTick()
+    expect(wrapper.findComponent({ name: 'TrainCard' }).props('booking').title).toBe('edit')
+  })
+
+  it('renders conflict warning badges for overlapping bookings in timeline', () => {
+    const wrapper = renderBookings([
+      train('train-1', now + 60000, now + 3600000),
+      train('train-2', now + 1800000, now + 5400000),
+    ])
+    const badges = wrapper.findAll('.timeline-conflict-badge')
+    expect(badges.length).toBeGreaterThanOrEqual(2)
+    expect(badges[0].text()).toContain('Пересечение с')
+  })
 })
 
 describe('trip visibility and ongoing badge', () => {

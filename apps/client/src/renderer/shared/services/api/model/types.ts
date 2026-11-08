@@ -194,6 +194,7 @@ export interface ILLMRepository {
   generateFinancesFromData: (formData: FormData) => Promise<GeneratedTransaction[]>
   matchChecklistFromData: (formData: FormData) => Promise<ChecklistMatchResponse>
   transcribeChecklistVoice: (formData: FormData) => Promise<{ text: string }>
+  transcribeMemoryVoice: (formData: FormData) => Promise<{ text: string }>
 }
 
 export type AiTripUserPinType = 'place' | 'hotel' | 'logistics'

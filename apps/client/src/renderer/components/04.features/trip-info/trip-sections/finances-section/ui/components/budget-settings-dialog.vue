@@ -10,6 +10,11 @@ interface Props {
   visible: boolean
   settings: FinancesSettings
 }
+interface ExchangeRateRow {
+  id: number
+  currency: string
+  rate: number
+}
 
 const props = defineProps<Props>()
 const emit = defineEmits<{
@@ -18,26 +23,75 @@ const emit = defineEmits<{
 }>()
 
 const form = ref<FinancesSettings>({ ...props.settings })
+let nextRowId = 1
+const rateRows = ref<ExchangeRateRow[]>([])
 
 watch(() => props.visible, (isVisible) => {
   if (isVisible)
-    form.value = JSON.parse(JSON.stringify(props.settings))
+    syncFromSettings(props.settings)
 })
 
+function syncFromSettings(settings: FinancesSettings) {
+  const cloned = JSON.parse(JSON.stringify(settings || { mainCurrency: 'RUB', exchangeRates: {} })) as FinancesSettings
+  form.value = cloned
+  rateRows.value = Object.entries(cloned.exchangeRates || {}).map(([currency, rate]) => ({
+    id: nextRowId++,
+    currency,
+    rate: Number(rate) || 0,
+  }))
+}
+function syncExchangeRatesToForm() {
+  const nextRates: Record<string, number> = {}
+
+  for (const row of rateRows.value) {
+    const code = row.currency.trim().toUpperCase()
+    const numericRate = Number(row.rate)
+
+    if (code && Number.isFinite(numericRate) && numericRate > 0) {
+      nextRates[code] = numericRate
+    }
+  }
+
+  form.value.exchangeRates = nextRates
+}
 function addRate() {
-  form.value.exchangeRates[''] = 1
+  rateRows.value.push({
+    id: nextRowId++,
+    currency: '',
+    rate: 1,
+  })
+  syncExchangeRatesToForm()
 }
-function removeRate(currency: string) {
-  delete form.value.exchangeRates[currency]
+function removeRate(id: number) {
+  rateRows.value = rateRows.value.filter(row => row.id !== id)
+  syncExchangeRatesToForm()
 }
-function updateRateKey(oldKey: string, newKey: string) {
-  if (oldKey === newKey || !newKey)
+function updateRateKey(id: number, newKey: string) {
+  const row = rateRows.value.find(item => item.id === id)
+
+  if (!row)
     return
 
-  const value = form.value.exchangeRates[oldKey]
-  delete form.value.exchangeRates[oldKey]
-  form.value.exchangeRates[newKey] = value
+  row.currency = newKey
+  syncExchangeRatesToForm()
 }
+function updateRateValue(id: number, rawValue: string | number) {
+  const row = rateRows.value.find(item => item.id === id)
+
+  if (!row)
+    return
+
+  const num = Number(rawValue)
+  row.rate = Number.isFinite(num) ? num : 0
+  syncExchangeRatesToForm()
+}
+function handleSave() {
+  syncExchangeRatesToForm()
+  form.value.mainCurrency = form.value.mainCurrency?.trim().toUpperCase() || 'RUB'
+  emit('save', JSON.parse(JSON.stringify(form.value)))
+}
+
+syncFromSettings(props.settings)
 </script>
 
 <template>
@@ -65,11 +119,25 @@ function updateRateKey(oldKey: string, newKey: string) {
 
       <div class="rates-section">
         <label>Курсы валют (по отношению к основной)</label>
-        <div v-for="currency in Object.keys(form.exchangeRates)" :key="currency" class="rate-item">
-          <KitInput :model-value="currency" placeholder="USD" @update:model-value="updateRateKey(currency, $event as string)" />
+        <div v-for="row in rateRows" :key="row.id" class="rate-item">
+          <KitInput
+            :model-value="row.currency"
+            placeholder="USD"
+            @update:model-value="updateRateKey(row.id, $event as string)"
+          />
           <span>=</span>
-          <KitInput v-model="form.exchangeRates[currency]" type="number" placeholder="90" />
-          <button class="delete-btn" title="Удалить курс" @click="removeRate(currency)">
+          <KitInput
+            :model-value="String(row.rate ?? '')"
+            type="number"
+            placeholder="90"
+            @update:model-value="updateRateValue(row.id, $event as string)"
+          />
+          <button
+            class="delete-btn"
+            type="button"
+            title="Удалить курс"
+            @click="removeRate(row.id)"
+          >
             <Icon icon="mdi:trash-can-outline" />
           </button>
         </div>
@@ -82,7 +150,7 @@ function updateRateKey(oldKey: string, newKey: string) {
         <KitBtn variant="text" @click="emit('update:visible', false)">
           Отмена
         </KitBtn>
-        <KitBtn @click="emit('save', form)">
+        <KitBtn @click="handleSave">
           Сохранить
         </KitBtn>
       </div>

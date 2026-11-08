@@ -1,5 +1,8 @@
+import type { Context } from 'hono'
 import z from 'zod'
-import { protectedProcedure, publicProcedure } from '~/lib/trpc'
+import { createTRPCError, protectedProcedure, publicProcedure } from '~/lib/trpc'
+import { tripService } from '~/modules/trip/trip.service'
+import { tripRepository } from '~/repositories/trip.repository'
 import { memoryDraftService } from './memory-generation.service'
 import {
   ApplyMemoriesInputSchema,
@@ -12,6 +15,24 @@ import {
   UpdateMemoryInputSchema,
 } from './memory.schemas'
 import { memoryService } from './memory.service'
+
+function extractShareSlug(inputShareSlug?: string, c?: Context): string | undefined {
+  if (inputShareSlug)
+    return inputShareSlug
+
+  const headerSlug = c?.req?.header('x-share-slug') || c?.req?.query('shareSlug')
+  if (headerSlug)
+    return headerSlug
+
+  const referer = c?.req?.header('referer')
+  if (referer) {
+    const match = referer.match(/\/trip\/([^/?#]+)/)
+    if (match?.[1])
+      return decodeURIComponent(match[1])
+  }
+
+  return undefined
+}
 
 export const memoryProcedures = {
   generate: protectedProcedure
@@ -32,9 +53,16 @@ export const memoryProcedures = {
         summary: 'Получить воспоминания путешествия (с фильтрацией)',
       },
     })
-    .input(GetMemoriesInputSchema)
+    .input(GetMemoriesInputSchema.extend({ shareSlug: z.string().optional() }))
     .output(z.array(MemorySchema))
-    .query(async ({ input }) => {
+    .query(async ({ input, ctx }) => {
+      const trip = await tripRepository.getById(input.tripId)
+      if (!trip)
+        throw createTRPCError('NOT_FOUND', `Путешествие с ID ${input.tripId} не найдено.`)
+
+      const shareSlug = extractShareSlug(input.shareSlug, ctx.c)
+      await tripService.verifyTripReadAccess(trip, ctx.user, shareSlug)
+
       return memoryService.getByTripId(input)
     }),
 

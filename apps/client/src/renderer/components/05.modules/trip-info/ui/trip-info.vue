@@ -4,10 +4,12 @@ import { useElementBounding, useIntersectionObserver, useWindowSize } from '@vue
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitDivider } from '~/components/01.kit/kit-divider'
 import { AsyncStateWrapper } from '~/components/02.shared/async-state-wrapper'
+import { ErrorPlaceholder } from '~/components/02.shared/error-placeholder'
 import { TripEditInfoDialog } from '~/components/04.features/trip-info/trip-edit-info-dialog'
 import { TripMemoriesView } from '~/components/04.features/trip-info/trip-memories'
 import { DayMetaBadges, TripPlanView } from '~/components/04.features/trip-info/trip-plan'
 import { useDisplay } from '~/shared/composables/use-display'
+import { useConnectivity } from '~/shared/lib/connectivity'
 import { lazyComponent } from '~/shared/lib/lazy-component'
 import { useModuleStore } from '../composables/use-trip-info-module'
 import { useTripInfoView } from '../composables/use-trip-info-view'
@@ -26,6 +28,7 @@ const {
   handleSaveTrip,
 } = useTripInfoView()
 const { plan, ui, sections } = useModuleStore(['plan', 'ui', 'sections'])
+const { isOnline } = useConnectivity()
 const { mdAndUp } = useDisplay()
 const { width: windowWidth, height: windowHeight } = useWindowSize()
 
@@ -84,13 +87,29 @@ onUnmounted(() => {
     <AsyncStateWrapper
       :loading="isLoading || plan.isLoadingNewDay"
       :error="fetchError"
-      :data="days"
+      :data="plan.trip ? days : null"
       :retry-handler="() => plan.fetchTripDetails(tripId, dayId, sections.setSections)"
       transition="slide-up"
       class="trip-info-async-wrapper"
     >
       <template #loading>
         <TripInfoSkeleton />
+      </template>
+
+      <template #error="{ retry }">
+        <ErrorPlaceholder
+          v-if="!isOnline"
+          title="Недоступно офлайн"
+          message="Это путешествие не сохранено для работы без интернета"
+        />
+        <ErrorPlaceholder
+          v-else
+          image-src="/images/smth-wrong.png"
+          title="Что-то пошло не так"
+          message="Произошла ошибка при загрузке данных"
+          action-text="Попробовать снова"
+          @action="retry"
+        />
       </template>
 
       <template #success>

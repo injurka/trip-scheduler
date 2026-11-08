@@ -64,4 +64,8 @@ export class LLMRepository implements ILLMRepository {
   async transcribeChecklistVoice(formData: FormData): Promise<{ text: string }> {
     return this.sendAuthorizedFormData<{ text: string }>('/api/llm/checklist/transcribe', formData, 'Ошибка при распознавании голоса.')
   }
+
+  async transcribeMemoryVoice(formData: FormData): Promise<{ text: string }> {
+    return this.sendAuthorizedFormData<{ text: string }>('/api/llm/memories/transcribe', formData, 'Ошибка при распознавании голоса.')
+  }
 }

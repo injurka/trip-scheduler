@@ -3,6 +3,7 @@ import type { NoteImageUsage, NoteType, ReorderNoteUpdate, TripNote } from '~/sh
 import { useStorage } from '@vueuse/core'
 import { computed, ref, unref } from 'vue'
 import { useRequest, useRequestStatus, useRequestStatusByPrefix } from '~/plugins/request'
+import { isAppOnline } from '~/shared/lib/connectivity'
 import { useOfflineStore } from '~/shared/store/offline.store'
 
 export interface NoteTreeNode extends TripNote {
@@ -106,6 +107,18 @@ export function useNotesSection(tripIdRef: Ref<string> | string, readonlyRef: Re
 
   async function fetchNotes(): Promise<void> {
     const offlineStore = useOfflineStore()
+
+    if (!isAppOnline()) {
+      if (offlineStore.isTripCached(tripId.value)) {
+        notes.value = offlineStore.getSavedTripNotes(tripId.value)
+      }
+      else {
+        notes.value = []
+      }
+
+      return
+    }
+
     await useRequest({
       key: NOTES_KEYS.FETCH_NOTES,
       fn: db => db.notes.getByTripId(tripId.value),
@@ -117,21 +130,29 @@ export function useNotesSection(tripIdRef: Ref<string> | string, readonlyRef: Re
 
         if (offlineStore.isTripCached(tripId.value)) {
           notes.value = cachedNotes
-          useToast().info('Нет подключения к сети. Загружены офлайн-заметки.')
 
           return
         }
 
-        useToast().error(`Не удалось загрузить заметки: ${error.customMessage}`)
+        if (isAppOnline()) {
+          useToast().error(`Не удалось загрузить заметки: ${error.customMessage}`)
+        }
       },
     })
   }
 
   async function fetchImagesUsage(): Promise<void> {
+    if (!isAppOnline()) {
+      imageUsage.value = []
+
+      return
+    }
+
     await useRequest({
       key: NOTES_KEYS.FETCH_IMAGES,
       fn: db => db.notes.getImagesUsage(tripId.value),
       onSuccess: (data) => { imageUsage.value = data ?? [] },
+      onError: () => { imageUsage.value = [] },
     })
   }
 
@@ -143,8 +164,8 @@ export function useNotesSection(tripIdRef: Ref<string> | string, readonlyRef: Re
     const order = siblings.length > 0 ? Math.max(...siblings.map(s => s.order)) + 1 : 0
 
     await useRequest({
-      // Уникальный ключ не блокирует параллельные запросы
-      key: `${NOTES_KEYS.CREATE_NOTE}:${Date.now()}`,
+      key: NOTES_KEYS.CREATE_NOTE,
+      cancelPrevious: false,
       fn: db => db.notes.create({ tripId: tripId.value, ...data, order }),
       onSuccess: (newNote) => {
         if (!newNote)
@@ -160,6 +181,8 @@ export function useNotesSection(tripIdRef: Ref<string> | string, readonlyRef: Re
     })
   }
 
+  const uncommittedNoteSnapshots = new Map<string, TripNote>()
+
   async function updateNote(id: string, data: { title?: string, content?: string | null, parentId?: string | null, color?: string | null }): Promise<void> {
     if (readonly.value)
       return
@@ -169,14 +192,16 @@ export function useNotesSection(tripIdRef: Ref<string> | string, readonlyRef: Re
     if (index === -1)
       return
 
+    const previousNote = uncommittedNoteSnapshots.get(id) ?? { ...notes.value[index]! }
+    uncommittedNoteSnapshots.delete(id)
+
     // Оптимистичное локальное применение
     notes.value[index] = { ...notes.value[index]!, ...data }
 
     const imageIds = data.content !== undefined ? parseImageIds(data.content) : undefined
 
     await useRequest({
-      // Уникальный ключ предотвращает потерю запросов при быстром вводе
-      key: `${NOTES_KEYS.UPDATE_NOTE}:${id}:${Date.now()}`,
+      key: `${NOTES_KEYS.UPDATE_NOTE}:${id}`,
       fn: db => db.notes.update({ id, ...data, imageIds }),
       onSuccess: (updated) => {
         if (updated) {
@@ -195,6 +220,12 @@ export function useNotesSection(tripIdRef: Ref<string> | string, readonlyRef: Re
         saveStatus.value = 'saved'
       },
       onError: ({ error }) => {
+        const currentIndex = notes.value.findIndex(n => n.id === id)
+
+        if (currentIndex !== -1) {
+          notes.value[currentIndex] = previousNote
+        }
+
         saveStatus.value = 'error'
         useToast().error(`Ошибка при обновлении: ${error.customMessage}`)
       },
@@ -207,6 +238,10 @@ export function useNotesSection(tripIdRef: Ref<string> | string, readonlyRef: Re
     const noteIndex = notes.value.findIndex(n => n.id === id)
 
     if (noteIndex !== -1) {
+      if (!uncommittedNoteSnapshots.has(id)) {
+        uncommittedNoteSnapshots.set(id, { ...notes.value[noteIndex]! })
+      }
+
       notes.value[noteIndex].content = content
     }
 
@@ -273,7 +308,7 @@ export function useNotesSection(tripIdRef: Ref<string> | string, readonlyRef: Re
 
   async function executeReorder(updates: ReorderNoteUpdate[]) {
     await useRequest({
-      key: `${NOTES_KEYS.REORDER_NOTES}:${Date.now()}`,
+      key: NOTES_KEYS.REORDER_NOTES,
       fn: db => db.notes.reorder({ tripId: tripId.value, updates }),
       onError: () => {
         useToast().error('Ошибка при перемещении файлов')

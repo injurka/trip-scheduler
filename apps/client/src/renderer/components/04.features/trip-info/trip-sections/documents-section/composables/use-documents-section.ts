@@ -51,15 +51,18 @@ export function useDocumentsSection(props: UseDocumentsSectionProps, emit: (even
   async function loadDocuments() {
     isFetching.value = true
 
-    if (!isAppOnline() && offlineStore.isTripCached(props.section.tripId)) {
-      const cachedDocs = offlineStore.getSavedTripDocuments(props.section.tripId)
-
+    if (!isAppOnline()) {
       if (offlineStore.isTripCached(props.section.tripId)) {
+        const cachedDocs = offlineStore.getSavedTripDocuments(props.section.tripId)
         documents.value = cachedDocs.map(mapResponseToDoc)
-        isFetching.value = false
-
-        return
       }
+      else {
+        documents.value = []
+      }
+
+      isFetching.value = false
+
+      return
     }
 
     await useRequest({
@@ -73,12 +76,13 @@ export function useDocumentsSection(props: UseDocumentsSectionProps, emit: (even
 
         if (offlineStore.isTripCached(props.section.tripId)) {
           documents.value = cachedDocs.map(mapResponseToDoc)
-          toast.info('Нет подключения к сети. Загружены офлайн-документы.')
 
           return
         }
 
-        toast.error('Не удалось загрузить документы')
+        if (isAppOnline()) {
+          toast.error('Не удалось загрузить документы')
+        }
       },
     })
     isFetching.value = false

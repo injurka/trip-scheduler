@@ -172,7 +172,10 @@ jobs:
             libappindicator3-dev \
             librsvg2-dev \
             patchelf \
-            libgtk-3-dev
+            libgtk-3-dev \
+            libfuse2 \
+            file \
+            xdg-utils
 
       - name: Cache Rust
         uses: Swatinem/rust-cache@v2
@@ -186,6 +189,8 @@ jobs:
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NO_STRIP: 'true'
+          APPIMAGE_EXTRACT_AND_RUN: '1'
           VITE_APP_VERSION: ${{ github.ref_name }}
           VITE_APP_SERVER_URL: ${{ secrets.VITE_APP_SERVER_URL || 'https://trip-scheduler-api.limited-dissolve.ru' }}
           VITE_APP_CLIENT_URL: https://trip-scheduler.limited-dissolve.ru

@@ -96,6 +96,14 @@ export function configureAndroidManifest(): boolean {
     modified = true
   }
 
+  // 2.1. Ensure MainActivity has android:windowSoftInputMode="adjustResize"
+  const withSoftInput = configureWindowSoftInputMode(content)
+  if (withSoftInput !== content) {
+    content = withSoftInput
+    console.log('[configure-android] Configured MainActivity with android:windowSoftInputMode="adjustResize"')
+    modified = true
+  }
+
   // 3. Add Deep Link intent-filter for scheme "trip-scheduler" inside MainActivity
   const deepLinkFilter = `            <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
@@ -174,6 +182,30 @@ export function configureAndroidManifest(): boolean {
   }
 
   return true
+}
+
+export function configureWindowSoftInputMode(content: string): string {
+  const activityTagRegex = /<activity\b([^>]*\bandroid:name=["']\.MainActivity["'][^>]*)>/s
+  const match = activityTagRegex.exec(content)
+  if (!match)
+    return content
+
+  const fullTag = match[0]
+  const attributes = match[1]
+
+  if (attributes.includes('android:windowSoftInputMode')) {
+    const updatedTag = fullTag.replace(
+      /android:windowSoftInputMode=["'][^"']*["']/,
+      'android:windowSoftInputMode="adjustResize"',
+    )
+    return content.replace(fullTag, updatedTag)
+  }
+
+  const updatedTag = fullTag.replace(
+    '<activity',
+    '<activity\n            android:windowSoftInputMode="adjustResize"',
+  )
+  return content.replace(fullTag, updatedTag)
 }
 
 export function configureAndroidKotlin(content: string): string {

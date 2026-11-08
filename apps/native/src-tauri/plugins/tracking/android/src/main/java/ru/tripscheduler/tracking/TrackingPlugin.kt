@@ -39,6 +39,8 @@ import java.io.File
 )
 class TrackingPlugin(private val activity: Activity) : Plugin(activity) {
 
+    private val ioExecutor = java.util.concurrent.Executors.newSingleThreadExecutor()
+
     init {
         onPushTokenChanged = { token ->
             try {
@@ -74,6 +76,7 @@ class TrackingPlugin(private val activity: Activity) : Plugin(activity) {
     @Command
     fun startTracking(invoke: Invoke) {
         try {
+            TrackingService.markExplicitlyStopped(activity.applicationContext, false)
             val intent = Intent(activity, TrackingService::class.java).apply {
                 action = TrackingService.ACTION_START
             }
@@ -88,6 +91,7 @@ class TrackingPlugin(private val activity: Activity) : Plugin(activity) {
     @Command
     fun stopTracking(invoke: Invoke) {
         try {
+            TrackingService.markExplicitlyStopped(activity.applicationContext, true)
             val intent = Intent(activity, TrackingService::class.java).apply {
                 action = TrackingService.ACTION_STOP
             }
@@ -106,19 +110,34 @@ class TrackingPlugin(private val activity: Activity) : Plugin(activity) {
 
     @Command
     fun getBufferedLocations(invoke: Invoke) {
-        val locations = TrackingService.drainBuffer(activity.applicationContext)
-        invoke.resolveObject(locations.map { locationToMap(it) })
+        val appContext = activity.applicationContext
+        ioExecutor.execute {
+            try {
+                val locations = TrackingService.drainBuffer(appContext)
+                invoke.resolveObject(locations.map { locationToMap(it) })
+            } catch (e: Exception) {
+                invoke.reject("Failed to read GPS buffer: ${e.message}")
+            }
+        }
     }
 
     @Command
     fun acknowledgeBufferedLocations(invoke: Invoke) {
-        try {
+        val timestamps = try {
             val values = invoke.getArgs().getJSONArray("timestamps")
-            val timestamps = (0 until values.length()).map { values.getLong(it) }.toSet()
-            TrackingService.acknowledgeBuffer(activity.applicationContext, timestamps)
-            invoke.resolveObject(true)
+            (0 until values.length()).map { values.getLong(it) }.toSet()
         } catch (e: Exception) {
             invoke.reject("Failed to acknowledge GPS buffer: ${e.message}")
+            return
+        }
+        val appContext = activity.applicationContext
+        ioExecutor.execute {
+            try {
+                TrackingService.acknowledgeBuffer(appContext, timestamps)
+                invoke.resolveObject(true)
+            } catch (e: Exception) {
+                invoke.reject("Failed to acknowledge GPS buffer: ${e.message}")
+            }
         }
     }
 

@@ -5,6 +5,9 @@ import { useDropZone, useFileDialog } from '@vueuse/core'
 import { computed, ref } from 'vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitImageViewer, useImageViewer } from '~/components/01.kit/kit-image-viewer'
+import { ErrorPlaceholder } from '~/components/02.shared/error-placeholder'
+import { useConnectivity } from '~/shared/lib/connectivity'
+import { useOfflineStore } from '~/shared/store/offline.store'
 import { useDocumentsSection } from '../composables/use-documents-section'
 import DocumentEditDialog from './document-edit-dialog.vue'
 import DocumentItem from './document-item.vue'
@@ -78,6 +81,8 @@ const imageViewer = useImageViewer()
 const { open: openFileDialog, onChange: onFileChange, reset: resetFileDialog } = useFileDialog({
   multiple: true,
 })
+const { isOnline } = useConnectivity()
+const offlineStore = useOfflineStore()
 
 const dropZoneRef = ref<HTMLElement>()
 
@@ -97,6 +102,14 @@ const editingDocument = ref<DocumentFile | null>(null)
 const previewDialogVisible = ref(false)
 const previewDocument = ref<DocumentFile | null>(null)
 
+const isOfflineUnavailable = computed(() => {
+  if (isOnline.value)
+    return false
+
+  const entry = offlineStore.savedTrips[props.section.tripId]
+
+  return !entry || entry.documents === undefined
+})
 const imageDocuments = computed(() => {
   return filteredDocuments.value.filter((d) => {
     const ext = d.url.split('.').pop()?.toLowerCase().split('?')[0] || ''
@@ -144,8 +157,15 @@ onFileChange((files) => {
 </script>
 
 <template>
+  <div v-if="isOfflineUnavailable" class="documents-offline-placeholder">
+    <ErrorPlaceholder
+      title="Недоступно офлайн"
+      message="Документы не были сохранены для работы без подключения к сети"
+    />
+  </div>
+
   <DocumentsSkeleton
-    v-if="isFetching && documents.length === 0"
+    v-else-if="isFetching && documents.length === 0"
     :view-mode="viewMode"
     :show-folders="!currentFolderId"
     :readonly="readonly"
@@ -430,6 +450,15 @@ onFileChange((files) => {
     margin: 0 0 1rem 0;
     line-height: 1.4;
   }
+}
+
+.documents-offline-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 400px;
+  padding: 32px 16px;
 }
 
 .empty-illustration {

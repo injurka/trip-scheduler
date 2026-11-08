@@ -33,9 +33,10 @@ const tripHandler: IUploadHandler = {
     const trip = await tripRepository.getById(entityId)
     if (!trip)
       throw new HTTPException(404, { message: 'Путешествие не найдено.' })
-    if (trip.userId !== userId && userRole !== 'admin')
+    const hasAccess = trip.userId === userId || userRole === 'admin' || await tripRepository.hasAccess(entityId, userId)
+    if (!hasAccess)
       throw new HTTPException(403, { message: 'Нет прав.' })
-    await quotaService.checkStorageQuota(userId, buffer.length)
+    await quotaService.checkStorageQuota(trip.userId, buffer.length)
   },
   getFolderPath: ({ entityId, placement }) => `trips/${entityId}/${placement}`,
   async afterSave({ entityId, placement }, { url, size, metadata, variants, mediaType }) {
@@ -427,16 +428,20 @@ export class ImageUploadService {
           where: eq(tripImages.id, imageId),
         })
         if (existing) {
+          const metadataResult = metaResult.metadata
           const currentMeta = (existing.metadata as Record<string, unknown>) || {}
           const currentVariants = (existing.variants as Record<string, string>) || {}
           await db.update(tripImages)
             .set({
-              width: metaResult.metadata?.width || existing.width,
-              height: metaResult.metadata?.height || existing.height,
+              takenAt: metadataResult?.takenAt ?? existing.takenAt,
+              latitude: metadataResult?.latitude ?? existing.latitude,
+              longitude: metadataResult?.longitude ?? existing.longitude,
+              width: metadataResult?.width || existing.width,
+              height: metadataResult?.height || existing.height,
               variants: { ...currentVariants, ...variantUrls },
               metadata: {
                 ...currentMeta,
-                ...(metaResult.metadata?.metadata || {}),
+                ...(metadataResult?.metadata || {}),
                 ...(resolvedThumbhash ? { thumbhash: resolvedThumbhash } : {}),
               },
             })

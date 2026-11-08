@@ -1,6 +1,11 @@
 import type { Ref } from 'vue'
-import { getCurrentInstance, onUnmounted, watch } from 'vue'
+import { getCurrentInstance, nextTick, onUnmounted, watch } from 'vue'
 
+export interface UseDialogHistoryOptions {
+  canClose?: () => boolean
+}
+
+const BACK_TIMEOUT_MS = 150
 const openModalsStack: string[] = []
 let pendingBack: Promise<void> | undefined
 let isUnloading = false
@@ -17,8 +22,48 @@ if (typeof window !== 'undefined') {
   })
 }
 
-export function useDialogHistory(dialogId: string, visible: Ref<boolean>) {
+export function hasOpenModals() {
+  return openModalsStack.length > 0
+}
+
+function waitForPopState(onPop?: () => void): Promise<void> {
+  return new Promise<void>((resolve) => {
+    let settled = false
+    let timeoutId: ReturnType<typeof setTimeout> | undefined
+
+    function finish() {
+      if (settled)
+        return
+
+      settled = true
+
+      if (timeoutId !== undefined)
+        clearTimeout(timeoutId)
+
+      window.removeEventListener('popstate', onPopState)
+      onPop?.()
+
+      // Suspend parent listeners for the entire event dispatch.
+      queueMicrotask(() => {
+        pendingBack = undefined
+        resolve()
+      })
+    }
+
+    function onPopState() {
+      finish()
+    }
+
+    timeoutId = setTimeout(finish, BACK_TIMEOUT_MS)
+    window.addEventListener('popstate', onPopState, { once: true })
+    window.history.back()
+  })
+}
+
+export function useDialogHistory(dialogId: string, visible: Ref<boolean>, options?: UseDialogHistoryOptions) {
   let disposed = false
+  let closingFromPopState = false
+  let didCleanupOnPopState = false
   let savedScroll = { left: 0, top: 0 }
 
   function restoreScrollPosition() {
@@ -27,13 +72,98 @@ export function useDialogHistory(dialogId: string, visible: Ref<boolean>) {
     }
   }
 
-  function handlePopState() {
+  function restoreModalHistoryEntry() {
+    if (!openModalsStack.includes(dialogId))
+      openModalsStack.push(dialogId)
+
+    window.history.pushState({
+      ...window.history.state,
+      scroll: savedScroll,
+      isModal: true,
+      dialogId,
+    }, '')
+    window.addEventListener('popstate', handlePopState)
+  }
+
+  function handlePopState(event: PopStateEvent) {
     if (pendingBack)
       return
 
-    if (openModalsStack.at(-1) === dialogId && visible.value) {
-      visible.value = false
+    const topId = openModalsStack.at(-1)
+
+    if (topId !== dialogId || !visible.value)
+      return
+
+    const state = event.state ?? window.history.state
+
+    if (state?.dialogId === dialogId)
+      return
+
+    if (options?.canClose && !options.canClose()) {
+      restoreModalHistoryEntry()
       restoreScrollPosition()
+
+      return
+    }
+
+    closingFromPopState = true
+    didCleanupOnPopState = false
+    visible.value = false
+    restoreScrollPosition()
+
+    void nextTick(() => {
+      const cleanedUp = didCleanupOnPopState
+      closingFromPopState = false
+      didCleanupOnPopState = false
+
+      if (disposed)
+        return
+
+      if (visible.value && (!cleanedUp || !openModalsStack.includes(dialogId))) {
+        restoreModalHistoryEntry()
+      }
+    })
+  }
+
+  function popModalHistoryEntry() {
+    savedScroll = { left: window.scrollX, top: window.scrollY }
+    pendingBack = waitForPopState(restoreScrollPosition)
+
+    return pendingBack
+  }
+
+  function enqueuePendingBackCleanup() {
+    if (!pendingBack)
+      return
+
+    const waitCurrent = pendingBack
+    const chained: Promise<void> = waitCurrent.then(async () => {
+      if (isUnloading || openModalsStack.includes(dialogId))
+        return
+
+      if (window.history.state?.dialogId === dialogId) {
+        savedScroll = { left: window.scrollX, top: window.scrollY }
+        await waitForPopState(restoreScrollPosition)
+      }
+    }).finally(() => {
+      if (pendingBack === chained)
+        pendingBack = undefined
+    })
+    pendingBack = chained
+  }
+
+  function handleBackDispatch() {
+    if (!pendingBack && window.history.state?.dialogId === dialogId) {
+      void popModalHistoryEntry()
+    }
+    else if (pendingBack) {
+      enqueuePendingBackCleanup()
+    }
+    else if (window.history.state?.isModal) {
+      queueMicrotask(() => {
+        if (!isUnloading && !openModalsStack.includes(dialogId))
+          enqueuePendingBackCleanup()
+      })
     }
   }
 
@@ -44,27 +174,21 @@ export function useDialogHistory(dialogId: string, visible: Ref<boolean>) {
     window.removeEventListener('popstate', handlePopState)
     const index = openModalsStack.indexOf(dialogId)
 
-    // Closing and then unmounting must not navigate back twice.
     if (index < 0)
       return
 
     openModalsStack.splice(index, 1)
 
-    if (!isUnloading && !pendingBack && window.history.state?.dialogId === dialogId) {
-      savedScroll = { left: window.scrollX, top: window.scrollY }
-      pendingBack = new Promise<void>((resolve) => {
-        window.addEventListener('popstate', () => {
-          restoreScrollPosition()
+    if (closingFromPopState) {
+      didCleanupOnPopState = true
 
-          // Suspend parent listeners for the entire event dispatch.
-          queueMicrotask(() => {
-            pendingBack = undefined
-            resolve()
-          })
-        }, { once: true })
-        window.history.back()
-      })
+      return
     }
+
+    if (isUnloading)
+      return
+
+    handleBackDispatch()
   }
 
   async function registerHistory() {

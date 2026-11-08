@@ -13,10 +13,17 @@ async function verifyAccess(
   currentUserId: string,
   currentUserRole: string,
   errorMessage: string,
+  tripId?: string | null,
 ) {
-  if (ownerId !== currentUserId && currentUserRole !== 'admin') {
-    throw createTRPCError('FORBIDDEN', errorMessage)
+  if (ownerId === currentUserId || currentUserRole === 'admin') {
+    return
   }
+
+  if (tripId && await tripRepository.hasAccess(tripId, currentUserId)) {
+    return
+  }
+
+  throw createTRPCError('FORBIDDEN', errorMessage)
 }
 
 export const accessControlService = {
@@ -25,7 +32,7 @@ export const accessControlService = {
     if (!trip) {
       throw createTRPCError('NOT_FOUND', 'Путешествие не найдено.')
     }
-    await verifyAccess(trip.userId, userId, userRole, 'У вас нет прав на доступ к этому путешествию.')
+    await verifyAccess(trip.userId, userId, userRole, 'У вас нет прав на доступ к этому путешествию.', tripId)
     return trip
   },
 
@@ -34,7 +41,7 @@ export const accessControlService = {
     if (!day) {
       throw createTRPCError('NOT_FOUND', `День с ID ${dayId} не найден.`)
     }
-    await verifyAccess(day.trip.userId, userId, userRole, 'У вас нет прав на доступ к этому дню.')
+    await verifyAccess(day.trip.userId, userId, userRole, 'У вас нет прав на доступ к этому дню.', day.tripId)
     return day
   },
 
@@ -43,7 +50,7 @@ export const accessControlService = {
     if (!activity) {
       throw createTRPCError('NOT_FOUND', `Активность с ID ${activityId} не найдена.`)
     }
-    await verifyAccess(activity.day.trip.userId, userId, userRole, 'У вас нет прав на доступ к этой активности.')
+    await verifyAccess(activity.day.trip.userId, userId, userRole, 'У вас нет прав на доступ к этой активности.', activity.day.tripId)
     return activity
   },
 
@@ -52,7 +59,7 @@ export const accessControlService = {
     if (!memory) {
       throw createTRPCError('NOT_FOUND', `Воспоминание с ID ${memoryId} не найдено.`)
     }
-    await verifyAccess(memory.trip.userId, userId, userRole, 'У вас нет прав на доступ к этому воспоминанию.')
+    await verifyAccess(memory.trip.userId, userId, userRole, 'У вас нет прав на доступ к этому воспоминанию.', memory.tripId)
     return memory
   },
 
@@ -61,7 +68,7 @@ export const accessControlService = {
     if (!note) {
       throw createTRPCError('NOT_FOUND', 'Заметка не найдена.')
     }
-    await verifyAccess(note.trip.userId, userId, userRole, 'У вас нет прав на доступ к этой заметке.')
+    await verifyAccess(note.trip.userId, userId, userRole, 'У вас нет прав на доступ к этой заметке.', note.tripId)
     return note
   },
 
@@ -70,7 +77,7 @@ export const accessControlService = {
     if (!section) {
       throw createTRPCError('NOT_FOUND', `Раздел с ID ${sectionId} не найден.`)
     }
-    await verifyAccess(section.trip.userId, userId, userRole, 'У вас нет прав на доступ к этому разделу.')
+    await verifyAccess(section.trip.userId, userId, userRole, 'У вас нет прав на доступ к этому разделу.', section.tripId)
     return section
   },
 
@@ -79,7 +86,7 @@ export const accessControlService = {
     if (!image) {
       throw createTRPCError('NOT_FOUND', 'Файл не найден.')
     }
-    await verifyAccess(image.trip?.userId, userId, userRole, 'У вас нет прав на доступ к этому файлу.')
+    await verifyAccess(image.trip?.userId, userId, userRole, 'У вас нет прав на доступ к этому файлу.', image.tripId)
     return image
   },
 

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { arrow, autoUpdate, flip, offset, shift, useFloating } from '@floating-ui/vue'
-import { onClickOutside, useMediaQuery } from '@vueuse/core'
+import { onClickOutside, useEventListener, useMediaQuery } from '@vueuse/core'
+import { computed, onUnmounted, ref, useSlots } from 'vue'
 
 interface Props {
   text?: string
@@ -14,7 +15,7 @@ const props = withDefaults(defineProps<Props>(), {
 })
 
 const slots = useSlots()
-const isHoverable = useMediaQuery('(hover: hover)')
+const isHoverable = useMediaQuery('(hover: hover) and (pointer: fine)')
 
 const wrapperRef = ref<HTMLElement | null>(null)
 const referenceRef = ref<HTMLElement | null>(null)
@@ -40,7 +41,9 @@ const {
   open: isVisible,
 })
 
+const isTouchActive = ref(false)
 let timeout: ReturnType<typeof setTimeout>
+let touchTimeout: ReturnType<typeof setTimeout>
 
 const floatingStyle = computed(() => {
   const isPositioned = x.value != null && y.value != null
@@ -73,12 +76,14 @@ const arrowStyle = computed(() => {
 })
 
 function show() {
-  if (props.disabled || (!props.text && !slots.content) || !isHoverable.value)
+  if (props.disabled || (!props.text && !slots.content) || !isHoverable.value || isTouchActive.value)
     return
 
   clearTimeout(timeout)
   timeout = setTimeout(() => {
-    isVisible.value = true
+    if (!isTouchActive.value) {
+      isVisible.value = true
+    }
   }, 200)
 }
 function showImmediately() {
@@ -92,13 +97,52 @@ function hide() {
   clearTimeout(timeout)
   isVisible.value = false
 }
-function handleFocusIn() {
-  if (props.disabled || (!props.text && !slots.content))
+function handlePointerEnter(event: PointerEvent) {
+  if (event.pointerType === 'touch' || isTouchActive.value)
+    return
+
+  show()
+}
+function handlePointerLeave(event: PointerEvent) {
+  if (event.pointerType === 'touch')
+    return
+
+  hide()
+}
+function handlePointerDown(event: PointerEvent) {
+  if (event.pointerType === 'touch') {
+    isTouchActive.value = true
+    hide()
+    clearTimeout(touchTimeout)
+    touchTimeout = setTimeout(() => {
+      isTouchActive.value = false
+    }, 500)
+  }
+}
+function hasKeyboardFocus(target: HTMLElement | null): boolean {
+  if (target?.matches(':focus-visible'))
+    return true
+
+  const wrapper = wrapperRef.value
+
+  if (!wrapper)
+    return false
+
+  return wrapper.matches(':focus-visible') || Boolean(wrapper.querySelector(':focus-visible'))
+}
+
+function handleFocusIn(event: FocusEvent) {
+  if (props.disabled || (!props.text && !slots.content) || isTouchActive.value)
     return
 
   clearTimeout(timeout)
   timeout = setTimeout(() => {
-    isVisible.value = true
+    if (isTouchActive.value)
+      return
+
+    if (hasKeyboardFocus(event.target as HTMLElement | null)) {
+      isVisible.value = true
+    }
   }, 200)
 }
 function handleClick(event: MouseEvent) {
@@ -117,7 +161,7 @@ function handleClick(event: MouseEvent) {
   if (isVisible.value) {
     hide()
   }
-  else {
+  else if (!isTouchActive.value) {
     showImmediately()
   }
 }
@@ -126,9 +170,35 @@ onClickOutside(wrapperRef, () => {
   if (isVisible.value)
     hide()
 }, { ignore: [floatingRef] })
+useEventListener(
+  window,
+  'scroll',
+  () => {
+    if (isVisible.value)
+      hide()
+  },
+  { capture: true, passive: true },
+)
+useEventListener(window, 'keydown', (event: KeyboardEvent) => {
+  if (event.key === 'Escape' && isVisible.value)
+    hide()
+})
+useEventListener(window, 'blur', () => {
+  if (isVisible.value)
+    hide()
+})
+useEventListener(window, 'popstate', () => {
+  if (isVisible.value)
+    hide()
+})
+useEventListener(window, 'hashchange', () => {
+  if (isVisible.value)
+    hide()
+})
 
 onUnmounted(() => {
   hide()
+  clearTimeout(touchTimeout)
 })
 </script>
 
@@ -136,8 +206,9 @@ onUnmounted(() => {
   <div
     ref="wrapperRef"
     class="kit-tooltip-wrapper"
-    @mouseenter="show"
-    @mouseleave="hide"
+    @pointerenter="handlePointerEnter"
+    @pointerleave="handlePointerLeave"
+    @pointerdown="handlePointerDown"
     @focusin="handleFocusIn"
     @focusout="hide"
     @click="handleClick"

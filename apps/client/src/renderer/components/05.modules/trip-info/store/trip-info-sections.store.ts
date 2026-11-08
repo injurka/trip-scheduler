@@ -2,7 +2,23 @@ import type { TripSection } from '~/shared/types/models/trip'
 import { defineStore } from 'pinia'
 import { useTripPlanStore } from '~/components/04.features/trip-info/trip-plan'
 import { useRequest } from '~/plugins/request'
+import { useOfflineStore } from '~/shared/store/offline.store'
 import { TripSectionType } from '~/shared/types/models/trip'
+
+const inFlightSectionTokens = new Map<string, symbol>()
+const staleTimestampSectionIds = new Set<string>()
+const uncommittedSectionSnapshots = new Map<string, TripSection>()
+
+function syncOfflineSectionsIfNeeded(tripId: string | null | undefined, sections: TripSection[]) {
+  if (!tripId)
+    return
+
+  const offlineStore = useOfflineStore()
+
+  if (offlineStore.savedTrips[tripId]) {
+    void offlineStore.syncSavedTripSections(tripId, sections)
+  }
+}
 
 export enum ETripSectionsKeys {
   CREATE = 'trip-section:create',
@@ -120,6 +136,8 @@ export const useTripSectionsStore = defineStore('tripSections', {
           if (index !== -1 && createdSection) {
             this.sections[index] = createdSection as TripSection
           }
+
+          syncOfflineSectionsIfNeeded(tripPlanStore.currentTripId, this.sections)
         },
         onError: ({ error }) => {
           this.sections = this.sections.filter(s => s.id !== tempId)
@@ -134,8 +152,22 @@ export const useTripSectionsStore = defineStore('tripSections', {
       if (index === -1)
         return
 
-      const originalSection = { ...this.sections[index] }
+      if (!uncommittedSectionSnapshots.has(section.id)) {
+        uncommittedSectionSnapshots.set(section.id, { ...this.sections[index] })
+      }
+
+      const originalSection = uncommittedSectionSnapshots.get(section.id)!
       this.sections[index] = section
+
+      if (inFlightSectionTokens.has(section.id)) {
+        staleTimestampSectionIds.add(section.id)
+      }
+
+      const token = Symbol(section.id)
+      inFlightSectionTokens.set(section.id, token)
+      const expectedUpdatedAt = staleTimestampSectionIds.has(section.id)
+        ? undefined
+        : section.updatedAt
 
       await useRequest({
         key: `${ETripSectionsKeys.UPDATE}:${section.id}`,
@@ -144,14 +176,53 @@ export const useTripSectionsStore = defineStore('tripSections', {
           title: section.title,
           icon: section.icon,
           content: section.content,
-          expectedUpdatedAt: section.updatedAt,
+          expectedUpdatedAt,
         }),
+        // eslint-disable-next-line complexity
         onSuccess: (updatedSection) => {
-          if (updatedSection && this.sections[index]?.updatedAt === section.updatedAt)
-            this.sections[index] = updatedSection as TripSection
+          if (inFlightSectionTokens.get(section.id) === token) {
+            inFlightSectionTokens.delete(section.id)
+          }
+
+          staleTimestampSectionIds.delete(section.id)
+          uncommittedSectionSnapshots.delete(section.id)
+
+          const currentIndex = this.sections.findIndex(s => s.id === section.id)
+
+          if (updatedSection && currentIndex !== -1) {
+            const currentLocal = this.sections[currentIndex]
+            this.sections[currentIndex] = {
+              ...(updatedSection as TripSection),
+              title: currentLocal?.title ?? (updatedSection as TripSection).title,
+              icon: currentLocal?.icon ?? (updatedSection as TripSection).icon,
+              content: currentLocal?.content ?? (updatedSection as TripSection).content,
+            }
+          }
+
+          const tripId = section.tripId || useTripPlanStore().currentTripId
+          syncOfflineSectionsIfNeeded(tripId, this.sections)
+        },
+        onAbort: () => {
+          staleTimestampSectionIds.add(section.id)
+
+          if (inFlightSectionTokens.get(section.id) === token) {
+            inFlightSectionTokens.delete(section.id)
+          }
         },
         onError: ({ error }) => {
-          this.sections[index] = originalSection
+          if (inFlightSectionTokens.get(section.id) === token) {
+            inFlightSectionTokens.delete(section.id)
+          }
+
+          staleTimestampSectionIds.delete(section.id)
+          uncommittedSectionSnapshots.delete(section.id)
+
+          const currentIndex = this.sections.findIndex(s => s.id === section.id)
+
+          if (currentIndex !== -1) {
+            this.sections[currentIndex] = originalSection
+          }
+
           useToast().error(`Ошибка при обновлении раздела: ${error.customMessage}`)
         },
       })
@@ -213,6 +284,10 @@ export const useTripSectionsStore = defineStore('tripSections', {
       await useRequest({
         key: `${ETripSectionsKeys.DELETE}:${sectionId}`,
         fn: db => db.tripSections.delete(sectionId),
+        onSuccess: () => {
+          const tripId = removedSection.tripId || useTripPlanStore().currentTripId
+          syncOfflineSectionsIfNeeded(tripId, this.sections)
+        },
         onError: ({ error }) => {
           this.sections.splice(index, 0, removedSection)
           useToast().error(`Ошибка при удалении раздела: ${error.customMessage}`)
@@ -222,6 +297,9 @@ export const useTripSectionsStore = defineStore('tripSections', {
 
     reset() {
       this.sections = []
+      inFlightSectionTokens.clear()
+      staleTimestampSectionIds.clear()
+      uncommittedSectionSnapshots.clear()
     },
   },
 })

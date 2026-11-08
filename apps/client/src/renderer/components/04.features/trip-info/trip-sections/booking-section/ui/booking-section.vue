@@ -39,6 +39,8 @@ const {
   nextTimelineEntry,
   bookingHighlightMap,
   timelineHighlightMap,
+  timelineConflictMap,
+  bookingConflictMap,
   addBooking,
   addCompletedBooking,
   deleteBooking,
@@ -190,7 +192,14 @@ function getCardComponent(type: Booking['type']) {
                   :aria-label="timelineHighlightMap[entry.id] === 'active' ? 'Текущее бронирование' : timelineHighlightMap[entry.id] === 'next' ? 'Следующее бронирование' : undefined"
                   :data-entry-id="entry.id"
                   tabindex="-1"
-                  :class="[`timeline-tone-${entry.booking.type}`, { 'is-active': timelineHighlightMap[entry.id] === 'active', 'is-next': timelineHighlightMap[entry.id] === 'next' }]"
+                  :class="[
+                    `timeline-tone-${entry.booking.type}`,
+                    {
+                      'is-active': timelineHighlightMap[entry.id] === 'active',
+                      'is-next': timelineHighlightMap[entry.id] === 'next',
+                      'has-conflict': (timelineConflictMap[entry.id]?.length || 0) > 0,
+                    },
+                  ]"
                 >
                   <div class="timeline-marker" aria-hidden="true">
                     <Icon :icon="entry.icon" />
@@ -202,6 +211,20 @@ function getCardComponent(type: Booking['type']) {
                       <span v-else-if="entry.booking.type === 'hotel' && entry.date">Заезд</span>
                       <span v-else-if="entry.date">Время не указано</span>
                       <span v-if="entry.sublabel" class="timeline-sublabel">{{ entry.sublabel }}</span>
+                      <div
+                        v-if="timelineConflictMap[entry.id]?.length"
+                        class="timeline-conflicts"
+                      >
+                        <span
+                          v-for="(warning, wIdx) in timelineConflictMap[entry.id]"
+                          :key="`${entry.id}-warn-${wIdx}`"
+                          class="timeline-conflict-badge"
+                          :class="`is-${warning.severity}`"
+                        >
+                          <Icon icon="mdi:alert-outline" />
+                          <span>{{ warning.message }}</span>
+                        </span>
+                      </div>
                     </div>
                     <Component
                       :is="getCardComponent(entry.booking.type)"
@@ -231,14 +254,27 @@ function getCardComponent(type: Booking['type']) {
             @update:model-value="updateBookingsForGroup(tab.id, $event)"
           >
             <template #item="{ element: booking }">
-              <component
-                :is="getCardComponent(booking.type)"
-                :booking="booking"
-                :readonly="readonly"
-                :highlight-status="bookingHighlightMap[booking.id]"
-                @delete="deleteBooking(booking.id)"
-                @update:booking="updateBooking"
-              />
+              <div class="booking-group-item">
+                <div v-if="bookingConflictMap[booking.id]?.length" class="timeline-conflicts booking-tab-conflicts">
+                  <span
+                    v-for="(warning, wIdx) in bookingConflictMap[booking.id]"
+                    :key="`${booking.id}-warn-${wIdx}`"
+                    class="timeline-conflict-badge"
+                    :class="`is-${warning.severity}`"
+                  >
+                    <Icon icon="mdi:alert-outline" />
+                    <span>{{ warning.message }}</span>
+                  </span>
+                </div>
+                <component
+                  :is="getCardComponent(booking.type)"
+                  :booking="booking"
+                  :readonly="readonly"
+                  :highlight-status="bookingHighlightMap[booking.id]"
+                  @delete="deleteBooking(booking.id)"
+                  @update:booking="updateBooking"
+                />
+              </div>
             </template>
           </draggable>
         </template>
@@ -596,6 +632,44 @@ function getCardComponent(type: Booking['type']) {
 .timeline-sublabel {
   color: var(--fg-tertiary-color);
   font-weight: 500;
+}
+
+.booking-group-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.timeline-conflicts {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  align-items: center;
+}
+
+.booking-tab-conflicts {
+  margin-bottom: 0.1rem;
+}
+
+.timeline-conflict-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.15rem 0.55rem;
+  border-radius: var(--r-full);
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1.3;
+  color: #d97706;
+  background-color: color-mix(in srgb, #f59e0b 14%, transparent);
+  border: 1px solid color-mix(in srgb, #f59e0b 35%, transparent);
+
+  &.is-error {
+    color: var(--fg-error-color);
+    background-color: color-mix(in srgb, var(--fg-error-color) 12%, transparent);
+    border-color: color-mix(in srgb, var(--fg-error-color) 35%, transparent);
+  }
 }
 
 @include media-down(sm) {

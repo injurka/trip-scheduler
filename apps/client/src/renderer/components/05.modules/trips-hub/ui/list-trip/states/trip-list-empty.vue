@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import { Icon } from '@iconify/vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
+import { useConnectivity } from '~/shared/lib/connectivity'
 import { TripsHubKey } from '../../../composables/use-trips-hub'
+
+const { isOnline } = useConnectivity()
 
 const tripsHub = inject(TripsHubKey)
 
@@ -12,7 +15,22 @@ if (!tripsHub) {
 
 <template>
   <div class="state-container">
-    <div class="content">
+    <div v-if="!isOnline" class="content">
+      <Icon
+        icon="mdi:wifi-off"
+        class="image"
+        width="120"
+        height="120"
+      />
+      <h3 class="title">
+        Нет сохранённых путешествий
+      </h3>
+      <p class="message">
+        В офлайн-режиме отображаются только поездки, сохранённые заранее на этом устройстве.
+      </p>
+    </div>
+
+    <div v-else class="content">
       <Icon
         icon="mdi:package-variant-closed-remove"
         class="image"

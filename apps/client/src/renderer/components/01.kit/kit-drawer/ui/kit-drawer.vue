@@ -7,6 +7,8 @@ import {
   DialogPortal,
   DialogRoot,
 } from 'reka-ui'
+import { useId } from 'vue'
+import { hasOpenModals, useDialogHistory } from '~/components/01.kit/kit-dialog-with-close/composables/use-dialog-history'
 
 interface Props {
   side?: 'left' | 'right' | 'top' | 'bottom'
@@ -17,27 +19,29 @@ interface Props {
 defineOptions({
   inheritAttrs: false,
 })
-
 const props = withDefaults(defineProps<Props>(), {
   side: 'left',
   width: '340px',
 })
 const visible = defineModel<boolean>('open', { required: true })
 
+const dialogId = useId()
+
 let returnFocus: HTMLElement | null = null
 
 function handleOpenAutoFocus() {
   returnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null
 }
-
 function handleCloseAutoFocus(event: Event) {
   event.preventDefault()
 
-  if (returnFocus?.isConnected)
+  if (returnFocus?.isConnected && !hasOpenModals())
     returnFocus.focus({ preventScroll: true })
 
   returnFocus = null
 }
+
+useDialogHistory(dialogId, visible)
 </script>
 
 <template>
@@ -98,9 +102,10 @@ function handleCloseAutoFocus(event: Event) {
 
   &.drawer--left {
     top: 0;
-    bottom: 0;
+    // Keyboard-Aware: нижний край — граница видимой области над клавиатурой
+    bottom: var(--keyboard-inset-height, 0px);
     left: 0;
-    max-height: 100dvh;
+    max-height: var(--visible-height, 100dvh);
     max-width: 80vw;
     border-right: 1px solid var(--border-secondary-color);
     padding-top: var(--safe-area-inset-top, env(safe-area-inset-top, 0px));
@@ -115,9 +120,10 @@ function handleCloseAutoFocus(event: Event) {
 
   &.drawer--right {
     top: 0;
-    bottom: 0;
+    // Keyboard-Aware: нижний край — граница видимой области над клавиатурой
+    bottom: var(--keyboard-inset-height, 0px);
     right: 0;
-    max-height: 100dvh;
+    max-height: var(--visible-height, 100dvh);
     max-width: 80vw;
     border-left: 1px solid var(--border-secondary-color);
     padding-top: var(--safe-area-inset-top, env(safe-area-inset-top, 0px));
@@ -146,11 +152,12 @@ function handleCloseAutoFocus(event: Event) {
   }
 
   &.drawer--bottom {
-    bottom: 0;
+    // Keyboard-Aware: шторка стоит на клавиатуре и не выше видимой области
+    bottom: var(--keyboard-inset-height, 0px);
     left: 0;
     right: 0;
     height: auto;
-    max-height: calc(80vh - var(--safe-area-inset-bottom, 0px));
+    max-height: min(calc(80vh - var(--safe-area-inset-bottom, 0px)), calc(var(--visible-height, 100dvh) - 8px));
     border-top: 1px solid var(--border-secondary-color);
     padding-bottom: var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px));
     &[data-state='open'] {

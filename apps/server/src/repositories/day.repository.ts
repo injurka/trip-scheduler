@@ -52,6 +52,9 @@ export const dayRepository = {
       with: {
         trip: {
           columns: {
+            id: true,
+            title: true,
+            description: true,
             userId: true,
           },
         },

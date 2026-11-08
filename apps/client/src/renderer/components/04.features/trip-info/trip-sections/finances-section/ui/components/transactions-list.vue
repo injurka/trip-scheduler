@@ -75,9 +75,9 @@ const groupedTransactions = computed<DayGroup[]>(() => {
       let dayOfWeek = ''
 
       if (tx.date) {
-        const d = new Date(tx.date)
-        dateFormatted = d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })
-        const rawWd = d.toLocaleDateString('ru-RU', { weekday: 'short' })
+        const d = new Date(`${tx.date.slice(0, 10)}T00:00:00Z`)
+        dateFormatted = d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', timeZone: 'UTC' })
+        const rawWd = d.toLocaleDateString('ru-RU', { weekday: 'short', timeZone: 'UTC' })
         dayOfWeek = rawWd.charAt(0).toUpperCase() + rawWd.slice(1)
       }
 
@@ -110,22 +110,27 @@ const totalSearchedAmount = computed(() => {
 function getCategory(id: string | null, categories: Category[]) {
   return categories.find(c => c.id === (id || 'cat-other'))
 }
+function convertTransactionToMainCurrency(transaction: Transaction): number | null {
+  if (transaction.currency === props.settings.mainCurrency)
+    return transaction.amount
+
+  const rate = props.settings.exchangeRates[transaction.currency]
+
+  return rate && rate > 0 ? transaction.amount * rate : null
+}
 function getConvertedAmountInMainCurrency(transaction: Transaction): string | null {
   if (transaction.currency === props.settings.mainCurrency)
     return null
 
-  const rate = props.settings.exchangeRates[transaction.currency] || 1
-  const convertedAmount = transaction.amount * rate
+  const convertedAmount = convertTransactionToMainCurrency(transaction)
+
+  if (convertedAmount === null)
+    return null
 
   return formatCurrency(convertedAmount, props.settings.mainCurrency)
 }
 function getAmountInMainCurrency(transaction: Transaction): number {
-  if (transaction.currency === props.settings.mainCurrency)
-    return transaction.amount
-
-  const rate = props.settings.exchangeRates[transaction.currency] || 1
-
-  return transaction.amount * rate
+  return convertTransactionToMainCurrency(transaction) ?? 0
 }
 function getTxWord(count: number): string {
   const mod10 = count % 10
@@ -343,7 +348,7 @@ function handleTransactionAction(action: string, tx: Transaction) {
                 <span class="original-amount" :class="{ 'is-planned': tx.status === 'planned' }">
                   -{{ formatCurrency(tx.amount, tx.currency) }}
                 </span>
-                <span v-if="tx.currency !== settings.mainCurrency" class="converted-amount">
+                <span v-if="getConvertedAmountInMainCurrency(tx)" class="converted-amount">
                   ~{{ getConvertedAmountInMainCurrency(tx) }}
                 </span>
               </div>

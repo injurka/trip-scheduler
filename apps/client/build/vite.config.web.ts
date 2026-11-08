@@ -13,6 +13,7 @@ import { autoImportOptionsCfg } from './cfg/auto-import.ts'
 import { iconsCfg } from './cfg/icons.ts'
 import { pwaCfg } from './cfg/pwa.ts'
 import { resolveAppVersion, visualizerPlugin } from './lib/helpers.ts'
+import { postcssHoverMedia } from './lib/postcss-hover-media.ts'
 import { buildStaticPages } from './lib/static-pages.ts'
 import { getVendorChunkName } from './vendor-chunks.ts'
 
@@ -36,7 +37,12 @@ export default defineConfig({
       root: resolve(import.meta.dirname, '../src/renderer'),
       plugins: [Vue(), AutoImport({ ...autoImportOptionsCfg, dts: false, eslintrc: { enabled: false } })],
       resolve: { alias: { '~': resolve(import.meta.dirname, '../src/renderer') } },
-      css: { preprocessorOptions: { scss: { additionalData: `@use '~/assets/scss/_setup.scss' as *;` } } },
+      css: {
+        postcss: {
+          plugins: [postcssHoverMedia()],
+        },
+        preprocessorOptions: { scss: { additionalData: `@use '~/assets/scss/_setup.scss' as *;` } },
+      },
     })),
     Vue(),
     React(),
@@ -54,6 +60,9 @@ export default defineConfig({
     ...visualizerPlugin('renderer'),
   ],
   css: {
+    postcss: {
+      plugins: [postcssHoverMedia()],
+    },
     preprocessorOptions: {
       scss: {
         additionalData: `@use '~/assets/scss/_setup.scss' as *;`,

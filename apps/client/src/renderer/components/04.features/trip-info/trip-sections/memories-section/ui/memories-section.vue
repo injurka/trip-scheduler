@@ -168,8 +168,9 @@ onMounted(() => {
     background-color: var(--bg-primary-color);
     padding: 16px 24px;
     overflow-y: auto;
-    height: 100vh;
-    height: 100dvh;
+    // Keyboard-Aware: нижняя граница — край видимой области над клавиатурой
+    bottom: var(--keyboard-inset-height, 0px);
+    height: auto;
     --memories-group-header-top: 12px;
 
     @media (max-width: 768px) {

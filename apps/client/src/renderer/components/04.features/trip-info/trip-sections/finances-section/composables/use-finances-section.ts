@@ -45,20 +45,24 @@ export function useFinancesSection(props: UseFinancesSectionProps, emit: (event:
   const confirm = useConfirm()
   const content = computed(() => props.section.content)
 
-  const transactions = ref<Transaction[]>(JSON.parse(JSON.stringify(content.value?.transactions || [])).map((tx: Transaction) => {
-    const normalizedPhotos = normalizeTransactionPhotos(tx.photos)
-    const mapped: Transaction = {
-      ...tx,
-      status: tx.status || 'paid',
-      source: tx.source || 'manual',
-      ...(normalizedPhotos ? { photos: normalizedPhotos } : {}),
-    }
+  function mapIncomingTransactions(rawTransactions?: Transaction[]): Transaction[] {
+    return JSON.parse(JSON.stringify(rawTransactions || [])).map((tx: Transaction) => {
+      const normalizedPhotos = normalizeTransactionPhotos(tx.photos)
+      const mapped: Transaction = {
+        ...tx,
+        status: tx.status || 'paid',
+        source: tx.source || 'manual',
+        ...(normalizedPhotos ? { photos: normalizedPhotos } : {}),
+      }
 
-    if (!normalizedPhotos)
-      delete mapped.photos
+      if (!normalizedPhotos)
+        delete mapped.photos
 
-    return mapped
-  }))
+      return mapped
+    })
+  }
+
+  const transactions = ref<Transaction[]>(mapIncomingTransactions(content.value?.transactions))
   const categories = ref<Category[]>(JSON.parse(JSON.stringify(content.value?.categories || DEFAULT_CATEGORIES)))
   const settings = ref<FinancesSettings>(JSON.parse(JSON.stringify(content.value?.settings || DEFAULT_SETTINGS)))
   const selectedCategoryFilters = ref<string[]>([])
@@ -72,16 +76,31 @@ export function useFinancesSection(props: UseFinancesSectionProps, emit: (event:
   const isSettingsOpen = ref(false)
   const isAiCreatorOpen = ref(false)
   const transactionToEdit = ref<Transaction | null>(null)
+  let isSyncingFromProps = false
 
   const debouncedUpdate = useDebounceFn(() => {
+    if (props.readonly || isSyncingFromProps)
+      return
+
+    const currentPayload = {
+      schemaVersion: 1 as const,
+      transactions: transactions.value,
+      categories: categories.value,
+      settings: settings.value,
+    }
+    const incomingPayload = {
+      schemaVersion: 1 as const,
+      transactions: mapIncomingTransactions(props.section.content?.transactions),
+      categories: props.section.content?.categories || DEFAULT_CATEGORIES,
+      settings: props.section.content?.settings || DEFAULT_SETTINGS,
+    }
+
+    if (JSON.stringify(currentPayload) === JSON.stringify(incomingPayload))
+      return
+
     emit('updateSection', {
       ...props.section,
-      content: {
-        schemaVersion: 1,
-        transactions: transactions.value,
-        categories: categories.value,
-        settings: settings.value,
-      },
+      content: JSON.parse(JSON.stringify(currentPayload)),
     })
   }, 700)
 
@@ -220,7 +239,7 @@ export function useFinancesSection(props: UseFinancesSectionProps, emit: (event:
   }
 
   const missingCurrencyCodes = computed(() => [...new Set(transactions.value
-    .filter(tx => tx.currency !== settings.value.mainCurrency && !settings.value.exchangeRates[tx.currency])
+    .filter(tx => tx.currency !== settings.value.mainCurrency && !(settings.value.exchangeRates[tx.currency] > 0))
     .map(tx => tx.currency))])
 
   const sumInMainCurrency = (items: Transaction[]) => items.reduce((sum, tx) => sum + (convertToMainCurrency(tx.amount, tx.currency) || 0), 0)
@@ -464,6 +483,25 @@ export function useFinancesSection(props: UseFinancesSectionProps, emit: (event:
       selectedCategoryFilters.value.push(categoryId)
     }
   }
+
+  watch(() => props.section.content, (newContent) => {
+    const nextTransactions = mapIncomingTransactions(newContent?.transactions)
+    const nextCategories = JSON.parse(JSON.stringify(newContent?.categories || DEFAULT_CATEGORIES))
+    const nextSettings = JSON.parse(JSON.stringify(newContent?.settings || DEFAULT_SETTINGS))
+
+    isSyncingFromProps = true
+
+    if (JSON.stringify(transactions.value) !== JSON.stringify(nextTransactions))
+      transactions.value = nextTransactions
+
+    if (JSON.stringify(categories.value) !== JSON.stringify(nextCategories))
+      categories.value = nextCategories
+
+    if (JSON.stringify(settings.value) !== JSON.stringify(nextSettings))
+      settings.value = nextSettings
+
+    isSyncingFromProps = false
+  }, { deep: true })
 
   watch([transactions, categories, settings], debouncedUpdate, { deep: true })
 

@@ -1,5 +1,10 @@
 import { describe, expect, test } from 'bun:test'
-import { addFirebaseGradlePlugin, configureAndroidKotlin, configureGradleWrapperProperties } from './configure-android'
+import {
+  addFirebaseGradlePlugin,
+  configureAndroidKotlin,
+  configureGradleWrapperProperties,
+  configureWindowSoftInputMode,
+} from './configure-android'
 
 const ROOT_BUILD = `buildscript {
     repositories {
@@ -114,3 +119,36 @@ zipStorePath=wrapper/dists
     expect(configureGradleWrapperProperties(withoutTimeout)).toBe(withoutTimeout)
   })
 })
+
+describe('Android windowSoftInputMode configuration', () => {
+  const MANIFEST_SNIPPET = `<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application>
+        <activity
+            android:name=".MainActivity"
+            android:label="@string/app_name">
+        </activity>
+    </application>
+</manifest>`
+
+  test('adds adjustResize to MainActivity when attribute is missing', () => {
+    const configured = configureWindowSoftInputMode(MANIFEST_SNIPPET)
+    expect(configured).toContain('android:windowSoftInputMode="adjustResize"')
+    expect(configureWindowSoftInputMode(configured)).toBe(configured)
+  })
+
+  test('replaces existing adjustPan with adjustResize', () => {
+    const withPan = MANIFEST_SNIPPET.replace(
+      'android:name=".MainActivity"',
+      'android:name=".MainActivity"\n            android:windowSoftInputMode="adjustPan"',
+    )
+    const configured = configureWindowSoftInputMode(withPan)
+    expect(configured).toContain('android:windowSoftInputMode="adjustResize"')
+    expect(configured).not.toContain('adjustPan')
+  })
+
+  test('leaves manifest unchanged if MainActivity tag is absent', () => {
+    const withoutActivity = '<manifest><application></application></manifest>'
+    expect(configureWindowSoftInputMode(withoutActivity)).toBe(withoutActivity)
+  })
+})
+

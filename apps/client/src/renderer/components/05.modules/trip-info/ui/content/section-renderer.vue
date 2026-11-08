@@ -2,8 +2,10 @@
 import type { Component } from 'vue'
 import type { IDay } from '~/components/04.features/trip-info/trip-plan/models/types'
 import type { TripSection } from '~/shared/types/models/trip'
+import { ErrorPlaceholder } from '~/components/02.shared/error-placeholder'
 import { DocumentsSkeleton } from '~/components/04.features/trip-info/trip-sections/documents-section/ui'
 import { useModuleStore } from '~/components/05.modules/trip-info/composables/use-trip-info-module'
+import { useConnectivity } from '~/shared/lib/connectivity'
 import { lazyComponent } from '~/shared/lib/lazy-component'
 import { TripSectionType } from '~/shared/types/models/trip'
 
@@ -15,6 +17,7 @@ interface Props {
 const props = defineProps<Props>()
 
 const { sections: sectionsStore, ui: uiStore } = useModuleStore(['sections', 'ui'])
+const { isOnline } = useConnectivity()
 
 const TripMapSection = lazyComponent(() => import('~/components/04.features/trip-info/trip-sections/map-section/ui/trip-map-section.vue'), { showLoader: true })
 const componentsMap: Partial<Record<TripSectionType, Component>> = {
@@ -57,7 +60,14 @@ function handleSectionUpdate(updatedSectionData: TripSection) {
   </div>
 
   <div v-else class="section-not-found">
-    Раздел не найден.
+    <ErrorPlaceholder
+      v-if="!isOnline"
+      title="Недоступно офлайн"
+      message="Этот раздел не был сохранён для работы без подключения к сети"
+    />
+    <template v-else>
+      Раздел не найден.
+    </template>
   </div>
 </template>
 

@@ -48,18 +48,18 @@ function handleImportSelect(activity: Activity) {
       <template v-if="!isViewMode">
         <div class="empty-actions">
           <button class="btn-upload" @click="emit('upload')">
-            <Icon icon="mdi:camera-plus-outline" class="btn-icon" />
+            <Icon icon="mdi:camera-outline" class="btn-icon" />
             <span>Загрузить медиа</span>
           </button>
 
           <div class="btn-secondary-group">
             <button class="btn-secondary" @click="emit('addActivity')">
-              <Icon icon="mdi:plus-box-outline" class="btn-icon" />
+              <Icon icon="mdi:calendar-plus-outline" class="btn-icon" />
               <span>Активность</span>
             </button>
 
             <button class="btn-secondary" @click="emit('addNote')">
-              <Icon icon="mdi:note-plus-outline" class="btn-icon" />
+              <Icon icon="mdi:notebook-edit-outline" class="btn-icon" />
               <span>Заметка</span>
             </button>
 
@@ -69,7 +69,7 @@ function handleImportSelect(activity: Activity) {
                 :disabled="importOptions.length === 0"
                 @click="showImportSheet = true"
               >
-                <Icon icon="mdi:import" class="btn-icon" />
+                <Icon icon="mdi:file-import-outline" class="btn-icon" />
                 <span>Из плана</span>
               </button>
 
@@ -98,7 +98,7 @@ function handleImportSelect(activity: Activity) {
             >
               <template #trigger>
                 <button class="btn-secondary" :disabled="importOptions.length === 0">
-                  <Icon icon="mdi:import" class="btn-icon" />
+                  <Icon icon="mdi:file-import-outline" class="btn-icon" />
                   <span>Из плана</span>
                 </button>
               </template>

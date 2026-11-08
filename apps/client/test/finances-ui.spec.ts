@@ -2,9 +2,10 @@ import type { FinancesSectionContent, Transaction } from '../src/renderer/compon
 import { FinanceTransactionSchema } from '@injurka/finance-contract'
 import { mount, shallowMount } from '@vue/test-utils'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { defineComponent, h, nextTick } from 'vue'
+import { defineComponent, h, nextTick, ref } from 'vue'
 import { normalizeTransactionPhotos, useFinancesSection } from '../src/renderer/components/04.features/trip-info/trip-sections/finances-section/composables/use-finances-section'
 import Dashboard from '../src/renderer/components/04.features/trip-info/trip-sections/finances-section/ui/components/finances-dashboard.vue'
+import FinancesDateFilter from '../src/renderer/components/04.features/trip-info/trip-sections/finances-section/ui/components/finances-date-filter.vue'
 import TransactionsList from '../src/renderer/components/04.features/trip-info/trip-sections/finances-section/ui/components/transactions-list.vue'
 import FinancesSection from '../src/renderer/components/04.features/trip-info/trip-sections/finances-section/ui/finances-section.vue'
 
@@ -17,7 +18,7 @@ vi.mock('vue-chartjs', () => ({
 }))
 // Editors are outside the filtering flow and require API services.
 vi.mock('../src/renderer/components/04.features/trip-info/trip-sections/finances-section/ui/components/ai-finances-creator.vue', () => ({ default: { render: () => null } }))
-vi.mock('../src/renderer/components/04.features/trip-info/trip-sections/finances-section/ui/components/transaction-form-dialog.vue', () => ({ default: { render: () => null } }))
+vi.mock('../src/renderer/components/04.features/trip-info/trip-sections/finances-section/ui/components/transaction-form-dialog.vue', () => ({ default: { name: 'TransactionFormDialog', props: ['visible'], render: () => null } }))
 
 function transaction(
   id: string,
@@ -314,5 +315,195 @@ describe('finance filters and reactive charts', () => {
     expect(viewer.props('images')).toHaveLength(3)
     expect(viewer.props('images')[0].caption).toContain('Том Ям')
     expect(viewer.props('images')[0].caption).toContain('Чек из кафе')
+  })
+
+  it('renders IMP-027 redesigned control panel and triggers actions correctly', async () => {
+    const wrapper = mount(FinancesSection, {
+      props: { section: { id: 'finance', type: 'finances', content: content() }, readonly: false },
+      global: {
+        stubs: {
+          FinancesDashboard: true,
+          TransactionsList: true,
+          AiFinancesCreator: true,
+          CategoryManagerDialog: { name: 'CategoryManagerDialog', props: ['visible'], render: () => null },
+          BudgetSettingsDialog: { name: 'BudgetSettingsDialog', props: ['visible'], render: () => null },
+          KitCalendarRange: true,
+        },
+      },
+    })
+    wrappers.push(wrapper)
+
+    const controlCard = wrapper.find('.finances-control-card')
+    expect(controlCard.exists()).toBe(true)
+    expect(controlCard.find('.control-card-title').text()).toBe('Финансы')
+
+    // 1. "Добавить трату"
+    const addBtn = wrapper.find('.action-primary')
+    expect(addBtn.exists()).toBe(true)
+    expect(addBtn.text()).toContain('Добавить трату')
+    expect(wrapper.findComponent({ name: 'TransactionFormDialog' }).props('visible')).toBe(false)
+    await addBtn.trigger('click')
+    expect(wrapper.findComponent({ name: 'TransactionFormDialog' }).props('visible')).toBe(true)
+
+    // 2. "По чеку"
+    const aiBtn = wrapper.find('.action-secondary')
+    expect(aiBtn.exists()).toBe(true)
+    expect(aiBtn.text()).toContain('По чеку')
+    expect(aiBtn.classes()).not.toContain('is-active')
+    expect(wrapper.find('.ai-creator-wrapper').attributes('style')).toContain('display: none')
+    await aiBtn.trigger('click')
+    expect(aiBtn.classes()).toContain('is-active')
+    expect(wrapper.find('.ai-creator-wrapper').attributes('style') || '').not.toContain('display: none')
+
+    // 3. "Настройки"
+    const settingsBtn = wrapper.find('.settings-btn')
+    expect(settingsBtn.exists()).toBe(true)
+    expect(settingsBtn.text()).toContain('Настройки')
+    expect(wrapper.findComponent({ name: 'BudgetSettingsDialog' }).props('visible')).toBe(false)
+    await settingsBtn.trigger('click')
+    expect(wrapper.findComponent({ name: 'BudgetSettingsDialog' }).props('visible')).toBe(true)
+
+    // 4. "Категории" (both in control card footer and near filter pills)
+    const categoriesBtn = wrapper.find('.categories-btn')
+    expect(categoriesBtn.exists()).toBe(true)
+    expect(categoriesBtn.text()).toContain('Категории')
+    expect(wrapper.findComponent({ name: 'CategoryManagerDialog' }).props('visible')).toBe(false)
+    await categoriesBtn.trigger('click')
+    expect(wrapper.findComponent({ name: 'CategoryManagerDialog' }).props('visible')).toBe(true)
+
+    const filterPillCat = wrapper.find('.manage-categories-filter-pill')
+    expect(filterPillCat.exists()).toBe(true)
+  })
+
+  it('hides edit controls in IMP-027 control panel in readonly mode', () => {
+    const wrapper = mount(FinancesSection, {
+      props: { section: { id: 'finance', type: 'finances', content: content() }, readonly: true },
+      global: {
+        stubs: {
+          FinancesDashboard: true,
+          TransactionsList: true,
+          AiFinancesCreator: true,
+          CategoryManagerDialog: { name: 'CategoryManagerDialog', props: ['visible'], render: () => null },
+          BudgetSettingsDialog: { name: 'BudgetSettingsDialog', props: ['visible'], render: () => null },
+          KitCalendarRange: true,
+        },
+      },
+    })
+    wrappers.push(wrapper)
+
+    expect(wrapper.find('.control-card-title').text()).toBe('Финансы')
+    expect(wrapper.find('.settings-btn').exists()).toBe(false)
+    expect(wrapper.find('.control-card-actions').exists()).toBe(false)
+    expect(wrapper.find('.control-card-footer').exists()).toBe(false)
+    expect(wrapper.find('.manage-categories-filter-pill').exists()).toBe(false)
+  })
+
+  it('bUG-026: displays formatted date and opens mobile Bottom Sheet with presets and controls', async () => {
+    window.innerWidth = 400
+    window.dispatchEvent(new Event('resize'))
+
+    const dateFilterValue = ref<{ start: string | null, end: string | null }>({
+      start: '2026-11-05',
+      end: '2026-11-08',
+    })
+
+    const wrapper = mount(FinancesDateFilter, {
+      props: {
+        'modelValue': dateFilterValue.value,
+        'onUpdate:modelValue': (val: { start: string | null, end: string | null }) => {
+          dateFilterValue.value = val
+        },
+      },
+      global: {
+        stubs: {
+          KitCalendarRange: {
+            name: 'KitCalendarRange',
+            props: ['modelValue', 'fullWidth'],
+            template: '<div class="stub-calendar-range" :class="{ \'is-full-width\': fullWidth }"></div>',
+          },
+          KitBottomSheet: {
+            name: 'KitBottomSheet',
+            props: ['modelValue', 'title'],
+            template: `
+              <div v-if="modelValue" class="stub-bottom-sheet" :data-title="title">
+                <slot />
+                <slot name="footer" />
+              </div>
+            `,
+          },
+        },
+      },
+    })
+    wrappers.push(wrapper)
+
+    const btn = wrapper.find('.date-filter-btn')
+    expect(btn.exists()).toBe(true)
+    expect(btn.text()).toContain('5 нояб. - 8 нояб.')
+
+    // Open date picker in mobile sheet
+    await btn.trigger('click')
+    await nextTick()
+
+    const sheet = wrapper.find('.stub-bottom-sheet')
+    expect(sheet.exists()).toBe(true)
+    expect(sheet.attributes('data-title')).toBe('Выбрать период')
+
+    // Range summary cards
+    const summaryCards = wrapper.findAll('.range-card')
+    expect(summaryCards.length).toBe(2)
+    expect(summaryCards[0].text()).toContain('05.11.2026')
+    expect(summaryCards[1].text()).toContain('08.11.2026')
+
+    // Presets
+    const presets = wrapper.findAll('.preset-pill')
+    expect(presets.length).toBe(4)
+    expect(presets.map(p => p.text())).toEqual(['Сегодня', '7 дней', 'Этот месяц', 'Всё время'])
+
+    // Full-width calendar
+    const calendar = wrapper.find('.stub-calendar-range')
+    expect(calendar.exists()).toBe(true)
+    expect(calendar.classes()).toContain('is-full-width')
+
+    // Select "Всё время" preset
+    const allTimePreset = presets.find(p => p.text() === 'Всё время')!
+    await allTimePreset.trigger('click')
+    await nextTick()
+
+    // Values in summary cards change to placeholder
+    expect(summaryCards[0].text()).toContain('—')
+    expect(summaryCards[1].text()).toContain('—')
+
+    // Click "Применить"
+    const applyBtn = wrapper.findAll('button').find(b => b.text().includes('Применить'))!
+    await applyBtn.trigger('click')
+    await nextTick()
+
+    expect(dateFilterValue.value).toEqual({ start: null, end: null })
+  })
+
+  it('bUG-026: displays formatted date and renders Desktop Popover when on wide screen', async () => {
+    window.innerWidth = 1200
+    window.dispatchEvent(new Event('resize'))
+
+    const dateFilterValue = ref<{ start: string | null, end: string | null }>({
+      start: '2026-11-05',
+      end: '2026-11-08',
+    })
+
+    const wrapper = mount(FinancesDateFilter, {
+      props: {
+        'modelValue': dateFilterValue.value,
+        'onUpdate:modelValue': (val: { start: string | null, end: string | null }) => {
+          dateFilterValue.value = val
+        },
+      },
+    })
+    wrappers.push(wrapper)
+    await nextTick()
+
+    const btn = wrapper.find('.date-filter-btn')
+    expect(btn.exists()).toBe(true)
+    expect(btn.attributes('aria-haspopup')).toBe('dialog')
+    expect(wrapper.find('.stub-bottom-sheet').exists()).toBe(false)
   })
 })

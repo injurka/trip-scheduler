@@ -93,7 +93,9 @@ function handlePointerDownOutside(event: PointerDownOutsideEvent) {
   }
 }
 
-useDialogHistory(dialogId, visible)
+useDialogHistory(dialogId, visible, {
+  canClose: () => !persistent,
+})
 </script>
 
 <template>
@@ -186,7 +188,9 @@ useDialogHistory(dialogId, visible)
 
 .dialog-content-wrapper {
   position: fixed;
-  top: calc(50% + var(--safe-area-inset-top));
+  // Keyboard-Aware: центрируемся в реально видимой области (над клавиатурой).
+  // Без клавиатуры --visible-height = высота окна, поведение идентично `top: 50%`.
+  top: calc(var(--visible-top, 0px) + var(--visible-height, 100dvh) / 2 + var(--safe-area-inset-top));
   left: 50%;
   transform: translate(-50%, -50%);
   background-color: var(--bg-primary-color);
@@ -199,13 +203,18 @@ useDialogHistory(dialogId, visible)
   display: flex;
   flex-direction: column;
   gap: 16px;
-  max-height: 90vh;
+  max-height: min(90vh, calc(var(--visible-height, 100dvh) - 32px));
   transition:
     max-width 0.2s ease,
     width 0.2s ease,
     height 0.2s ease,
     max-height 0.2s ease,
     border-radius 0.2s ease;
+
+  // Геометрия следует за клавиатурой синхронно, без отставания анимации
+  :global(html.is-keyboard-open) & {
+    transition: none;
+  }
 
   &:focus {
     outline: none;
@@ -220,15 +229,15 @@ useDialogHistory(dialogId, visible)
 
   &.is-fullscreen {
     animation: none !important;
-    top: 0 !important;
+    top: var(--visible-top, 0px) !important;
     left: 0 !important;
     right: 0 !important;
-    bottom: 0 !important;
+    bottom: auto !important;
     transform: none !important;
     width: 100vw !important;
     max-width: 100vw !important;
-    height: 100dvh !important;
-    max-height: 100dvh !important;
+    height: var(--visible-height, 100dvh) !important;
+    max-height: var(--visible-height, 100dvh) !important;
     border-radius: 0 !important;
     border: none;
     box-shadow: none;
@@ -253,7 +262,8 @@ useDialogHistory(dialogId, visible)
     padding: 12px;
     padding-bottom: calc(12px + var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)));
     top: auto;
-    bottom: 0;
+    // Keyboard-Aware: шторка стоит на верхней границе клавиатуры и не выше видимой области
+    bottom: var(--keyboard-inset-height, 0px);
     left: 0;
     right: 0;
     transform: none;
@@ -261,7 +271,10 @@ useDialogHistory(dialogId, visible)
     max-width: 100% !important;
     border-bottom-left-radius: 0;
     border-bottom-right-radius: 0;
-    max-height: calc(92dvh - var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)));
+    max-height: min(
+      calc(92dvh - var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px))),
+      calc(var(--visible-height, 100dvh) - 8px)
+    );
 
     &[data-state='open'] {
       animation: content-slide-up 300ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
@@ -272,8 +285,8 @@ useDialogHistory(dialogId, visible)
 
     &.is-fullscreen {
       animation: none !important;
-      max-height: 100dvh !important;
-      height: 100dvh !important;
+      max-height: var(--visible-height, 100dvh) !important;
+      height: var(--visible-height, 100dvh) !important;
       border-top-left-radius: 0 !important;
       border-top-right-radius: 0 !important;
       padding-top: max(12px, var(--safe-area-inset-top, env(safe-area-inset-top, 0px)));

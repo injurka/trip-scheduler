@@ -37,10 +37,13 @@ const today = computed(() => {
 const calendarDays = computed(() =>
   props.days
     .filter(d => !!d.date)
-    .sort((a, b) => new Date(a.date!).getTime() - new Date(b.date!).getTime()))
+    .sort((a, b) => parseCalendarDateUtc(a.date!).getTime() - parseCalendarDateUtc(b.date!).getTime()))
 const draftDays = computed(() =>
   props.days.filter(d => !d.date))
 
+function parseCalendarDateUtc(date: string): Date {
+  return new Date(`${date.slice(0, 10)}T00:00:00Z`)
+}
 const isToday = (day: Day) => day.date?.slice(0, 10) === today.value
 function onSelectDay(dayId: string) {
   emit('selectDay', dayId)
@@ -48,8 +51,18 @@ function onSelectDay(dayId: string) {
   if (!isDaysPanelPinned.value)
     emit('close')
 }
+function formatDayShortDate(date: string): string {
+  return parseCalendarDateUtc(date).toLocaleDateString('ru-RU', {
+    day: 'numeric',
+    month: 'short',
+    timeZone: 'UTC',
+  })
+}
 function getShortWeekday(date: string): string {
-  return new Date(date).toLocaleDateString('ru-RU', { weekday: 'short' }).toUpperCase()
+  return parseCalendarDateUtc(date).toLocaleDateString('ru-RU', {
+    weekday: 'short',
+    timeZone: 'UTC',
+  }).toUpperCase()
 }
 function getDayActivitiesCount(day: Day): number {
   return day.activities?.length || 0
@@ -113,11 +126,10 @@ function getDayActivitiesCount(day: Day): number {
             >
               <div class="day-item-main">
                 <span class="day-number">{{ index + 1 }}</span>
-                <span v-if="isToday(day)" class="today-badge">Сегодня</span>
                 <span class="day-title">{{ day.title || `День ${index + 1}` }}</span>
               </div>
               <div class="day-item-meta">
-                <span class="day-date">{{ new Date(day.date!).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }) }}</span>
+                <span class="day-date">{{ formatDayShortDate(day.date!) }}</span>
                 <span class="day-weekday-badge">{{ getShortWeekday(day.date!) }}</span>
               </div>
             </button>
@@ -531,15 +543,5 @@ function getDayActivitiesCount(day: Day): number {
   box-shadow:
     0 0 0 2px var(--bg-primary-color),
     0 0 0 3px var(--fg-success-color);
-}
-
-.today-badge {
-  flex-shrink: 0;
-  padding: 2px 6px;
-  border-radius: var(--r-full);
-  background-color: rgba(var(--fg-success-color-rgb), 0.12);
-  color: var(--fg-success-color);
-  font-size: 0.65rem;
-  font-weight: 700;
 }
 </style>

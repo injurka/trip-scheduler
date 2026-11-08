@@ -5,9 +5,12 @@ import { onKeyStroke, useClipboard, useWindowSize } from '@vueuse/core'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitDropdown } from '~/components/01.kit/kit-dropdown'
+import { ErrorPlaceholder } from '~/components/02.shared/error-placeholder'
 import { useRequest } from '~/plugins/request'
+import { useConnectivity } from '~/shared/lib/connectivity'
 import { lazyComponent } from '~/shared/lib/lazy-component'
 import { resolveApiUrl } from '~/shared/lib/url'
+import { useOfflineStore } from '~/shared/store/offline.store'
 import { useNotesSection } from '../composables/use-notes-section'
 import { toggleMarkdownChecklistTask } from '../lib/markdown-checklist'
 import NotesTree from './components/notes-tree.vue'
@@ -31,6 +34,8 @@ const props = defineProps<Props>()
 
 const { width } = useWindowSize()
 const { copy } = useClipboard()
+const { isOnline } = useConnectivity()
+const offlineStore = useOfflineStore()
 
 const NoteEditorExcalidraw = lazyComponent(() => import('./components/note-editor-excalidraw.vue'), { showLoader: true })
 const NoteEditorMd = lazyComponent(() => import('./components/note-editor-md.vue'), { showLoader: true })
@@ -49,6 +54,14 @@ let dataviewRefreshTimer: ReturnType<typeof setTimeout> | undefined
 const isGalleryOpen = ref(false)
 const isUploadingPastedImage = ref(false)
 
+const isOfflineUnavailable = computed(() => {
+  if (isOnline.value)
+    return false
+
+  const entry = offlineStore.savedTrips[props.section.tripId]
+
+  return !entry || entry.notes === undefined
+})
 const tripIdRef = computed(() => props.section.tripId)
 const readonlyRef = computed(() => props.readonly)
 
@@ -233,7 +246,14 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="notes-section">
-    <div v-if="isLoading && notesTree.length === 0" class="loading-state">
+    <div v-if="isOfflineUnavailable" class="notes-offline-placeholder">
+      <ErrorPlaceholder
+        title="Недоступно офлайн"
+        message="Заметки не были сохранены для работы без подключения к сети"
+      />
+    </div>
+
+    <div v-else-if="isLoading && notesTree.length === 0" class="loading-state">
       <span class="loading-spinner" />
       Загрузка заметок...
     </div>
@@ -852,6 +872,15 @@ onBeforeUnmount(() => {
     margin: 0;
     font-size: 0.9rem;
   }
+}
+
+.notes-offline-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 400px;
+  padding: 32px 16px;
 }
 
 .editor-empty-icon {

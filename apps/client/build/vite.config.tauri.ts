@@ -13,6 +13,7 @@ import packageJson from '../package.json' with { type: 'json' }
 import { autoImportOptionsCfg } from './cfg/auto-import'
 import { iconsCfg } from './cfg/icons'
 import { resolveAppVersion, visualizerPlugin } from './lib/helpers'
+import { postcssHoverMedia } from './lib/postcss-hover-media'
 import { getVendorChunkName } from './vendor-chunks'
 
 const require = createRequire(import.meta.url)
@@ -51,6 +52,9 @@ export default defineConfig({
     ...visualizerPlugin('renderer'),
   ],
   css: {
+    postcss: {
+      plugins: [postcssHoverMedia()],
+    },
     preprocessorOptions: {
       scss: {
         additionalData: `@use '~/assets/scss/_setup.scss' as *;`,

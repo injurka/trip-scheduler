@@ -1,11 +1,15 @@
 <script setup lang="ts">
+import type { ActivitySectionGeolocation } from '~/components/03.domain/trip-info/geolocation-section/models/types'
 import type { IDay } from '~/components/04.features/trip-info/trip-plan/models/types'
 import type { BookingSectionContent, ChecklistSectionContent, FinancesSectionContent } from '~/components/04.features/trip-info/trip-sections'
-import type { ActivitySectionText } from '~/shared/types/models/activity'
+import type { TripNote } from '~/shared/services/api/model/types'
+import type { ActivitySectionBus, ActivitySectionMetro, ActivitySectionText } from '~/shared/types/models/activity'
+import type { Memory } from '~/shared/types/models/memory'
 import type { Trip, TripSection } from '~/shared/types/models/trip'
 import { Icon } from '@iconify/vue'
 import { generateTripCalendarIcs } from '@injurka/trip-calendar'
 import { useClipboard } from '@vueuse/core'
+import { strToU8, zipSync } from 'fflate'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitDialogWithClose } from '~/components/01.kit/kit-dialog-with-close'
 import { useRequest } from '~/plugins/request'
@@ -22,7 +26,7 @@ interface Props {
   days: IDay[]
   sections: TripSection[]
 }
-type ExportFormat = 'json' | 'text' | 'ics'
+type ExportFormat = 'json' | 'text' | 'ics' | 'zip'
 interface FormatOption {
   id: ExportFormat
   label: string
@@ -80,8 +84,17 @@ const formats: FormatOption[] = [
     description: 'События для Apple Calendar, Google Calendar, Outlook и WebCal.',
     icon: 'mdi:calendar-month-outline',
   },
+  {
+    id: 'zip',
+    label: 'Полный архив',
+    badge: '.ZIP',
+    description: 'Полная резервная копия: JSON-дамп, маршрут .txt, календарь .ics и финансы .csv.',
+    icon: 'mdi:folder-zip-outline',
+  },
 ]
 const resolvedShareSlug = ref<string | null>(props.trip.shareSlug || null)
+const loadedNotes = ref<TripNote[]>([])
+const loadedMemories = ref<Memory[]>([])
 
 const currentExportItems = computed<ExportItemOption[]>(() => {
   if (selectedFormat.value === 'ics') {
@@ -158,8 +171,29 @@ watch(() => props.trip.shareSlug, (nextSlug) => {
 watch(() => props.visible, (visible) => {
   if (visible) {
     void ensureCalendarIdentifier()
+    void ensureNotesAndMemoriesLoaded()
   }
 }, { immediate: true })
+
+async function ensureNotesAndMemoriesLoaded() {
+  try {
+    const [notesRes, memoriesRes] = await Promise.all([
+      useRequest({
+        key: `trip-export:notes:${props.trip.id}`,
+        fn: db => db.notes.getByTripId(props.trip.id),
+      }).catch(() => []),
+      useRequest({
+        key: `trip-export:memories:${props.trip.id}`,
+        fn: db => db.memories.getByTripId(props.trip.id),
+      }).catch(() => []),
+    ])
+    loadedNotes.value = Array.isArray(notesRes) ? notesRes : []
+    loadedMemories.value = Array.isArray(memoriesRes) ? memoriesRes : []
+  }
+  catch {
+    // В офлайне или без прав доступа используем пустые списки
+  }
+}
 
 function toggleAllItems() {
   const nextVal = !isAllSelected.value
@@ -246,7 +280,29 @@ function stripMarkdown(text: string): string {
     .trim()
 }
 function formatCurrency(amount: number, currency: string) {
-  return new Intl.NumberFormat('ru-RU', { style: 'currency', currency }).format(amount)
+  const normalizedCurrency = currency?.trim().toUpperCase() || 'RUB'
+
+  try {
+    return new Intl.NumberFormat('ru-RU', {
+      style: 'currency',
+      currency: normalizedCurrency,
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 2,
+    }).format(amount)
+  }
+  catch {
+    return `${Math.round(amount).toLocaleString('ru-RU')} ${normalizedCurrency}`.trim()
+  }
+}
+function convertExpenseToMainCurrency(tx: { amount: number, currency: string }, settings?: FinancesSectionContent['settings']): number | null {
+  const mainCurrency = settings?.mainCurrency || 'RUB'
+
+  if (!tx.currency || tx.currency === mainCurrency)
+    return tx.amount
+
+  const rate = settings?.exchangeRates?.[tx.currency]
+
+  return rate && rate > 0 ? tx.amount * rate : null
 }
 function getBookingsText(sections: TripSection[]): string[] {
   const bookingSection = sections.find(s => s.type === TripSectionType.BOOKINGS)
@@ -264,8 +320,10 @@ function getBookingsText(sections: TripSection[]): string[] {
     return lines
   }
 
+  // eslint-disable-next-line complexity
   content.bookings.forEach((b) => {
-    lines.push(`• ${b.title} (${b.type.toUpperCase()})`)
+    const rawType = (b as { type: string }).type
+    lines.push(`• ${b.title} (${rawType.toUpperCase()})`)
 
     if (b.type === 'flight') {
       const segs = b.data.segments || []
@@ -273,18 +331,54 @@ function getBookingsText(sections: TripSection[]): string[] {
       if (segs.length) {
         const first = segs[0]
         const last = segs[segs.length - 1]
-        lines.push(`  ${first.departureCity} -> ${last.arrivalCity}`)
+        lines.push(`  ${first.departureCity || first.departureAirport || '—'} -> ${last.arrivalCity || last.arrivalAirport || '—'}`)
         lines.push(`  Вылет: ${first.departureDateTime?.replace('T', ' ')}`)
       }
     }
     else if (b.type === 'hotel') {
-      lines.push(`  Отель: ${b.data.hotelName}`)
-      lines.push(`  Заезд: ${b.data.checkInDate} | Выезд: ${b.data.checkOutDate}`)
+      lines.push(`  Отель: ${b.data.hotelName || b.title}`)
+      lines.push(`  Заезд: ${b.data.checkInDate || '—'} | Выезд: ${b.data.checkOutDate || '—'}`)
+
+      if (b.data.address)
+        lines.push(`  Адрес: ${b.data.address}`)
     }
     else if (b.type === 'train') {
-      lines.push(`  Откуда: ${b.data.departureStation}`)
-      lines.push(`  Куда: ${b.data.arrivalStation}`)
-      lines.push(`  Отправление: ${b.data.departureDateTime?.replace('T', ' ')}`)
+      lines.push(`  Откуда: ${b.data.departureStation || '—'}`)
+      lines.push(`  Куда: ${b.data.arrivalStation || '—'}`)
+      lines.push(`  Отправление: ${b.data.departureDateTime?.replace('T', ' ') || '—'}`)
+    }
+    else if (b.type === 'attraction') {
+      if (b.data.attractionName)
+        lines.push(`  Место: ${b.data.attractionName}`)
+
+      if (b.data.address)
+        lines.push(`  Адрес: ${b.data.address}`)
+
+      if (b.data.dateTime)
+        lines.push(`  Дата/время: ${b.data.dateTime.replace('T', ' ')}`)
+
+      if (b.data.ticketType)
+        lines.push(`  Билет: ${b.data.ticketType}`)
+    }
+    else if (b.type === 'car' || rawType === 'car-rental') {
+      const carData = b.data as import('~/components/04.features/trip-info/trip-sections/booking-section/models/types').CarData
+      const carSummary = [carData.company, carData.carModel, carData.carType].filter(Boolean).join(' · ')
+
+      if (carSummary)
+        lines.push(`  Авто: ${carSummary}`)
+
+      if (carData.pickupLocation)
+        lines.push(`  Получение: ${carData.pickupLocation}${carData.pickupDateTime ? ` (${carData.pickupDateTime.replace('T', ' ')})` : ''}`)
+
+      if (carData.dropoffLocation)
+        lines.push(`  Возврат: ${carData.dropoffLocation}${carData.dropoffDateTime ? ` (${carData.dropoffDateTime.replace('T', ' ')})` : ''}`)
+    }
+    else if (b.type === 'other') {
+      if (b.data.startLocation || b.data.endLocation)
+        lines.push(`  Маршрут: ${b.data.startLocation || '—'} -> ${b.data.endLocation || '—'}`)
+
+      if (b.data.startDateTime)
+        lines.push(`  Отправление: ${b.data.startDateTime.replace('T', ' ')}`)
     }
   })
 
@@ -396,17 +490,65 @@ function getFinancesText(sections: TripSection[]): string[] {
   const lines: string[] = []
   lines.push('\n--- ФИНАНСЫ ---')
 
-  const total = content.transactions.reduce((acc, tx) => acc + tx.amount, 0)
-  const currency = content.settings.mainCurrency || 'RUB'
+  const currency = content.settings?.mainCurrency || 'RUB'
+  const transactions = content.transactions || []
+  const total = transactions.reduce((acc, tx) => {
+    const converted = convertExpenseToMainCurrency(tx, content.settings)
+
+    return acc + (converted ?? 0)
+  }, 0)
 
   lines.push(`Итого расходов: ~${formatCurrency(total, currency)}`)
   lines.push('\nТранзакции:')
-  content.transactions.forEach((tx) => {
-    lines.push(`  - ${tx.title}: ${formatCurrency(tx.amount, tx.currency)}`)
+  transactions.forEach((tx) => {
+    const converted = convertExpenseToMainCurrency(tx, content.settings)
+    const convertedPart = tx.currency && tx.currency !== currency && converted !== null
+      ? ` (~${formatCurrency(converted, currency)})`
+      : ''
+    lines.push(`  - ${tx.title}: ${formatCurrency(tx.amount, tx.currency || currency)}${convertedPart}`)
   })
 
   return lines
 }
+// eslint-disable-next-line complexity
+function generateFinancesCsv(sections: TripSection[]): string {
+  const financeSection = sections.find(s => s.type === TripSectionType.FINANCES)
+  const header = ['ID', 'Дата', 'Название', 'Категория', 'Сумма', 'Валюта', 'В основной валюте', 'Основная валюта', 'Статус', 'Спонтанная', 'Заметки']
+  const escapeCsv = (val: unknown) => {
+    const str = String(val ?? '').replace(/"/g, '""')
+
+    return /[",\n\r]/.test(str) ? `"${str}"` : str
+  }
+
+  if (!financeSection)
+    return `${header.join(',')}\n`
+
+  const content = financeSection.content as FinancesSectionContent
+  const mainCurrency = content.settings?.mainCurrency || 'RUB'
+  const categoriesById = new Map((content.categories || []).map(c => [c.id, c.name]))
+  const rows = [header.join(',')]
+
+  for (const tx of content.transactions || []) {
+    const converted = convertExpenseToMainCurrency(tx, content.settings)
+    const catName = (tx.categoryId && categoriesById.get(tx.categoryId)) || tx.categoryId || 'Прочее'
+    rows.push([
+      escapeCsv(tx.id),
+      escapeCsv(tx.date ? tx.date.split('T')[0] : ''),
+      escapeCsv(tx.title),
+      escapeCsv(catName),
+      escapeCsv(tx.amount),
+      escapeCsv(tx.currency || mainCurrency),
+      escapeCsv(converted !== null ? Math.round(converted * 100) / 100 : ''),
+      escapeCsv(mainCurrency),
+      escapeCsv(tx.status || 'paid'),
+      escapeCsv(tx.isSpontaneous ? 'Да' : 'Нет'),
+      escapeCsv(tx.notes || ''),
+    ].join(','))
+  }
+
+  return `${rows.join('\n')}\n`
+}
+// eslint-disable-next-line complexity
 function generateTextContent(): string {
   const { trip, days, sections } = props
   const lines: string[] = []
@@ -453,7 +595,7 @@ function generateTextContent(): string {
 
   days.forEach((day, index) => {
     const date = day.date
-      ? new Date(day.date).toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' })
+      ? new Date(`${day.date.slice(0, 10)}T00:00:00Z`).toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' })
       : 'Черновик'
     const header = day.date
       ? `\nДЕНЬ ${index + 1}: ${day.title || 'Без названия'} (${date})`
@@ -473,6 +615,7 @@ function generateTextContent(): string {
         lines.push(`  ● [${act.startTime} - ${act.endTime}] ${act.title}`)
 
         if (options.value.includeActivityDetails && act.sections) {
+          // eslint-disable-next-line complexity
           act.sections.forEach((sec) => {
             if (sec.type === EActivitySectionType.DESCRIPTION) {
               const textSec = sec as ActivitySectionText
@@ -480,6 +623,51 @@ function generateTextContent(): string {
               if (textSec.text) {
                 const cleanText = stripMarkdown(textSec.text).replace(/\n/g, '\n    ')
                 lines.push(`    ${cleanText}`)
+              }
+            }
+            else if (sec.type === EActivitySectionType.GEOLOCATION) {
+              const geoSec = sec as ActivitySectionGeolocation
+
+              for (const point of geoSec.points || []) {
+                const [lon, lat] = point.coordinates || []
+                const coordPart = Number.isFinite(lat) && Number.isFinite(lon)
+                  ? `(${lat.toFixed(5)}, ${lon.toFixed(5)})`
+                  : ''
+                const pointLabel = [point.address, point.comment, coordPart].filter(Boolean).join(' ')
+
+                if (pointLabel)
+                  lines.push(`    📍 ${pointLabel}`)
+              }
+
+              for (const route of geoSec.routes || []) {
+                if (route.points?.length) {
+                  const routeSummary = route.points
+                    .map((p) => {
+                      const [lon, lat] = p.coordinates || []
+                      const coords = Number.isFinite(lat) && Number.isFinite(lon) ? `${lat.toFixed(5)}, ${lon.toFixed(5)}` : ''
+
+                      return p.address || p.comment || coords
+                    })
+                    .filter(Boolean)
+                    .join(' -> ')
+
+                  if (routeSummary)
+                    lines.push(`    🗺️ ${route.title || 'Маршрут'}: ${routeSummary}`)
+                }
+              }
+            }
+            else if (sec.type === EActivitySectionType.METRO) {
+              const metroSec = sec as ActivitySectionMetro
+
+              for (const ride of metroSec.rides || []) {
+                lines.push(`    🚇 Метро (${ride.lineName || 'Линия'}): ${ride.startStation} -> ${ride.endStation}${ride.stops ? ` (${ride.stops} ст.)` : ''}`)
+              }
+            }
+            else if (sec.type === EActivitySectionType.BUS) {
+              const busSec = sec as ActivitySectionBus
+
+              for (const ride of busSec.rides || []) {
+                lines.push(`    🚌 ${ride.route || 'Автобус'}: ${ride.from} -> ${ride.to}${ride.stops ? ` (${ride.stops} ост.)` : ''}`)
               }
             }
           })
@@ -491,53 +679,67 @@ function generateTextContent(): string {
     }
   })
 
+  if (loadedNotes.value.length > 0) {
+    lines.push('\n--- ЗАМЕТКИ ---')
+    loadedNotes.value.forEach((note) => {
+      lines.push(`• ${note.title}`)
+
+      if (note.content) {
+        lines.push(`  ${stripMarkdown(note.content).replace(/\n/g, '\n  ')}`)
+      }
+    })
+  }
+
+  if (loadedMemories.value.length > 0) {
+    lines.push('\n--- ВОСПОМИНАНИЯ ---')
+    loadedMemories.value.forEach((mem) => {
+      const memParts = [mem.timestamp ? mem.timestamp.replace('T', ' ').slice(0, 16) : null, mem.title, mem.comment].filter(Boolean)
+      const memImg = (mem as { imageUrl?: string }).imageUrl || mem.image?.originalName || ''
+      lines.push(`• ${memParts.join(' — ') || 'Фото/запись'}${memImg ? ` [${memImg}]` : ''}`)
+    })
+  }
+
   return lines.join('\n')
 }
-function handleExport() {
+async function handleExport() {
   isExporting.value = true
 
   try {
+    await ensureNotesAndMemoriesLoaded()
     const { trip, days, sections } = props
-    let content = ''
+    let blobPart: BlobPart = ''
     let mimeType = ''
     let extension = ''
 
-    if (selectedFormat.value === 'json') {
-      const filteredSections = sections.filter((s) => {
-        if (s.type === TripSectionType.BOOKINGS && !options.value.includeBookings)
-          return false
+    const filteredSections = sections.filter((s) => {
+      if (s.type === TripSectionType.BOOKINGS && !options.value.includeBookings)
+        return false
 
-        if (s.type === TripSectionType.CHECKLIST && !options.value.includeChecklist)
-          return false
+      if (s.type === TripSectionType.CHECKLIST && !options.value.includeChecklist)
+        return false
 
-        if (s.type === TripSectionType.FINANCES && !options.value.includeFinances)
-          return false
+      if (s.type === TripSectionType.FINANCES && !options.value.includeFinances)
+        return false
 
-        return true
-      })
+      return true
+    })
 
-      const data = {
-        trip,
-        days: days.map(d => ({
-          ...d,
-        })),
-        sections: filteredSections,
-        exportedAt: new Date().toISOString(),
-      }
-      content = JSON.stringify(data, null, 2)
-      mimeType = 'application/json'
-      extension = 'json'
-    }
-    else if (selectedFormat.value === 'text') {
-      content = generateTextContent()
-      mimeType = 'text/plain'
-      extension = 'txt'
-    }
-    else if (selectedFormat.value === 'ics') {
+    const buildBackupJsonData = (allSections: TripSection[]) => ({
+      trip,
+      days: days.map(d => ({
+        ...d,
+      })),
+      sections: allSections,
+      notes: loadedNotes.value,
+      memories: loadedMemories.value,
+      exportedAt: new Date().toISOString(),
+    })
+
+    const buildCalendarIcsContent = () => {
       const bookingSection = sections.find(s => s.type === TripSectionType.BOOKINGS)
       const bookings = (bookingSection?.content as BookingSectionContent)?.bookings || []
 
-      content = generateTripCalendarIcs({
+      return generateTripCalendarIcs({
         trip: {
           id: trip.id,
           title: trip.title,
@@ -556,11 +758,37 @@ function handleExport() {
         includeDaySummaries: options.value.includeDaySummaries,
         calendarName: trip.title,
       })
+    }
+
+    if (selectedFormat.value === 'json') {
+      blobPart = JSON.stringify(buildBackupJsonData(filteredSections), null, 2)
+      mimeType = 'application/json'
+      extension = 'json'
+    }
+    else if (selectedFormat.value === 'text') {
+      blobPart = generateTextContent()
+      mimeType = 'text/plain'
+      extension = 'txt'
+    }
+    else if (selectedFormat.value === 'ics') {
+      blobPart = buildCalendarIcsContent()
       mimeType = 'text/calendar;charset=utf-8'
       extension = 'ics'
     }
+    else if (selectedFormat.value === 'zip') {
+      const zipEntries: Record<string, Uint8Array> = {
+        'trip-backup.json': strToU8(JSON.stringify(buildBackupJsonData(filteredSections), null, 2)),
+        'itinerary.txt': strToU8(generateTextContent()),
+        'calendar.ics': strToU8(buildCalendarIcsContent()),
+        'finances.csv': strToU8(generateFinancesCsv(filteredSections)),
+      }
+      const zippedBytes = zipSync(zipEntries)
+      blobPart = zippedBytes.buffer.slice(zippedBytes.byteOffset, zippedBytes.byteOffset + zippedBytes.byteLength) as ArrayBuffer
+      mimeType = 'application/zip'
+      extension = 'zip'
+    }
 
-    const blob = new Blob([content], { type: mimeType })
+    const blob = new Blob([blobPart], { type: mimeType })
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
 
@@ -757,7 +985,7 @@ function handleExport() {
         :disabled="isExporting || selectedItemsCount === 0"
         @click="handleExport"
       >
-        {{ selectedFormat === 'ics' ? 'Скачать .ics' : selectedFormat === 'json' ? 'Скачать .json' : 'Скачать .txt' }}
+        {{ selectedFormat === 'zip' ? 'Скачать .zip' : selectedFormat === 'ics' ? 'Скачать .ics' : selectedFormat === 'json' ? 'Скачать .json' : 'Скачать .txt' }}
       </KitBtn>
     </template>
   </KitDialogWithClose>
@@ -832,7 +1060,7 @@ function handleExport() {
 // Карточки форматов
 .formats-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   gap: 12px;
 
   @include media-down(sm) {

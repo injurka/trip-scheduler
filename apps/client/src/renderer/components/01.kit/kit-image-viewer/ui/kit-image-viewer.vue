@@ -64,25 +64,81 @@ const emit = defineEmits<Emits>()
 const offlineUrls = ref<Record<string, string>>({})
 let imageGeneration = 0
 
-watch(() => [props.visible, props.images] as const, async ([visible]) => {
-  const generation = ++imageGeneration
-  releaseOfflineUrls()
+watch(() => [props.visible, props.images?.length, props.currentIndex] as const, async ([visible, , index]) => {
+  if (!visible) {
+    imageGeneration++
+    releaseOfflineUrls()
 
-  if (!visible)
+    return
+  }
+
+  const generation = ++imageGeneration
+
+  if (!props.images || props.images.length === 0)
     return
 
-  const urls = new Set<string>()
-  const collect = (value: unknown) => {
-    if (typeof value === 'string' && (/^https?:/.test(value) || /\.(?:png|webp|jpe?g|avif|gif|svg|mp4|webm)(?:[?#]|$)/i.test(value)))
-      urls.add(value)
-    else if (Array.isArray(value))
-      value.forEach(collect)
-    else if (value && typeof value === 'object')
-      Object.values(value).forEach(collect)
+  const { prioritized, others } = getCandidateUrls(props.images, index, offlineUrls.value)
+  const toResolve = [...prioritized, ...others]
+
+  await resolveUrlsBatched(
+    toResolve,
+    prioritized.length,
+    generation,
+    (resolved) => {
+      offlineUrls.value = { ...offlineUrls.value, ...resolved }
+    },
+  )
+}, { immediate: true })
+
+function extractUrls(item: unknown, target: Set<string>) {
+  if (typeof item === 'string' && (/^https?:/.test(item) || /\.(?:png|webp|jpe?g|avif|gif|svg|mp4|webm)(?:[?#]|$)/i.test(item))) {
+    target.add(item)
   }
-  collect(props.images)
+  else if (Array.isArray(item)) {
+    for (const v of item)
+      extractUrls(v, target)
+  }
+  else if (item && typeof item === 'object') {
+    for (const v of Object.values(item))
+      extractUrls(v, target)
+  }
+}
+function getCandidateUrls(images: ImageViewerImage[], index: number, existing: Record<string, string>): { prioritized: string[], others: string[] } {
+  const prioritizedIndices = [index, index - 1, index + 1, index - 2, index + 2].filter(i => i >= 0 && i < images.length)
+  const prioSet = new Set<string>()
+
+  for (const i of prioritizedIndices)
+    extractUrls(images[i], prioSet)
+
+  const prioritized = Array.from(prioSet).filter(u => !existing[u])
+  const allSet = new Set<string>()
+
+  for (let i = 0; i < images.length; i++) {
+    if (!prioritizedIndices.includes(i))
+      extractUrls(images[i], allSet)
+  }
+
+  const others = Array.from(allSet).filter(u => !prioSet.has(u) && !existing[u])
+
+  return { prioritized, others }
+}
+async function resolveUrlsBatched(
+  urls: string[],
+  prioCount: number,
+  generation: number,
+  onBatch: (resolved: Record<string, string>) => void,
+) {
+  let newlyResolved: Record<string, string> = {}
+  let batchCount = 0
 
   for (const url of urls) {
+    if (generation !== imageGeneration) {
+      for (const b of Object.values(newlyResolved))
+        URL.revokeObjectURL(b)
+
+      return
+    }
+
     const blob = await getOfflineImageUrl(url)
 
     if (!blob)
@@ -94,10 +150,18 @@ watch(() => [props.visible, props.images] as const, async ([visible]) => {
       return
     }
 
-    offlineUrls.value[url] = blob
-  }
-}, { immediate: true, deep: true })
+    newlyResolved[url] = blob
+    batchCount++
 
+    if (batchCount === prioCount || batchCount % 10 === 0) {
+      onBatch(newlyResolved)
+      newlyResolved = {}
+    }
+  }
+
+  if (Object.keys(newlyResolved).length > 0)
+    onBatch(newlyResolved)
+}
 function releaseOfflineUrls() {
   for (const url of Object.values(offlineUrls.value))
     URL.revokeObjectURL(url)

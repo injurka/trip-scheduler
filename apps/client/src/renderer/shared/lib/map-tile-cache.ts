@@ -227,9 +227,16 @@ class MapTileCacheManager {
 
         if (networkResponse.ok) {
           // Кэшируем только успешные ответы (200 OK)
-          await cache.put(url, networkResponse.clone())
-          void this.recordAccess(url)
-          this.scheduleCleanup()
+          try {
+            await cache.put(url, networkResponse.clone())
+            void this.recordAccess(url)
+          }
+          catch (e) {
+            console.warn('[MapTileCache] Ошибка записи тайла в кэш:', e)
+          }
+          finally {
+            this.scheduleCleanup()
+          }
 
           const blob = await networkResponse.blob()
           const blobUrl = URL.createObjectURL(blob)
@@ -268,9 +275,16 @@ class MapTileCacheManager {
     const response = await cache.match(url) ?? await onlineFetch(url, { signal })
 
     if (response.ok) {
-      await cache.put(url, response.clone())
-      void this.recordAccess(url)
-      this.scheduleCleanup()
+      try {
+        await cache.put(url, response.clone())
+        void this.recordAccess(url)
+      }
+      catch (e) {
+        console.warn('[MapTileCache] Ошибка сохранения ресурса карты в кэш:', e)
+      }
+      finally {
+        this.scheduleCleanup()
+      }
     }
 
     return response

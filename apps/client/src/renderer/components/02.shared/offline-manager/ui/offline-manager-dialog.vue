@@ -1,12 +1,14 @@
 <script setup lang="ts">
-import type { OfflineDownloadOptions } from '~/shared/store/offline.store'
+import type { OfflineDownloadOptions, OfflineTripEntry } from '~/shared/store/offline.store'
 import { Icon } from '@iconify/vue'
 import { KitDialogWithClose } from '~/components/01.kit/kit-dialog-with-close'
 import { KitTooltip } from '~/components/01.kit/kit-tooltip'
 import { useModuleStore } from '~/components/05.modules/trip-info/composables/use-trip-info-module'
 import { AppRoutePaths } from '~/shared/constants/routes'
+import { useConnectivity } from '~/shared/lib/connectivity'
 import { formatDate } from '~/shared/lib/date-time'
 import { calculateTripBoundingBox } from '~/shared/lib/tile-calc'
+import { trpc } from '~/shared/services/trpc/trpc.service'
 import { useOfflineStore } from '~/shared/store/offline.store'
 import OfflineDownloadDialog from './offline-download-dialog.vue'
 
@@ -14,8 +16,7 @@ interface Props {
   visible: boolean
 }
 
-defineProps<Props>()
-
+const props = defineProps<Props>()
 const emit = defineEmits<{
   (e: 'update:visible', value: boolean): void
 }>()
@@ -24,16 +25,118 @@ const offlineStore = useOfflineStore()
 const router = useRouter()
 const confirm = useConfirm()
 const moduleStore = useModuleStore(['plan', 'sections'])
+const { isOnline } = useConnectivity()
 
 const selectedTripForUpdate = ref<{ id: string, title: string, hasCoordinates: boolean } | null>(null)
 const isDownloadDialogOpen = ref(false)
-const selectedSavedEntry = computed(() => selectedTripForUpdate.value ? offlineStore.savedTrips[selectedTripForUpdate.value.id] : undefined)
+const storageEstimate = ref<{ usage: number, quota: number } | null>(null)
+const remoteUpdatedAtMap = ref<Record<string, number>>({})
 
+const selectedSavedEntry = computed(() => selectedTripForUpdate.value ? offlineStore.savedTrips[selectedTripForUpdate.value.id] : undefined)
+const storageUsagePercent = computed(() => {
+  if (!storageEstimate.value || !storageEstimate.value.quota)
+    return 0
+
+  return Math.min(100, Math.round((storageEstimate.value.usage / storageEstimate.value.quota) * 100))
+})
+
+watch(() => props.visible, (visible) => {
+  if (visible) {
+    void refreshStorageEstimate()
+    void checkRemoteTripUpdates()
+  }
+}, { immediate: true })
+watch(() => offlineStore.sortedSavedTrips.length, () => {
+  if (props.visible)
+    void refreshStorageEstimate()
+})
+
+function formatBytes(bytes?: number): string {
+  if (!bytes || bytes <= 0)
+    return '0 Б'
+
+  if (bytes < 1024)
+    return `${bytes} Б`
+
+  if (bytes < 1024 * 1024)
+    return `${(bytes / 1024).toFixed(1)} КБ`
+
+  if (bytes < 1024 * 1024 * 1024)
+    return `${(bytes / (1024 * 1024)).toFixed(1)} МБ`
+
+  return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} ГБ`
+}
+async function refreshStorageEstimate() {
+  if (typeof navigator === 'undefined' || !navigator.storage?.estimate)
+    return
+
+  try {
+    const estimate = await navigator.storage.estimate()
+
+    if (typeof estimate.usage === 'number' && typeof estimate.quota === 'number') {
+      storageEstimate.value = {
+        usage: estimate.usage,
+        quota: estimate.quota,
+      }
+    }
+  }
+  catch {
+    // Оценка хранилища может быть недоступна в отдельных браузерах
+  }
+}
+async function checkRemoteTripUpdates() {
+  if (!isOnline.value || !trpc.trip?.getById?.query)
+    return
+
+  for (const entry of offlineStore.sortedSavedTrips) {
+    try {
+      const remoteTrip = await trpc.trip.getById.query({ tripId: entry.id })
+
+      if (remoteTrip?.updatedAt) {
+        const ts = new Date(remoteTrip.updatedAt).getTime()
+
+        if (Number.isFinite(ts))
+          remoteUpdatedAtMap.value[entry.id] = ts
+      }
+    }
+    catch {
+      // Игнорируем сетевые ошибки проверки свежести
+    }
+  }
+}
+function toTimestamp(value: unknown): number {
+  if (typeof value === 'number')
+    return value
+
+  if (typeof value === 'string' || value instanceof Date) {
+    const parsed = new Date(value).getTime()
+
+    return Number.isFinite(parsed) ? parsed : 0
+  }
+
+  return 0
+}
+function hasUpdateAvailable(entry: OfflineTripEntry): boolean {
+  const candidates: number[] = [
+    toTimestamp(entry.data?.updatedAt),
+    remoteUpdatedAtMap.value[entry.id] ?? 0,
+  ]
+
+  entry.data?.days?.forEach(day => candidates.push(toTimestamp((day as { updatedAt?: string }).updatedAt)))
+  entry.data?.sections?.forEach(sec => candidates.push(toTimestamp(sec.updatedAt)))
+
+  if (moduleStore.plan.currentTripId === entry.id && moduleStore.plan.trip) {
+    candidates.push(toTimestamp(moduleStore.plan.trip.updatedAt))
+    moduleStore.plan.days.forEach(day => candidates.push(toTimestamp((day as { updatedAt?: string }).updatedAt)))
+    moduleStore.sections.sections.forEach(sec => candidates.push(toTimestamp(sec.updatedAt)))
+  }
+
+  return candidates.some(ts => ts > entry.savedAt)
+}
 function goToTrip(id: string) {
   emit('update:visible', false)
   router.push(AppRoutePaths.Trip.Info(id))
 }
-
 async function handleDelete(id: string, title: string) {
   const isConfirmed = await confirm({
     title: 'Удалить из памяти устройства?',
@@ -46,7 +149,6 @@ async function handleDelete(id: string, title: string) {
     await offlineStore.removeOfflineTrip(id)
   }
 }
-
 function handleUpdate(id: string) {
   if (offlineStore.isTripDownloading(id)) {
     offlineStore.openProgressDialog(id)
@@ -66,7 +168,6 @@ function handleUpdate(id: string) {
   }
   isDownloadDialogOpen.value = true
 }
-
 async function handleConfirmDownload(options: OfflineDownloadOptions) {
   if (!selectedTripForUpdate.value)
     return
@@ -100,6 +201,21 @@ async function handleConfirmDownload(options: OfflineDownloadOptions) {
         <p>Сохраненные путешествия доступны для просмотра и навигации без интернета. Карты, фото, заметки и документы работают автономно.</p>
       </div>
 
+      <div v-if="storageEstimate" class="storage-estimate">
+        <div class="storage-estimate-header">
+          <span class="storage-estimate-label">
+            <Icon icon="mdi:harddisk" class="meta-icon" />
+            Хранилище устройства
+          </span>
+          <span class="storage-estimate-value">
+            {{ formatBytes(storageEstimate.usage) }} из {{ formatBytes(storageEstimate.quota) }} ({{ storageUsagePercent }}%)
+          </span>
+        </div>
+        <div class="storage-estimate-bar">
+          <div class="storage-estimate-fill" :style="{ width: `${storageUsagePercent}%` }" />
+        </div>
+      </div>
+
       <div v-if="offlineStore.sortedSavedTrips.length === 0" class="empty-state">
         <Icon icon="mdi:cloud-off-outline" class="empty-icon" />
         <p class="empty-title">
@@ -115,9 +231,14 @@ async function handleConfirmDownload(options: OfflineDownloadOptions) {
           </div>
 
           <div class="item-info" @click="goToTrip(item.id)">
-            <h4 class="item-title">
-              {{ item.title }}
-            </h4>
+            <div class="item-title-row">
+              <h4 class="item-title">
+                {{ item.title }}
+              </h4>
+              <span v-if="hasUpdateAvailable(item)" class="update-badge">
+                Доступно обновление
+              </span>
+            </div>
             <div class="item-meta">
               <span class="date">
                 <Icon icon="mdi:clock-outline" class="meta-icon" />
@@ -126,6 +247,10 @@ async function handleConfirmDownload(options: OfflineDownloadOptions) {
               <span class="files">
                 <Icon icon="mdi:image-multiple-outline" class="meta-icon" />
                 {{ item.imageCount }} файлов
+              </span>
+              <span v-if="typeof item.sizeBytes === 'number'" class="size">
+                <Icon icon="mdi:database-outline" class="meta-icon" />
+                {{ formatBytes(item.sizeBytes) }}
               </span>
             </div>
             <p v-if="item.mapCoverage?.length" class="item-meta">
@@ -309,6 +434,13 @@ async function handleConfirmDownload(options: OfflineDownloadOptions) {
   min-width: 0;
 }
 
+.item-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
 .item-title {
   margin: 0;
   font-size: 1rem;
@@ -317,6 +449,58 @@ async function handleConfirmDownload(options: OfflineDownloadOptions) {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.update-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  border-radius: var(--r-full, 999px);
+  background-color: color-mix(in srgb, var(--fg-accent-color) 15%, transparent);
+  color: var(--fg-accent-color);
+  flex-shrink: 0;
+}
+
+.storage-estimate {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  background-color: var(--bg-secondary-color);
+  border: 1px solid var(--border-secondary-color);
+  border-radius: var(--r-s);
+
+  &-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.8rem;
+    color: var(--fg-secondary-color);
+  }
+
+  &-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: 500;
+    color: var(--fg-primary-color);
+  }
+
+  &-bar {
+    height: 6px;
+    width: 100%;
+    background-color: var(--bg-tertiary-color);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+
+  &-fill {
+    height: 100%;
+    background-color: var(--fg-accent-color);
+    transition: width 0.3s ease;
+  }
 }
 
 .item-meta {

@@ -23,9 +23,10 @@ export function memoryExportName(image: Pick<TripMedia, 'id' | 'originalName' | 
 
 export async function exportMemoryFiles(media: TripMedia[], folder: string, progress: MemoryExportProgress): Promise<number> {
   let failed = 0
-  const exportId = crypto.randomUUID().slice(0, 8)
 
   for (const image of media) {
+    const exportId = image.id.slice(0, 8)
+
     try {
       progress.loadedBytes += await invoke<number>('memory_export_file', {
         folder,

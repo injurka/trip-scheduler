@@ -12,11 +12,13 @@ declare global {
   const AppRoutePaths: typeof import('../../constants/routes').AppRoutePaths
   const DEEP_LINK_SCHEME: typeof import('../../lib/deep-link').DEEP_LINK_SCHEME
   const EffectScope: typeof import('vue').EffectScope
+  const KEYBOARD_THRESHOLD_PX: typeof import('../../lib/keyboard-aware').KEYBOARD_THRESHOLD_PX
   const MAPTILER_KEY: typeof import('../../lib/map-styles-sources').MAPTILER_KEY
   const MAPTILER_TERRAIN_SOURCE_ID: typeof import('../../lib/map-styles-sources').MAPTILER_TERRAIN_SOURCE_ID
   const OFFLINE_CACHE_PREFIX: typeof import('../../lib/offline-cache').OFFLINE_CACHE_PREFIX
   const OFFLINE_CACHE_READY_URL: typeof import('../../lib/offline-cache').OFFLINE_CACHE_READY_URL
   const OSM_STYLE: typeof import('../../lib/map-styles-sources').OSM_STYLE
+  const OVERSIZED_MIN_VISIBLE_PX: typeof import('../../lib/keyboard-aware').OVERSIZED_MIN_VISIBLE_PX
   const SERVER_URL: typeof import('../../lib/env').SERVER_URL
   const TILE_SOURCES: typeof import('../../lib/map-styles-sources').TILE_SOURCES
   const TILE_SOURCES_META: typeof import('../../lib/map-styles-sources').TILE_SOURCES_META
@@ -29,6 +31,8 @@ declare global {
   const breakpoints: typeof import('../../composables/use-display').breakpoints
   const calculateTripBoundingBox: typeof import('../../lib/tile-calc').calculateTripBoundingBox
   const checkMapTilerAvailability: typeof import('../../lib/map-styles-sources').checkMapTilerAvailability
+  const computeKeyboardGeometry: typeof import('../../lib/keyboard-aware').computeKeyboardGeometry
+  const computeRevealDelta: typeof import('../../lib/keyboard-aware').computeRevealDelta
   const computed: typeof import('vue').computed
   const computedAsync: typeof import('@vueuse/core').computedAsync
   const computedEager: typeof import('@vueuse/core').computedEager
@@ -107,7 +111,9 @@ declare global {
   const initializeDeepLinks: typeof import('../../lib/deep-link').initializeDeepLinks
   const inject: typeof import('vue').inject
   const injectLocal: typeof import('@vueuse/core').injectLocal
+  const isAppOnline: typeof import('../../lib/connectivity').isAppOnline
   const isDefined: typeof import('@vueuse/core').isDefined
+  const isKeyboardEditable: typeof import('../../lib/keyboard-aware').isKeyboardEditable
   const isMobile: typeof import('../../lib/env').isMobile
   const isMobileApp: typeof import('../../lib/env').isMobileApp
   const isNetworkOrServerError: typeof import('../../lib/error').isNetworkOrServerError
@@ -151,6 +157,7 @@ declare global {
   const onUnmounted: typeof import('vue').onUnmounted
   const onUpdated: typeof import('vue').onUpdated
   const onWatcherCleanup: typeof import('vue').onWatcherCleanup
+  const onlineFetch: typeof import('../../lib/connectivity').onlineFetch
   const openExternalUrl: typeof import('../../lib/opener').openExternalUrl
   const pausableWatch: typeof import('@vueuse/core').pausableWatch
   const planOfflineMap: typeof import('../../lib/offline-map').planOfflineMap
@@ -170,11 +177,14 @@ declare global {
   const refManualReset: typeof import('@vueuse/core').refManualReset
   const refThrottled: typeof import('@vueuse/core').refThrottled
   const refWithControl: typeof import('@vueuse/core').refWithControl
+  const requireAppOnline: typeof import('../../lib/connectivity').requireAppOnline
   const requireOfflineAccount: typeof import('../../lib/offline-map-download').requireOfflineAccount
   const resolveApiUrl: typeof import('../../lib/url').resolveApiUrl
   const resolveComponent: typeof import('vue').resolveComponent
+  const revealEditable: typeof import('../../composables/use-keyboard-aware-layout').revealEditable
   const router: typeof import('../../lib/router').default
   const setActivePinia: typeof import('pinia').setActivePinia
+  const setForcedOffline: typeof import('../../lib/connectivity').setForcedOffline
   const setMapStoreSuffix: typeof import('pinia').setMapStoreSuffix
   const shallowReactive: typeof import('vue').shallowReactive
   const shallowReadonly: typeof import('vue').shallowReadonly
@@ -238,6 +248,7 @@ declare global {
   const useColorMode: typeof import('@vueuse/core').useColorMode
   const useConfirm: typeof import('../../composables/use-confirm').useConfirm
   const useConfirmDialog: typeof import('@vueuse/core').useConfirmDialog
+  const useConnectivity: typeof import('../../lib/connectivity').useConnectivity
   const useCountdown: typeof import('@vueuse/core').useCountdown
   const useCounter: typeof import('@vueuse/core').useCounter
   const useCssModule: typeof import('vue').useCssModule
@@ -245,6 +256,7 @@ declare global {
   const useCssVar: typeof import('@vueuse/core').useCssVar
   const useCssVars: typeof import('vue').useCssVars
   const useCurrentElement: typeof import('@vueuse/core').useCurrentElement
+  const useCurrentTime: typeof import('../../composables/use-current-time').useCurrentTime
   const useCycleList: typeof import('@vueuse/core').useCycleList
   const useDark: typeof import('@vueuse/core').useDark
   const useDataTimestamp: typeof import('../../composables/use-data-timestamp').useDataTimestamp
@@ -280,6 +292,7 @@ declare global {
   const useFocusWithin: typeof import('@vueuse/core').useFocusWithin
   const useFps: typeof import('@vueuse/core').useFps
   const useFullscreen: typeof import('@vueuse/core').useFullscreen
+  const useFullscreenBackground: typeof import('../../composables/use-fullscreen-background').useFullscreenBackground
   const useGamepad: typeof import('@vueuse/core').useGamepad
   const useGeolocation: typeof import('@vueuse/core').useGeolocation
   const useId: typeof import('vue').useId
@@ -290,6 +303,7 @@ declare global {
   const useInterval: typeof import('@vueuse/core').useInterval
   const useIntervalFn: typeof import('@vueuse/core').useIntervalFn
   const useKeyModifier: typeof import('@vueuse/core').useKeyModifier
+  const useKeyboardAwareLayout: typeof import('../../composables/use-keyboard-aware-layout').useKeyboardAwareLayout
   const useLastChanged: typeof import('@vueuse/core').useLastChanged
   const useLastCounts: typeof import('../../composables/use-last-counts').useLastCounts
   const useLink: typeof import('vue-router').useLink
@@ -411,6 +425,9 @@ declare global {
   export type { Component, Slot, Slots, ComponentPublicInstance, ComputedRef, DirectiveBinding, ExtractDefaultPropTypes, ExtractPropTypes, ExtractPublicPropTypes, InjectionKey, PropType, Ref, ShallowRef, MaybeRef, MaybeRefOrGetter, VNode, WritableComputedRef } from 'vue'
   import('vue')
   // @ts-ignore
+  export type { KeyboardMode, ViewportSnapshot, KeyboardGeometryOptions, KeyboardGeometry, VerticalRange, ScrollState, EditableDescriptor } from '../../lib/keyboard-aware'
+  import('../../lib/keyboard-aware')
+  // @ts-ignore
   export type { TileSourceId, MapSourceMeta, MapSourceConfig } from '../../lib/map-styles-sources'
   import('../../lib/map-styles-sources')
   // @ts-ignore
@@ -451,11 +468,13 @@ declare module 'vue' {
     readonly AppRoutePaths: UnwrapRef<typeof import('../../constants/routes')['AppRoutePaths']>
     readonly DEEP_LINK_SCHEME: UnwrapRef<typeof import('../../lib/deep-link')['DEEP_LINK_SCHEME']>
     readonly EffectScope: UnwrapRef<typeof import('vue')['EffectScope']>
+    readonly KEYBOARD_THRESHOLD_PX: UnwrapRef<typeof import('../../lib/keyboard-aware')['KEYBOARD_THRESHOLD_PX']>
     readonly MAPTILER_KEY: UnwrapRef<typeof import('../../lib/map-styles-sources')['MAPTILER_KEY']>
     readonly MAPTILER_TERRAIN_SOURCE_ID: UnwrapRef<typeof import('../../lib/map-styles-sources')['MAPTILER_TERRAIN_SOURCE_ID']>
     readonly OFFLINE_CACHE_PREFIX: UnwrapRef<typeof import('../../lib/offline-cache')['OFFLINE_CACHE_PREFIX']>
     readonly OFFLINE_CACHE_READY_URL: UnwrapRef<typeof import('../../lib/offline-cache')['OFFLINE_CACHE_READY_URL']>
     readonly OSM_STYLE: UnwrapRef<typeof import('../../lib/map-styles-sources')['OSM_STYLE']>
+    readonly OVERSIZED_MIN_VISIBLE_PX: UnwrapRef<typeof import('../../lib/keyboard-aware')['OVERSIZED_MIN_VISIBLE_PX']>
     readonly SERVER_URL: UnwrapRef<typeof import('../../lib/env')['SERVER_URL']>
     readonly TILE_SOURCES: UnwrapRef<typeof import('../../lib/map-styles-sources')['TILE_SOURCES']>
     readonly TILE_SOURCES_META: UnwrapRef<typeof import('../../lib/map-styles-sources')['TILE_SOURCES_META']>
@@ -468,6 +487,8 @@ declare module 'vue' {
     readonly breakpoints: UnwrapRef<typeof import('../../composables/use-display')['breakpoints']>
     readonly calculateTripBoundingBox: UnwrapRef<typeof import('../../lib/tile-calc')['calculateTripBoundingBox']>
     readonly checkMapTilerAvailability: UnwrapRef<typeof import('../../lib/map-styles-sources')['checkMapTilerAvailability']>
+    readonly computeKeyboardGeometry: UnwrapRef<typeof import('../../lib/keyboard-aware')['computeKeyboardGeometry']>
+    readonly computeRevealDelta: UnwrapRef<typeof import('../../lib/keyboard-aware')['computeRevealDelta']>
     readonly computed: UnwrapRef<typeof import('vue')['computed']>
     readonly computedAsync: UnwrapRef<typeof import('@vueuse/core')['computedAsync']>
     readonly computedEager: UnwrapRef<typeof import('@vueuse/core')['computedEager']>
@@ -546,7 +567,9 @@ declare module 'vue' {
     readonly initializeDeepLinks: UnwrapRef<typeof import('../../lib/deep-link')['initializeDeepLinks']>
     readonly inject: UnwrapRef<typeof import('vue')['inject']>
     readonly injectLocal: UnwrapRef<typeof import('@vueuse/core')['injectLocal']>
+    readonly isAppOnline: UnwrapRef<typeof import('../../lib/connectivity')['isAppOnline']>
     readonly isDefined: UnwrapRef<typeof import('@vueuse/core')['isDefined']>
+    readonly isKeyboardEditable: UnwrapRef<typeof import('../../lib/keyboard-aware')['isKeyboardEditable']>
     readonly isMobile: UnwrapRef<typeof import('../../lib/env')['isMobile']>
     readonly isMobileApp: UnwrapRef<typeof import('../../lib/env')['isMobileApp']>
     readonly isNetworkOrServerError: UnwrapRef<typeof import('../../lib/error')['isNetworkOrServerError']>
@@ -590,6 +613,7 @@ declare module 'vue' {
     readonly onUnmounted: UnwrapRef<typeof import('vue')['onUnmounted']>
     readonly onUpdated: UnwrapRef<typeof import('vue')['onUpdated']>
     readonly onWatcherCleanup: UnwrapRef<typeof import('vue')['onWatcherCleanup']>
+    readonly onlineFetch: UnwrapRef<typeof import('../../lib/connectivity')['onlineFetch']>
     readonly openExternalUrl: UnwrapRef<typeof import('../../lib/opener')['openExternalUrl']>
     readonly pausableWatch: UnwrapRef<typeof import('@vueuse/core')['pausableWatch']>
     readonly planOfflineMap: UnwrapRef<typeof import('../../lib/offline-map')['planOfflineMap']>
@@ -609,11 +633,14 @@ declare module 'vue' {
     readonly refManualReset: UnwrapRef<typeof import('@vueuse/core')['refManualReset']>
     readonly refThrottled: UnwrapRef<typeof import('@vueuse/core')['refThrottled']>
     readonly refWithControl: UnwrapRef<typeof import('@vueuse/core')['refWithControl']>
+    readonly requireAppOnline: UnwrapRef<typeof import('../../lib/connectivity')['requireAppOnline']>
     readonly requireOfflineAccount: UnwrapRef<typeof import('../../lib/offline-map-download')['requireOfflineAccount']>
     readonly resolveApiUrl: UnwrapRef<typeof import('../../lib/url')['resolveApiUrl']>
     readonly resolveComponent: UnwrapRef<typeof import('vue')['resolveComponent']>
+    readonly revealEditable: UnwrapRef<typeof import('../../composables/use-keyboard-aware-layout')['revealEditable']>
     readonly router: UnwrapRef<typeof import('../../lib/router')['default']>
     readonly setActivePinia: UnwrapRef<typeof import('pinia')['setActivePinia']>
+    readonly setForcedOffline: UnwrapRef<typeof import('../../lib/connectivity')['setForcedOffline']>
     readonly setMapStoreSuffix: UnwrapRef<typeof import('pinia')['setMapStoreSuffix']>
     readonly shallowReactive: UnwrapRef<typeof import('vue')['shallowReactive']>
     readonly shallowReadonly: UnwrapRef<typeof import('vue')['shallowReadonly']>
@@ -677,6 +704,7 @@ declare module 'vue' {
     readonly useColorMode: UnwrapRef<typeof import('@vueuse/core')['useColorMode']>
     readonly useConfirm: UnwrapRef<typeof import('../../composables/use-confirm')['useConfirm']>
     readonly useConfirmDialog: UnwrapRef<typeof import('@vueuse/core')['useConfirmDialog']>
+    readonly useConnectivity: UnwrapRef<typeof import('../../lib/connectivity')['useConnectivity']>
     readonly useCountdown: UnwrapRef<typeof import('@vueuse/core')['useCountdown']>
     readonly useCounter: UnwrapRef<typeof import('@vueuse/core')['useCounter']>
     readonly useCssModule: UnwrapRef<typeof import('vue')['useCssModule']>
@@ -684,6 +712,7 @@ declare module 'vue' {
     readonly useCssVar: UnwrapRef<typeof import('@vueuse/core')['useCssVar']>
     readonly useCssVars: UnwrapRef<typeof import('vue')['useCssVars']>
     readonly useCurrentElement: UnwrapRef<typeof import('@vueuse/core')['useCurrentElement']>
+    readonly useCurrentTime: UnwrapRef<typeof import('../../composables/use-current-time')['useCurrentTime']>
     readonly useCycleList: UnwrapRef<typeof import('@vueuse/core')['useCycleList']>
     readonly useDark: UnwrapRef<typeof import('@vueuse/core')['useDark']>
     readonly useDataTimestamp: UnwrapRef<typeof import('../../composables/use-data-timestamp')['useDataTimestamp']>
@@ -719,6 +748,7 @@ declare module 'vue' {
     readonly useFocusWithin: UnwrapRef<typeof import('@vueuse/core')['useFocusWithin']>
     readonly useFps: UnwrapRef<typeof import('@vueuse/core')['useFps']>
     readonly useFullscreen: UnwrapRef<typeof import('@vueuse/core')['useFullscreen']>
+    readonly useFullscreenBackground: UnwrapRef<typeof import('../../composables/use-fullscreen-background')['useFullscreenBackground']>
     readonly useGamepad: UnwrapRef<typeof import('@vueuse/core')['useGamepad']>
     readonly useGeolocation: UnwrapRef<typeof import('@vueuse/core')['useGeolocation']>
     readonly useId: UnwrapRef<typeof import('vue')['useId']>
@@ -729,6 +759,7 @@ declare module 'vue' {
     readonly useInterval: UnwrapRef<typeof import('@vueuse/core')['useInterval']>
     readonly useIntervalFn: UnwrapRef<typeof import('@vueuse/core')['useIntervalFn']>
     readonly useKeyModifier: UnwrapRef<typeof import('@vueuse/core')['useKeyModifier']>
+    readonly useKeyboardAwareLayout: UnwrapRef<typeof import('../../composables/use-keyboard-aware-layout')['useKeyboardAwareLayout']>
     readonly useLastChanged: UnwrapRef<typeof import('@vueuse/core')['useLastChanged']>
     readonly useLastCounts: UnwrapRef<typeof import('../../composables/use-last-counts')['useLastCounts']>
     readonly useLink: UnwrapRef<typeof import('vue-router')['useLink']>

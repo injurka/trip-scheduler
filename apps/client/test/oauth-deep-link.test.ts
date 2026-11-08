@@ -25,7 +25,14 @@ mock.module('@tauri-apps/plugin-deep-link', () => ({
   getCurrent: async () => currentUrls,
   onOpenUrl: async (handler: typeof incoming) => { incoming = handler },
 }))
-mock.module('../src/renderer/shared/lib/env', () => ({ isTauri: true, getAppBaseUrl: () => 'https://example.com' }))
+mock.module('../src/renderer/shared/lib/env', () => ({
+  isTauri: true,
+  isMobile: false,
+  isMobileApp: false,
+  SERVER_URL: '',
+  WEB_APP_URL: 'https://example.com',
+  getAppBaseUrl: () => 'https://example.com',
+}))
 mock.module('../src/renderer/shared/store/auth.store', () => ({ useAuthStore: () => auth }))
 mock.module('../src/renderer/shared/store/toast.store', () => ({ useToastStore: () => toast }))
 

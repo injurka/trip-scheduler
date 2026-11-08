@@ -11,6 +11,26 @@ const DB_VERSION = 1
 const STORE_NAME = 'trips'
 const LEGACY_STORAGE_KEY = 'offline-trips-data'
 
+export function isQuotaExceededError(error: unknown): boolean {
+  if (!error || typeof error !== 'object')
+    return false
+
+  const err = error as { name?: string, code?: number, message?: string }
+
+  return err.name === 'QuotaExceededError'
+    || err.name === 'NS_ERROR_DOM_QUOTA_REACHED'
+    || err.code === 22
+    || err.code === 1014
+    || (typeof err.message === 'string' && /quota|storage.*full|недостаточно.*мест/i.test(err.message))
+}
+
+function createQuotaExceededError(): Error {
+  const error = new Error('Недостаточно свободного места на устройстве для сохранения офлайн-пакета. Освободите память и попробуйте снова.')
+  error.name = 'QuotaExceededError'
+
+  return error
+}
+
 function belongsToAccount(entry: OfflineTripEntry, accountId: string | null | undefined) {
   return accountId === undefined || (entry.downloadedByUserId ?? entry.data?.userId) === accountId
 }
@@ -119,19 +139,27 @@ export class OfflineStorageService {
     const stored = { ...entry, id: entry.downloadedByUserId ? `${entry.downloadedByUserId}:${entry.id}` : entry.id }
 
     if (db) {
-      await new Promise<void>((resolve, reject) => {
-        try {
-          const tx = db.transaction(STORE_NAME, 'readwrite')
-          const store = tx.objectStore(STORE_NAME)
-          tx.oncomplete = () => resolve()
-          tx.onerror = () => reject(tx.error ?? new Error('IndexedDB save transaction failed'))
-          tx.onabort = () => reject(tx.error ?? new Error('IndexedDB save transaction aborted'))
-          store.put(stored)
-        }
-        catch (e) {
-          reject(e)
-        }
-      })
+      try {
+        await new Promise<void>((resolve, reject) => {
+          try {
+            const tx = db.transaction(STORE_NAME, 'readwrite')
+            const store = tx.objectStore(STORE_NAME)
+            tx.oncomplete = () => resolve()
+            tx.onerror = () => reject(tx.error ?? new Error('IndexedDB save transaction failed'))
+            tx.onabort = () => reject(tx.error ?? new Error('IndexedDB save transaction aborted'))
+            store.put(stored)
+          }
+          catch (e) {
+            reject(e)
+          }
+        })
+      }
+      catch (e) {
+        if (isQuotaExceededError(e))
+          throw createQuotaExceededError()
+
+        throw e
+      }
 
       return
     }
@@ -149,6 +177,10 @@ export class OfflineStorageService {
     }
     catch (e) {
       console.warn('[OfflineStorageService] Fallback localStorage failed:', e)
+
+      if (isQuotaExceededError(e))
+        throw createQuotaExceededError()
+
       throw e
     }
   }

@@ -7,6 +7,7 @@ import { authUtils } from '~/lib/auth.utils'
 import { bookingGenerationService } from '~/services/llm/booking-generation.service'
 import { checklistMatchService } from '~/services/llm/checklist-match.service'
 import { financesGenerationService } from '~/services/llm/finances-generation.service'
+import { memoryGenerationService } from '~/services/llm/memory-generation.service'
 
 const llmController = new Hono()
 
@@ -152,9 +153,40 @@ async function transcribeChecklistVoiceController(c: Context) {
   }
 }
 
+async function transcribeMemoryVoiceController(c: Context) {
+  const token = c.req.header('authorization')?.split(' ')[1]
+  const user = await authUtils.getUserFromToken(token)
+  if (!user)
+    throw new HTTPException(401, { message: 'Невалидный или истекший токен.' })
+
+  const formData = await c.req.formData()
+  const file = formData.get('file') as File | null
+  const context = (formData.get('context') as string | null) || undefined
+
+  if (!file || !(file instanceof File)) {
+    throw new HTTPException(400, { message: 'Аудиофайл не найден в запросе.' })
+  }
+
+  try {
+    const fileBuffer = Buffer.from(await file.arrayBuffer())
+    const result = await memoryGenerationService.transcribeVoiceNote({
+      userId: user.id,
+      fileBuffer,
+      mimeType: file.type,
+      context,
+    })
+    return c.json(result)
+  }
+  catch (error) {
+    console.error('Ошибка при распознавании голосового рассказа:', error)
+    throw new HTTPException(500, { message: getErrorMessage(error) || 'Не удалось распознать голосовой рассказ.' })
+  }
+}
+
 llmController.post('/booking/generate', generateBookingController)
 llmController.post('/finances/generate', generateFinancesController)
 llmController.post('/checklist/match', matchChecklistController)
 llmController.post('/checklist/transcribe', transcribeChecklistVoiceController)
+llmController.post('/memories/transcribe', transcribeMemoryVoiceController)
 
 export { llmController }

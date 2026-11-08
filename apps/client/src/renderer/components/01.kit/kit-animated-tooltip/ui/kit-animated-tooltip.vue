@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import { useEventListener, useMediaQuery } from '@vueuse/core'
+import { computed, ref } from 'vue'
+
 interface Props {
   name: string
   offset?: number
@@ -8,6 +11,7 @@ const props = withDefaults(defineProps<Props>(), {
   offset: 8,
 })
 
+const isHoverable = useMediaQuery('(hover: hover) and (pointer: fine)')
 const isHovered = ref(false)
 const mouseX = ref<number>(0)
 
@@ -20,29 +24,78 @@ const tooltipStyle = computed(() => {
   }
 })
 
-function handleMouseEnter(event: MouseEvent) {
+function hide() {
+  isHovered.value = false
+}
+
+function handlePointerEnter(event: PointerEvent) {
+  if (event.pointerType === 'touch' || !isHoverable.value)
+    return
+
   isHovered.value = true
   const rect = (event.currentTarget as HTMLElement).getBoundingClientRect()
   mouseX.value = event.clientX - rect.left - rect.width / 2
 }
-function handleMouseMove(event: MouseEvent) {
-  if (!isHovered.value)
+
+function handlePointerMove(event: PointerEvent) {
+  if (event.pointerType === 'touch' || !isHovered.value)
     return
 
   const rect = (event.currentTarget as HTMLElement).getBoundingClientRect()
   mouseX.value = event.clientX - rect.left - rect.width / 2
 }
-function handleMouseLeave() {
-  isHovered.value = false
+
+function handlePointerLeave(event: PointerEvent) {
+  if (event.pointerType === 'touch')
+    return
+
+  hide()
 }
+
+function handlePointerDown(event: PointerEvent) {
+  if (event.pointerType === 'touch') {
+    hide()
+  }
+}
+
+useEventListener(
+  window,
+  'scroll',
+  () => {
+    if (isHovered.value)
+      hide()
+  },
+  { capture: true, passive: true },
+)
+
+useEventListener(window, 'keydown', (event: KeyboardEvent) => {
+  if (event.key === 'Escape' && isHovered.value)
+    hide()
+})
+
+useEventListener(window, 'blur', () => {
+  if (isHovered.value)
+    hide()
+})
+
+useEventListener(window, 'popstate', () => {
+  if (isHovered.value)
+    hide()
+})
+
+useEventListener(window, 'hashchange', () => {
+  if (isHovered.value)
+    hide()
+})
 </script>
 
 <template>
   <div
     class="kit-animated-tooltip"
-    @mouseenter="handleMouseEnter"
-    @mouseleave="handleMouseLeave"
-    @mousemove="handleMouseMove"
+    @pointerenter="handlePointerEnter"
+    @pointerleave="handlePointerLeave"
+    @pointermove="handlePointerMove"
+    @pointerdown="handlePointerDown"
   >
     <transition name="tooltip">
       <div

@@ -1,3 +1,4 @@
+import type { Context } from 'hono'
 import z from 'zod'
 import { protectedProcedure, publicProcedure } from '~/lib/trpc'
 import {
@@ -16,6 +17,24 @@ import {
   UpdateTripInputSchema,
 } from './trip.schemas'
 import { tripService } from './trip.service'
+
+function extractShareSlug(inputShareSlug?: string, c?: Context): string | undefined {
+  if (inputShareSlug)
+    return inputShareSlug
+
+  const headerSlug = c?.req?.header('x-share-slug') || c?.req?.query('shareSlug')
+  if (headerSlug)
+    return headerSlug
+
+  const referer = c?.req?.header('referer')
+  if (referer) {
+    const match = referer.match(/\/trip\/([^/?#]+)/)
+    if (match?.[1])
+      return decodeURIComponent(match[1])
+  }
+
+  return undefined
+}
 
 export const tripProcedures = {
   list: publicProcedure
@@ -72,10 +91,11 @@ export const tripProcedures = {
         summary: 'Получить путешествие по ID',
       },
     })
-    .input(GetTripByIdInputSchema)
+    .input(GetTripByIdInputSchema.extend({ shareSlug: z.string().optional() }))
     .output(TripSchema)
-    .query(async ({ input }) => {
-      return tripService.getById(input.tripId)
+    .query(async ({ input, ctx }) => {
+      const shareSlug = extractShareSlug(input.shareSlug, ctx.c)
+      return tripService.getById(input.tripId, ctx.user, shareSlug)
     }),
 
   getByIdWithDays: publicProcedure
@@ -87,10 +107,11 @@ export const tripProcedures = {
         summary: 'Получить полное путешествие с днями и активностями',
       },
     })
-    .input(GetTripByIdInputSchema)
+    .input(GetTripByIdInputSchema.extend({ shareSlug: z.string().optional() }))
     .output(TripWithDaysSchema)
-    .query(async ({ input }) => {
-      return tripService.getByIdWithDays(input.tripId)
+    .query(async ({ input, ctx }) => {
+      const shareSlug = extractShareSlug(input.shareSlug, ctx.c)
+      return tripService.getByIdWithDays(input.tripId, ctx.user, shareSlug)
     }),
 
   getByShareSlug: publicProcedure

@@ -6,6 +6,7 @@ import { ConfirmDialogManager } from '~/components/02.shared/confirm-dialog-mana
 import { OfflineBanner } from '~/components/02.shared/offline-banner'
 import { ReloadPrompt } from '~/components/02.shared/reload-prompt'
 import { ToastManager } from '~/components/02.shared/toast-manager'
+import { useKeyboardAwareLayout } from '~/shared/composables/use-keyboard-aware-layout'
 import { useOnboarding } from '~/shared/composables/use-onboarding'
 import { AppRouteNames, AppRoutePaths } from '~/shared/constants/routes'
 import { lazyComponent } from '~/shared/lib/lazy-component'
@@ -42,6 +43,9 @@ const description = 'Trip Scheduler — удобный планировщик п
 const layout = computed(() => route.meta.layout || 'empty')
 const transition = computed(() => route.meta.transition)
 
+// Keyboard-Aware Layout: геометрия видимой области над экранной клавиатурой
+// и минимальная прокрутка активного поля. Подключается один раз на всё приложение.
+useKeyboardAwareLayout()
 useHead({
   titleTemplate: (titleChunk) => {
     return titleChunk
@@ -137,14 +141,6 @@ onMounted(async () => {
 <style lang="scss">
 #app:has(.offline-banner) {
   --offline-banner-height: 40px;
-}
-
-#app:has(.offline-banner:not(.slide-down-leave-active)) header.header {
-  top: var(--offline-banner-height);
-}
-
-#app:has(.offline-banner:not(.slide-down-leave-active)) header.header--hidden {
-  transform: translateY(calc(-100% - var(--offline-banner-height)));
 }
 
 @media (max-width: 600px) {

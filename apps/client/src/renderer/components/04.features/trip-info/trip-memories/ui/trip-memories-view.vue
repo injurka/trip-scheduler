@@ -5,6 +5,7 @@ import type { ImageViewerImage } from '~/components/01.kit/kit-image-viewer'
 import type { Activity } from '~/shared/types/models/activity'
 import { Icon } from '@iconify/vue'
 import { onKeyStroke, useDropZone, useFileDialog, useScrollLock } from '@vueuse/core'
+import { useDialogHistory } from '~/components/01.kit/kit-dialog-with-close/composables/use-dialog-history'
 import { KitDivider } from '~/components/01.kit/kit-divider'
 import { KitDropdown } from '~/components/01.kit/kit-dropdown'
 import { KitTooltip } from '~/components/01.kit/kit-tooltip'
@@ -15,6 +16,7 @@ import { useModuleStore } from '~/components/05.modules/trip-info/composables/us
 import { getTagInfo } from '~/components/05.modules/trip-info/lib/helpers'
 import { useRequestError } from '~/plugins/request'
 import { useDisplay } from '~/shared/composables/use-display'
+import { useFullscreenBackground } from '~/shared/composables/use-fullscreen-background'
 import { useNotificationStore } from '~/shared/store/notification.store'
 import { useImageCacher } from '../composables/use-image-cacher'
 import { useTripMemoriesVault } from '../composables/use-trip-memories-vault'
@@ -251,6 +253,9 @@ async function handleNotifyParticipants() {
   }
 }
 
+useDialogHistory('memories-fullscreen', isFullScreen)
+useDialogHistory('memories-track-player', isMemoriesTrackPlayerOpen)
+useFullscreenBackground(isFullScreen)
 onKeyStroke('Escape', (e) => {
   if (isFullScreen.value && !isAddNoteDialogVisible.value && !isAddActivityDialogVisible.value && !isGenerateDialogVisible.value && !isMemoriesTrackPlayerOpen.value) {
     e.preventDefault()
@@ -449,6 +454,8 @@ onBeforeUnmount(() => {
         v-model:visible="isGenerateDialogVisible"
         :day-id="getSelectedDay.id"
         :existing="memoriesForSelectedDay"
+        :trip-title="tripData.trip?.title"
+        :day-title="getSelectedDay.title"
         @saved="memories.memories = $event"
       />
 
@@ -490,7 +497,8 @@ onBeforeUnmount(() => {
     z-index: 995;
     background-color: var(--bg-primary-color);
     overflow-y: auto;
-    padding: 0px 8px;
+    padding: calc(8px + var(--safe-area-inset-top, 0px)) calc(8px + var(--safe-area-inset-right, 0px))
+      calc(8px + var(--safe-area-inset-bottom, 0px)) calc(8px + var(--safe-area-inset-left, 0px));
   }
 }
 

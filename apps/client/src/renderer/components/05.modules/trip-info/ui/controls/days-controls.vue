@@ -69,7 +69,7 @@ const selectedCalendarDate = computed<CalendarDate | null>({
     if (originalDate && originalDate.startsWith(newDateString))
       return
 
-    const newIsoDate = new Date(newDateString).toISOString()
+    const newIsoDate = parseCalendarDateUtc(newDateString).toISOString()
 
     const occupiedDay = getAllDays.value.find((day: IDay) => day.date && day.date.startsWith(newDateString) && day.id !== currentDay.id)
 
@@ -78,7 +78,7 @@ const selectedCalendarDate = computed<CalendarDate | null>({
       updateDayDetails(currentDay.id, { date: newIsoDate })
 
       if (!originalDate) {
-        toast.info(`Маршрут назначен на ${new Date(newDateString).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })}. Прежний маршрут дня перемещен в черновики.`)
+        toast.info(`Маршрут назначен на ${formatDayFullDate(newDateString)}. Прежний маршрут дня перемещен в черновики.`)
       }
       else {
         toast.info('Маршруты дней поменялись местами.')
@@ -86,7 +86,7 @@ const selectedCalendarDate = computed<CalendarDate | null>({
     }
     else {
       updateDayDetails(currentDay.id, { date: newIsoDate })
-      toast.success(`Маршрут назначен на ${new Date(newDateString).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })}`)
+      toast.success(`Маршрут назначен на ${formatDayFullDate(newDateString)}`)
     }
   },
 })
@@ -105,6 +105,22 @@ const fixedRightControlsStyle = computed(() => ({
   right: `${windowWidth.value - (props.wrapperBounding.left + props.wrapperBounding.width) - rightControlsWidth.value - 20}px`,
 }))
 
+function parseCalendarDateUtc(date: string): Date {
+  return new Date(`${date.slice(0, 10)}T00:00:00Z`)
+}
+function formatDayFullDate(date: string): string {
+  return parseCalendarDateUtc(date).toLocaleDateString('ru-RU', {
+    day: 'numeric',
+    month: 'long',
+    timeZone: 'UTC',
+  })
+}
+function formatDayWeekday(date: string): string {
+  return parseCalendarDateUtc(date).toLocaleDateString('ru-RU', {
+    weekday: 'long',
+    timeZone: 'UTC',
+  })
+}
 function handleAddNewDay() {
   store.plan.addNewDay()
 
@@ -190,10 +206,10 @@ onUnmounted(() => {
             >
               <template v-if="getSelectedDay?.date">
                 <h3>
-                  {{ new Date(getSelectedDay.date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' }) }}
+                  {{ formatDayFullDate(getSelectedDay.date) }}
                 </h3>
                 <span>
-                  {{ new Date(getSelectedDay.date).toLocaleDateString('ru-RU', { weekday: 'long' }) }}
+                  {{ formatDayWeekday(getSelectedDay.date) }}
                 </span>
               </template>
               <template v-else-if="getSelectedDay">
@@ -293,10 +309,10 @@ onUnmounted(() => {
               >
                 <template v-if="getSelectedDay?.date">
                   <h3>
-                    {{ new Date(getSelectedDay.date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' }) }}
+                    {{ formatDayFullDate(getSelectedDay.date) }}
                   </h3>
                   <span>
-                    {{ new Date(getSelectedDay.date).toLocaleDateString('ru-RU', { weekday: 'long' }) }}
+                    {{ formatDayWeekday(getSelectedDay.date) }}
                   </span>
                 </template>
                 <template v-else-if="getSelectedDay">
