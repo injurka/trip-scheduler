@@ -342,29 +342,17 @@ useEventListener(typeof window !== 'undefined' ? window : null, 'keydown', (e: K
           </template>
         </div>
       </div>
-
-      <!-- Правая часть: кнопка слежения камерой -->
-      <div class="readout-actions-right">
-        <button
-          class="camera-follow-btn"
-          :class="{ 'is-active': isFollowCamera }"
-          :title="isFollowCamera ? 'Слежение камерой активно (нажмите для свободного обзора, или C)' : 'Включить слежение камерой за движением (C)'"
-          @click="emit('update:isFollowCamera', !isFollowCamera)"
-        >
-          <Icon :icon="isFollowCamera ? 'mdi:crosshairs-gps' : 'mdi:crosshairs'" />
-          <span class="camera-btn-text">{{ isFollowCamera ? 'Слежение' : 'Свободная' }}</span>
-        </button>
-      </div>
     </div>
 
     <div class="route-visibility-controls">
-      <KitBtn size="sm" variant="text" @click="emit('editActivity')">
-        <Icon icon="mdi:pencil-outline" />
-        Исправить тип движения
-      </KitBtn>
       <KitDropdown :items="routeVisibilityItems" :model-value="routeVisibility" @update:model-value="emit('update:routeVisibility', $event)">
         <template #trigger>
-          <KitBtn size="sm" variant="text" aria-label="Отображение маршрута">
+          <KitBtn
+            size="sm"
+            variant="outlined"
+            color="secondary"
+            aria-label="Отображение маршрута"
+          >
             <Icon icon="mdi:routes" />
             {{ routeVisibilityItems.find(item => item.value === routeVisibility)?.label }}
             <Icon icon="mdi:chevron-down" />
@@ -378,20 +366,40 @@ useEventListener(typeof window !== 'undefined' ? window : null, 'keydown', (e: K
         @update:model-value="emit('update:trailMinutes', $event)"
       >
         <template #trigger>
-          <KitBtn size="sm" variant="text" aria-label="Длительность последнего отрезка">
+          <KitBtn
+            size="sm"
+            variant="outlined"
+            color="secondary"
+            aria-label="Длительность последнего отрезка"
+          >
             {{ trailMinutes }} мин
             <Icon icon="mdi:chevron-down" />
           </KitBtn>
         </template>
       </KitDropdown>
-      <KitBtn
-        v-if="routeVisibility !== 'full'"
-        size="sm"
-        variant="text"
-        @click="emit('update:routeVisibility', 'full')"
-      >
-        Весь маршрут
-      </KitBtn>
+      <div class="route-tools">
+        <KitBtn
+          size="sm"
+          variant="outlined"
+          color="secondary"
+          aria-label="Исправить тип движения"
+          @click="emit('editActivity')"
+        >
+          <Icon icon="mdi:pencil-outline" />
+          <span class="edit-label">Правка</span>
+        </KitBtn>
+        <KitBtn
+          size="sm"
+          variant="outlined"
+          color="secondary"
+          :aria-pressed="isFollowCamera"
+          aria-label="Слежение камерой"
+          title="Слежение камерой (C)"
+          @click="emit('update:isFollowCamera', !isFollowCamera)"
+        >
+          <Icon :icon="isFollowCamera ? 'mdi:crosshairs-gps' : 'mdi:crosshairs'" />
+        </KitBtn>
+      </div>
     </div>
 
     <!-- Интеллектуальный таймлайн со сегментами активности и превью -->
@@ -567,7 +575,19 @@ useEventListener(typeof window !== 'undefined' ? window : null, 'keydown', (e: K
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
+
+  :deep(.kit-btn) {
+    min-height: 36px;
+    box-shadow: none;
+    white-space: nowrap;
+  }
+
+  .route-tools {
+    display: flex;
+    gap: 6px;
+    margin-left: auto;
+  }
 }
 
 .memories-panel {
@@ -582,7 +602,7 @@ useEventListener(typeof window !== 'undefined' ? window : null, 'keydown', (e: K
   backdrop-filter: blur(16px);
   border: 1px solid var(--border-secondary-color);
   border-radius: var(--r-l);
-  padding: 12px 18px;
+  padding: 10px 14px;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -592,7 +612,7 @@ useEventListener(typeof window !== 'undefined' ? window : null, 'keydown', (e: K
   /* ── 1. Верхняя инфо-строка ── */
   .memories-readout {
     display: grid;
-    grid-template-columns: 1fr auto 1fr;
+    grid-template-columns: 1fr auto;
     align-items: center;
     gap: 12px;
     font-variant-numeric: tabular-nums;
@@ -695,49 +715,6 @@ useEventListener(typeof window !== 'undefined' ? window : null, 'keydown', (e: K
 
         .pill-speed {
           font-variant-numeric: tabular-nums;
-        }
-      }
-    }
-
-    .readout-actions-right {
-      justify-self: end;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      min-width: 0;
-      height: 28px;
-
-      .camera-follow-btn {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        height: 28px;
-        box-sizing: border-box;
-        padding: 0 11px;
-        border-radius: var(--r-full);
-        border: 1px solid var(--border-secondary-color);
-        background: var(--bg-tertiary-color);
-        color: var(--fg-secondary-color);
-        font-size: 0.75rem;
-        font-weight: 500;
-        cursor: pointer;
-        transition: all 0.2s;
-        white-space: nowrap;
-
-        svg {
-          font-size: 1.05rem;
-        }
-
-        &:hover {
-          background: var(--bg-hover-color);
-          color: var(--fg-primary-color);
-        }
-
-        &.is-active {
-          background: rgba(var(--fg-accent-color-rgb, 59, 130, 246), 0.18);
-          border-color: var(--border-accent-color);
-          color: var(--fg-accent-color);
-          font-weight: 600;
         }
       }
     }
@@ -1090,9 +1067,16 @@ useEventListener(typeof window !== 'undefined' ? window : null, 'keydown', (e: K
     }
   }
 
+  @media (max-width: 380px) {
+    .route-visibility-controls .edit-label,
+    .tz-text {
+      display: none;
+    }
+  }
+
   /* ── Адаптивность для мобильных устройств ── */
   @media (max-width: 640px) {
-    bottom: 8px;
+    bottom: calc(8px + var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)));
     left: 8px;
     right: 8px;
     padding: 10px 12px;
@@ -1121,7 +1105,7 @@ useEventListener(typeof window !== 'undefined' ? window : null, 'keydown', (e: K
           flex-shrink: 0;
 
           .tz-text {
-            max-width: 90px;
+            max-width: 60px;
           }
         }
       }
@@ -1158,21 +1142,6 @@ useEventListener(typeof window !== 'undefined' ? window : null, 'keydown', (e: K
 
           .pill-sep {
             flex-shrink: 0;
-          }
-        }
-      }
-
-      .readout-actions-right {
-        flex-shrink: 0;
-        height: 26px;
-        justify-self: auto;
-
-        .camera-follow-btn {
-          height: 26px;
-          padding: 0 8px;
-
-          .camera-btn-text {
-            display: none;
           }
         }
       }

@@ -26,10 +26,12 @@ describe('bUG-039 classification', () => {
   })
 
   it('uses time windows consistently at different GPS sampling intervals', () => {
-    for (const interval of [1_000, 5_000, 15_000]) {
-      const points = route(Array.from<number>({ length: Math.floor(300_000 / interval) }).fill(14), 'walk')
+    for (const interval of [1_000, 5_000, 15_000, 45_000, 60_000, 90_000]) {
+      const points = route(Array.from<number>({ length: Math.max(8, Math.floor(300_000 / interval)) }).fill(14), 'walk')
         .map((p, i) => ({ ...p, tsUtc: 1_800_000_000_000 + i * interval, lng: 48 + i * 14 * interval / 1000 / 111_195 }))
-      expect(processDayTrack(points).every(s => s.activity === 'vehicle')).toBe(true)
+      const segments = processDayTrack(points)
+      expect(segments.length).toBeGreaterThan(0)
+      expect(segments.every(s => s.activity === 'vehicle')).toBe(true)
     }
   })
 

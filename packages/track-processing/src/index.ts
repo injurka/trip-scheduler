@@ -1155,7 +1155,10 @@ function classificationWindows(points: TrackPoint[]): Array<{ start: number, end
   while (start < points.length - 1) {
     while (end < points.length && points[end].tsUtc <= points[start].tsUtc + 60_000)
       end++
-    const until = Math.min(points.length, Math.max(end, start + 2))
+    // Sparse background fixes need at least three samples to establish movement.
+    // Reuse preceding samples for the tail instead of classifying a two-fix stop.
+    const until = Math.min(points.length, Math.max(end, start + MIN_EVIDENCE_FIXES))
+    start = Math.min(start, Math.max(0, until - MIN_EVIDENCE_FIXES))
     windows.push({ start, end: until })
     if (until === points.length)
       break
