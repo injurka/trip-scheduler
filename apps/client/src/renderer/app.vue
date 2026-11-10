@@ -9,6 +9,7 @@ import { ToastManager } from '~/components/02.shared/toast-manager'
 import { useKeyboardAwareLayout } from '~/shared/composables/use-keyboard-aware-layout'
 import { useOnboarding } from '~/shared/composables/use-onboarding'
 import { AppRouteNames, AppRoutePaths } from '~/shared/constants/routes'
+import { useConnectivity } from '~/shared/lib/connectivity'
 import { lazyComponent } from '~/shared/lib/lazy-component'
 import { useAuthStore } from '~/shared/store/auth.store'
 import { useLayoutStore } from '~/shared/store/layout.store'
@@ -20,6 +21,7 @@ import '~/assets/scss/fonts.scss'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import '~/assets/scss/maplibre-markers.scss'
 
+const { isOnline } = useConnectivity()
 const route = useRoute()
 const router = useRouter()
 const layoutStore = useLayoutStore()
@@ -53,7 +55,8 @@ useHead({
       : `${siteName} — Планировщик путешествий и маршрутов`
   },
   htmlAttrs: {
-    lang: 'ru',
+    'lang': 'ru',
+    'data-offline': computed(() => String(!isOnline.value)),
   },
   link: [
     {
@@ -146,7 +149,7 @@ onMounted(async () => {
   padding-top: var(--offline-banner-offset);
 }
 
-#app:has(.offline-banner:not(.slide-down-leave-active)) {
+html[data-offline='true'] #app {
   --offline-banner-offset: var(--offline-banner-height);
 }
 

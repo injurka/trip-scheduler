@@ -51,6 +51,36 @@ describe.each(['web', 'hash'])('navigation from a dialog (%s history)', (mode) =
     routerHistory.destroy()
   })
 
+  it('waits for every nested menu entry before navigating', async () => {
+    window.history.replaceState(null, '', '/')
+    const routerHistory = history()
+    const router = createRouter({ history: routerHistory, routes: [{ path: '/trip/:id', component: {} }] })
+    await router.push('/trip/test')
+    const dialogs = [ref(false), ref(false), ref(false)]
+    const scope = effectScope()
+    scopes.push(scope)
+    scope.run(() => dialogs.forEach((open, i) => useDialogHistory(`nested-${mode}-${i}`, open)))
+
+    for (const open of dialogs) {
+      open.value = true
+      await nextTick()
+    }
+
+    dialogs[2].value = false
+    await nextTick()
+    const cleanup = waitForDialogHistory()
+    await nextTick()
+    dialogs[1].value = false
+    dialogs[0].value = false
+    await cleanup
+    expect(window.history.state.isModal).not.toBe(true)
+    await router.push('/trip/test?section=notes')
+    await new Promise(resolve => setTimeout(resolve, 700))
+    expect(router.currentRoute.value.fullPath).toBe('/trip/test?section=notes')
+    expect(hasOpenModals()).toBe(false)
+    routerHistory.destroy()
+  })
+
   it('still closes the menu on system Back without changing the section', async () => {
     window.history.replaceState(null, '', '/')
     const routerHistory = history()

@@ -1,6 +1,6 @@
 import type { LayerSpecification, SourceSpecification } from 'maplibre-gl'
 import type { UseDayTrackMapOptions } from '../src/renderer/components/04.features/day-track-player/composables/use-day-track-map'
-import type { DayPoint } from '../src/renderer/components/04.features/day-track-player/models/types'
+import type { DayPoint, RouteVisibility } from '../src/renderer/components/04.features/day-track-player/models/types'
 import { mount } from '@vue/test-utils'
 import { expect, it, vi } from 'vitest'
 import { computed, defineComponent, h, nextTick, ref, shallowRef } from 'vue'
@@ -85,6 +85,9 @@ it('renders stops as individual unclustered points, preserves popup indices and 
     },
   ]
   const mode = ref<'route' | 'points'>('route')
+  const routeVisibility = ref<RouteVisibility>('full')
+  const t = ref(0)
+  const trailMinutes = ref(15)
   let selectedPointResult: unknown = null
   const options: UseDayTrackMapOptions = {
     mapHost: ref(document.createElement('div')),
@@ -95,7 +98,9 @@ it('renders stops as individual unclustered points, preserves popup indices and 
     renderSegments: computed(() => []),
     currentPoint: computed(() => null),
     currentActivityColor: computed(() => '#fff'),
-    t: ref(0),
+    t,
+    routeVisibility,
+    trailMinutes,
     isPlaying: ref(false),
     isFollowCamera: ref(false),
     viewMode: mode,
@@ -142,6 +147,35 @@ it('renders stops as individual unclustered points, preserves popup indices and 
   await nextTick()
   expect(stops.data.features).toHaveLength(0)
   expect(sources.get('day-track-points-source')!.data.features).toHaveLength(3)
+
+  // Timeline changes update geometry and raw points without refitting the camera.
+  const fitBounds = (state.map as { fitBounds: ReturnType<typeof vi.fn> }).fitBounds
+  fitBounds.mockClear()
+  routeVisibility.value = 'elapsed'
+  t.value = 5_000
+  await nextTick()
+  expect(sources.get('day-track-points-source')!.data.features).toHaveLength(1)
+  const route = sources.get('day-track-route-source')!.data.features[0]
+  expect((route.geometry as GeoJSON.LineString).coordinates.at(-1)).toEqual([48.0005, 54.0005])
+
+  t.value = 20_000
+  await nextTick()
+  expect(sources.get('day-track-points-source')!.data.features).toHaveLength(3)
+  t.value = 5_000
+  await nextTick()
+  expect(sources.get('day-track-points-source')!.data.features).toHaveLength(1)
+
+  routeVisibility.value = 'recent'
+  trailMinutes.value = 0.1
+  t.value = 20_000
+  await nextTick()
+  expect(sources.get('day-track-points-source')!.data.features).toHaveLength(1)
+  expect(stops.data.features).toHaveLength(0)
+
+  routeVisibility.value = 'full'
+  await nextTick()
+  expect(sources.get('day-track-points-source')!.data.features).toHaveLength(3)
+  expect(fitBounds).not.toHaveBeenCalled()
 
   wrapper.unmount()
 })

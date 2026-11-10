@@ -1,9 +1,10 @@
 import type { ComputedRef, Ref } from 'vue'
-import type { DayData, DayPoint, PointStatusBadge, RenderSegment, SelectedPointInfo, TrackPhoto, TrackPhotoCluster, ViewMode } from '../models/types'
+import type { DayData, DayPoint, PointStatusBadge, RenderSegment, RouteVisibility, SelectedPointInfo, TrackPhoto, TrackPhotoCluster, ViewMode } from '../models/types'
 import * as maplibregl from 'maplibre-gl'
-import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useKitMap } from '~/components/01.kit/kit-map/composables/use-kit-map'
 import { haversineM, splitTrackIntoLegs } from '~/shared/services/tracking/track-processing'
+import { clipTrackLeg, upperTimeIndex } from '../lib/track-time-window'
 import { ACTIVITY_COLORS } from '../models/types'
 
 interface TrackMapBounds {
@@ -24,46 +25,6 @@ function createEmptyFeatureCollection(): GeoJSON.FeatureCollection {
   return { type: 'FeatureCollection', features: [] }
 }
 
-function findCoveredPointIndex(points: DayPoint[], timestamp: number): number {
-  let low = 0
-  let high = points.length - 1
-  let coveredIndex = -1
-
-  while (low <= high) {
-    const middle = (low + high) >> 1
-
-    if (points[middle].tsUtc <= timestamp) {
-      coveredIndex = middle
-      low = middle + 1
-    }
-    else {
-      high = middle - 1
-    }
-  }
-
-  return coveredIndex
-}
-
-function createProgressFeatures(points: DayPoint[]): GeoJSON.Feature[] {
-  const features: GeoJSON.Feature[] = []
-
-  for (const leg of splitTrackIntoLegs(points)) {
-    if (leg.points.length < 2)
-      continue
-
-    const lastPoint = leg.points.at(-1)
-    const color = ACTIVITY_COLORS[lastPoint?.activity || 'unknown'] || '#2196f3'
-
-    features.push({
-      type: 'Feature',
-      properties: { color, glowColor: `${color}40` },
-      geometry: { type: 'LineString', coordinates: leg.points.map(point => [point.lng, point.lat]) },
-    })
-  }
-
-  return features
-}
-
 export interface UseDayTrackMapOptions {
   mapHost: Ref<HTMLElement | null>
   popupHost: Ref<HTMLElement | null>
@@ -78,6 +39,8 @@ export interface UseDayTrackMapOptions {
   isPlaying: Ref<boolean>
   isFollowCamera: Ref<boolean>
   viewMode: Ref<ViewMode>
+  routeVisibility?: Ref<RouteVisibility>
+  trailMinutes?: Ref<number>
   locatedPhotos?: ComputedRef<TrackPhoto[]>
   isPhotosVisible?: Ref<boolean>
   onSelectPhoto?: (photo: TrackPhoto | null) => void
@@ -104,6 +67,62 @@ export function useDayTrackMap(options: UseDayTrackMapOptions) {
     onSelectPhoto,
     onSelectCluster,
   } = options
+
+  const routeVisibility = options.routeVisibility ?? ref<RouteVisibility>('full')
+  const trailMinutes = options.trailMinutes ?? ref(15)
+  // Split once per dataset, before clipping: gaps and session boundaries stay intact.
+  const rawLegs = computed(() => splitTrackIntoLegs(dayData.value?.rawPoints ?? displayPoints.value))
+  const windowStart = computed(() => routeVisibility.value === 'recent' ? t.value - trailMinutes.value * 60_000 : Number.NEGATIVE_INFINITY)
+
+  function visiblePoints(points: DayPoint[]): DayPoint[] {
+    if (routeVisibility.value === 'full')
+      return points
+
+    const from = windowStart.value === Number.NEGATIVE_INFINITY ? 0 : upperTimeIndex(points, windowStart.value - 1)
+
+    return points.slice(from, upperTimeIndex(points, t.value))
+  }
+
+  function temporalFeatures(start: number, end: number): GeoJSON.Feature[] {
+    if (viewMode.value === 'route') {
+      return renderSegments.value.flatMap((segment) => {
+        const points = clipTrackLeg(segment.points, start, end)
+
+        if (points.length < 2 || segment.activity === 'still')
+          return []
+
+        const color = ACTIVITY_COLORS[segment.activity]
+
+        return [{
+          type: 'Feature' as const,
+          properties: { color, glowColor: `${color}40`, width: segment.activity === 'rail' ? 6 : 4.5 },
+          geometry: { type: 'LineString' as const, coordinates: points.map(point => [point.lng, point.lat]) },
+        }]
+      })
+    }
+
+    return rawLegs.value.flatMap((leg) => {
+      const points = clipTrackLeg(leg.points, start, end)
+      const features: GeoJSON.Feature[] = []
+      // Keep activity colors, sharing the boundary vertex between adjacent runs.
+      let runStart = 0
+
+      for (let i = 1; i < points.length; i++) {
+        if (i !== points.length - 1 && points[i].activity === points[i + 1].activity)
+          continue
+
+        const color = ACTIVITY_COLORS[points[i].activity] || ACTIVITY_COLORS.unknown
+        features.push({
+          type: 'Feature',
+          properties: { color, glowColor: `${color}40`, width: 4.5 },
+          geometry: { type: 'LineString', coordinates: points.slice(runStart, i + 1).map(point => [point.lng, point.lat]) },
+        })
+        runStart = i
+      }
+
+      return features
+    })
+  }
 
   const { mapInstance, isMapReady, initMap } = useKitMap()
   const mapCenter: [number, number] = [37.6176, 55.7558]
@@ -292,25 +311,21 @@ export function useDayTrackMap(options: UseDayTrackMapOptions) {
     if (!map || !map.getSource(PROGRESS_SOURCE_ID))
       return
 
-    const points = dayData.value?.points
+    if (routeVisibility.value !== 'full') {
+      const data: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: temporalFeatures(windowStart.value, t.value) }
+      ;(map.getSource(ROUTE_SOURCE_ID) as maplibregl.GeoJSONSource)?.setData(data)
+      const points = getPointsForRebuild()
+      renderedPoints = points.pointsList
+      updatePointLayer(map, points.pointsList, points.isPointsMode)
+      updateStopAreaLayer(map, visiblePoints(points.pointsList), points.isPointsMode)
 
-    if (t.value === 0 || !points?.length) {
-      setProgressGeojson(map, createEmptyFeatureCollection())
-
-      return
+      if (selectedPoint.value && !visiblePoints([selectedPoint.value.point]).length)
+        closePointPopup()
     }
 
-    // Быстрый бинарный поиск границы пройденных точек без лишней фильтрации и сортировки
-    const coveredIndex = findCoveredPointIndex(points, t.value)
-
-    if (coveredIndex < 1) {
-      setProgressGeojson(map, createEmptyFeatureCollection())
-
-      return
-    }
-
-    const coveredPoints = points.slice(0, coveredIndex + 1)
-    setProgressGeojson(map, { type: 'FeatureCollection', features: createProgressFeatures(coveredPoints) })
+    // A short bright tail identifies the current part, including in the full view.
+    const start = Math.max(windowStart.value, t.value - 60_000)
+    setProgressGeojson(map, { type: 'FeatureCollection', features: temporalFeatures(start, t.value) })
   }
 
   function setProgressGeojson(map: maplibregl.Map, data: GeoJSON.FeatureCollection) {
@@ -524,6 +539,9 @@ export function useDayTrackMap(options: UseDayTrackMapOptions) {
   }
 
   function getRouteFeatures(uniquePoints: DayPoint[]): GeoJSON.Feature[] {
+    if (routeVisibility.value !== 'full')
+      return temporalFeatures(windowStart.value, t.value)
+
     if (viewMode.value === 'route')
       return createSegmentRouteFeatures()
 
@@ -698,11 +716,12 @@ export function useDayTrackMap(options: UseDayTrackMapOptions) {
     if (isPointsMode)
       return []
 
+    const visible = new Set(visiblePoints(points))
     const seenStopTimes = new Set<number>()
     const features: GeoJSON.Feature[] = []
 
     for (const point of points) {
-      if (!point.stop || seenStopTimes.has(point.stop.startedAt))
+      if (!visible.has(point) || !point.stop || seenStopTimes.has(point.stop.startedAt))
         continue
 
       seenStopTimes.add(point.stop.startedAt)
@@ -964,7 +983,7 @@ export function useDayTrackMap(options: UseDayTrackMapOptions) {
     updateRouteLayer(map, getUniqueTrackPoints(points.rawPoints))
     renderedPoints = points.pointsList
     updatePointLayer(map, points.pointsList, points.isPointsMode)
-    updateStopAreaLayer(map, points.pointsList, points.isPointsMode)
+    updateStopAreaLayer(map, visiblePoints(points.pointsList), points.isPointsMode)
     updatePhotoLayers(map, points.allPoints)
   }
 
@@ -992,13 +1011,14 @@ export function useDayTrackMap(options: UseDayTrackMapOptions) {
   }
 
   function updatePointLayer(map: maplibregl.Map, points: DayPoint[], isPointsMode: boolean) {
+    const visible = new Set(visiblePoints(points))
     const seenStopTimes = new Set<number>()
     const stops: GeoJSON.FeatureCollection = {
       type: 'FeatureCollection',
       features: isPointsMode
         ? []
         : points.flatMap((point, index) => {
-            if (!point.stop || seenStopTimes.has(point.stop.startedAt))
+            if (!visible.has(point) || !point.stop || seenStopTimes.has(point.stop.startedAt))
               return []
 
             seenStopTimes.add(point.stop.startedAt)
@@ -1012,7 +1032,7 @@ export function useDayTrackMap(options: UseDayTrackMapOptions) {
           }),
     }
     ;(map.getSource(STOPS_SOURCE_ID) as maplibregl.GeoJSONSource)?.setData(stops)
-    const data: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: createTrackPointFeatures(points, isPointsMode) }
+    const data: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: createTrackPointFeatures(points, isPointsMode).filter(feature => visible.has(points[Number(feature.properties?.pointIndex) - 1])) }
     ;(map.getSource(POINTS_SOURCE_ID) as maplibregl.GeoJSONSource)?.setData(data)
 
     if (map.getLayer(POINTS_LAYER_ID))
@@ -1103,7 +1123,11 @@ export function useDayTrackMap(options: UseDayTrackMapOptions) {
     const maxDeltaLng = maxDistance / (111_000 * Math.max(0.1, Math.cos((latitude * Math.PI) / 180)))
     let nearest: { point: DayPoint, index: number, distance: number } | null = null
 
+    const visible = new Set(visiblePoints(renderedPoints))
     renderedPoints.forEach((candidate, index) => {
+      if (!visible.has(candidate))
+        return
+
       if (isOutsidePointHitbox(
         candidate,
         latitude,
@@ -1255,6 +1279,20 @@ export function useDayTrackMap(options: UseDayTrackMapOptions) {
 
     if (curT > 0)
       updatePhotoMarkersPlaybackState()
+  })
+
+  watch([routeVisibility, trailMinutes], () => {
+    const map = mapInstance.value
+
+    if (!map || !isMapReady.value)
+      return
+
+    closePointPopup()
+    const points = getPointsForRebuild()
+    updateRouteLayer(map, getUniqueTrackPoints(points.rawPoints))
+    updatePointLayer(map, points.pointsList, points.isPointsMode)
+    updateStopAreaLayer(map, visiblePoints(points.pointsList), points.isPointsMode)
+    scheduleProgressUpdate(true)
   })
 
   watch([renderSegments, viewMode], () => rebuildFeatures())

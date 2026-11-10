@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import type { RenderSegment, TimezoneMode, TrackPhoto } from '../models/types'
+import type { RenderSegment, RouteVisibility, TimezoneMode, TrackPhoto } from '../models/types'
 import type { KitDropdownItem } from '~/components/01.kit/kit-dropdown'
 import type { ActivityType } from '~/shared/services/tracking/track-processing'
 import { Icon } from '@iconify/vue'
 import { useEventListener } from '@vueuse/core'
 import { computed, ref } from 'vue'
+import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitDropdown } from '~/components/01.kit/kit-dropdown'
 import {
   ACTIVITY_COLORS,
@@ -13,6 +14,8 @@ import {
 } from '../models/types'
 
 interface Props {
+  routeVisibility: RouteVisibility
+  trailMinutes: number
   timeLabel: string
   timezoneMode: TimezoneMode
   deviceTimezone: string
@@ -60,10 +63,13 @@ const props = withDefaults(defineProps<Props>(), {
   photoMarkers: () => [],
 })
 const emit = defineEmits<{
+  (e: 'update:routeVisibility', val: RouteVisibility): void
+  (e: 'update:trailMinutes', val: number): void
   (e: 'update:t', val: number): void
   (e: 'update:isPlaying', val: boolean): void
   (e: 'update:speedMultiplier', val: number): void
   (e: 'update:isFollowCamera', val: boolean): void
+  (e: 'editActivity'): void
   (e: 'toggleTimezone'): void
   (e: 'stepSeconds', delta: number): void
   (e: 'skipToPrevMovement'): void
@@ -72,6 +78,13 @@ const emit = defineEmits<{
   (e: 'seekEnd'): void
   (e: 'seekPhoto', tsUtc: number): void
 }>()
+
+const routeVisibilityItems: KitDropdownItem<RouteVisibility>[] = [
+  { value: 'full', label: 'Весь маршрут' },
+  { value: 'elapsed', label: 'До текущего времени' },
+  { value: 'recent', label: 'Последний отрезок' },
+]
+const trailItems = [5, 15, 30, 60].map(value => ({ value, label: `${value} мин` }))
 
 // ─── 3. Hover Preview на таймлайне (Scrubber tooltip) ───────────────────────────
 const timelineBarRef = ref<HTMLElement | null>(null)
@@ -344,6 +357,43 @@ useEventListener(typeof window !== 'undefined' ? window : null, 'keydown', (e: K
       </div>
     </div>
 
+    <div class="route-visibility-controls">
+      <KitBtn size="sm" variant="text" @click="emit('editActivity')">
+        <Icon icon="mdi:pencil-outline" />
+        Исправить тип движения
+      </KitBtn>
+      <KitDropdown :items="routeVisibilityItems" :model-value="routeVisibility" @update:model-value="emit('update:routeVisibility', $event)">
+        <template #trigger>
+          <KitBtn size="sm" variant="text" aria-label="Отображение маршрута">
+            <Icon icon="mdi:routes" />
+            {{ routeVisibilityItems.find(item => item.value === routeVisibility)?.label }}
+            <Icon icon="mdi:chevron-down" />
+          </KitBtn>
+        </template>
+      </KitDropdown>
+      <KitDropdown
+        v-if="routeVisibility === 'recent'"
+        :items="trailItems"
+        :model-value="trailMinutes"
+        @update:model-value="emit('update:trailMinutes', $event)"
+      >
+        <template #trigger>
+          <KitBtn size="sm" variant="text" aria-label="Длительность последнего отрезка">
+            {{ trailMinutes }} мин
+            <Icon icon="mdi:chevron-down" />
+          </KitBtn>
+        </template>
+      </KitDropdown>
+      <KitBtn
+        v-if="routeVisibility !== 'full'"
+        size="sm"
+        variant="text"
+        @click="emit('update:routeVisibility', 'full')"
+      >
+        Весь маршрут
+      </KitBtn>
+    </div>
+
     <!-- Интеллектуальный таймлайн со сегментами активности и превью -->
     <div class="timeline-container">
       <span class="timeline-bound-time start">{{ formattedStart }}</span>
@@ -513,6 +563,13 @@ useEventListener(typeof window !== 'undefined' ? window : null, 'keydown', (e: K
 </template>
 
 <style scoped lang="scss">
+.route-visibility-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+
 .memories-panel {
   position: absolute;
   bottom: calc(14px + var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)));

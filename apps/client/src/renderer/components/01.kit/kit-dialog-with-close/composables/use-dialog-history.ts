@@ -54,7 +54,6 @@ function waitForPopState(onPop?: () => void): Promise<void> {
 
       // Suspend parent listeners for the entire event dispatch.
       queueMicrotask(() => {
-        pendingBack = undefined
         resolve()
       })
     }
@@ -135,9 +134,13 @@ export function useDialogHistory(dialogId: string, visible: Ref<boolean>, option
 
   function popModalHistoryEntry() {
     savedScroll = { left: window.scrollX, top: window.scrollY }
-    pendingBack = waitForPopState(restoreScrollPosition)
+    const cleanup = waitForPopState(restoreScrollPosition).finally(() => {
+      if (pendingBack === cleanup)
+        pendingBack = undefined
+    })
+    pendingBack = cleanup
 
-    return pendingBack
+    return cleanup
   }
 
   function enqueuePendingBackCleanup() {

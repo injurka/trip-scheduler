@@ -1012,3 +1012,16 @@ export const trackSegments = pgTable('track_segments', {
 }, t => ({
   userSessionIndex: index('track_segments_user_session_idx').on(t.userId, t.sessionId, t.startedAt),
 }))
+
+/** User corrections are independent of source GPS points and generated segments. */
+export const trackActivityCorrections = pgTable('track_activity_corrections', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  sessionId: text('session_id').notNull(),
+  startedAt: timestamp('started_at', { withTimezone: true }).notNull(),
+  endedAt: timestamp('ended_at', { withTimezone: true }).notNull(),
+  activity: trackActivityTypeEnum('activity').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, t => ({
+  userTimeIndex: index('track_activity_corrections_user_time_idx').on(t.userId, t.startedAt, t.endedAt),
+}))

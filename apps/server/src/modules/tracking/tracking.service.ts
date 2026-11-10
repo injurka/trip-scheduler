@@ -1,8 +1,9 @@
 import type { GetTrackDayInput, IngestBatchInput } from './tracking.schemas'
-import { processDayTrack } from '@limiteddissolve/track-processing'
+import { annotateTrackPoints, applyActivityCorrections, processDayTrack } from '@limiteddissolve/track-processing'
+import { TRPCError } from '@trpc/server'
 import { db } from 'db'
-import { trackPoints, trackSegments } from 'db/schema'
-import { and, eq, gte, inArray, lt, lte } from 'drizzle-orm'
+import { trackActivityCorrections, trackPoints, trackSegments } from 'db/schema'
+import { and, eq, gt, gte, inArray, lt, lte } from 'drizzle-orm'
 import { measureDbQuery } from '~/lib/db-monitoring'
 
 /** Активность в терминах пакета @limiteddissolve/track-processing. */
@@ -37,6 +38,14 @@ function toReprocessPoint(p: ReprocessSourceRow) {
     deviceActivity: p.deviceActivity,
     deviceActivityConfidence: p.deviceActivityConfidence,
   }
+}
+
+async function getCorrections(userId: string, from: Date, to: Date) {
+  const rows = await measureDbQuery('track_activity_corrections', 'select', () => db.select()
+    .from(trackActivityCorrections)
+    .where(and(eq(trackActivityCorrections.userId, userId), lt(trackActivityCorrections.startedAt, to), gt(trackActivityCorrections.endedAt, from)))
+    .orderBy(trackActivityCorrections.createdAt, trackActivityCorrections.id))
+  return rows.map(row => ({ id: row.id, sessionId: row.sessionId, startedAt: row.startedAt.getTime(), endedAt: row.endedAt.getTime(), activity: row.activity, createdAt: row.createdAt.getTime() }))
 }
 
 export const trackingService = {
@@ -123,14 +132,18 @@ export const trackingService = {
       .orderBy(trackPoints.tsUtc))
     const raw = points.map(p => ({ ...p, tsUtc: p.tsUtc.getTime() }))
     // Compute from original measurements on read: historical days immediately use the current algorithm.
-    const segments = processDayTrack(raw)
+    const corrections = await getCorrections(userId, from, to)
+    const segments = applyActivityCorrections(processDayTrack(raw), corrections)
     return {
-      points: raw,
+      corrections,
+      points: annotateTrackPoints(raw, segments),
       segments: segments.map((s, i) => ({
         id: `processed-${i}`,
         sessionId: s.points[0].sessionId,
         activity: s.activity,
         confidence: s.confidence,
+        activitySource: s.activitySource ?? 'automatic' as const,
+        simplifiedPoints: s.points.map(p => ({ tsUtc: p.tsUtc, lat: p.lat, lng: p.lng })),
         startedAt: s.points[0].tsUtc,
         endedAt: s.points[s.points.length - 1].tsUtc,
         distanceM: s.features.distanceM,
@@ -214,6 +227,7 @@ export const trackingService = {
       .from(trackPoints)
       .where(and(eq(trackPoints.userId, userId), gte(trackPoints.tsUtc, from), lte(trackPoints.tsUtc, to)))
       .orderBy(trackPoints.tsUtc))
+    const corrections = await getCorrections(userId, from, to)
     const byDay = new Map<string, {
       activityMap: Map<string, { distanceM: number, durationMs: number, segmentCount: number }>
       firstPointTs: number | null
@@ -228,7 +242,7 @@ export const trackingService = {
     }
     for (const [day, points] of daysOfPoints) {
       const activityMap = new Map<string, { distanceM: number, durationMs: number, segmentCount: number }>()
-      for (const s of processDayTrack(points.map(p => ({ ...p, tsUtc: p.tsUtc.getTime() })))) {
+      for (const s of applyActivityCorrections(processDayTrack(points.map(p => ({ ...p, tsUtc: p.tsUtc.getTime() }))), corrections)) {
         const agg = activityMap.get(s.activity) ?? { distanceM: 0, durationMs: 0, segmentCount: 0 }
         agg.distanceM += s.features.distanceM
         agg.durationMs += s.features.durationMs
@@ -254,6 +268,32 @@ export const trackingService = {
         }
       })
       .sort((a, b) => b.dayUtc.localeCompare(a.dayUtc))
+  },
+
+  async correctActivity(userId: string, input: { sessionId: string, startedAt: number, endedAt: number, activity: TrackActivity }) {
+    const start = new Date(input.startedAt)
+    const end = new Date(input.endedAt)
+    const owned = await measureDbQuery('track_points', 'select', () => db.select({ id: trackPoints.id })
+      .from(trackPoints)
+      .where(and(eq(trackPoints.userId, userId), eq(trackPoints.sessionId, input.sessionId), gte(trackPoints.tsUtc, start), lte(trackPoints.tsUtc, end)))
+      .limit(1))
+    if (!owned.length)
+      throw new TRPCError({ code: 'BAD_REQUEST', message: 'В выбранном интервале нет ваших GPS-точек этой сессии' })
+    await measureDbQuery('track_activity_corrections', 'insert', () => db.insert(trackActivityCorrections).values({
+      userId,
+      sessionId: input.sessionId,
+      startedAt: start,
+      endedAt: end,
+      activity: input.activity,
+    }))
+    return { success: true }
+  },
+
+  async removeActivityCorrection(userId: string, id: string) {
+    const removed = await measureDbQuery('track_activity_corrections', 'delete', () => db.delete(trackActivityCorrections)
+      .where(and(eq(trackActivityCorrections.userId, userId), eq(trackActivityCorrections.id, id)))
+      .returning({ id: trackActivityCorrections.id }))
+    return { success: removed.length > 0 }
   },
 
   /**

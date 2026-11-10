@@ -2,6 +2,7 @@
 import type { DayPoint, PointStatusBadge, SelectedPointInfo, TimezoneMode } from '../models/types'
 import { Icon } from '@iconify/vue'
 import { computed } from 'vue'
+import { KitBtn } from '~/components/01.kit/kit-btn'
 import { ACTIVITY_COLORS, ACTIVITY_ICONS, ACTIVITY_LABELS } from '../models/types'
 
 interface Props {
@@ -19,6 +20,7 @@ const props = defineProps<Props>()
 const emit = defineEmits<{
   (e: 'copy', point: DayPoint): void
   (e: 'delete', point: DayPoint): void
+  (e: 'editActivity', point: DayPoint): void
   (e: 'close'): void
 }>()
 
@@ -112,6 +114,14 @@ const speedFormatted = computed(() => {
             <Icon icon="mdi:close" />
           </button>
         </div>
+      </div>
+
+      <div class="activity-details">
+        <span v-if="selectedPoint.point.activitySource === 'manual'">Исправлено вручную · {{ activityLabel }}</span>
+        <span v-else>Автоматически · {{ activityLabel }}<template v-if="selectedPoint.point.activityConfidence != null"> · уверенность {{ Math.round(selectedPoint.point.activityConfidence * 100) }}%</template></span>
+        <KitBtn size="sm" variant="text" @click="emit('editActivity', selectedPoint.point)">
+          Исправить интервал
+        </KitBtn>
       </div>
 
       <!-- 2. Временная плашка -->
@@ -211,6 +221,14 @@ const speedFormatted = computed(() => {
 </template>
 
 <style scoped lang="scss">
+.activity-details {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+
 .memories-popup {
   position: relative;
   pointer-events: auto;

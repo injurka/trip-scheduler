@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { DayPoint, TrackPhoto, ViewMode } from '../models/types'
+import type { DayPoint, RouteVisibility, TrackPhoto, ViewMode } from '../models/types'
 import type { ImageViewerImage } from '~/components/01.kit/kit-image-viewer'
 import type { Memory } from '~/shared/types/models/memory'
 import { Icon } from '@iconify/vue'
@@ -13,6 +13,7 @@ import { useDayTrackMap } from '../composables/use-day-track-map'
 import { useDayTrackPhotos } from '../composables/use-day-track-photos'
 import { useDayTrackPlayback } from '../composables/use-day-track-playback'
 import { useDayTrackTimezone } from '../composables/use-day-track-timezone'
+import DayTrackActivityEditor from './day-track-activity-editor.vue'
 import DayTrackBeacon from './day-track-beacon.vue'
 import DayTrackEmpty from './day-track-empty.vue'
 import DayTrackOverlayState from './day-track-overlay-state.vue'
@@ -120,6 +121,8 @@ const popupHost = ref<HTMLElement | null>(null)
 const photoPopupHost = ref<HTMLElement | null>(null)
 const playbackMarkerHost = ref<HTMLElement | null>(null)
 const viewMode = ref<ViewMode>('route')
+const routeVisibility = ref<RouteVisibility>('full')
+const trailMinutes = ref(15)
 
 // ─── 5. Карта и интерактивные слои ─────────────────────────────────────────────
 const map = useDayTrackMap({
@@ -135,6 +138,8 @@ const map = useDayTrackMap({
   isPlaying: playback.isPlaying,
   isFollowCamera: playback.isFollowCamera,
   viewMode,
+  routeVisibility,
+  trailMinutes,
   photoPopupHost,
   locatedPhotos,
   isPhotosVisible,
@@ -145,6 +150,9 @@ const map = useDayTrackMap({
     selectCluster(photos)
   },
 })
+
+const isActivityEditorOpen = ref(false)
+const activityEditorTime = ref(0)
 
 // Маячок воспроизведения — маркер «я здесь сейчас». В режиме воспоминаний
 // (просмотр прожитого дня) он читается как текущая геопозиция, поэтому скрыт.
@@ -217,6 +225,11 @@ function handleBack() {
       router.push({ name: AppRouteNames.ActivityTracking })
     }
   }
+}
+function editActivity(time = playback.t.value) {
+  playback.isPlaying.value = false
+  activityEditorTime.value = time
+  isActivityEditorOpen.value = true
 }
 async function onDeletePoint(pt: DayPoint) {
   await handleDeletePoint(pt, () => {
@@ -292,6 +305,7 @@ async function onDeletePoint(pt: DayPoint) {
         :status-badge="map.selectedPoint.value ? map.getPointStatusBadge(map.selectedPoint.value.point) : null"
         @copy="map.copyCoords"
         @delete="onDeletePoint"
+        @edit-activity="editActivity($event.tsUtc)"
         @close="map.closePointPopup"
       />
     </div>
@@ -330,6 +344,8 @@ async function onDeletePoint(pt: DayPoint) {
          воспоминаний таймлайн пуст («--:--», выключенный ползунок) и бесполезен -->
     <DayTrackPlaybackPanel
       v-if="renderSegments.length > 0 || totalPointsCount > 0"
+      v-model:route-visibility="routeVisibility"
+      v-model:trail-minutes="trailMinutes"
       v-model:t="playback.t.value"
       v-model:is-playing="playback.isPlaying.value"
       v-model:speed-multiplier="playback.speedMultiplier.value"
@@ -353,6 +369,7 @@ async function onDeletePoint(pt: DayPoint) {
       :render-segments="renderSegments"
       :photo-markers="timelinePhotoMarkers"
       :time-range-formatted="`${timezone.fmtRange(dayStart)} – ${timezone.fmtRange(dayEnd)}`"
+      @edit-activity="editActivity()"
       @toggle-timezone="timezone.toggleTimezone"
       @step-seconds="playback.stepSeconds"
       @skip-to-prev-movement="playback.skipToPrevMovement"
@@ -360,6 +377,13 @@ async function onDeletePoint(pt: DayPoint) {
       @seek-start="playback.t.value = dayStart"
       @seek-end="playback.t.value = dayEnd"
       @seek-photo="(ts) => { playback.t.value = ts }"
+    />
+
+    <DayTrackActivityEditor
+      v-model:visible="isActivityEditorOpen"
+      :day-data="dayData"
+      :initial-time="activityEditorTime"
+      @saved="loadDay(selectedDay)"
     />
 
     <!-- Полноэкранный просмотрщик фотографий -->

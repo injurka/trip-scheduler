@@ -1,7 +1,7 @@
 import type { TrackActivityType } from '@limiteddissolve/track-processing'
 import type { PluginListener } from '@tauri-apps/api/core'
 import { getErrorMessage } from '@injurka/type-utils'
-import { bearingDeg, evaluatePointValidity, haversineM, MAX_ACCURACY_M, movementEvidence, prepareTrack } from '@limiteddissolve/track-processing'
+import { ActivityState, bearingDeg, evaluatePointValidity, haversineM, MAX_ACCURACY_M, movementEvidence, prepareTrack } from '@limiteddissolve/track-processing'
 import { addPluginListener, invoke } from '@tauri-apps/api/core'
 import {
   checkPermissions as tauriCheckPermissions,
@@ -198,6 +198,10 @@ interface DeviceActivitySample {
   activity: ActivityType
   confidence: number
   tsUtc: number
+}
+
+function isMatchingDeviceActivity(sample: DeviceActivitySample | null, activity: ActivityType): boolean {
+  return sample !== null && sample.confidence >= DEVICE_ACTIVITY_MIN_CONFIDENCE && sample.activity === activity
 }
 
 interface NativeTrackingPosition {
@@ -704,6 +708,7 @@ class WebGeolocationTracker {
    * независимый от GPS. Используется там, где координаты бессильны — телефон сидящего
    * человека в кармане, велосипед на светофоре, медленная езда при плохом приёме.
    */
+  private activityState = new ActivityState()
   private deviceActivitySamples: DeviceActivitySample[] = []
   private lastError: string | null = null
   private isRunning = false
@@ -848,6 +853,7 @@ class WebGeolocationTracker {
     this.displayStopAnchor = null
     this.lastFixPoint = null
     this.liveFixes = []
+    this.activityState.reset()
     this.deviceActivitySamples = []
     this.isRunning = true
 
@@ -1652,8 +1658,8 @@ class WebGeolocationTracker {
   private resolveLiveActivity(evidence: ReturnType<typeof movementEvidence>, speedMs: number): { activity: ActivityType, confidence: number } {
     const device = this.deviceRecoHint()
 
-    if (device?.activity === 'still' && !evidence.credible)
-      return device
+    if (evidence.credible && speedMs * 3.6 > 35)
+      return { activity: 'vehicle', confidence: 90 }
 
     if (device && device.activity !== 'still')
       return device
@@ -1662,7 +1668,10 @@ class WebGeolocationTracker {
       return { activity: estimateActivity(speedMs), confidence: 88 }
 
     if (device)
-      return { activity: device.activity, confidence: Math.max(DEVICE_ACTIVITY_MIN_CONFIDENCE, Math.min(95, device.confidence)) }
+      return device
+
+    if (evidence.windowMs < 15_000)
+      return { activity: 'unknown', confidence: 0 }
 
     return { activity: 'still', confidence: 95 }
   }
@@ -1712,6 +1721,7 @@ class WebGeolocationTracker {
     console.warn('[Tracking] Серия отклонений: сброс якорной точки и перекалибровка на новые координаты.')
     this.lastFixPoint = null
     this.liveFixes = []
+    this.activityState.reset()
     this.consecutiveRejectedCount = 0
   }
 
@@ -1726,7 +1736,16 @@ class WebGeolocationTracker {
 
     this.updateDeviceActivitySamples(deviceSample, fix.ts)
 
-    const resolved = this.resolveLiveActivity(evidence, speedMs)
+    const candidate = this.resolveLiveActivity(evidence, speedMs)
+    const resolved = {
+      activity: this.activityState.update(
+        candidate.activity,
+        fix.ts,
+        evidence.credible && speedMs * 3.6 > 35,
+        isMatchingDeviceActivity(deviceSample, candidate.activity),
+      ),
+      confidence: candidate.confidence,
+    }
 
     return {
       ...resolved,

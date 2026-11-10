@@ -1,6 +1,8 @@
 import type { DisplayTrackPoint } from './stays'
 import { collapseStayPoints, smoothMovingPoints } from './stays'
 
+export * from './activity-state'
+export * from './corrections'
 export * from './stays'
 
 export interface TrackPoint {
@@ -843,7 +845,7 @@ export function windowFeatures(points: TrackPoint[]): WindowFeatures {
   const capKmh = evidence.credible ? Math.max(evidence.speedKmh * 2, noiseFloorKmh) : 0
   const capMs = capKmh / 3.6
 
-  const speedsKmh = points.map(pt => Math.min((pt.speed ?? 0) * 3.6, capKmh)).sort((a, b) => a - b)
+  const speedsKmh = points.map(pt => Math.min((pt.speed ?? evidence.speedMs) * 3.6, capKmh)).sort((a, b) => a - b)
   const p = (q: number) => speedsKmh[Math.min(n - 1, Math.floor(q * n))]
   const p50 = p(0.5)
   const mean = speedsKmh.reduce((s, v) => s + v, 0) / n
@@ -903,7 +905,7 @@ export function windowFeatures(points: TrackPoint[]): WindowFeatures {
     p50SpeedKmh: p50,
     p90SpeedKmh: p(0.9),
     speedCv: cv,
-    meanTurnRateDegPerKm: pathM > 100 ? turnDeg / (pathM / 1000) : 180,
+    meanTurnRateDegPerKm: pathM > Math.max(30, evidence.accuracyM * 2) ? turnDeg / (pathM / 1000) : 180,
     straightness: pathM > 0 ? netM / pathM : 0,
     stopCount,
     stopGapMsMedian,
@@ -917,6 +919,7 @@ export function windowFeatures(points: TrackPoint[]): WindowFeatures {
 // ─── Классификация ────────────────────────────────────────────────────────────
 
 export interface TrackSegment {
+  activitySource?: 'automatic' | 'manual'
   points: TrackPoint[]
   activity: TrackActivityType
   confidence: number
@@ -964,7 +967,7 @@ export function classifySegment(points: TrackPoint[], recoHint: RecoHint = 'unkn
   }
 
   const hint = normalizeRecoHint(recoHint)
-  if (hint.activity !== 'unknown' && hint.activity !== 'rail') {
+  if (isCompatibleActivityHint(hint.activity, f)) {
     // Recognition видит акселерометр — сильный prior; rail он всегда зовёт vehicle.
     // Вес prior пропорционален доле подтверждающих точек: одиночная «велосипедная»
     // точка в окне покоя больше не переворачивает классификацию всего окна.
@@ -975,8 +978,15 @@ export function classifySegment(points: TrackPoint[], recoHint: RecoHint = 'unkn
     // различает: 5 км/ч бывает и пешком, и на велосипеде. Акселерометр их различает,
     // поэтому здесь его голос решающий, а не совещательный. Покой и быстрые бэнды
     // остаются за геометрией: устройства с «велосипедом» на стоянке недостаточно.
-    const additive = target === 'walk' || target === 'bike' ? 1.2 * w : 0.5 * w
+    const additive = target === 'vehicle' ? 1.8 * w : target === 'bike' ? 1.6 * w : target === 'walk' ? 1.2 * w : 0.5 * w
     scores[target] = scores[target] * (1 + (boost[target] - 1) * w) + additive
+  }
+
+  // Sustained geometry-backed motor speeds rule out a stale walking/cycling prior.
+  if (f.movementCredible && f.p50SpeedKmh > 35) {
+    scores.walk = 0
+    scores.bike = 0
+    scores.still = 0
   }
 
   if (rail >= 0.65 && scores.rail >= scores.vehicle)
@@ -996,6 +1006,16 @@ export function classifySegment(points: TrackPoint[], recoHint: RecoHint = 'unkn
 
   const finalType: TrackActivityType = confidence < 0.35 ? 'unknown' : best
   return { points, activity: finalType, confidence, features: f }
+}
+
+function isCompatibleActivityHint(activity: TrackActivityType, f: WindowFeatures): boolean {
+  if (activity === 'unknown' || activity === 'rail')
+    return false
+  if (!f.movementCredible)
+    return activity === 'still'
+  if (f.p50SpeedKmh > 35)
+    return activity === 'vehicle'
+  return true
 }
 
 function kinematicVotes(f: WindowFeatures): { still: number, walk: number, bike: number, vehicle: number } {
@@ -1105,7 +1125,46 @@ export function processDayTrack(raw: TrackPoint[]): TrackSegment[] {
     run.push(p)
   }
   flush()
-  return result.sort((a, b) => a.points[0].tsUtc - b.points[0].tsUtc)
+  return smoothMotorSegments(result).sort((a, b) => a.points[0].tsUtc - b.points[0].tsUtc)
+}
+
+/** Offline context repairs short ambiguous slowdowns, while sensor-confirmed changes survive. */
+export function smoothMotorSegments(segments: TrackSegment[]): TrackSegment[] {
+  return segments.map((segment, index) => {
+    const previous = segments[index - 1]
+    const next = segments[index + 1]
+    if (!previous || !next || previous.activity !== 'vehicle' || next.activity !== 'vehicle')
+      return segment
+    const points = segment.points
+    const duration = points[points.length - 1].tsUtc - points[0].tsUtc
+    const sameSession = previous.points[0].sessionId === points[0].sessionId && next.points[0].sessionId === points[0].sessionId
+    const continuous = points[0].tsUtc - previous.points.at(-1)!.tsUtc <= 30_000 && next.points[0].tsUtc - points.at(-1)!.tsUtc <= 30_000
+    if (!sameSession || !continuous || duration > 180_000 || segment.activity === 'rail' || (segment.activity !== 'still' && segment.confidence >= 0.65))
+      return segment
+    const sensor = deviceReco(points)
+    if (typeof sensor !== 'string' && sensor.share! >= 0.5 && sensor.activity !== 'vehicle' && sensor.activity !== 'still')
+      return segment
+    return { ...segment, activity: 'vehicle', confidence: Math.min(previous.confidence, next.confidence) * 0.8 }
+  })
+}
+
+function classificationWindows(points: TrackPoint[]): Array<{ start: number, end: number }> {
+  const windows: Array<{ start: number, end: number }> = []
+  let start = 0
+  let end = 0
+  while (start < points.length - 1) {
+    while (end < points.length && points[end].tsUtc <= points[start].tsUtc + 60_000)
+      end++
+    const until = Math.min(points.length, Math.max(end, start + 2))
+    windows.push({ start, end: until })
+    if (until === points.length)
+      break
+    const nextTime = points[start].tsUtc + 15_000
+    do {
+      start++
+    } while (start < points.length - 1 && points[start].tsUtc < nextTime)
+  }
+  return windows
 }
 
 function processMovingTrack(raw: TrackPoint[]): TrackSegment[] {
@@ -1120,8 +1179,6 @@ function processMovingTrack(raw: TrackPoint[]): TrackSegment[] {
   // 2. Разделение на непрерывные плечи (без разрывов по времени/расстоянию)
   const legs = splitTrackIntoLegs(cleaned)
   const classifiedSegments: TrackSegment[] = []
-  const winSize = 40
-  const step = 10
 
   for (const leg of legs) {
     const pts = leg.points
@@ -1131,7 +1188,7 @@ function processMovingTrack(raw: TrackPoint[]): TrackSegment[] {
     const legSegments: TrackSegment[] = []
 
     // Если плечо слишком короткое для скользящего окна, классифицируем целиком
-    if (pts.length <= winSize) {
+    if (pts[pts.length - 1].tsUtc - pts[0].tsUtc <= 60_000) {
       const seg = classifySegment(pts, dominantReco(pts))
       legSegments.push(seg)
       classifiedSegments.push(...consolidateSegments(legSegments))
@@ -1140,25 +1197,17 @@ function processMovingTrack(raw: TrackPoint[]): TrackSegment[] {
 
     // Голосование скользящих окон для каждой точки плеча
     const pointVotes: Array<Map<TrackActivityType, number>> = pts.map(() => new Map())
+    const voteCounts = pts.map(() => 0)
 
-    let i = 0
-    while (i + winSize <= pts.length) {
-      const win = pts.slice(i, i + winSize)
+    // Time windows stay consistent across 1-second and sparse/background GPS sampling.
+    for (const { start, end } of classificationWindows(pts)) {
+      const win = pts.slice(start, end)
       const seg = classifySegment(win, dominantReco(win))
-      for (let k = i; k < i + winSize; k++) {
+      for (let k = start; k < end; k++) {
+        voteCounts[k]++
         const votes = pointVotes[k]
-        votes.set(seg.activity, (votes.get(seg.activity) ?? 0) + (seg.confidence || 0.5))
+        votes.set(seg.activity, (votes.get(seg.activity) ?? 0) + seg.confidence)
       }
-      i += step
-    }
-
-    // Хвостовые точки покрываем последним окном
-    const lastWinStart = Math.max(0, pts.length - winSize)
-    const tailWin = pts.slice(lastWinStart)
-    const tailSeg = classifySegment(tailWin, dominantReco(tailWin))
-    for (let k = lastWinStart; k < pts.length; k++) {
-      const votes = pointVotes[k]
-      votes.set(tailSeg.activity, (votes.get(tailSeg.activity) ?? 0) + (tailSeg.confidence || 0.5))
     }
 
     // Определяем активность для каждой точки по большинству голосов
@@ -1177,7 +1226,7 @@ function processMovingTrack(raw: TrackPoint[]): TrackSegment[] {
         }
       }
       pointActivities.push(bestAct)
-      pointVoteConfidence.push(totalScore > 0 ? maxScore / totalScore : 0)
+      pointVoteConfidence.push(totalScore > 0 ? maxScore / Math.max(1, voteCounts[idx]) : 0)
     }
 
     // Гасим короткие вставки чужой активности: одиночное окно не должно дробить маршрут
@@ -1397,25 +1446,9 @@ export function deviceReco(points: TrackPoint[]): RecoHint {
       bestWeight = weight
     }
   }
-  return { activity: best, share: Math.max(0, Math.min(1, bestWeight / total)) }
+  return { activity: best, share: Math.max(0, Math.min(1, bestWeight / (points.length * 100))) }
 }
 
 function dominantReco(points: TrackPoint[]): RecoHint {
-  // Приоритет — сигналу устройства: он не зависит от точности GPS-фиксов.
-  const device = deviceReco(points)
-  if (device !== 'unknown')
-    return device
-
-  const counts = new Map<TrackActivityType, number>()
-  for (const p of points)
-    counts.set(p.activity, (counts.get(p.activity) ?? 0) + 1)
-  let best: TrackActivityType = 'unknown'
-  let n = 0
-  for (const [k, v] of counts) {
-    if (v > n) {
-      best = k
-      n = v
-    }
-  }
-  return { activity: best, share: points.length > 0 ? n / points.length : 0 }
+  return deviceReco(points)
 }

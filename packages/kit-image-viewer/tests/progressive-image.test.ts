@@ -1,5 +1,5 @@
 import { mount } from '@vue/test-utils'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { nextTick } from 'vue'
 import KitImageViewer from '../src/ui/kit-image-viewer.vue'
 
@@ -78,6 +78,37 @@ describe('progressive photo loading', () => {
     await wrapper.find('.viewer-image').trigger('load')
     expect(wrapper.find('.viewer-preview').classes()).not.toContain('loaded')
     expect(wrapper.find('.viewer-image').classes()).toContain('loaded')
+  })
+
+  it('keeps hidden loading layers hidden during a swipe, including adjacent slides', async () => {
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
+      callback(0)
+      return 1
+    })
+    try {
+      const wrapper = render({ small: '/small.jpg', large: '/large.jpg', thumbhash: 'InMBBYCHh4iIiIh/eHh3e3h4j4cI' })
+      await wrapper.setProps({ images: [
+        { url: '/original.jpg', variants: { small: '/small.jpg', large: '/large.jpg', thumbhash: 'InMBBYCHh4iIiIh/eHh3e3h4j4cI' } },
+        { url: '/next.jpg', variants: { small: '/next-small.jpg', thumbhash: 'InMBBYCHh4iIiIh/eHh3e3h4j4cI' } },
+      ] })
+      for (const image of wrapper.findAll('.viewer-image'))
+        await image.trigger('load')
+      const container = wrapper.find('.image-container')
+      await container.trigger('touchstart', { touches: [{ clientX: 250, clientY: 100 }] })
+      await container.trigger('touchmove', { touches: [{ clientX: 150, clientY: 100 }] })
+      expect(Number((wrapper.find('.current-image-wrapper').element as HTMLElement).style.opacity)).toBeLessThan(1)
+      for (const hash of wrapper.findAll('.viewer-thumbhash-placeholder')) {
+        expect(hash.classes()).toContain('is-hidden')
+        expect((hash.element as HTMLElement).style.opacity).toBe('')
+      }
+      for (const preview of wrapper.findAll('.viewer-preview')) {
+        expect(preview.classes()).not.toContain('loaded')
+        expect((preview.element as HTMLElement).style.opacity).toBe('')
+      }
+    }
+    finally {
+      vi.restoreAllMocks()
+    }
   })
 
   it('recognizes an already completed cached image on mount', async () => {

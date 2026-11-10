@@ -472,7 +472,7 @@ describe('сигнал устройства: Activity Recognition', () => {
     withDevice[0] = { ...withDevice[0], deviceActivity: 'bike', deviceActivityConfidence: 90 }
     withDevice[1] = { ...withDevice[1], deviceActivity: 'bike', deviceActivityConfidence: 90 }
     withDevice[2] = { ...withDevice[2], deviceActivity: 'bike', deviceActivityConfidence: 90 }
-    expect(deviceReco(withDevice)).toEqual({ activity: 'bike', share: 1 })
+    expect(deviceReco(withDevice)).toEqual({ activity: 'bike', share: 0.675 })
   })
 
   it('сигнал ниже порога уверенности не учитывается', () => {

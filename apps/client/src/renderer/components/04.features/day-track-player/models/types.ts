@@ -1,3 +1,4 @@
+import type { ActivityCorrection } from '@limiteddissolve/track-processing'
 import type { ActivityType } from '~/shared/services/tracking/track-processing'
 
 export interface DayPoint {
@@ -10,6 +11,9 @@ export interface DayPoint {
   accuracy: number | null
   bearing?: number | null
   activity: ActivityType
+  recordedActivity?: ActivityType
+  activityConfidence?: number
+  activitySource?: 'automatic' | 'manual'
   sessionId: string
   deviceActivity?: ActivityType | null
   deviceActivityConfidence?: number | null
@@ -17,6 +21,7 @@ export interface DayPoint {
 }
 
 export interface DaySegment {
+  activitySource?: 'automatic' | 'manual'
   id: string
   sessionId: string
   activity: ActivityType
@@ -32,10 +37,12 @@ export interface DaySegment {
 export interface DayData {
   points: DayPoint[]
   rawPoints?: DayPoint[]
+  corrections?: ActivityCorrection[]
   segments: DaySegment[]
 }
 
 export interface RenderSegment {
+  activitySource?: 'automatic' | 'manual'
   activity: ActivityType
   points: Array<{ tsUtc: number, lat: number, lng: number }>
   t0: number
@@ -76,6 +83,8 @@ export interface TrackPhotoCluster {
   representativePhoto: TrackPhoto
 }
 
+export type RouteVisibility = 'full' | 'elapsed' | 'recent'
+
 export type ViewMode = 'route' | 'points'
 export type TimezoneMode = 'track' | 'device'
 
@@ -100,7 +109,7 @@ export const ACTIVITY_LABELS: Record<ActivityType, string> = {
   bike: 'Велосипед',
   vehicle: 'Авто',
   rail: 'Поезд',
-  unknown: 'Движение',
+  unknown: 'Неизвестно',
 }
 
 export const ACTIVITY_ICONS: Record<ActivityType, string> = {

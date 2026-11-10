@@ -8,6 +8,8 @@ const SegmentOutputSchema = z.object({
   sessionId: z.string(),
   activity: TrackActivityTypeSchema,
   confidence: z.number(),
+  activitySource: z.enum(['automatic', 'manual']).default('automatic'),
+  simplifiedPoints: z.array(z.object({ tsUtc: z.number(), lat: z.number(), lng: z.number() })),
   startedAt: z.number(),
   endedAt: z.number(),
   distanceM: z.number(),
@@ -26,6 +28,20 @@ const PointOutputSchema = z.object({
   bearing: z.number().nullable().optional(),
   activity: TrackActivityTypeSchema,
   sessionId: z.string(),
+  recordedActivity: TrackActivityTypeSchema,
+  activityConfidence: z.number(),
+  activitySource: z.enum(['automatic', 'manual']),
+  deviceActivity: TrackActivityTypeSchema.nullable(),
+  deviceActivityConfidence: z.number().nullable(),
+})
+
+const CorrectionOutputSchema = z.object({
+  id: z.string().uuid(),
+  sessionId: z.string(),
+  startedAt: z.number(),
+  endedAt: z.number(),
+  activity: TrackActivityTypeSchema,
+  createdAt: z.number(),
 })
 
 const ActivitySummarySchema = z.object({
@@ -76,12 +92,13 @@ export const trackingProcedures = {
     .input(GetTrackDayInputSchema)
     .output(z.object({
       points: z.array(PointOutputSchema),
+      corrections: z.array(CorrectionOutputSchema),
       segments: z.array(SegmentOutputSchema),
     }))
     .query(async ({ input, ctx }) => {
       if (!ctx.user) {
         // Для неавторизованного просмотра данных нет — возвращаем пустой день
-        return { points: [], segments: [] }
+        return { points: [], segments: [], corrections: [] }
       }
       return trackingService.getDay(ctx.user.id, input)
     }),
@@ -135,6 +152,21 @@ export const trackingProcedures = {
     .mutation(async ({ input, ctx }) => {
       return trackingService.reprocessDay(ctx.user.id, input.sessionId, input.points)
     }),
+
+  correctActivity: protectedProcedure
+    .input(z.object({
+      sessionId: z.string().min(4).max(64),
+      startedAt: z.number().int().positive().max(8_640_000_000_000_000),
+      endedAt: z.number().int().positive().max(8_640_000_000_000_000),
+      activity: TrackActivityTypeSchema,
+    }).refine(input => input.endedAt > input.startedAt && input.endedAt - input.startedAt <= 24 * 3600_000, { message: 'Выберите интервал длительностью до 24 часов' }))
+    .output(z.object({ success: z.boolean() }))
+    .mutation(({ input, ctx }) => trackingService.correctActivity(ctx.user.id, input)),
+
+  removeActivityCorrection: protectedProcedure
+    .input(z.object({ id: z.string().uuid() }))
+    .output(z.object({ success: z.boolean() }))
+    .mutation(({ input, ctx }) => trackingService.removeActivityCorrection(ctx.user.id, input.id)),
 
   deletePoint: protectedProcedure
     .meta({

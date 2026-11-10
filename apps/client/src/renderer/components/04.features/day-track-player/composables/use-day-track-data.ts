@@ -3,12 +3,11 @@ import type { DayData, DayPoint, RenderSegment } from '../models/types'
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { AppRouteNames } from '~/shared/constants/routes'
+import { trackingService } from '~/shared/services/database/tracking.service'
 import { deleteStoredPoint } from '~/shared/services/tracking/geotrack-client'
 import {
   prepareTrack,
-  processDayTrack,
 } from '~/shared/services/tracking/track-processing'
-import { trpc } from '~/shared/services/trpc/trpc.service'
 
 export interface UseDayTrackDataOptions {
   dayUtcProp?: Ref<string | undefined>
@@ -51,7 +50,7 @@ export function useDayTrackData(options: UseDayTrackDataOptions = {}) {
     loadError.value = null
 
     try {
-      const response = await trpc.tracking.getDay.query({ dayUtc: targetDay })
+      const response = await trackingService.getDay(targetDay)
       const res: DayData = { ...response }
 
       if (sequence !== loadSequence)
@@ -59,21 +58,8 @@ export function useDayTrackData(options: UseDayTrackDataOptions = {}) {
 
       if (res && Array.isArray(res.points)) {
         res.rawPoints = res.points
-        const source = res.points.map((p: DayPoint) => ({ ...p, altitude: p.altitude ?? null, bearing: p.bearing ?? null, activityConfidence: 0 }))
+        const source = res.points.map((p: DayPoint) => ({ ...p, altitude: p.altitude ?? null, bearing: p.bearing ?? null, activityConfidence: p.activityConfidence ?? 0 }))
         res.points = prepareTrack(source)
-        const processed = processDayTrack(source)
-        res.segments = processed.map((s, i) => ({
-          id: `processed-${i}`,
-          sessionId: s.points[0].sessionId,
-          activity: s.activity,
-          confidence: s.confidence,
-          startedAt: s.points[0].tsUtc,
-          endedAt: s.points[s.points.length - 1].tsUtc,
-          distanceM: s.features.distanceM,
-          pointCount: s.points.length,
-          geometry: s.points.map(p => [p.lng, p.lat]),
-          simplifiedPoints: s.points.map(p => ({ tsUtc: p.tsUtc, lat: p.lat, lng: p.lng })),
-        }))
       }
 
       dayData.value = res
@@ -213,6 +199,7 @@ export function useDayTrackData(options: UseDayTrackDataOptions = {}) {
     if (d.segments.length > 0) {
       return d.segments.map(s => ({
         activity: s.activity,
+        activitySource: s.activitySource,
         points: s.simplifiedPoints || d.points.filter(p => p.sessionId === s.sessionId && p.tsUtc >= s.startedAt && p.tsUtc <= s.endedAt),
         t0: s.startedAt,
         t1: s.endedAt,
@@ -280,7 +267,7 @@ export function useDayTrackData(options: UseDayTrackDataOptions = {}) {
 
     try {
       // 1. Запрос на сервер для удаления точки и нормализации сегментов сессии
-      await (trpc).tracking.deletePoint.mutate({ clientPointId: pt.clientPointId })
+      await trackingService.deletePoint(pt.clientPointId)
 
       // 2. Удаляем из локальной очереди клиента (если еще не отправлена)
       deleteStoredPoint(pt.clientPointId)

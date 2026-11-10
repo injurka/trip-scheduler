@@ -227,6 +227,13 @@ const visibleIndices = computed(() => {
   return indices
 })
 
+// Swipe opacity belongs to the slide, otherwise it overrides the loading layers' visibility.
+const currentImageGeometryStyle = computed(() => ({
+  ...currentImageStyle.value,
+  opacity: undefined,
+  filter: undefined,
+}))
+
 interface ImageLoadState {
   identity: string
   url: string
@@ -739,7 +746,12 @@ onUnmounted(() => {
                   :class="{ 'is-ui-hidden': !isUiVisible }"
                   :style="{ transform: `translateX(${i * 100}%)` }"
                 >
-                  <div class="current-image-wrapper">
+                  <div
+                    class="current-image-wrapper"
+                    :style="i === currentIndex
+                      ? { opacity: currentImageStyle.opacity, filter: currentImageStyle.filter }
+                      : adjacentImageStyle"
+                  >
                     <div
                       class="image-slot"
                       :class="{ 'has-error': imageLoadStates[i]?.error && !hasPreview(i), 'video-slot': isVideoImage(images[i]), 'photo-slot': !isVideoImage(images[i]) }"
@@ -757,7 +769,7 @@ onUnmounted(() => {
                         :src="getPlaceholderUrl(images[i]) || undefined"
                         class="viewer-thumbhash-placeholder"
                         :class="{ 'is-hidden': imageLoadStates[i]?.loaded || imageLoadStates[i]?.previous || imageLoadStates[i]?.previewLoaded }"
-                        :style="i === currentIndex ? [imageStyle, currentImageStyle] : adjacentImageStyle"
+                        :style="i === currentIndex ? [imageStyle, currentImageGeometryStyle] : undefined"
                         alt=""
                         aria-hidden="true"
                       >
@@ -767,7 +779,7 @@ onUnmounted(() => {
                         :src="imageLoadStates[i]?.previous || imageLoadStates[i]?.preview"
                         class="viewer-preview"
                         :class="{ loaded: !imageLoadStates[i]?.loaded && (imageLoadStates[i]?.previous || imageLoadStates[i]?.previewLoaded) }"
-                        :style="i === currentIndex ? [imageStyle, currentImageStyle] : adjacentImageStyle"
+                        :style="i === currentIndex ? [imageStyle, currentImageGeometryStyle] : undefined"
                         alt=""
                         aria-hidden="true"
                         :loading="i === currentIndex ? 'eager' : 'lazy'"
@@ -806,7 +818,7 @@ onUnmounted(() => {
                           'is-ui-hidden': !isUiVisible,
                           'fill-slot': !!(images[i]?.meta?.width && images[i]?.meta?.height),
                         }"
-                        :style="i === currentIndex ? [imageStyle, currentImageStyle] : adjacentImageStyle"
+                        :style="i === currentIndex ? [imageStyle, currentImageGeometryStyle] : undefined"
                         @load="e => handleImageLoad(i, e)"
                         @error="e => handleImageError(i, e)"
                         @mousedown="e => i === currentIndex && handleMouseDown(e)"
