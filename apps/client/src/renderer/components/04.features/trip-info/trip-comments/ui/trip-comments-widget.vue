@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { CommentParentType } from '~/shared/types/models/comment'
 import { Icon } from '@iconify/vue'
+import { DialogTitle } from 'reka-ui'
 import { KitDrawer } from '~/components/01.kit/kit-drawer'
 import { useTripCommentsStore } from '../store/trip-comments.store'
 import TripComments from './trip-comments.vue'
@@ -43,7 +44,9 @@ watch(isPanelOpen, (isOpen) => {
       <header class="drawer-header">
         <div class="header-title">
           <Icon icon="mdi:forum-outline" />
-          <h2>{{ drawerTitle }}</h2>
+          <DialogTitle as-child>
+            <h2>{{ drawerTitle }}</h2>
+          </DialogTitle>
         </div>
       </header>
       <div class="drawer-content">
@@ -84,9 +87,7 @@ watch(isPanelOpen, (isOpen) => {
   align-items: center;
   justify-content: space-between;
   padding: 16px 20px;
-  padding-top: calc(16px + var(--safe-area-inset-top));
-  padding-right: 56px;
-  border-bottom: 1px solid var(--border-secondary-color);
+  grid-area: heading;
   flex-shrink: 0;
   box-sizing: border-box;
 
@@ -101,9 +102,7 @@ watch(isPanelOpen, (isOpen) => {
       font-size: inherit;
       font-weight: 600;
       margin: 0;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
+      overflow-wrap: anywhere;
       font-family: var(--font-accent);
     }
 
@@ -116,13 +115,15 @@ watch(isPanelOpen, (isOpen) => {
 }
 
 .drawer-content {
+  grid-area: content;
+  border-top: 1px solid var(--border-secondary-color);
   flex: 1;
   min-height: 0;
   display: flex;
   flex-direction: column;
   overflow: hidden;
   padding: 0 16px;
-  padding-bottom: calc(12px + var(--safe-area-inset-bottom));
+  padding-bottom: 12px;
   box-sizing: border-box;
 
   :deep(.comments-section) {
@@ -141,13 +142,21 @@ watch(isPanelOpen, (isOpen) => {
   bottom: auto !important;
   height: var(--visible-height, 100dvh) !important;
   max-height: var(--visible-height, 100dvh) !important;
-  display: flex !important;
-  flex-direction: column !important;
+  box-sizing: border-box;
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) 60px;
+  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-areas: 'heading close' 'content content';
   overflow: hidden !important;
 
   .close-button {
-    top: calc(16px + var(--safe-area-inset-top)) !important;
-    right: 16px !important;
+    position: static;
+    grid-area: close;
+    align-self: center;
+    justify-self: center;
+    width: 44px;
+    height: 44px;
+    box-sizing: border-box;
   }
 }
 </style>

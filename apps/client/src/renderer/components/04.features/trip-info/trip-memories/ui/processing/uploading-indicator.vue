@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { IProcessingMemory } from '../../types'
 import { Icon } from '@iconify/vue'
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
 import { KitTooltip } from '~/components/01.kit/kit-tooltip'
 
 interface Props {
@@ -16,11 +16,6 @@ const emit = defineEmits<{
   (e: 'retryAll'): void
 }>()
 
-const isCollapsed = ref(false)
-const isQueueExpanded = ref(false)
-const isErrorsExpanded = ref(false)
-const MAX_COMPACT_QUEUED = 4
-
 const currentUpload = computed(() => props.processingMemories.find(m => m.status === 'uploading'))
 const queuedUploads = computed(() => props.processingMemories.filter(m => m.status === 'queued'))
 const failedUploads = computed(() => props.processingMemories.filter(m => m.status === 'error'))
@@ -28,21 +23,6 @@ const totalCount = computed(() => props.processingMemories.length)
 const uploadingCount = computed(() => (currentUpload.value ? 1 : 0))
 const queuedCount = computed(() => queuedUploads.value.length)
 const failedCount = computed(() => failedUploads.value.length)
-const visibleQueuedItems = computed(() => {
-  if (queuedUploads.value.length <= MAX_COMPACT_QUEUED)
-    return queuedUploads.value
-
-  return queuedUploads.value.slice(0, MAX_COMPACT_QUEUED)
-})
-const remainingQueuedCount = computed(() => {
-  return Math.max(0, queuedUploads.value.length - MAX_COMPACT_QUEUED)
-})
-const visibleFailedItems = computed(() => {
-  if (isErrorsExpanded.value || failedUploads.value.length <= 1)
-    return failedUploads.value
-
-  return failedUploads.value.slice(0, 1)
-})
 const activeProgressStyle = computed(() => ({
   '--upload-progress': `${currentUpload.value?.progress ?? 0}%`,
 }))
@@ -89,52 +69,8 @@ function handleRetryAll() {
 </script>
 
 <template>
-  <div class="upload-manager" :class="{ 'is-collapsed': isCollapsed }">
-    <!-- Collapsed View -->
-    <div v-if="isCollapsed" class="collapsed-box" @click="isCollapsed = false">
-      <div class="collapsed-content">
-        <div class="collapsed-left">
-          <div class="collapsed-icon-wrap" :class="{ 'is-active': uploadingCount > 0 }">
-            <Icon icon="mdi:cloud-upload-outline" class="manager-icon" />
-          </div>
-          <div class="collapsed-info">
-            <span class="collapsed-title">Загрузка медиа</span>
-            <span class="collapsed-subtitle">
-              <template v-if="currentUpload">
-                {{ currentUpload.progress }}% · {{ currentUpload.file.name }}
-              </template>
-              <template v-else-if="failedCount > 0 && queuedCount === 0">
-                Ошибки загрузки ({{ failedCount }})
-              </template>
-              <template v-else>
-                В очереди: {{ queuedCount }}
-              </template>
-            </span>
-          </div>
-        </div>
-
-        <div class="collapsed-right">
-          <span v-if="failedCount > 0" class="collapsed-error-pill">
-            <Icon icon="mdi:alert-circle-outline" />
-            <span>{{ failedCount }}</span>
-          </span>
-          <span class="badge-pill">
-            {{ totalCount }} {{ formatPlural(totalCount, 'файл', 'файла', 'файлов') }}
-          </span>
-          <button class="expand-btn" type="button" @click.stop="isCollapsed = false">
-            <span>Развернуть</span>
-            <Icon icon="mdi:chevron-down" />
-          </button>
-        </div>
-      </div>
-
-      <div v-if="currentUpload" class="collapsed-progress-track">
-        <div class="collapsed-progress-fill" :style="activeProgressStyle" />
-      </div>
-    </div>
-
-    <!-- Expanded View -->
-    <div v-else class="expanded-box">
+  <div class="upload-manager">
+    <div class="expanded-box">
       <!-- 1. Header -->
       <div class="manager-header">
         <div class="header-left">
@@ -235,45 +171,8 @@ function handleRetryAll() {
           <span class="section-subtitle">{{ queuedCount }} {{ formatPlural(queuedCount, 'файл', 'файла', 'файлов') }}</span>
         </div>
 
-        <!-- Compact Queue Strip -->
-        <div v-if="!isQueueExpanded" class="queue-strip">
-          <div
-            v-for="item in visibleQueuedItems"
-            :key="item.tempId"
-            class="queue-thumb-item"
-          >
-            <KitTooltip :text="`${item.file.name} (${formatFileSize(item.file.size)})`" class="queue-thumb-tooltip">
-              <div class="queue-thumb-box">
-                <video
-                  v-if="item.file.type.startsWith('video/')"
-                  :src="item.previewUrl"
-                  muted
-                  playsinline
-                />
-                <img
-                  v-else-if="item.previewUrl"
-                  :src="item.previewUrl"
-                  :alt="item.file.name"
-                >
-                <Icon v-else icon="mdi:image-outline" class="fallback-icon" />
-              </div>
-            </KitTooltip>
-          </div>
-
-          <!-- +N badge tile to expand full queue -->
-          <button
-            v-if="remainingQueuedCount > 0"
-            class="queue-more-tile"
-            type="button"
-            title="Показать все файлы очереди"
-            @click="isQueueExpanded = true"
-          >
-            +{{ remainingQueuedCount }}
-          </button>
-        </div>
-
         <!-- Expanded Queue Grid -->
-        <div v-else class="queue-expanded-box">
+        <div class="queue-expanded-box">
           <div class="queue-expanded-grid">
             <div
               v-for="item in queuedUploads"
@@ -306,14 +205,6 @@ function handleRetryAll() {
               </button>
             </div>
           </div>
-          <button
-            class="queue-collapse-btn"
-            type="button"
-            @click="isQueueExpanded = false"
-          >
-            <span>Свернуть очередь</span>
-            <Icon icon="mdi:chevron-up" />
-          </button>
         </div>
       </div>
 
@@ -324,19 +215,11 @@ function handleRetryAll() {
             <Icon icon="mdi:alert-circle-outline" class="error-icon" />
             <span class="section-title">Ошибки загрузки · {{ failedCount }}</span>
           </div>
-          <button
-            v-if="failedCount > 1"
-            class="details-toggle-btn"
-            type="button"
-            @click="isErrorsExpanded = !isErrorsExpanded"
-          >
-            {{ isErrorsExpanded ? 'Скрыть' : 'Подробнее' }}
-          </button>
         </div>
 
         <div class="errors-list">
           <div
-            v-for="item in visibleFailedItems"
+            v-for="item in failedUploads"
             :key="item.tempId"
             class="error-card"
           >
@@ -387,7 +270,7 @@ function handleRetryAll() {
       </div>
 
       <!-- 6. Bottom Controls -->
-      <div class="manager-footer-controls">
+      <div v-if="failedCount > 0" class="manager-footer-controls">
         <button
           v-if="failedCount > 0"
           class="footer-btn retry-all-btn"
@@ -395,13 +278,6 @@ function handleRetryAll() {
           @click="handleRetryAll"
         >
           <span>Повторить ошибки</span>
-        </button>
-        <button
-          class="footer-btn collapse-btn"
-          type="button"
-          @click="isCollapsed = true"
-        >
-          <span>Свернуть</span>
         </button>
       </div>
     </div>
@@ -417,132 +293,6 @@ function handleRetryAll() {
   transition: all 0.25s ease;
   width: 100%;
   box-sizing: border-box;
-}
-
-// Collapsed View
-.collapsed-box {
-  padding: 12px 16px;
-  cursor: pointer;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-
-  &:hover {
-    background-color: var(--bg-tertiary-color);
-  }
-}
-
-.collapsed-content {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.collapsed-left {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  min-width: 0;
-  flex: 1;
-}
-
-.collapsed-icon-wrap {
-  width: 32px;
-  height: 32px;
-  border-radius: var(--r-s, 8px);
-  background-color: var(--bg-tertiary-color);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-
-  .manager-icon {
-    font-size: 1.25rem;
-    color: var(--fg-accent-color);
-  }
-
-  &.is-active .manager-icon {
-    animation: pulse-glow 2s infinite ease-in-out;
-  }
-}
-
-.collapsed-info {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  gap: 2px;
-}
-
-.collapsed-title {
-  font-size: 0.95rem;
-  font-weight: 600;
-  color: var(--fg-primary-color);
-  white-space: nowrap;
-}
-
-.collapsed-subtitle {
-  font-size: 0.8rem;
-  color: var(--fg-secondary-color);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.collapsed-right {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-shrink: 0;
-}
-
-.collapsed-error-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 2px 8px;
-  border-radius: var(--r-full);
-  background-color: var(--bg-error-color);
-  color: var(--fg-error-color);
-  font-size: 0.8rem;
-  font-weight: 600;
-}
-
-.expand-btn {
-  all: unset;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 6px 12px;
-  border-radius: var(--r-s, 8px);
-  background-color: var(--bg-primary-color);
-  border: 1px solid var(--border-secondary-color);
-  color: var(--fg-primary-color);
-  font-size: 0.85rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-
-  &:hover {
-    border-color: var(--border-primary-color);
-    background-color: var(--bg-hover-color);
-  }
-}
-
-.collapsed-progress-track {
-  width: 100%;
-  height: 3px;
-  background-color: var(--bg-tertiary-color);
-  border-radius: var(--r-full);
-  overflow: hidden;
-}
-
-.collapsed-progress-fill {
-  width: var(--upload-progress, 0%);
-  height: 100%;
-  background-color: var(--fg-accent-color);
-  border-radius: var(--r-full);
-  transition: width 0.2s linear;
 }
 
 // Expanded View
@@ -567,6 +317,7 @@ function handleRetryAll() {
 }
 
 .header-left {
+  min-width: 0;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -584,6 +335,7 @@ function handleRetryAll() {
 }
 
 .manager-title {
+  overflow-wrap: anywhere;
   margin: 0;
   font-size: 1.15rem;
   font-weight: 600;
@@ -592,6 +344,8 @@ function handleRetryAll() {
 }
 
 .badge-pill {
+  flex-shrink: 0;
+  white-space: nowrap;
   display: inline-flex;
   align-items: center;
   padding: 4px 12px;
@@ -813,19 +567,6 @@ function handleRetryAll() {
   color: var(--fg-secondary-color);
 }
 
-.queue-strip {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: nowrap;
-  overflow-x: auto;
-  padding-bottom: 2px;
-}
-
-.queue-thumb-item {
-  flex-shrink: 0;
-}
-
 .queue-thumb-tooltip {
   display: block;
 }
@@ -851,35 +592,6 @@ function handleRetryAll() {
   .fallback-icon {
     font-size: 1.3rem;
     color: var(--fg-secondary-color);
-  }
-
-  @media (max-width: 768px) {
-    width: 44px;
-    height: 44px;
-    border-radius: var(--r-s, 8px);
-  }
-}
-
-.queue-more-tile {
-  all: unset;
-  width: 52px;
-  height: 52px;
-  border-radius: var(--r-m, 12px);
-  background-color: var(--bg-tertiary-color);
-  border: 1px solid var(--border-secondary-color);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.95rem;
-  font-weight: 600;
-  color: var(--fg-primary-color);
-  cursor: pointer;
-  flex-shrink: 0;
-  transition: all 0.2s;
-
-  &:hover {
-    background-color: var(--bg-hover-color);
-    border-color: var(--border-primary-color);
   }
 
   @media (max-width: 768px) {
@@ -943,24 +655,6 @@ function handleRetryAll() {
   }
 }
 
-.queue-collapse-btn {
-  all: unset;
-  align-self: center;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 0.8rem;
-  color: var(--fg-secondary-color);
-  cursor: pointer;
-  padding: 4px 8px;
-  border-radius: var(--r-s, 8px);
-  transition: color 0.2s;
-
-  &:hover {
-    color: var(--fg-primary-color);
-  }
-}
-
 // 5. Error Section
 .errors-section {
   display: flex;
@@ -976,18 +670,6 @@ function handleRetryAll() {
   .error-icon {
     font-size: 1.15rem;
     color: var(--fg-error-color);
-  }
-}
-
-.details-toggle-btn {
-  all: unset;
-  font-size: 0.85rem;
-  color: var(--fg-secondary-color);
-  cursor: pointer;
-  transition: color 0.2s;
-
-  &:hover {
-    color: var(--fg-primary-color);
   }
 }
 
