@@ -178,9 +178,10 @@ function resetAllFilters() {
         size="md"
         class="settings-btn"
         title="Настройки бюджета и валют"
+        aria-label="Настройки бюджета и валют"
         @click="isSettingsOpen = true"
       >
-        <span>Настройки</span>
+        <span class="settings-label">Настройки</span>
       </KitBtn>
     </div>
 
@@ -676,6 +677,9 @@ function resetAllFilters() {
 }
 
 .finance-actions {
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -700,6 +704,41 @@ function resetAllFilters() {
 }
 
 @include media-down(sm) {
+  .finance-actions {
+    display: grid;
+    grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr) 44px;
+    gap: 6px;
+
+    :deep(.kit-btn) {
+      min-width: 0;
+      width: 100%;
+      height: auto;
+      padding: 8px 6px;
+      font-size: 0.8125rem;
+      white-space: normal;
+    }
+
+    :deep(.kit-btn-content) {
+      min-width: 0;
+      gap: 4px;
+    }
+
+    :deep(.kit-btn-icon) {
+      flex-shrink: 0;
+    }
+
+    .settings-btn {
+      width: 44px;
+      height: 44px;
+      padding: 0;
+      margin-left: 0;
+    }
+
+    .settings-label {
+      display: none;
+    }
+  }
+
   .finances-filters-bar {
     gap: 0.65rem;
 
