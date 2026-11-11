@@ -1,7 +1,6 @@
 export const useLayoutStore = defineStore('layout', () => {
   const headerHeight = ref(56)
   const isHeaderVisible = ref(true)
-  const isFloatingMapOpen = ref(false)
 
   function setHeaderHeight(height: number) {
     headerHeight.value = height
@@ -11,21 +10,10 @@ export const useLayoutStore = defineStore('layout', () => {
     isHeaderVisible.value = isVisible
   }
 
-  function setFloatingMapOpen(isOpen: boolean) {
-    isFloatingMapOpen.value = isOpen
-  }
-
-  function toggleFloatingMap() {
-    isFloatingMapOpen.value = !isFloatingMapOpen.value
-  }
-
   return {
     headerHeight,
     isHeaderVisible,
-    isFloatingMapOpen,
     setHeaderHeight,
     setHeaderVisibility,
-    setFloatingMapOpen,
-    toggleFloatingMap,
   }
 })
