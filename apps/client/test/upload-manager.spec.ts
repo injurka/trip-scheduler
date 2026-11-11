@@ -1,7 +1,9 @@
 import type { IProcessingMemory } from '../src/renderer/components/04.features/trip-info/trip-memories/types'
 import { mount } from '@vue/test-utils'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import UploadingIndicator from '../src/renderer/components/04.features/trip-info/trip-memories/ui/processing/uploading-indicator.vue'
+
+vi.mock('@iconify/vue', () => ({ Icon: { render: () => null } }))
 
 function createMockItem(
   id: string,
@@ -74,9 +76,8 @@ describe('uploading-indicator (Unified Upload Manager)', () => {
     expect(wrapper.text()).toContain('PXL_2026_1108.jpg')
     expect(wrapper.text()).toContain('73%')
 
-    // Compact queue section with +1 more button
-    expect(wrapper.find('.queue-more-tile').exists()).toBe(true)
-    expect(wrapper.find('.queue-more-tile').text()).toContain('+1')
+    expect(wrapper.findAll('.queue-expanded-item')).toHaveLength(5)
+    expect(wrapper.find('.queue-more-tile').exists()).toBe(false)
 
     // Errors section
     expect(wrapper.text()).toContain('Ошибки загрузки · 1')
@@ -84,7 +85,7 @@ describe('uploading-indicator (Unified Upload Manager)', () => {
     expect(wrapper.text()).toContain('Сетевая ошибка')
   })
 
-  it('handles collapsible state properly', async () => {
+  it('keeps upload details expanded across progress updates without toggle buttons', async () => {
     const memories: IProcessingMemory[] = [
       createMockItem(
         '1',
@@ -110,19 +111,14 @@ describe('uploading-indicator (Unified Upload Manager)', () => {
     expect(wrapper.find('.expanded-box').exists()).toBe(true)
     expect(wrapper.find('.collapsed-box').exists()).toBe(false)
 
-    // Click collapse button
-    await wrapper.find('.collapse-btn').trigger('click')
-
-    expect(wrapper.find('.expanded-box').exists()).toBe(false)
-    expect(wrapper.find('.collapsed-box').exists()).toBe(true)
-    expect(wrapper.text()).toContain('42% · PXL_2026_1108.jpg')
-
-    // Click expand button to restore
-    await wrapper.find('.expand-btn').trigger('click')
+    expect(wrapper.find('.collapse-btn').exists()).toBe(false)
+    expect(wrapper.find('.expand-btn').exists()).toBe(false)
+    await wrapper.setProps({ processingMemories: [{ ...memories[0], progress: 81 }, memories[1]] })
     expect(wrapper.find('.expanded-box').exists()).toBe(true)
+    expect(wrapper.text()).toContain('81%')
   })
 
-  it('expands queue when clicking more tile and allows removing queued items', async () => {
+  it('shows the full queue immediately and allows removing queued items', async () => {
     const memories: IProcessingMemory[] = [
       createMockItem('1', 'q1.jpg', 'queued'),
       createMockItem('2', 'q2.jpg', 'queued'),
@@ -143,13 +139,8 @@ describe('uploading-indicator (Unified Upload Manager)', () => {
       },
     })
 
-    expect(wrapper.find('.queue-strip').exists()).toBe(true)
-    expect(wrapper.find('.queue-expanded-box').exists()).toBe(false)
-
-    // Click +1 tile
-    await wrapper.find('.queue-more-tile').trigger('click')
-
-    expect(wrapper.find('.queue-expanded-box').exists()).toBe(true)
+    expect(wrapper.findAll('.queue-expanded-item')).toHaveLength(5)
+    expect(wrapper.find('.queue-collapse-btn').exists()).toBe(false)
 
     // Click remove on an item
     const removeBtn = wrapper.find('.queue-remove-btn')
@@ -195,6 +186,9 @@ describe('uploading-indicator (Unified Upload Manager)', () => {
         },
       },
     })
+
+    expect(wrapper.findAll('.error-card')).toHaveLength(2)
+    expect(wrapper.find('.details-toggle-btn').exists()).toBe(false)
 
     // Cancel active upload
     await wrapper.find('.cancel-btn').trigger('click')
