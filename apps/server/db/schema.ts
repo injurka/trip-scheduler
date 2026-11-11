@@ -333,6 +333,7 @@ export const memories = pgTable('memories', {
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
   rating: integer('rating'),
+  ratingManuallySet: boolean('rating_manually_set').notNull().default(false),
   tags: jsonb('tags').$type<string[]>().default([]),
 })
 

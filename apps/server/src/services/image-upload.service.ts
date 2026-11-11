@@ -9,6 +9,7 @@ import { blogService } from '~/modules/blog/blog.service'
 import { imageService } from '~/modules/image/image.service'
 import { postService } from '~/modules/post/post.service'
 import { blogRepository } from '~/repositories/blog.repository'
+import { applyImportedImageRating } from '~/repositories/memory.repository'
 import { postRepository } from '~/repositories/post.repository'
 import { tripRepository } from '~/repositories/trip.repository'
 import { userRepository } from '~/repositories/user.repository'
@@ -424,29 +425,33 @@ export class ImageUploadService {
       }
 
       if (entityType === 'trip') {
-        const existing = await db.query.tripImages.findFirst({
-          where: eq(tripImages.id, imageId),
+        await db.transaction(async (tx) => {
+          await tx.select({ id: tripImages.id }).from(tripImages).where(eq(tripImages.id, imageId)).for('update')
+          const existing = await tx.query.tripImages.findFirst({
+            where: eq(tripImages.id, imageId),
+          })
+          if (existing) {
+            const metadataResult = metaResult.metadata
+            const currentMeta = (existing.metadata as Record<string, unknown>) || {}
+            const currentVariants = (existing.variants as Record<string, string>) || {}
+            await tx.update(tripImages)
+              .set({
+                takenAt: metadataResult?.takenAt ?? existing.takenAt,
+                latitude: metadataResult?.latitude ?? existing.latitude,
+                longitude: metadataResult?.longitude ?? existing.longitude,
+                width: metadataResult?.width || existing.width,
+                height: metadataResult?.height || existing.height,
+                variants: { ...currentVariants, ...variantUrls },
+                metadata: {
+                  ...currentMeta,
+                  ...(metadataResult?.metadata || {}),
+                  ...(resolvedThumbhash ? { thumbhash: resolvedThumbhash } : {}),
+                },
+              })
+              .where(eq(tripImages.id, imageId))
+            await applyImportedImageRating(tx, imageId, metadataResult.metadata?.rating)
+          }
         })
-        if (existing) {
-          const metadataResult = metaResult.metadata
-          const currentMeta = (existing.metadata as Record<string, unknown>) || {}
-          const currentVariants = (existing.variants as Record<string, string>) || {}
-          await db.update(tripImages)
-            .set({
-              takenAt: metadataResult?.takenAt ?? existing.takenAt,
-              latitude: metadataResult?.latitude ?? existing.latitude,
-              longitude: metadataResult?.longitude ?? existing.longitude,
-              width: metadataResult?.width || existing.width,
-              height: metadataResult?.height || existing.height,
-              variants: { ...currentVariants, ...variantUrls },
-              metadata: {
-                ...currentMeta,
-                ...(metadataResult?.metadata || {}),
-                ...(resolvedThumbhash ? { thumbhash: resolvedThumbhash } : {}),
-              },
-            })
-            .where(eq(tripImages.id, imageId))
-        }
       }
       else if (entityType === 'post') {
         const existing = await db.query.postMedia.findFirst({

@@ -6,9 +6,13 @@ import { defineStore } from 'pinia'
 import { v4 as uuidv4 } from 'uuid'
 import { useTripPlanStore } from '~/components/04.features/trip-info/trip-plan'
 import { useAbortRequest, useRequest, useRequestStatus, useRequestStore } from '~/plugins/request'
+import { getDatabaseService } from '~/plugins/request/lib/service'
 import { getLocalDate } from '~/shared/lib/date-time'
 import { useOfflineStore } from '~/shared/store/offline.store'
 import { TripMediaPlacement } from '~/shared/types/models/trip'
+import { refreshImportedPhotoRating } from '../composables/refresh-imported-photo-rating'
+
+const editedRatings = new WeakSet<Memory>()
 
 export enum ETripMemoriesKeys {
   FETCH = 'memories:fetch',
@@ -302,6 +306,28 @@ export const useTripMemoriesStore = defineStore('tripMemories', {
         },
         onSuccess: (newMemory) => {
           this.memories.push(newMemory)
+
+          if (newMemory.imageId && newMemory.image?.mediaType !== 'video' && newMemory.rating == null) {
+            const db = getDatabaseService()
+            const imageId = newMemory.imageId
+            const current = () => this.memories.find(m => m.id === newMemory.id)
+            void refreshImportedPhotoRating({
+              isCurrent: () => {
+                const memory = current()
+
+                return this.currentTripId === tripId && !!memory && !editedRatings.has(memory) && memory.rating == null
+              },
+              loadMetadata: () => db.files.getMetadata(imageId),
+              loadRating: async () => (await db.memories.getByTripId(tripId)).find(m => m.id === newMemory.id)?.rating,
+              applyRating: (rating) => {
+                const memory = current()
+
+                if (memory)
+                  memory.rating = rating
+              },
+            })
+          }
+
           URL.revokeObjectURL(previewUrl)
           this.processingMemories.delete(tempId)
           void this._processUploadQueue()
@@ -405,6 +431,9 @@ export const useTripMemoriesStore = defineStore('tripMemories', {
 
       if (!memory)
         return
+
+      if (Object.hasOwn(data, 'rating'))
+        editedRatings.add(memory)
 
       const originalMemory = { ...memory }
       Object.assign(memory, data)
