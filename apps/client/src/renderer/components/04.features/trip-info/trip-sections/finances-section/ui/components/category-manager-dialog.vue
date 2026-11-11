@@ -200,6 +200,7 @@ function handleAddCategory() {
           type="text"
           placeholder="Быстрый поиск категории..."
           class="search-input"
+          aria-label="Поиск категории"
         >
         <button
           v-if="searchQuery"
@@ -248,6 +249,7 @@ function handleAddCategory() {
               type="text"
               placeholder="Название категории"
               class="custom-name-input"
+              :aria-label="`Название категории ${cat.name}`"
               @change="updateCategoryName(cat, ($event.target as HTMLInputElement).value)"
               @keydown.enter="($event.target as HTMLInputElement).blur()"
             >
@@ -255,6 +257,7 @@ function handleAddCategory() {
 
           <!-- Budget Limit Input -->
           <div class="cat-limit-container">
+            <span class="mobile-limit-label">Лимит</span>
             <div class="limit-input-wrap">
               <input
                 :value="cat.budgetLimit || ''"
@@ -263,6 +266,7 @@ function handleAddCategory() {
                 step="any"
                 placeholder="Без лимита"
                 class="limit-input"
+                :aria-label="`Лимит категории ${cat.name}, ${currencySymbol}`"
                 @change="updateCategoryLimit(cat, ($event.target as HTMLInputElement).value)"
               >
               <span class="currency-addon">{{ currencySymbol }}</span>
@@ -316,7 +320,8 @@ function handleAddCategory() {
             <input
               v-model="newCategoryName"
               type="text"
-              placeholder="Название (например: Сувениры, Экскурсии...)"
+              placeholder="Название категории"
+              aria-label="Название новой категории"
               required
               class="new-name-input"
             >
@@ -328,7 +333,8 @@ function handleAddCategory() {
                 v-model.number="newCategoryLimit"
                 type="number"
                 min="0"
-                placeholder="Лимит"
+                placeholder="Без лимита"
+                :aria-label="`Лимит новой категории, ${currencySymbol}`"
                 class="limit-input"
               >
               <span class="currency-addon">{{ currencySymbol }}</span>
@@ -350,7 +356,12 @@ function handleAddCategory() {
 </template>
 
 <style scoped lang="scss">
+.mobile-limit-label {
+  display: none;
+}
+
 .category-manager {
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 1rem;
@@ -492,6 +503,7 @@ function handleAddCategory() {
   }
 
   .search-input {
+    min-width: 0;
     flex: 1;
     border: none;
     outline: none;
@@ -611,6 +623,8 @@ function handleAddCategory() {
 }
 
 .custom-name-input {
+  box-sizing: border-box;
+  min-width: 0;
   width: 100%;
   border: 1px solid transparent;
   border-radius: var(--r-xs);
@@ -653,6 +667,7 @@ function handleAddCategory() {
   }
 
   .limit-input {
+    min-width: 0;
     width: 100%;
     border: none;
     outline: none;
@@ -777,10 +792,13 @@ function handleAddCategory() {
 }
 
 .new-name-box {
+  min-width: 0;
   flex: 1;
 }
 
 .new-name-input {
+  box-sizing: border-box;
+  min-width: 0;
   width: 100%;
   height: 38px;
   background-color: var(--bg-secondary-color);
@@ -813,5 +831,140 @@ function handleAddCategory() {
 .add-btn {
   height: 38px;
   flex-shrink: 0;
+}
+@include media-down(sm) {
+  .summary-card {
+    padding: 12px;
+  }
+  .summary-top {
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .summary-item {
+    min-width: 0;
+  }
+  .summary-value {
+    font-size: 1.15rem;
+  }
+  .budget-status-row {
+    flex-wrap: wrap;
+    gap: 4px 12px;
+  }
+  .categories-list-header {
+    display: none;
+  }
+  .categories-list {
+    max-height: 40vh;
+    gap: 8px;
+  }
+
+  .category-item {
+    display: grid;
+    grid-template-columns: 40px minmax(0, 1fr) 44px;
+    gap: 6px 8px;
+    padding: 8px;
+  }
+  .cat-icon-container {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .cat-icon-container :deep(.picker-trigger) {
+    width: 40px;
+    height: 40px;
+  }
+  .cat-name-container {
+    grid-column: 2;
+    grid-row: 1;
+  }
+  .default-category-title {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+  }
+  .default-category-title .name-text {
+    white-space: normal;
+    overflow: visible;
+    overflow-wrap: anywhere;
+    font-size: 0.9rem;
+    line-height: 1.35;
+  }
+  .default-category-title .default-tag {
+    padding: 0;
+    border: 0;
+    background: transparent;
+    font-size: 0.65rem;
+    line-height: 1.2;
+  }
+  .cat-action-container {
+    grid-column: 3;
+    grid-row: 1;
+    width: 44px;
+  }
+  .delete-btn {
+    width: 44px;
+    height: 44px;
+  }
+  .custom-name-input {
+    min-height: 44px;
+  }
+  .cat-limit-container {
+    grid-column: 2 / 4;
+    grid-row: 2;
+    width: auto;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .mobile-limit-label {
+    display: block;
+    font-size: 0.75rem;
+    color: var(--fg-secondary-color);
+  }
+  .cat-limit-container .limit-input-wrap {
+    flex: 1;
+    min-width: 0;
+    height: 44px;
+  }
+  .limit-input-wrap .limit-input,
+  .custom-name-input,
+  .new-name-input,
+  .search-input {
+    font-size: 16px;
+  }
+
+  .new-category-card {
+    padding: 12px;
+  }
+  .new-category-row {
+    display: grid;
+    grid-template-columns: 44px minmax(0, 1fr) auto;
+    grid-template-areas: 'icon name name' 'limit limit add';
+    gap: 10px 8px;
+  }
+  .new-icon-picker {
+    grid-area: icon;
+  }
+  .new-name-box {
+    grid-area: name;
+  }
+  .new-name-input {
+    height: 44px;
+    padding: 0 10px;
+  }
+  .new-limit-box {
+    grid-area: limit;
+    width: auto;
+    min-width: 0;
+  }
+  .new-limit-box .limit-input-wrap {
+    height: 44px;
+  }
+  .add-btn {
+    grid-area: add;
+    min-height: 44px;
+    height: auto;
+    padding: 8px 12px;
+  }
 }
 </style>
