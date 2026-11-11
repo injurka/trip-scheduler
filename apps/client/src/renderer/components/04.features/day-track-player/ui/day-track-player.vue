@@ -8,6 +8,7 @@ import { useRouter } from 'vue-router'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitImageViewer, useImageViewer } from '~/components/01.kit/kit-image-viewer'
 import { AppRouteNames } from '~/shared/constants/routes'
+import { useAuthStore } from '~/shared/store/auth.store'
 import { useDayTrackData } from '../composables/use-day-track-data'
 import { useDayTrackMap } from '../composables/use-day-track-map'
 import { useDayTrackPhotos } from '../composables/use-day-track-photos'
@@ -23,6 +24,7 @@ import DayTrackPointPopup from './day-track-point-popup.vue'
 import DayTrackTopNav from './day-track-top-nav.vue'
 
 interface Props {
+  tripId?: string
   dayUtc?: string
   /**
    * 'memories' — просмотр прожитого дня: маячок воспроизведения («я здесь сейчас»)
@@ -55,6 +57,7 @@ const emit = defineEmits<{
 }>()
 
 const router = useRouter()
+const authStore = useAuthStore()
 // ─── 1. Данные дня ─────────────────────────────────────────────────────────────
 const {
   todayUtc,
@@ -76,6 +79,7 @@ const {
   formatHeaderDay,
   handleDeletePoint,
 } = useDayTrackData({
+  tripId: toRef(props, 'tripId'),
   dayUtcProp: toRef(props, 'dayUtc'),
   availableDays: toRef(props, 'dayDates'),
 })
@@ -155,6 +159,7 @@ const map = useDayTrackMap({
 const isActivityEditorOpen = ref(false)
 const activityEditorTime = ref(0)
 
+const canEditTrack = computed(() => !props.tripId || (authStore.isAuthenticated && dayData.value?.canEdit === true))
 // Маячок воспроизведения — маркер «я здесь сейчас». В режиме воспоминаний
 // (просмотр прожитого дня) он читается как текущая геопозиция, поэтому скрыт.
 const isBeaconVisible = computed(() => props.mode !== 'memories')
@@ -234,11 +239,17 @@ function followCurrentPoint() {
     map.centerCurrentPoint()
 }
 function editActivity(time = playback.t.value) {
+  if (!canEditTrack.value)
+    return
+
   playback.isPlaying.value = false
   activityEditorTime.value = time
   isActivityEditorOpen.value = true
 }
 async function onDeletePoint(pt: DayPoint) {
+  if (!canEditTrack.value)
+    return
+
   await handleDeletePoint(pt, () => {
     map.closePointPopup()
     map.rebuildFeatures()
@@ -318,6 +329,7 @@ async function onDeletePoint(pt: DayPoint) {
     <div ref="popupHost">
       <DayTrackPointPopup
         :selected-point="map.selectedPoint.value"
+        :readonly="!canEditTrack"
         :timezone-mode="timezone.timezoneMode.value"
         :formatted-time="map.selectedPoint.value ? timezone.formatPointTime(map.selectedPoint.value.point.tsUtc, map.selectedPoint.value.point) : ''"
         :formatted-end-time="map.selectedPoint.value?.point.stop ? timezone.formatPointTime(map.selectedPoint.value.point.stop.endedAt, map.selectedPoint.value.point) : ''"
@@ -371,6 +383,7 @@ async function onDeletePoint(pt: DayPoint) {
       v-model:is-playing="playback.isPlaying.value"
       v-model:speed-multiplier="playback.speedMultiplier.value"
       v-model:is-follow-camera="playback.isFollowCamera.value"
+      :readonly="!canEditTrack"
       :time-label="timezone.timeLabel.value"
       :timezone-mode="timezone.timezoneMode.value"
       :device-timezone="timezone.deviceTimezone"
@@ -401,7 +414,9 @@ async function onDeletePoint(pt: DayPoint) {
     />
 
     <DayTrackActivityEditor
+      v-if="canEditTrack"
       v-model:visible="isActivityEditorOpen"
+      :trip-id="tripId"
       :day-data="dayData"
       :initial-time="activityEditorTime"
       @saved="loadDay(selectedDay)"

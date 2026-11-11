@@ -35,6 +35,7 @@ export interface DaySegment {
 }
 
 export interface DayData {
+  canEdit?: boolean
   points: DayPoint[]
   rawPoints?: DayPoint[]
   corrections?: ActivityCorrection[]

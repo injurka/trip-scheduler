@@ -470,6 +470,7 @@ onBeforeUnmount(() => {
       />
 
       <DayTrackDrawer
+        :trip-id="tripData.currentTripId || undefined"
         :open="isMemoriesTrackPlayerOpen"
         :day-utc="playerDayUtc"
         mode="memories"

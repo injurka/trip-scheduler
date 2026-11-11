@@ -10,6 +10,7 @@ import {
 } from '~/shared/services/tracking/track-processing'
 
 export interface UseDayTrackDataOptions {
+  tripId?: Ref<string | undefined>
   dayUtcProp?: Ref<string | undefined>
   /**
    * Даты дней (YYYY-MM-DD), между которыми разрешено переключаться. Нужны, когда
@@ -41,6 +42,13 @@ export function useDayTrackData(options: UseDayTrackDataOptions = {}) {
   const isDeletingPoint = ref(false)
   let loadSequence = 0
 
+  function requestDay(day: string) {
+    const tripId = options.tripId?.value
+    const shareSlug = String(route.query.shareSlug ?? route.params.slug ?? route.params.id ?? '') || undefined
+
+    return tripId ? trackingService.getTripDay(tripId, day, shareSlug) : trackingService.getDay(day)
+  }
+
   async function loadDay(targetDay: string) {
     if (!isValidDay(targetDay))
       return
@@ -50,7 +58,7 @@ export function useDayTrackData(options: UseDayTrackDataOptions = {}) {
     loadError.value = null
 
     try {
-      const response = await trackingService.getDay(targetDay)
+      const response = await requestDay(targetDay)
       const res: DayData = { ...response }
 
       if (sequence !== loadSequence)
@@ -87,6 +95,13 @@ export function useDayTrackData(options: UseDayTrackDataOptions = {}) {
       selectedDay.value = val
     }
   })
+
+  if (options.tripId) {
+    watch(options.tripId, () => {
+      dayData.value = null
+      void loadDay(selectedDay.value)
+    })
+  }
 
   watch(selectedDay, (day) => {
     void loadDay(day)
@@ -260,17 +275,18 @@ export function useDayTrackData(options: UseDayTrackDataOptions = {}) {
   })
 
   async function handleDeletePoint(pt: DayPoint, onDeleted?: () => void) {
-    if (!dayData.value)
+    if (!dayData.value || (options.tripId?.value && !dayData.value.canEdit))
       return
 
     isDeletingPoint.value = true
 
     try {
       // 1. Запрос на сервер для удаления точки и нормализации сегментов сессии
-      await trackingService.deletePoint(pt.clientPointId)
+      await trackingService.deletePoint(pt.clientPointId, options.tripId?.value)
 
       // 2. Удаляем из локальной очереди клиента (если еще не отправлена)
-      deleteStoredPoint(pt.clientPointId)
+      if (!options.tripId?.value)
+        deleteStoredPoint(pt.clientPointId)
 
       onDeleted?.()
       await loadDay(selectedDay.value)

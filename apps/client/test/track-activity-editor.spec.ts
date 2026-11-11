@@ -1,14 +1,21 @@
 import type { DayData, DayPoint } from '../src/renderer/components/04.features/day-track-player/models/types'
 import { flushPromises, mount } from '@vue/test-utils'
 import { beforeEach, expect, it, vi } from 'vitest'
-import { defineComponent, h } from 'vue'
+import { defineComponent, h, ref } from 'vue'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import { useDayTrackData } from '../src/renderer/components/04.features/day-track-player/composables/use-day-track-data'
 import ActivityEditor from '../src/renderer/components/04.features/day-track-player/ui/day-track-activity-editor.vue'
+import PointPopup from '../src/renderer/components/04.features/day-track-player/ui/day-track-point-popup.vue'
 
 vi.mock('@iconify/vue', () => ({ Icon: { render: () => null } }))
 
-const api = vi.hoisted(() => ({ getDay: vi.fn(), correctActivity: vi.fn(), removeCorrection: vi.fn() }))
+const api = vi.hoisted(() => ({
+  getDay: vi.fn(),
+  getTripDay: vi.fn(),
+  deletePoint: vi.fn(),
+  correctActivity: vi.fn(),
+  removeCorrection: vi.fn(),
+}))
 vi.mock('~/shared/services/database/tracking.service', () => ({ trackingService: api }))
 vi.mock('~/shared/services/tracking/geotrack-client', () => ({ deleteStoredPoint: vi.fn() }))
 const time = Date.parse('2026-11-10T13:00:00Z')
@@ -58,6 +65,9 @@ const wrapperOptions = {
 }
 
 beforeEach(() => {
+  api.getDay.mockClear()
+  api.getTripDay.mockReset()
+  api.deletePoint.mockReset().mockResolvedValue({ success: true })
   api.correctActivity.mockReset().mockResolvedValue({ success: true })
   api.removeCorrection.mockReset().mockResolvedValue({ success: true })
 })
@@ -89,7 +99,7 @@ it('shows save errors without closing and supports cancelling a saved correction
   expect(wrapper.emitted('update:visible')).toBeUndefined()
   await wrapper.findAll('button').find(button => button.text() === 'Отменить')!.trigger('click')
   await flushPromises()
-  expect(api.removeCorrection).toHaveBeenCalledWith('correction')
+  expect(api.removeCorrection).toHaveBeenCalledWith('correction', undefined)
   expect(wrapper.emitted('saved')).toHaveLength(1)
   wrapper.unmount()
 })
@@ -131,5 +141,46 @@ it('corrects a single final GPS fix without inventing an end time, including mil
   await flushPromises()
   expect(api.correctActivity).toHaveBeenCalledWith(expect.objectContaining({ startedAt: fix.tsUtc, endedAt: fix.tsUtc, point: true }))
   expect(wrapper.find('[role=alert]').exists()).toBe(false)
+  wrapper.unmount()
+})
+
+it('loads shared trip data instead of a guest personal endpoint and blocks deletion in view-only mode', async () => {
+  api.getTripDay.mockResolvedValue({ ...data, canEdit: false })
+  const router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/', component: { render: () => null } }] })
+  await router.push('/')
+  await router.isReady()
+  let result!: ReturnType<typeof useDayTrackData>
+  const wrapper = mount(defineComponent({
+    setup() {
+      result = useDayTrackData({ tripId: ref('trip'), dayUtcProp: ref('2026-11-10') })
+
+      return () => h('div')
+    },
+  }), { global: { plugins: [router] } })
+  await flushPromises()
+  expect(api.getTripDay).toHaveBeenCalledWith('trip', '2026-11-10', undefined)
+  expect(api.getDay).not.toHaveBeenCalled()
+  expect(result.dayData.value?.points.length).toBeGreaterThan(0)
+  await result.handleDeletePoint(points[0])
+  expect(api.deletePoint).not.toHaveBeenCalled()
+  wrapper.unmount()
+})
+
+it('hides point mutations from visitors while preserving point information and copying', () => {
+  const wrapper = mount(PointPopup, {
+    props: {
+      readonly: true,
+      selectedPoint: { point: points[0], index: 1, total: 3 },
+      timezoneMode: 'track',
+      formattedTime: '13:00:00',
+      isCopied: false,
+      isDeleting: false,
+      statusBadge: null,
+    },
+  })
+  expect(wrapper.find('[aria-label="Удалить точку"]').exists()).toBe(false)
+  expect(wrapper.find('[aria-label="Исправить движение"]').exists()).toBe(false)
+  expect(wrapper.find('.coords-card').exists()).toBe(true)
+  expect(wrapper.text()).toContain('13:00:00')
   wrapper.unmount()
 })

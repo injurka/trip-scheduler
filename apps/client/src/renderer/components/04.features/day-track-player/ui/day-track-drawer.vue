@@ -7,6 +7,7 @@ import { toRef, watch } from 'vue'
 import DayTrackPlayer from './day-track-player.vue'
 
 interface Props {
+  tripId?: string
   open?: boolean
   dayUtc?: string
   mode?: 'track' | 'memories'
@@ -74,6 +75,7 @@ useEventListener(typeof window !== 'undefined' ? window : null, 'keydown', (e: K
           <DayTrackPlayer
             class="track-player-embedded"
             :day-utc="dayUtc"
+            :trip-id="tripId"
             :mode="mode"
             :day-dates="dayDates"
             :show-back-button="false"

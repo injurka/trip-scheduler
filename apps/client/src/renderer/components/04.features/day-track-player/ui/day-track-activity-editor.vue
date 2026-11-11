@@ -14,6 +14,7 @@ import { ACTIVITY_ICONS, ACTIVITY_LABELS } from '../models/types'
 import TrackDateTimeField from './track-date-time-field.vue'
 
 interface Props {
+  tripId?: string
   dayData: DayData | null
   initialTime: number
 }
@@ -180,7 +181,7 @@ async function remove(id: string) {
   error.value = ''
 
   try {
-    await trackingService.removeCorrection(id)
+    await trackingService.removeCorrection(id, props.tripId)
     emit('saved')
   }
   catch (err) {
