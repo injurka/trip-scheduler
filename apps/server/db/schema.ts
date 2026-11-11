@@ -219,6 +219,7 @@ export const trips = pgTable('trips', {
   budget: real('budget'),
   currency: text('currency').default('RUB'),
   tags: jsonb('tags').$type<string[]>().notNull().default([]),
+  statistics: jsonb('statistics').$type<import('../src/modules/trip/trip-statistics.schema').TripStatistics>(),
   weatherByPlaceId: jsonb('weather_by_place_id').$type<Record<string, CityWeatherData>>(),
   visibility: visibilityEnum('visibility').notNull().default('private'),
   userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),

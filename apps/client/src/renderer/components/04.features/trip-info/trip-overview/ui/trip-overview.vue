@@ -32,6 +32,7 @@ import { exportToMapsMe } from '../lib/mapsme-export'
 import CountdownWidget from './content/countdown-widget.vue'
 import TripMapWidget from './content/map-widget.vue'
 import StatsWidget from './content/stats-widget.vue'
+import TripStatisticsWidget from './content/trip-statistics-widget.vue'
 import WeatherWidget from './content/weather-widget.vue'
 import {
   AttractionsListDialog,
@@ -826,6 +827,15 @@ async function handleConfirmOfflineDownload(options: OfflineDownloadOptions) {
       v-if="isTripUpcoming"
       :target-date="trip.startDate"
       class="countdown"
+    />
+
+    <TripStatisticsWidget
+      :key="trip.id"
+      :trip-id="trip.id"
+      :share-slug="trip.shareSlug"
+      :can-edit="canEdit"
+      :start-date="trip.startDate"
+      :end-date="trip.endDate"
     />
 
     <DaysListDialog v-model:visible="isDaysDialogVisible" :days="days" @navigate="navigateToDay" />
