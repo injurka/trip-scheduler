@@ -6,6 +6,7 @@ import { KitBtn } from '~/components/01.kit/kit-btn'
 import { ACTIVITY_COLORS, ACTIVITY_ICONS, ACTIVITY_LABELS } from '../models/types'
 
 interface Props {
+  readonly?: boolean
   selectedPoint: SelectedPointInfo | null
   timezoneMode: TimezoneMode
   formattedTime: string
@@ -86,7 +87,7 @@ const speedFormatted = computed(() => {
         <div class="popup-actions">
           <!-- Кнопка удаления (только для обычных точек маршрута) -->
           <button
-            v-if="!selectedPoint.point.stop"
+            v-if="!readonly && !selectedPoint.point.stop"
             class="popup-action-btn delete-btn"
             :disabled="isDeleting"
             title="Удалить эту точку и пересчитать маршрут"
@@ -113,6 +114,7 @@ const speedFormatted = computed(() => {
         <Icon :icon="activityIcon" />
         <strong>{{ activityLabel }}</strong>
         <KitBtn
+          v-if="!readonly"
           size="sm"
           variant="text"
           aria-label="Исправить движение"

@@ -14,6 +14,7 @@ import {
 } from '../models/types'
 
 interface Props {
+  readonly?: boolean
   routeVisibility: RouteVisibility
   trailMinutes: number
   timeLabel: string
@@ -464,6 +465,7 @@ useEventListener(typeof window !== 'undefined' ? window : null, 'keydown', (e: K
       <!-- Левый вспомогательный блок (счетчик точек при наличии) -->
       <div class="actions-left">
         <KitBtn
+          v-if="!readonly"
           size="sm"
           variant="text"
           color="secondary"

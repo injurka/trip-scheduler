@@ -1,7 +1,12 @@
+import { TRPCError } from '@trpc/server'
+import { db } from 'db'
+import { trackActivityCorrections, trackPoints } from 'db/schema'
+import { and, eq } from 'drizzle-orm'
 import { z } from 'zod'
-import { protectedProcedure } from '~/lib/trpc'
+import { protectedProcedure, publicProcedure } from '~/lib/trpc'
 import { DeleteTrackPointInputSchema, GetTrackDayInputSchema, IngestBatchInputSchema, TrackActivityTypeSchema } from './tracking.schemas'
 import { trackingService } from './tracking.service'
+import { assertTripTrackRange, editableTripTrack, tripTrackAccess } from './trip-track-access'
 
 const SegmentOutputSchema = z.object({
   id: z.string(),
@@ -103,6 +108,20 @@ export const trackingProcedures = {
       return trackingService.getDay(ctx.user.id, input)
     }),
 
+  getTripDay: publicProcedure
+    .input(GetTrackDayInputSchema.extend({ tripId: z.string().uuid(), shareSlug: z.string().optional() }))
+    .output(z.object({ points: z.array(PointOutputSchema), corrections: z.array(CorrectionOutputSchema), segments: z.array(SegmentOutputSchema), canEdit: z.boolean() }))
+    .query(async ({ input, ctx }) => {
+      const access = await tripTrackAccess(input.tripId, ctx.user, input.shareSlug || ctx.c?.req.header('x-share-slug'))
+      const start = Date.parse(`${input.dayUtc}T00:00:00Z`)
+      if (!Number.isFinite(start) || new Date(start).toISOString().slice(0, 10) !== input.dayUtc)
+        throw new TRPCError({ code: 'BAD_REQUEST', message: 'Некорректная дата' })
+      assertTripTrackRange(access, start, start + 86400000 - 1)
+      const data = await trackingService.getDay(access.ownerId, input)
+      // History is editable metadata; public viewers only need effective points and segments.
+      return { ...data, corrections: access.canEdit ? data.corrections : [], canEdit: access.canEdit }
+    }),
+
   /** Сводки за последние N дней (по умолчанию 14) для страницы «Активность». */
   getSummaries: protectedProcedure
     .meta({
@@ -160,14 +179,30 @@ export const trackingProcedures = {
       endedAt: z.number().int().positive().max(8_640_000_000_000_000),
       activity: TrackActivityTypeSchema,
       point: z.boolean().optional(),
+      tripId: z.string().uuid().optional(),
     }).refine(input => (input.endedAt > input.startedAt || (input.point === true && input.endedAt === input.startedAt)) && input.endedAt - input.startedAt <= 24 * 3600_000, { message: 'Выберите интервал длительностью до 24 часов' }))
     .output(z.object({ success: z.boolean() }))
-    .mutation(({ input, ctx }) => trackingService.correctActivity(ctx.user.id, input)),
+    .mutation(async ({ input, ctx }) => {
+      if (!input.tripId)
+        return trackingService.correctActivity(ctx.user.id, input)
+      const access = await editableTripTrack(input.tripId, ctx.user)
+      assertTripTrackRange(access, input.startedAt, input.endedAt)
+      return trackingService.correctActivity(access.ownerId, input)
+    }),
 
   removeActivityCorrection: protectedProcedure
-    .input(z.object({ id: z.string().uuid() }))
+    .input(z.object({ id: z.string().uuid(), tripId: z.string().uuid().optional() }))
     .output(z.object({ success: z.boolean() }))
-    .mutation(({ input, ctx }) => trackingService.removeActivityCorrection(ctx.user.id, input.id)),
+    .mutation(async ({ input, ctx }) => {
+      if (!input.tripId)
+        return trackingService.removeActivityCorrection(ctx.user.id, input.id)
+      const access = await editableTripTrack(input.tripId, ctx.user)
+      const [correction] = await db.select().from(trackActivityCorrections).where(and(eq(trackActivityCorrections.userId, access.ownerId), eq(trackActivityCorrections.id, input.id))).limit(1)
+      if (!correction)
+        throw new TRPCError({ code: 'NOT_FOUND' })
+      assertTripTrackRange(access, correction.startedAt.getTime(), correction.endedAt.getTime())
+      return trackingService.removeActivityCorrection(access.ownerId, input.id)
+    }),
 
   deletePoint: protectedProcedure
     .meta({
@@ -178,13 +213,20 @@ export const trackingProcedures = {
         summary: 'Удаление ошибочной GPS-точки и нормализация маршрута',
       },
     })
-    .input(DeleteTrackPointInputSchema)
+    .input(DeleteTrackPointInputSchema.extend({ tripId: z.string().uuid().optional() }))
     .output(z.object({
       success: z.boolean(),
       clientPointId: z.string(),
       reprocessedSegments: z.number().int(),
     }))
     .mutation(async ({ input, ctx }) => {
-      return trackingService.deletePoint(ctx.user.id, input.clientPointId)
+      if (!input.tripId)
+        return trackingService.deletePoint(ctx.user.id, input.clientPointId)
+      const access = await editableTripTrack(input.tripId, ctx.user)
+      const [point] = await db.select().from(trackPoints).where(and(eq(trackPoints.userId, access.ownerId), eq(trackPoints.clientPointId, input.clientPointId))).limit(1)
+      if (!point)
+        throw new TRPCError({ code: 'NOT_FOUND' })
+      assertTripTrackRange(access, point.tsUtc.getTime())
+      return trackingService.deletePoint(access.ownerId, input.clientPointId)
     }),
 }
