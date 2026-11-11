@@ -2,7 +2,20 @@ import type { z } from 'zod'
 import type { CreateMemoryInputSchema, GetMemoriesInputSchema, UpdateMemoryInputSchema } from '~/modules/memory/memory.schemas'
 import { db } from 'db'
 import { memories, tripImages } from 'db/schema'
-import { and, asc, eq, gte, lte, sql } from 'drizzle-orm'
+import { and, asc, eq, gte, isNull, lte, sql } from 'drizzle-orm'
+import { normalizeStarRating } from '~/services/photo-rating'
+
+/** Called inside the transaction holding the image lock. Never overwrite manual choices. */
+export async function applyImportedImageRating(tx: Pick<typeof db, 'update'>, imageId: string, value: unknown) {
+  const rating = normalizeStarRating(value)
+  if (rating === undefined)
+    return
+  await tx.update(memories).set({ rating }).where(and(
+    eq(memories.imageId, imageId),
+    isNull(memories.rating),
+    eq(memories.ratingManuallySet, false),
+  ))
+}
 
 export const memoryRepository = {
   /**
@@ -10,20 +23,27 @@ export const memoryRepository = {
    * Возвращает полный объект, включая связанные данные изображения.
    */
   async create(data: z.infer<typeof CreateMemoryInputSchema>) {
-    const [newMemory] = await db
-      .insert(memories)
-      .values({
-        tripId: data.tripId,
-        timestamp: data.timestamp ? new Date(data.timestamp) : null,
-        comment: data.comment,
-        imageId: data.imageId,
-        title: data.title,
-        tag: data.tag,
-        sourceActivityId: data.sourceActivityId,
-        rating: data.rating,
-        tags: data.tags ?? [],
-      })
-      .returning()
+    // Serialize creation with background extraction on the same image.
+    const newMemory = await db.transaction(async (tx) => {
+      const [image] = data.imageId
+        ? await tx.select({ metadata: tripImages.metadata }).from(tripImages).where(and(eq(tripImages.id, data.imageId), eq(tripImages.tripId, data.tripId))).for('update')
+        : []
+      const [created] = await tx.insert(memories)
+        .values({
+          tripId: data.tripId,
+          timestamp: data.timestamp ? new Date(data.timestamp) : null,
+          comment: data.comment,
+          imageId: data.imageId,
+          title: data.title,
+          tag: data.tag,
+          sourceActivityId: data.sourceActivityId,
+          rating: data.rating ?? normalizeStarRating((image?.metadata as Record<string, unknown> | null)?.rating),
+          ratingManuallySet: data.rating !== undefined,
+          tags: data.tags ?? [],
+        })
+        .returning()
+      return created
+    })
 
     const result = await db.query.memories.findFirst({
       where: eq(memories.id, newMemory.id),
@@ -95,6 +115,8 @@ export const memoryRepository = {
     const { id, ...updateData } = data
 
     const payload: Record<string, unknown> = { ...updateData, updatedAt: new Date() }
+    if (Object.hasOwn(updateData, 'rating'))
+      payload.ratingManuallySet = true
 
     if (Object.hasOwn(updateData, 'timestamp')) {
       payload.timestamp = updateData.timestamp ? new Date(updateData.timestamp) : null

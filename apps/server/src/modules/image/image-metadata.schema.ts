@@ -4,6 +4,7 @@ export const ImageMetadataSchema = z.object({
   variants: z.record(z.string(), z.string()).optional(),
   capturedAt: z.string().optional(),
   metadata: z.object({ capturedAt: z.string().optional() }).optional(),
+  rating: z.number().int().min(1).max(5).optional(),
   thumbhash: z.string().optional(),
   timezoneOffset: z.number().optional(),
   latitude: z.number().nullable().optional(),

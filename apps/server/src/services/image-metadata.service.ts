@@ -2,6 +2,7 @@ import type { ImageMetadata } from '~/repositories/image.repository'
 import exifr from 'exifr'
 import sharp from 'sharp'
 import { rgbaToThumbHash } from 'thumbhash'
+import { extractPhotoRating } from './photo-rating'
 
 type ExtractedImageData = Omit<ImageMetadata, 'variants'>
 
@@ -101,11 +102,12 @@ export async function extractAndStructureMetadata(fileBuffer: Buffer): Promise<P
       translateValues: false,
     }
 
-    const [exifData, embeddedThumbnailBuffer, sharpMeta, thumbhash] = await Promise.all([
+    const [exifData, embeddedThumbnailBuffer, sharpMeta, thumbhash, ratingData] = await Promise.all([
       exifr.parse(fileBuffer, exifrOptions).catch(() => null),
       exifr.thumbnail(fileBuffer).catch(() => null),
       sharp(fileBuffer).metadata(),
       generateThumbHash(fileBuffer),
+      exifr.parse(fileBuffer, { xmp: true, mergeOutput: false, translateValues: false, reviveValues: false }).catch(() => null),
     ])
 
     if (!exifData) {
@@ -116,6 +118,7 @@ export async function extractAndStructureMetadata(fileBuffer: Buffer): Promise<P
           height: isRotated ? sharpMeta.width : sharpMeta.height,
           metadata: {
             thumbhash: thumbhash || undefined,
+            rating: extractPhotoRating(ratingData),
             technical: {
               format: sharpMeta.format,
               fileSize: fileBuffer.length,
@@ -159,6 +162,7 @@ export async function extractAndStructureMetadata(fileBuffer: Buffer): Promise<P
 
     structuredMeta.metadata = {
       thumbhash: thumbhash || undefined,
+      rating: extractPhotoRating(ratingData),
       timezoneOffset: parseTimezoneOffset(offset),
       camera: {
         make: exifData.Make,
