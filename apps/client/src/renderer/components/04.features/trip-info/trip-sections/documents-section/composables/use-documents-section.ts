@@ -4,7 +4,7 @@ import type {
   DocumentsSectionContent,
 } from '../models/types'
 import type { TripDocumentResponse } from '~/shared/services/api/model/types'
-import { computed, onMounted, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRequest } from '~/plugins/request'
 import { isAppOnline } from '~/shared/lib/connectivity'
 import { useOfflineStore } from '~/shared/store/offline.store'
@@ -48,12 +48,15 @@ export function useDocumentsSection(props: UseDocumentsSectionProps, emit: (even
     }
   }
 
+  let loadSequence = 0
   async function loadDocuments() {
+    const sequence = ++loadSequence
+    const tripId = props.section.tripId
     isFetching.value = true
 
     if (!isAppOnline()) {
-      if (offlineStore.isTripCached(props.section.tripId)) {
-        const cachedDocs = offlineStore.getSavedTripDocuments(props.section.tripId)
+      if (offlineStore.isTripCached(tripId)) {
+        const cachedDocs = offlineStore.getSavedTripDocuments(tripId)
         documents.value = cachedDocs.map(mapResponseToDoc)
       }
       else {
@@ -66,15 +69,21 @@ export function useDocumentsSection(props: UseDocumentsSectionProps, emit: (even
     }
 
     await useRequest({
-      key: `documents:list:${props.section.tripId}`,
-      fn: api => api.files.listDocuments(props.section.tripId),
+      key: `documents:list:${tripId}`,
+      fn: api => api.files.listDocuments(tripId),
       onSuccess: (res) => {
+        if (sequence !== loadSequence)
+          return
+
         documents.value = res.map(mapResponseToDoc)
       },
       onError: () => {
-        const cachedDocs = offlineStore.getSavedTripDocuments(props.section.tripId)
+        if (sequence !== loadSequence)
+          return
 
-        if (offlineStore.isTripCached(props.section.tripId)) {
+        const cachedDocs = offlineStore.getSavedTripDocuments(tripId)
+
+        if (offlineStore.isTripCached(tripId)) {
           documents.value = cachedDocs.map(mapResponseToDoc)
 
           return
@@ -85,13 +94,21 @@ export function useDocumentsSection(props: UseDocumentsSectionProps, emit: (even
         }
       },
     })
-    isFetching.value = false
+
+    if (sequence === loadSequence)
+      isFetching.value = false
   }
 
-  onMounted(() => loadDocuments())
+  watch(() => props.section.tripId, () => {
+    documents.value = []
+    void loadDocuments()
+  }, { immediate: true })
 
   // Базовые операции над отдельными документами
   async function updateDocument(updatedDoc: DocumentFile) {
+    if (props.readonly)
+      return
+
     const prev = documents.value.find(d => d.id === updatedDoc.id)
     const index = documents.value.findIndex(d => d.id === updatedDoc.id)
 
@@ -121,6 +138,9 @@ export function useDocumentsSection(props: UseDocumentsSectionProps, emit: (even
   }
 
   async function deleteDocument(docId: string) {
+    if (props.readonly)
+      return
+
     const doc = documents.value.find(d => d.id === docId)
     const isConfirmed = await confirm({
       title: `Удалить «${doc?.title || doc?.originalName || 'документ'}»?`,
@@ -162,6 +182,9 @@ export function useDocumentsSection(props: UseDocumentsSectionProps, emit: (even
   )
 
   async function moveDocument(doc: DocumentFile, targetFolderId: string | null) {
+    if (props.readonly || (targetFolderId && !foldersModule.folders.value.some(f => f.id === targetFolderId)))
+      return
+
     if (doc.folderId === targetFolderId)
       return
 
@@ -169,6 +192,10 @@ export function useDocumentsSection(props: UseDocumentsSectionProps, emit: (even
       ...doc,
       folderId: targetFolderId,
     })
+
+    if (documents.value.find(d => d.id === doc.id)?.folderId !== targetFolderId)
+      return
+
     const targetName = targetFolderId ? foldersModule.folders.value.find(f => f.id === targetFolderId)?.name : 'Корень'
     toast.success(`Перемещено в «${targetName || 'Все документы'}»`)
   }
@@ -184,9 +211,6 @@ export function useDocumentsSection(props: UseDocumentsSectionProps, emit: (even
 
   // Перенаправляем фильтры в foldersModule для точного расчета видимых папок
   const visibleFolders = computed(() => {
-    if (foldersModule.currentFolderId.value)
-      return []
-
     if (
       filtersModule.searchQuery.value.trim()
       || filtersModule.selectedCategory.value !== 'all'
@@ -195,7 +219,7 @@ export function useDocumentsSection(props: UseDocumentsSectionProps, emit: (even
       return []
     }
 
-    return foldersModule.folders.value
+    return foldersModule.folders.value.filter(f => (f.parentId ?? null) === foldersModule.currentFolderId.value)
   })
 
   const selectionModule = useDocumentSelection(
@@ -256,8 +280,8 @@ export function useDocumentsSection(props: UseDocumentsSectionProps, emit: (even
     selectAll: selectionModule.selectAll,
     clearSelection: selectionModule.clearSelection,
     exitSelectionMode: selectionModule.exitSelectionMode,
-    deleteSelectedDocs: selectionModule.deleteSelectedDocs,
-    moveSelectedDocs: selectionModule.moveSelectedDocs,
+    deleteSelectedDocs: () => props.readonly ? Promise.resolve() : selectionModule.deleteSelectedDocs(),
+    moveSelectedDocs: (id: string | null) => props.readonly ? Promise.resolve() : selectionModule.moveSelectedDocs(id),
 
     // Загрузка
     isUploading: uploadModule.isUploading,
