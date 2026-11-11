@@ -3,6 +3,7 @@ import type { DayPoint, PointStatusBadge, SelectedPointInfo, TimezoneMode } from
 import { Icon } from '@iconify/vue'
 import { computed } from 'vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
+import { MAX_PEDESTRIAN_SPEED_KMH } from '~/shared/services/tracking/track-processing'
 import { ACTIVITY_COLORS, ACTIVITY_ICONS, ACTIVITY_LABELS } from '../models/types'
 
 interface Props {
@@ -52,6 +53,7 @@ const activityColor = computed(() => ACTIVITY_COLORS[pointActivity.value] || '#9
 const activityIcon = computed(() => ACTIVITY_ICONS[pointActivity.value] || 'mdi:crosshairs-question')
 const activityLabel = computed(() => ACTIVITY_LABELS[pointActivity.value] || 'Движение')
 
+const conflictingSpeed = computed(() => pointActivity.value === 'walk' && (props.selectedPoint?.point?.speed ?? 0) * 3.6 > MAX_PEDESTRIAN_SPEED_KMH)
 const speedFormatted = computed(() => {
   const sp = props.selectedPoint?.point?.speed
 
@@ -124,10 +126,16 @@ const speedFormatted = computed(() => {
         </KitBtn>
       </div>
       <div class="activity-details">
-        <span>{{ selectedPoint.point.activitySource === 'manual' ? 'Исправлено вручную' : 'Автоматически' }}</span>
-        <span v-if="selectedPoint.point.activitySource !== 'manual' && selectedPoint.point.activityConfidence != null" class="confidence" title="Эвристическая оценка классификации">Уверенность {{ Math.round(selectedPoint.point.activityConfidence * 100) }}%</span>
+        <span>{{ selectedPoint.point.activitySource === 'manual' ? 'Исправлено вручную' : 'Автоматически по участку' }}</span>
+        <span v-if="pointActivity !== 'unknown' && selectedPoint.point.activitySource !== 'manual' && selectedPoint.point.activityConfidence != null" class="confidence" title="Эвристическая оценка классификации">Уверенность {{ Math.round(selectedPoint.point.activityConfidence * 100) }}%</span>
       </div>
 
+      <p v-if="pointActivity === 'unknown'" class="classification-note">
+        Недостаточно согласованных данных для определения движения. Одна скорость GPS не определяет тип транспорта.
+      </p>
+      <p v-else-if="conflictingSpeed" class="classification-note">
+        Скорость этой GPS-точки не согласуется с ходьбой. Возможен выброс скорости или переход между типами движения.
+      </p>
       <!-- 2. Временная плашка -->
       <div class="popup-time-row">
         <Icon icon="mdi:clock-outline" class="time-icon" />
@@ -143,7 +151,7 @@ const speedFormatted = computed(() => {
         <div v-if="!selectedPoint.point.stop" class="popup-item">
           <span class="item-lbl">
             <Icon icon="mdi:speedometer" />
-            Скорость
+            Скорость GPS
           </span>
           <span class="item-val">{{ speedFormatted }}</span>
         </div>
@@ -605,5 +613,11 @@ const speedFormatted = computed(() => {
   .coords-card {
     min-height: 44px;
   }
+}
+.classification-note {
+  margin: 0;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: var(--fg-secondary-color);
 }
 </style>

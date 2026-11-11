@@ -949,9 +949,13 @@ function normalizeRecoHint(recoHint: RecoHint): { activity: TrackActivityType, s
   return { activity: recoHint.activity, share: Math.max(0, Math.min(1, recoHint.share ?? 1)) }
 }
 
-/**
- * Классификация сегмента: голос Activity Recognition (prior) + кинематика.
- */
+/** Conservative pedestrian ceiling: a fast sensor sample alone is not sufficient evidence. */
+export const MAX_PEDESTRIAN_SPEED_KMH = 18
+function incompatibleWithWalking(f: WindowFeatures): boolean {
+  return f.movementCredible && f.p50SpeedKmh > MAX_PEDESTRIAN_SPEED_KMH && f.evidenceSpeedKmh > MAX_PEDESTRIAN_SPEED_KMH
+}
+
+/** Классификация сегмента: голос Activity Recognition (prior) + кинематика. */
 export function classifySegment(points: TrackPoint[], recoHint: RecoHint = 'unknown'): TrackSegment {
   const f = windowFeatures(points)
   const kinematic = kinematicVotes(f)
@@ -982,6 +986,9 @@ export function classifySegment(points: TrackPoint[], recoHint: RecoHint = 'unkn
     scores[target] = scores[target] * (1 + (boost[target] - 1) * w) + additive
   }
 
+  if (incompatibleWithWalking(f))
+    scores.walk = 0
+
   // Sustained geometry-backed motor speeds rule out a stale walking/cycling prior.
   if (f.movementCredible && f.p50SpeedKmh > 35) {
     scores.walk = 0
@@ -1009,6 +1016,8 @@ export function classifySegment(points: TrackPoint[], recoHint: RecoHint = 'unkn
 }
 
 function isCompatibleActivityHint(activity: TrackActivityType, f: WindowFeatures): boolean {
+  if (activity === 'walk' && incompatibleWithWalking(f))
+    return false
   if (activity === 'unknown' || activity === 'rail')
     return false
   if (!f.movementCredible)
@@ -1233,7 +1242,8 @@ function processMovingTrack(raw: TrackPoint[]): TrackSegment[] {
     }
 
     // Гасим короткие вставки чужой активности: одиночное окно не должно дробить маршрут
-    const smoothedActivities = smoothActivityRuns(pts, pointActivities)
+    const protectedWalkingTimes = new Set<number>()
+    const smoothedActivities = enforcePedestrianSpeed(pts, smoothActivityRuns(pts, pointActivities), pointVoteConfidence, protectedWalkingTimes)
 
     // Группируем последовательные точки одной активности в сегменты
     let curPoints: TrackPoint[] = [pts[0]]
@@ -1270,7 +1280,7 @@ function processMovingTrack(raw: TrackPoint[]): TrackSegment[] {
     flushSegment()
 
     // Склейка остатков дробления: без неё маршрут состоял из микро-плеч и «жирных точек» на стыках
-    classifiedSegments.push(...consolidateSegments(legSegments))
+    classifiedSegments.push(...consolidateSegments(legSegments, { canAbsorb: (donor, segment) => donor.activity !== 'walk' || !segment.points.some(p => protectedWalkingTimes.has(p.tsUtc)) }))
   }
 
   // 3. RDP-упрощение геометрии сегментов с сохранением точных кинематических признаков (дистанция, длительность)
@@ -1280,6 +1290,29 @@ function processMovingTrack(raw: TrackPoint[]): TrackSegment[] {
   }
 
   return classifiedSegments.filter(s => s.points.length > 1)
+}
+
+/** Recheck smoothed walking labels against sustained local speed and displacement. */
+function enforcePedestrianSpeed(points: TrackPoint[], activities: TrackActivityType[], confidence: number[], protectedTimes: Set<number>): TrackActivityType[] {
+  let start = 0
+  let end = 0
+  return activities.map((activity, index) => {
+    const time = points[index].tsUtc
+    while (points[start].tsUtc < time - 15_000)
+      start++
+    end = Math.max(end, index + 1)
+    while (end < points.length && points[end].tsUtc <= time + 15_000)
+      end++
+    if (activity !== 'walk')
+      return activity
+    const window = points.slice(start, end)
+    if (!incompatibleWithWalking(windowFeatures(window)))
+      return activity
+    const classified = classifySegment(window, deviceReco(window))
+    protectedTimes.add(time)
+    confidence[index] = classified.confidence
+    return classified.activity
+  })
 }
 
 /**
@@ -1356,7 +1389,7 @@ function joinTrackPoints(a: TrackPoint[], b: TrackPoint[]): TrackPoint[] {
  */
 export function consolidateSegments(
   segments: TrackSegment[],
-  options: { minDwellMs?: number, minDistanceM?: number } = {},
+  options: { minDwellMs?: number, minDistanceM?: number, canAbsorb?: (donor: TrackSegment, segment: TrackSegment) => boolean } = {},
 ): TrackSegment[] {
   const minDwellMs = options.minDwellMs ?? MIN_ACTIVITY_DWELL_MS
   const minDistanceM = options.minDistanceM ?? MIN_SEGMENT_DISTANCE_M
@@ -1379,8 +1412,9 @@ export function consolidateSegments(
       if (spanMs(seg) >= minDwellMs || seg.features.distanceM >= minDistanceM)
         continue
 
-      const prevIdx = i > 0 ? i - 1 : -1
-      const nextIdx = i < working.length - 1 ? i + 1 : -1
+      const accepts = (index: number) => (options.canAbsorb?.(working[index], seg) ?? true) && (working[index].activity !== 'walk' || !incompatibleWithWalking(seg.features))
+      const prevIdx = i > 0 && accepts(i - 1) ? i - 1 : -1
+      const nextIdx = i < working.length - 1 && accepts(i + 1) ? i + 1 : -1
       if (prevIdx < 0 && nextIdx < 0)
         continue
 

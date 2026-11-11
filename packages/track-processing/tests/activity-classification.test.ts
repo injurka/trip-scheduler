@@ -1,6 +1,6 @@
 import type { TrackActivityType, TrackPoint } from '../src/index'
 import { describe, expect, it } from 'vitest'
-import { ActivityState, annotateTrackPoints, applyActivityCorrections, classifySegment, deviceReco, processDayTrack, smoothMotorSegments } from '../src/index'
+import { ActivityState, annotateTrackPoints, applyActivityCorrections, classifySegment, consolidateSegments, deviceReco, processDayTrack, smoothMotorSegments } from '../src/index'
 
 function route(speeds: number[], deviceActivity?: TrackActivityType): TrackPoint[] {
   let lng = 48
@@ -96,5 +96,38 @@ describe('interval corrections', () => {
     expect(points).toEqual(original)
     expect(annotateTrackPoints(points, processDayTrack(points))[10].activity).toBe('vehicle')
     expect(applyActivityCorrections(processDayTrack(points), corrections.map(c => ({ ...c, sessionId: 'other' })))).toEqual(processDayTrack(points))
+  })
+})
+
+describe('pedestrian speed consistency', () => {
+  function turningRoute(speed: number) {
+    return route(Array.from<number>({ length: 80 }).fill(speed), 'walk').map((p, i) => ({ ...p, lat: i % 2 === 0 ? 0 : 0.00025 }))
+  }
+  it('does not classify sustained 34 km/h on a winding path as walking despite a strong Android walk hint', () => {
+    const points = turningRoute(34.3 / 3.6)
+    expect(classifySegment(points, { activity: 'walk', share: 1 }).activity).not.toBe('walk')
+    expect(processDayTrack(points).every(s => s.activity !== 'walk')).toBe(true)
+  })
+  it('does not absorb a geometry-supported fast short segment into adjacent walking', () => {
+    const walking = classifySegment(route(Array.from<number>({ length: 30 }).fill(1.4)), 'walk')
+    const fast = classifySegment(route(Array.from<number>({ length: 4 }).fill(25 / 3.6)), 'unknown')
+    fast.points = fast.points.map(p => ({ ...p, tsUtc: p.tsUtc + 150_000 }))
+    expect(fast.features.distanceM).toBeLessThan(120)
+    expect(fast.activity).not.toBe('walk')
+    expect(consolidateSegments([walking, fast]).some(s => s.activity !== 'walk')).toBe(true)
+  })
+  it('does not smooth a confirmed brief acceleration into a walking interval', () => {
+    const speeds = [...Array.from<number>({ length: 60 }).fill(1.4), ...Array.from<number>({ length: 7 }).fill(34.3 / 3.6), ...Array.from<number>({ length: 60 }).fill(1.4)]
+    const points = route(speeds, 'walk')
+    const effective = annotateTrackPoints(points, processDayTrack(points))
+    expect(effective[63].activity).not.toBe('walk')
+  })
+  it('recognizes a reliable continuous 3.6 km/h path as walking without a device hint', () => {
+    const points = route(Array.from<number>({ length: 100 }).fill(1)).map(p => ({ ...p, deviceActivity: null, deviceActivityConfidence: null }))
+    expect(processDayTrack(points).every(s => s.activity === 'walk')).toBe(true)
+  })
+  it('does not infer walking from a 3.6 km/h sensor reading without real displacement', () => {
+    const points = route(Array.from<number>({ length: 100 }).fill(1)).map((p, i) => ({ ...p, lng: 48 + (i % 2) * 0.00001, deviceActivity: null, deviceActivityConfidence: null }))
+    expect(processDayTrack(points).every(s => s.activity !== 'walk')).toBe(true)
   })
 })
