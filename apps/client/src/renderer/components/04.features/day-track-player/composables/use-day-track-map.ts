@@ -4,6 +4,7 @@ import * as maplibregl from 'maplibre-gl'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useKitMap } from '~/components/01.kit/kit-map/composables/use-kit-map'
 import { haversineM, splitTrackIntoLegs } from '~/shared/services/tracking/track-processing'
+import { roundedRouteCoordinates } from '../lib/track-route-geometry'
 import { clipTrackLeg, upperTimeIndex } from '../lib/track-time-window'
 import { ACTIVITY_COLORS } from '../models/types'
 
@@ -97,7 +98,7 @@ export function useDayTrackMap(options: UseDayTrackMapOptions) {
         return [{
           type: 'Feature' as const,
           properties: { color, glowColor: `${color}40`, width: segment.activity === 'rail' ? 6 : 4.5 },
-          geometry: { type: 'LineString' as const, coordinates: points.map(point => [point.lng, point.lat]) },
+          geometry: { type: 'LineString' as const, coordinates: roundedRouteCoordinates(points) },
         }]
       })
     }
@@ -347,6 +348,7 @@ export function useDayTrackMap(options: UseDayTrackMapOptions) {
     if (!map.getSource(ROUTE_SOURCE_ID)) {
       map.addSource(ROUTE_SOURCE_ID, {
         type: 'geojson',
+        tolerance: 0,
         data: { type: 'FeatureCollection', features: [] },
       })
     }
@@ -392,6 +394,7 @@ export function useDayTrackMap(options: UseDayTrackMapOptions) {
     if (!map.getSource(PROGRESS_SOURCE_ID)) {
       map.addSource(PROGRESS_SOURCE_ID, {
         type: 'geojson',
+        tolerance: 0,
         data: { type: 'FeatureCollection', features: [] },
       })
     }
@@ -559,7 +562,7 @@ export function useDayTrackMap(options: UseDayTrackMapOptions) {
       if (segment.activity === 'still')
         continue
 
-      const coordinates = segment.geometry || segment.points.map(point => [point.lng, point.lat])
+      const coordinates = roundedRouteCoordinates(segment.points)
 
       if (coordinates.length < 2)
         continue

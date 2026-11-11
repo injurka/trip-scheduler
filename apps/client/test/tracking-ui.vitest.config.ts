@@ -5,5 +5,5 @@ import { defineConfig } from 'vitest/config'
 export default defineConfig({
   plugins: [vue()],
   resolve: { alias: { '~': fileURLToPath(new URL('../src/renderer', import.meta.url)) } },
-  test: { environment: 'happy-dom', include: ['test/track-activity-editor.spec.ts', 'test/track-stop-map.spec.ts'], maxWorkers: 1 },
+  test: { environment: 'happy-dom', include: ['test/track-activity-editor.spec.ts', 'test/track-stop-map.spec.ts', 'test/track-route-geometry.spec.ts'], maxWorkers: 1 },
 })
