@@ -159,7 +159,8 @@ export const trackingProcedures = {
       startedAt: z.number().int().positive().max(8_640_000_000_000_000),
       endedAt: z.number().int().positive().max(8_640_000_000_000_000),
       activity: TrackActivityTypeSchema,
-    }).refine(input => input.endedAt > input.startedAt && input.endedAt - input.startedAt <= 24 * 3600_000, { message: 'Выберите интервал длительностью до 24 часов' }))
+      point: z.boolean().optional(),
+    }).refine(input => (input.endedAt > input.startedAt || (input.point === true && input.endedAt === input.startedAt)) && input.endedAt - input.startedAt <= 24 * 3600_000, { message: 'Выберите интервал длительностью до 24 часов' }))
     .output(z.object({ success: z.boolean() }))
     .mutation(({ input, ctx }) => trackingService.correctActivity(ctx.user.id, input)),
 

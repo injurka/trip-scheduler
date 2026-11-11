@@ -133,10 +133,10 @@ export const trackingService = {
     const raw = points.map(p => ({ ...p, tsUtc: p.tsUtc.getTime() }))
     // Compute from original measurements on read: historical days immediately use the current algorithm.
     const corrections = await getCorrections(userId, from, to)
-    const segments = applyActivityCorrections(processDayTrack(raw), corrections)
+    const segments = applyActivityCorrections(processDayTrack(raw), corrections, raw)
     return {
       corrections,
-      points: annotateTrackPoints(raw, segments),
+      points: annotateTrackPoints(raw, segments, corrections),
       segments: segments.map((s, i) => ({
         id: `processed-${i}`,
         sessionId: s.points[0].sessionId,
@@ -242,7 +242,8 @@ export const trackingService = {
     }
     for (const [day, points] of daysOfPoints) {
       const activityMap = new Map<string, { distanceM: number, durationMs: number, segmentCount: number }>()
-      for (const s of applyActivityCorrections(processDayTrack(points.map(p => ({ ...p, tsUtc: p.tsUtc.getTime() }))), corrections)) {
+      const raw = points.map(p => ({ ...p, tsUtc: p.tsUtc.getTime() }))
+      for (const s of applyActivityCorrections(processDayTrack(raw), corrections, raw)) {
         const agg = activityMap.get(s.activity) ?? { distanceM: 0, durationMs: 0, segmentCount: 0 }
         agg.distanceM += s.features.distanceM
         agg.durationMs += s.features.durationMs
