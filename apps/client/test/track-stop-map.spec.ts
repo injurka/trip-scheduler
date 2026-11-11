@@ -1,6 +1,6 @@
 import type { LayerSpecification, SourceSpecification } from 'maplibre-gl'
 import type { UseDayTrackMapOptions } from '../src/renderer/components/04.features/day-track-player/composables/use-day-track-map'
-import type { DayPoint, RouteVisibility } from '../src/renderer/components/04.features/day-track-player/models/types'
+import type { DayPoint, RenderSegment, RouteVisibility } from '../src/renderer/components/04.features/day-track-player/models/types'
 import { mount } from '@vue/test-utils'
 import { expect, it, vi } from 'vitest'
 import { computed, defineComponent, h, nextTick, ref, shallowRef } from 'vue'
@@ -84,6 +84,7 @@ it('renders stops as individual unclustered points, preserves popup indices and 
       stop: stopData,
     },
   ]
+  const routeSegments = ref<RenderSegment[]>([])
   const mode = ref<'route' | 'points'>('route')
   const routeVisibility = ref<RouteVisibility>('full')
   const t = ref(0)
@@ -98,7 +99,7 @@ it('renders stops as individual unclustered points, preserves popup indices and 
     renderSegments: computed(() => {
       void options.dayData.value
 
-      return []
+      return [...routeSegments.value]
     }),
     currentPoint: computed(() => options.dayData.value?.points.findLast(p => p.tsUtc <= t.value) ?? null),
     currentActivityColor: computed(() => '#fff'),
@@ -198,5 +199,24 @@ it('renders stops as individual unclustered points, preserves popup indices and 
   expect(sources.get('day-track-points-source')!.data.features).toHaveLength(3)
   expect(fitBounds).not.toHaveBeenCalled()
 
+  expect((sources.get('day-track-route-source')!.config as Record<string, unknown>).tolerance).toBe(0)
+  expect((sources.get('day-track-progress-source')!.config as Record<string, unknown>).tolerance).toBe(0)
+  routeSegments.value = [{
+    activity: 'walk',
+    t0: 0,
+    t1: 10000,
+    geometry: [[99, 99], [100, 100]],
+    points: [
+      { tsUtc: 0, lat: 0, lng: 0 },
+      { tsUtc: 5000, lat: 0, lng: 0.0001 },
+      { tsUtc: 10000, lat: 0.0001, lng: 0.0001 },
+    ],
+  }]
+  mode.value = 'route'
+  await nextTick()
+  const detailed = sources.get('day-track-route-source')!.data.features[0].geometry as GeoJSON.LineString
+  expect(detailed.coordinates.length).toBeGreaterThan(3)
+  expect(detailed.coordinates[0]).toEqual([0, 0])
+  expect(detailed.coordinates.at(-1)).toEqual([0.0001, 0.0001])
   wrapper.unmount()
 })

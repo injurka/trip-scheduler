@@ -8,6 +8,7 @@ import { deleteStoredPoint } from '~/shared/services/tracking/geotrack-client'
 import {
   prepareTrack,
 } from '~/shared/services/tracking/track-processing'
+import { detailedRouteSegments } from '../lib/track-route-geometry'
 
 export interface UseDayTrackDataOptions {
   tripId?: Ref<string | undefined>
@@ -212,14 +213,7 @@ export function useDayTrackData(options: UseDayTrackDataOptions = {}) {
       return []
 
     if (d.segments.length > 0) {
-      return d.segments.map(s => ({
-        activity: s.activity,
-        activitySource: s.activitySource,
-        points: s.simplifiedPoints || d.points.filter(p => p.sessionId === s.sessionId && p.tsUtc >= s.startedAt && p.tsUtc <= s.endedAt),
-        t0: s.startedAt,
-        t1: s.endedAt,
-        geometry: s.geometry,
-      }))
+      return detailedRouteSegments(d)
     }
 
     // Fallback: группировка сырых точек по активности
