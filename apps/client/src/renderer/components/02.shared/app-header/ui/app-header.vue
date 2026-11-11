@@ -3,7 +3,6 @@ import { Icon } from '@iconify/vue'
 import { useRoute, useRouter } from 'vue-router'
 import { KitAvatar } from '~/components/01.kit/kit-avatar'
 import { KitDropdown } from '~/components/01.kit/kit-dropdown'
-import { KitTooltip } from '~/components/01.kit/kit-tooltip'
 import { ProfileDrawer } from '~/components/02.shared/profile-drawer'
 import { ThemePopover } from '~/components/02.shared/theme-manager'
 import { useAppStore } from '~/shared/composables/use-store'
@@ -292,16 +291,6 @@ onMounted(() => {
       </div>
 
       <div class="header-right">
-        <KitTooltip text="Открыть карту">
-          <button
-            class="util-btn"
-            :class="{ 'is-active': appStore.layout.isFloatingMapOpen }"
-            @click="appStore.layout.toggleFloatingMap()"
-          >
-            <Icon icon="mdi:map-search-outline" />
-          </button>
-        </KitTooltip>
-
         <ThemePopover />
 
         <div class="vr" />
@@ -592,57 +581,6 @@ onMounted(() => {
 
     &:active {
       transform: translateY(0);
-    }
-
-    .util-btn {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: 32px;
-      height: 32px;
-      border-radius: var(--r-xs);
-      border: none;
-      color: var(--fg-secondary-color);
-      cursor: pointer;
-      transition:
-        all 0.2s ease,
-        transform 0.1s ease;
-      font-size: 1.2rem;
-      overflow: hidden;
-      position: relative;
-      background: transparent;
-
-      &::before {
-        content: '';
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        width: 0;
-        height: 0;
-        background-color: var(--fg-accent-color);
-        border-radius: 50%;
-        transition: all 0.3s ease;
-        transform: translate(-50%, -50%);
-        opacity: 0.1;
-        z-index: -1;
-      }
-
-      @media (hover: hover) and (pointer: fine) {
-        &:hover,
-        &.is-active {
-          color: var(--fg-accent-color);
-          transform: scale(1.1);
-
-          &::before {
-            width: 100%;
-            height: 100%;
-          }
-        }
-      }
-
-      &:active {
-        transform: scale(0.95);
-      }
     }
 
     .profile {

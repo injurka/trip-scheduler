@@ -12,7 +12,6 @@ import { AppRouteNames, AppRoutePaths } from '~/shared/constants/routes'
 import { useConnectivity } from '~/shared/lib/connectivity'
 import { lazyComponent } from '~/shared/lib/lazy-component'
 import { useAuthStore } from '~/shared/store/auth.store'
-import { useLayoutStore } from '~/shared/store/layout.store'
 import '~/assets/scss/global.scss'
 import '~/assets/scss/atomic.scss'
 import '~/assets/scss/normalize.scss'
@@ -24,12 +23,10 @@ import '~/assets/scss/maplibre-markers.scss'
 const { isOnline } = useConnectivity()
 const route = useRoute()
 const router = useRouter()
-const layoutStore = useLayoutStore()
 const authStore = useAuthStore()
 const onboarding = useOnboarding()
 
 const OfflineProgressDialog = lazyComponent(() => import('~/components/02.shared/offline-manager/ui/offline-progress-dialog.vue'))
-const FloatingMap = lazyComponent(() => import('~/components/04.features/floating-map/ui/floating-map.vue'))
 const DefaultLayout = lazyComponent(() => import('~/components/06.layouts/default/ui/layout.vue'))
 const EmptyLayout = lazyComponent(() => import('~/components/06.layouts/empty/ui/layout.vue'))
 const TripInfoLayout = lazyComponent(() => import('~/components/06.layouts/trip-info/ui/layout.vue'))
@@ -131,7 +128,6 @@ onMounted(async () => {
       </router-view>
     </component>
 
-    <FloatingMap v-if="layoutStore.isFloatingMapOpen" />
     <ReloadPrompt />
     <AppUpdatePrompt />
     <ToastManager />
