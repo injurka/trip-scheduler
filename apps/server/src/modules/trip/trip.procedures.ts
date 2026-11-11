@@ -1,6 +1,9 @@
 import type { Context } from 'hono'
 import z from 'zod'
 import { protectedProcedure, publicProcedure } from '~/lib/trpc'
+import { editableTripTrack, tripTrackAccess } from '../tracking/trip-track-access'
+import { TripStatisticsSchema } from './trip-statistics.schema'
+import { tripStatisticsService } from './trip-statistics.service'
 import {
   AddParticipantInputSchema,
   CheckShareSlugAvailabilityInputSchema,
@@ -37,6 +40,20 @@ function extractShareSlug(inputShareSlug?: string, c?: Context): string | undefi
 }
 
 export const tripProcedures = {
+  getStatistics: publicProcedure
+    .input(z.object({ tripId: z.string().uuid(), shareSlug: z.string().optional() }))
+    .output(TripStatisticsSchema.nullable())
+    .query(async ({ input, ctx }) => {
+      await tripTrackAccess(input.tripId, ctx.user, extractShareSlug(input.shareSlug, ctx.c))
+      return tripStatisticsService.get(input.tripId)
+    }),
+  refreshStatistics: protectedProcedure
+    .input(z.object({ tripId: z.string().uuid() }))
+    .output(TripStatisticsSchema)
+    .mutation(async ({ input, ctx }) => {
+      await editableTripTrack(input.tripId, ctx.user)
+      return tripStatisticsService.refresh(input.tripId)
+    }),
   list: publicProcedure
     .meta({
       openapi: {
