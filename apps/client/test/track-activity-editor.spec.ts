@@ -60,12 +60,14 @@ beforeEach(() => {
   api.removeCorrection.mockReset().mockResolvedValue({ success: true })
 })
 
-it('saves the chosen time interval in UTC for the correct session', async () => {
+it('converts local Samara time to UTC for the correct session', async () => {
   const wrapper = mount(ActivityEditor, wrapperOptions)
   await wrapper.setProps({ visible: true })
   const inputs = wrapper.findAll('input')
-  await inputs[0].setValue('2026-11-10T13:00:10')
-  await inputs[1].setValue('2026-11-10T13:01:30')
+  expect(inputs[0].element.value).toBe('10.11.2026 17:00:00')
+  expect(inputs[1].element.value).toBe('10.11.2026 17:02:00')
+  await inputs[0].setValue('10.11.2026 17:00:10')
+  await inputs[1].setValue('10.11.2026 17:01:30')
   await wrapper.get('[data-test="vehicle"]').trigger('click')
   await wrapper.get('form').trigger('submit')
   await flushPromises()

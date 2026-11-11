@@ -94,9 +94,13 @@ it('renders stops as individual unclustered points, preserves popup indices and 
     popupHost: ref(null),
     playbackMarkerHost: ref(null),
     dayData: ref({ points, rawPoints: points, segments: [] }),
-    displayPoints: computed(() => points),
-    renderSegments: computed(() => []),
-    currentPoint: computed(() => null),
+    displayPoints: computed(() => options.dayData.value?.points ?? []),
+    renderSegments: computed(() => {
+      void options.dayData.value
+
+      return []
+    }),
+    currentPoint: computed(() => options.dayData.value?.points.findLast(p => p.tsUtc <= t.value) ?? null),
     currentActivityColor: computed(() => '#fff'),
     t,
     routeVisibility,
@@ -141,6 +145,23 @@ it('renders stops as individual unclustered points, preserves popup indices and 
   click!({ point: { x: 0, y: 0 } })
   await Promise.resolve()
   expect((selectedPointResult as { value: { index: number, point: DayPoint } })?.value?.index).toBe(2)
+
+  const mapMock = state.map as { fitBounds: ReturnType<typeof vi.fn> }
+  t.value = 10_000
+  await nextTick()
+  options.isFollowCamera.value = true
+  easeTo.mockClear()
+  mapMock.fitBounds.mockClear()
+  const correctedPoints = points.map(p => ({ ...p, activity: 'vehicle' as const }))
+  options.dayData.value = { points: correctedPoints, rawPoints: correctedPoints, segments: [] }
+  await nextTick()
+  expect(mapMock.fitBounds).not.toHaveBeenCalled()
+  expect((selectedPointResult as { value: { index: number } }).value?.index).toBe(2)
+  expect((selectedPointResult as { value: { point: DayPoint } }).value?.point.activity).toBe('vehicle')
+  expect(t.value).toBe(10_000)
+  expect(easeTo).not.toHaveBeenCalled()
+  options.isFollowCamera.value = false
+  expect(options.isPlaying.value).toBe(false)
 
   // Переключение в режим всех точек Безье убирает слой пауз и выводит все точки в points-source
   mode.value = 'points'

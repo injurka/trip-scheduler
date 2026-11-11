@@ -126,6 +126,7 @@ const trailMinutes = ref(15)
 
 // ─── 5. Карта и интерактивные слои ─────────────────────────────────────────────
 const map = useDayTrackMap({
+  selectedDay,
   mapHost,
   popupHost,
   playbackMarkerHost,
@@ -283,6 +284,17 @@ async function onDeletePoint(pt: DayPoint) {
     <!-- Контейнер карты OpenLayers -->
     <div ref="mapHost" class="memories-map" />
 
+    <KitBtn
+      class="floating-follow-btn"
+      variant="tonal"
+      :aria-pressed="playback.isFollowCamera.value"
+      aria-label="Слежение камерой"
+      title="Слежение камерой (C)"
+      @click="playback.isFollowCamera.value = !playback.isFollowCamera.value"
+    >
+      <Icon :icon="playback.isFollowCamera.value ? 'mdi:crosshairs-gps' : 'mdi:crosshairs'" />
+    </KitBtn>
+
     <!-- Анимированный маркер воспроизведения на карте -->
     <div v-if="isBeaconVisible" ref="playbackMarkerHost" class="playback-marker-host">
       <DayTrackBeacon
@@ -398,6 +410,16 @@ async function onDeletePoint(pt: DayPoint) {
 </template>
 
 <style scoped lang="scss">
+.floating-follow-btn {
+  position: absolute;
+  right: 14px;
+  top: 76px;
+  z-index: 21;
+  min-width: 44px;
+  min-height: 44px;
+  border-radius: 50%;
+}
+
 .memories-player {
   position: relative;
   width: 100%;

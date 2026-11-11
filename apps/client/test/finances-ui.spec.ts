@@ -333,9 +333,9 @@ describe('finance filters and reactive charts', () => {
     })
     wrappers.push(wrapper)
 
-    const controlCard = wrapper.find('.finances-control-card')
+    const controlCard = wrapper.find('.finance-actions')
     expect(controlCard.exists()).toBe(true)
-    expect(controlCard.find('.control-card-title').text()).toBe('Финансы')
+    expect(wrapper.find('.control-card-title').exists()).toBe(false)
 
     // 1. "Добавить трату"
     const addBtn = wrapper.find('.action-primary')
@@ -363,8 +363,8 @@ describe('finance filters and reactive charts', () => {
     await settingsBtn.trigger('click')
     expect(wrapper.findComponent({ name: 'BudgetSettingsDialog' }).props('visible')).toBe(true)
 
-    // 4. "Категории" (both in control card footer and near filter pills)
-    const categoriesBtn = wrapper.find('.categories-btn')
+    // 4. "Категории" (only near filter pills)
+    const categoriesBtn = wrapper.find('.manage-categories-filter-pill')
     expect(categoriesBtn.exists()).toBe(true)
     expect(categoriesBtn.text()).toContain('Категории')
     expect(wrapper.findComponent({ name: 'CategoryManagerDialog' }).props('visible')).toBe(false)
@@ -391,7 +391,7 @@ describe('finance filters and reactive charts', () => {
     })
     wrappers.push(wrapper)
 
-    expect(wrapper.find('.control-card-title').text()).toBe('Финансы')
+    expect(wrapper.find('.finance-actions').exists()).toBe(false)
     expect(wrapper.find('.settings-btn').exists()).toBe(false)
     expect(wrapper.find('.control-card-actions').exists()).toBe(false)
     expect(wrapper.find('.control-card-footer').exists()).toBe(false)

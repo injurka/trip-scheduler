@@ -148,64 +148,40 @@ function resetAllFilters() {
 
 <template>
   <div class="finances-section">
-    <!-- IMP-027 Панель управления финансами -->
-    <div class="finances-control-card" :class="{ 'is-readonly': readonly }">
-      <div class="control-card-header">
-        <h2 class="control-card-title">
-          Финансы
-        </h2>
-        <KitBtn
-          v-if="!readonly"
-          icon="mdi:tune-variant"
-          variant="text"
-          size="md"
-          class="settings-btn"
-          title="Настройки бюджета и валют"
-          @click="isSettingsOpen = true"
-        >
-          <span>Настройки</span>
-        </KitBtn>
-      </div>
+    <div v-if="!readonly" class="finance-actions">
+      <KitBtn
+        icon="mdi:plus"
+        variant="solid"
+        size="md"
+        class="action-primary"
+        title="Добавить трату вручную"
+        @click="openTransactionForm()"
+      >
+        <span>Добавить трату</span>
+      </KitBtn>
 
-      <div v-if="!readonly" class="control-card-actions">
-        <KitBtn
-          icon="mdi:plus"
-          variant="solid"
-          size="md"
-          class="action-primary"
-          title="Добавить трату вручную"
-          @click="openTransactionForm()"
-        >
-          <span>Добавить трату</span>
-        </KitBtn>
-
-        <KitBtn
-          icon="mdi:line-scan"
-          variant="tonal"
-          size="md"
-          class="action-secondary"
-          :class="{ 'is-active': isAiCreatorOpen }"
-          title="Быстрый ввод списка трат через AI или распознавание чека"
-          @click="isAiCreatorOpen = !isAiCreatorOpen"
-        >
-          <span>По чеку</span>
-        </KitBtn>
-      </div>
-
-      <div v-if="!readonly" class="control-card-footer">
-        <span class="control-card-subtitle">Управление расходами</span>
-        <KitBtn
-          icon="mdi:tag-outline"
-          variant="text"
-          size="md"
-          class="categories-btn"
-          title="Управление категориями расходов"
-          @click="handleOpenCategoryManager"
-        >
-          <span>Категории</span>
-          <Icon icon="mdi:chevron-right" class="chevron-icon" />
-        </KitBtn>
-      </div>
+      <KitBtn
+        icon="mdi:line-scan"
+        variant="tonal"
+        size="md"
+        class="action-secondary"
+        :class="{ 'is-active': isAiCreatorOpen }"
+        title="Быстрый ввод списка трат через AI или распознавание чека"
+        @click="isAiCreatorOpen = !isAiCreatorOpen"
+      >
+        <span>По чеку</span>
+      </KitBtn>
+      <KitBtn
+        v-if="!readonly"
+        icon="mdi:tune-variant"
+        variant="text"
+        size="md"
+        class="settings-btn"
+        title="Настройки бюджета и валют"
+        @click="isSettingsOpen = true"
+      >
+        <span>Настройки</span>
+      </KitBtn>
     </div>
 
     <!-- Быстрый AI-ввод по чеку -->
@@ -300,6 +276,20 @@ function resetAllFilters() {
             <span>Все категории</span>
           </button>
 
+          <!-- Управление категориями рядом с фильтрами -->
+          <button
+            v-if="!readonly"
+            v-ripple
+            type="button"
+            class="filter-pill manage-categories-filter-pill"
+            title="Управление категориями"
+            @click="handleOpenCategoryManager"
+          >
+            <Icon icon="mdi:tag-outline" class="pill-icon" />
+            <span>Категории</span>
+            <Icon icon="mdi:chevron-right" class="pill-chevron" />
+          </button>
+
           <!-- Спонтанные расходы -->
           <button
             v-ripple
@@ -331,20 +321,6 @@ function resetAllFilters() {
             <span>{{ item.label }}</span>
             <span v-if="selectedCategoryFilters.includes(item.value)" class="pill-state">Только</span>
             <span v-else-if="excludedCategoryFilters.includes(item.value)" class="pill-state">Исключено</span>
-          </button>
-
-          <!-- Управление категориями рядом с фильтрами -->
-          <button
-            v-if="!readonly"
-            v-ripple
-            type="button"
-            class="filter-pill manage-categories-filter-pill"
-            title="Управление категориями"
-            @click="handleOpenCategoryManager"
-          >
-            <Icon icon="mdi:tag-outline" class="pill-icon" />
-            <span>Категории</span>
-            <Icon icon="mdi:chevron-right" class="pill-chevron" />
           </button>
         </div>
       </div>
@@ -699,140 +675,20 @@ function resetAllFilters() {
   }
 }
 
-/* IMP-027: Панель управления финансами */
-.finances-control-card {
-  width: 100%;
-  background-color: var(--bg-secondary-color);
-  border: 1px solid var(--border-secondary-color);
-  border-radius: var(--r-m);
-  padding: 1.15rem 1.35rem;
+.finance-actions {
   display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  box-shadow: var(--shadow-s);
-
-  &.is-readonly {
-    padding: 1rem 1.25rem;
-    gap: 0;
-  }
-}
-
-.control-card-header {
-  display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-}
+  gap: 8px;
 
-.control-card-title {
-  margin: 0;
-  font-size: 1.35rem;
-  font-weight: 700;
-  line-height: 1.2;
-  color: var(--fg-primary-color);
-  letter-spacing: -0.01em;
-}
-
-.control-card-actions {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-
-  .action-primary {
-    flex: 0 0 auto;
+  :deep(.kit-btn) {
     min-height: 44px;
-    height: 44px;
-    padding: 0 1.5rem;
-    border-radius: var(--r-s);
-    font-size: 0.9rem;
-    font-weight: 600;
+    flex: 0 0 auto;
     white-space: nowrap;
   }
 
-  .action-secondary {
-    flex: 0 0 auto;
-    min-height: 44px;
-    height: 44px;
-    padding: 0 1.25rem;
-    border-radius: var(--r-s);
-    border: 1px solid var(--border-secondary-color);
-    background-color: var(--bg-tertiary-color);
-    color: var(--fg-primary-color);
-    font-size: 0.9rem;
-    font-weight: 500;
-    white-space: nowrap;
-
-    .kit-btn-icon {
-      color: var(--fg-accent-color);
-      font-size: 1.2rem;
-    }
-
-    &:hover:not(:disabled) {
-      border-color: var(--border-primary-color);
-      background-color: var(--bg-hover-color, var(--bg-primary-color));
-    }
-
-    &.is-active {
-      border-color: var(--fg-accent-color);
-      background-color: color-mix(in srgb, var(--fg-accent-color) 14%, var(--bg-secondary-color));
-      color: var(--fg-accent-color);
-
-      .kit-btn-icon {
-        color: var(--fg-accent-color);
-      }
-    }
-  }
-}
-
-.control-card-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  padding-top: 0.25rem;
-  border-top: 1px solid color-mix(in srgb, var(--border-secondary-color) 50%, transparent);
-}
-
-.control-card-subtitle {
-  font-size: 0.8125rem;
-  font-weight: 500;
-  color: var(--fg-muted-color);
-  user-select: none;
-}
-
-.settings-btn,
-.categories-btn {
-  min-height: 44px;
-  color: var(--fg-secondary-color);
-  border-radius: var(--r-s);
-  border: 1px solid transparent;
-  background-color: transparent;
-  box-shadow: none;
-  font-size: 0.84rem;
-  font-weight: 500;
-  padding: 0.375rem 0.65rem;
-  transition: all 0.2s ease;
-  white-space: nowrap;
-
-  .chevron-icon {
-    font-size: 1.125rem;
-    margin-left: 2px;
-    opacity: 0.6;
-    transition:
-      transform 0.2s ease,
-      opacity 0.2s ease;
-  }
-
-  &:hover:not(:disabled) {
-    color: var(--fg-primary-color);
-    background-color: var(--bg-tertiary-color);
-    border-color: var(--border-secondary-color);
-    box-shadow: none;
-
-    .chevron-icon {
-      opacity: 1;
-      transform: translateX(2px);
-    }
+  .settings-btn {
+    margin-left: auto;
   }
 }
 
@@ -844,77 +700,6 @@ function resetAllFilters() {
 }
 
 @include media-down(sm) {
-  .finances-control-card {
-    padding: 0.95rem;
-    gap: 0.875rem;
-
-    .control-card-header {
-      .control-card-title {
-        font-size: 1.25rem;
-      }
-    }
-
-    .control-card-actions {
-      display: flex;
-      gap: 0.5rem;
-      width: 100%;
-
-      .action-primary {
-        flex: 6 1 0;
-        min-width: 0;
-        padding: 0 0.75rem;
-        font-size: 0.8125rem;
-
-        .kit-btn-content {
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-        }
-      }
-
-      .action-secondary {
-        flex: 4 1 0;
-        min-width: 0;
-        padding: 0 0.625rem;
-        font-size: 0.8125rem;
-
-        .kit-btn-content {
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-        }
-      }
-    }
-
-    .control-card-footer {
-      padding-top: 0.25rem;
-
-      .control-card-subtitle {
-        font-size: 0.75rem;
-      }
-
-      .categories-btn {
-        padding: 0.25rem 0.5rem;
-        font-size: 0.8125rem;
-      }
-    }
-  }
-
-  @media (max-width: 360px) {
-    .finances-control-card {
-      .control-card-actions {
-        flex-direction: column;
-        gap: 0.5rem;
-
-        .action-primary,
-        .action-secondary {
-          width: 100%;
-          flex: none;
-        }
-      }
-    }
-  }
-
   .finances-filters-bar {
     gap: 0.65rem;
 

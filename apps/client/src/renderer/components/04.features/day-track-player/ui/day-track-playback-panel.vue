@@ -328,6 +328,40 @@ useEventListener(typeof window !== 'undefined' ? window : null, 'keydown', (e: K
         </button>
       </div>
 
+      <div class="route-visibility-controls">
+        <KitDropdown :items="routeVisibilityItems" :model-value="routeVisibility" @update:model-value="emit('update:routeVisibility', $event)">
+          <template #trigger>
+            <KitBtn
+              size="sm"
+              variant="text"
+              color="secondary"
+              aria-label="Отображение маршрута"
+            >
+              <Icon icon="mdi:routes" />
+              {{ routeVisibilityItems.find(item => item.value === routeVisibility)?.label }}
+              <Icon icon="mdi:chevron-down" />
+            </KitBtn>
+          </template>
+        </KitDropdown>
+        <KitDropdown
+          v-if="routeVisibility === 'recent'"
+          :items="trailItems"
+          :model-value="trailMinutes"
+          @update:model-value="emit('update:trailMinutes', $event)"
+        >
+          <template #trigger>
+            <KitBtn
+              size="sm"
+              variant="text"
+              color="secondary"
+              aria-label="Длительность последнего отрезка"
+            >
+              {{ trailMinutes }} мин
+              <Icon icon="mdi:chevron-down" />
+            </KitBtn>
+          </template>
+        </KitDropdown>
+      </div>
       <!-- Единый аккуратный чип телеметрии по центру -->
       <div class="readout-telemetry">
         <div
@@ -341,64 +375,6 @@ useEventListener(typeof window !== 'undefined' ? window : null, 'keydown', (e: K
             <span class="pill-speed">{{ speedKmh.toFixed(0) }} км/ч</span>
           </template>
         </div>
-      </div>
-    </div>
-
-    <div class="route-visibility-controls">
-      <KitDropdown :items="routeVisibilityItems" :model-value="routeVisibility" @update:model-value="emit('update:routeVisibility', $event)">
-        <template #trigger>
-          <KitBtn
-            size="sm"
-            variant="outlined"
-            color="secondary"
-            aria-label="Отображение маршрута"
-          >
-            <Icon icon="mdi:routes" />
-            {{ routeVisibilityItems.find(item => item.value === routeVisibility)?.label }}
-            <Icon icon="mdi:chevron-down" />
-          </KitBtn>
-        </template>
-      </KitDropdown>
-      <KitDropdown
-        v-if="routeVisibility === 'recent'"
-        :items="trailItems"
-        :model-value="trailMinutes"
-        @update:model-value="emit('update:trailMinutes', $event)"
-      >
-        <template #trigger>
-          <KitBtn
-            size="sm"
-            variant="outlined"
-            color="secondary"
-            aria-label="Длительность последнего отрезка"
-          >
-            {{ trailMinutes }} мин
-            <Icon icon="mdi:chevron-down" />
-          </KitBtn>
-        </template>
-      </KitDropdown>
-      <div class="route-tools">
-        <KitBtn
-          size="sm"
-          variant="outlined"
-          color="secondary"
-          aria-label="Исправить тип движения"
-          @click="emit('editActivity')"
-        >
-          <Icon icon="mdi:pencil-outline" />
-          <span class="edit-label">Правка</span>
-        </KitBtn>
-        <KitBtn
-          size="sm"
-          variant="outlined"
-          color="secondary"
-          :aria-pressed="isFollowCamera"
-          aria-label="Слежение камерой"
-          title="Слежение камерой (C)"
-          @click="emit('update:isFollowCamera', !isFollowCamera)"
-        >
-          <Icon :icon="isFollowCamera ? 'mdi:crosshairs-gps' : 'mdi:crosshairs'" />
-        </KitBtn>
       </div>
     </div>
 
@@ -487,6 +463,15 @@ useEventListener(typeof window !== 'undefined' ? window : null, 'keydown', (e: K
     <div class="memories-actions">
       <!-- Левый вспомогательный блок (счетчик точек при наличии) -->
       <div class="actions-left">
+        <KitBtn
+          size="sm"
+          variant="text"
+          color="secondary"
+          aria-label="Исправить тип движения"
+          @click="emit('editActivity')"
+        >
+          <Icon icon="mdi:pencil-outline" />
+        </KitBtn>
         <span
           v-if="displayPointsCount && displayPointsCount > 0"
           class="points-badge"
@@ -612,7 +597,7 @@ useEventListener(typeof window !== 'undefined' ? window : null, 'keydown', (e: K
   /* ── 1. Верхняя инфо-строка ── */
   .memories-readout {
     display: grid;
-    grid-template-columns: 1fr auto;
+    grid-template-columns: auto 1fr auto;
     align-items: center;
     gap: 12px;
     font-variant-numeric: tabular-nums;
@@ -1181,6 +1166,68 @@ useEventListener(typeof window !== 'undefined' ? window : null, 'keydown', (e: K
           }
         }
       }
+    }
+  }
+}
+
+.memories-panel {
+  gap: 4px;
+  padding: 6px 10px;
+  .memories-readout {
+    flex-wrap: wrap;
+  }
+  .route-visibility-controls {
+    justify-content: center;
+    gap: 0;
+  }
+  .route-visibility-controls :deep(.kit-btn) {
+    min-height: 44px;
+    padding: 0 6px;
+    font-size: 0.75rem;
+  }
+  .actions-left :deep(.kit-btn) {
+    min-width: 44px;
+    min-height: 44px;
+    padding: 0;
+  }
+  .points-badge {
+    display: none;
+  }
+  .memories-actions .playback-controls {
+    gap: 0;
+  }
+  .memories-actions .playback-controls .control-btn {
+    width: 44px;
+    height: 44px;
+    border: 0;
+    background: transparent;
+  }
+  .memories-actions .playback-controls .play-btn {
+    background: var(--fg-accent-color);
+  }
+  .memories-actions .actions-right .speed-pill-btn {
+    min-height: 44px;
+    border: 0;
+    padding: 4px;
+  }
+  @media (max-width: 640px) {
+    .readout-time-group .tz-toggle-chip .tz-text {
+      display: none;
+    }
+    .memories-readout .readout-telemetry .telemetry-pill {
+      padding: 0 4px;
+      border: 0;
+      background: transparent;
+    }
+    .route-visibility-controls :deep(.kit-btn) {
+      max-width: 145px;
+    }
+    .memories-actions .playback-controls .control-btn {
+      width: 40px;
+    }
+    .speed-icon,
+    .chevron-icon {
+      display: none;
     }
   }
 }
