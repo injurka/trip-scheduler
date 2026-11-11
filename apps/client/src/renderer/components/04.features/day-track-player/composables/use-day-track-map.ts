@@ -26,6 +26,7 @@ function createEmptyFeatureCollection(): GeoJSON.FeatureCollection {
 }
 
 export interface UseDayTrackMapOptions {
+  selectedDay?: Ref<string>
   mapHost: Ref<HTMLElement | null>
   popupHost: Ref<HTMLElement | null>
   photoPopupHost?: Ref<HTMLElement | null>
@@ -971,6 +972,8 @@ export function useDayTrackMap(options: UseDayTrackMapOptions) {
     updatePhotoMarkersPlaybackState()
   }
 
+  let fittedDay: string | undefined
+
   function rebuildFeatures() {
     const map = mapInstance.value
 
@@ -982,6 +985,17 @@ export function useDayTrackMap(options: UseDayTrackMapOptions) {
 
     updateRouteLayer(map, getUniqueTrackPoints(points.rawPoints))
     renderedPoints = points.pointsList
+
+    if (selectedPoint.value) {
+      const previous = selectedPoint.value.point
+      const index = renderedPoints.findIndex(p => p.sessionId === previous.sessionId && p.tsUtc === previous.tsUtc)
+
+      if (index >= 0)
+        selectPointByIndex(index + 1)
+      else
+        closePointPopup()
+    }
+
     updatePointLayer(map, points.pointsList, points.isPointsMode)
     updateStopAreaLayer(map, visiblePoints(points.pointsList), points.isPointsMode)
     updatePhotoLayers(map, points.allPoints)
@@ -989,7 +1003,11 @@ export function useDayTrackMap(options: UseDayTrackMapOptions) {
 
   function prepareMapForRebuild() {
     ensureLayers()
-    closePointPopup()
+    const day = options.selectedDay?.value ?? String(dayData.value?.points[0]?.tsUtc)
+
+    if (fittedDay !== day)
+      closePointPopup()
+
     // Попап фото привязан к координате прошлого дня/режима — при пересборке слоёв
     // он остался бы висеть над пустым местом.
     closePhotoPopup()
@@ -1049,8 +1067,12 @@ export function useDayTrackMap(options: UseDayTrackMapOptions) {
     scheduleProgressUpdate(true)
     updatePhotoLayer()
 
-    if (hasTrackMapData(rawPoints, photos))
+    const day = options.selectedDay?.value ?? String(rawPoints[0]?.tsUtc)
+
+    if (hasTrackMapData(rawPoints, photos) && fittedDay !== day) {
+      fittedDay = day
       fitTrackBounds()
+    }
   }
 
   function hasTrackMapData(rawPoints: DayPoint[], photos: TrackPhoto[]): boolean {
@@ -1252,13 +1274,13 @@ export function useDayTrackMap(options: UseDayTrackMapOptions) {
     }, { immediate: true })
   })
 
-  watch(currentPoint, (p) => {
+  watch(currentPoint, (p, previous) => {
     if (p && mapInstance.value) {
       if (playbackMarker) {
         playbackMarker.setLngLat([p.lng, p.lat])
       }
 
-      if (isFollowCamera.value) {
+      if (isFollowCamera.value && (p.tsUtc !== previous?.tsUtc || p.sessionId !== previous?.sessionId)) {
         if (isPlaying.value) {
           mapInstance.value.jumpTo({
             center: [p.lng, p.lat],
