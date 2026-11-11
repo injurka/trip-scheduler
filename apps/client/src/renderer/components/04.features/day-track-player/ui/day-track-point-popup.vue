@@ -55,7 +55,7 @@ const speedFormatted = computed(() => {
   const sp = props.selectedPoint?.point?.speed
 
   if (sp == null)
-    return '0.0 км/ч'
+    return '—'
 
   return `${(sp * 3.6).toFixed(1)} км/ч`
 })
@@ -79,13 +79,6 @@ const speedFormatted = computed(() => {
             <template v-else>
               <span class="popup-index">#{{ selectedPoint.index }}</span>
               <span class="total-pts">/ {{ selectedPoint.total }}</span>
-              <span
-                class="popup-act-badge"
-                :style="{ '--act-color': activityColor }"
-              >
-                <Icon :icon="activityIcon" />
-                <span>{{ activityLabel }}</span>
-              </span>
             </template>
           </div>
         </div>
@@ -116,12 +109,21 @@ const speedFormatted = computed(() => {
         </div>
       </div>
 
-      <div class="activity-details">
-        <span v-if="selectedPoint.point.activitySource === 'manual'">Исправлено вручную · {{ activityLabel }}</span>
-        <span v-else>Автоматически · {{ activityLabel }}<template v-if="selectedPoint.point.activityConfidence != null"> · уверенность {{ Math.round(selectedPoint.point.activityConfidence * 100) }}%</template></span>
-        <KitBtn size="sm" variant="text" @click="emit('editActivity', selectedPoint.point)">
-          Исправить интервал
+      <div class="activity-summary" :style="{ color: activityColor }">
+        <Icon :icon="activityIcon" />
+        <strong>{{ activityLabel }}</strong>
+        <KitBtn
+          size="sm"
+          variant="text"
+          aria-label="Исправить движение"
+          @click="emit('editActivity', selectedPoint.point)"
+        >
+          Исправить
         </KitBtn>
+      </div>
+      <div class="activity-details">
+        <span>{{ selectedPoint.point.activitySource === 'manual' ? 'Исправлено вручную' : 'Автоматически' }}</span>
+        <span v-if="selectedPoint.point.activitySource !== 'manual' && selectedPoint.point.activityConfidence != null" class="confidence" title="Эвристическая оценка классификации">Уверенность {{ Math.round(selectedPoint.point.activityConfidence * 100) }}%</span>
       </div>
 
       <!-- 2. Временная плашка -->
@@ -568,6 +570,38 @@ const speedFormatted = computed(() => {
   }
   to {
     transform: rotate(360deg);
+  }
+}
+.activity-summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.activity-summary :deep(.kit-btn) {
+  margin-left: auto;
+  min-height: 44px;
+}
+.confidence {
+  white-space: nowrap;
+}
+.memories-popup .point-popup-card {
+  box-sizing: border-box;
+  min-width: 0;
+  width: min(310px, calc(100vw - 32px));
+  gap: 5px;
+  padding: 8px 10px;
+  .popup-head .popup-actions .popup-action-btn {
+    width: 44px;
+    height: 44px;
+  }
+  .popup-head .popup-actions .popup-action-btn::before {
+    display: none;
+  }
+  .popup-grid {
+    gap: 8px;
+  }
+  .coords-card {
+    min-height: 44px;
   }
 }
 </style>

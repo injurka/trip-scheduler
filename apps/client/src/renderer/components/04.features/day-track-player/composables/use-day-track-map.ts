@@ -1361,7 +1361,15 @@ export function useDayTrackMap(options: UseDayTrackMapOptions) {
     }
   })
 
+  function centerCurrentPoint() {
+    const point = currentPoint.value
+
+    if (point)
+      mapInstance.value?.easeTo({ center: [point.lng, point.lat], duration: 150 })
+  }
+
   return {
+    centerCurrentPoint,
     selectedPoint,
     selectPointByIndex,
     isCopied,

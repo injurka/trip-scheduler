@@ -1,16 +1,17 @@
 <script setup lang="ts">
 import type { DayData } from '../models/types'
 import type { ActivityType } from '~/shared/services/tracking/track-processing'
+import { Icon } from '@iconify/vue'
 import { parseDateTime } from '@internationalized/date'
+import { RadioGroupItem, RadioGroupRoot } from 'reka-ui'
 import tzLookup from 'tz-lookup'
 import { computed, ref, watch } from 'vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitDialogWithClose } from '~/components/01.kit/kit-dialog-with-close'
 import { KitDropdown } from '~/components/01.kit/kit-dropdown'
-import { KitInput } from '~/components/01.kit/kit-input'
-import { KitRadioGroup } from '~/components/01.kit/kit-radio-group'
 import { trackingService } from '~/shared/services/database/tracking.service'
 import { ACTIVITY_ICONS, ACTIVITY_LABELS } from '../models/types'
+import TrackDateTimeField from './track-date-time-field.vue'
 
 interface Props {
   dayData: DayData | null
@@ -29,6 +30,7 @@ const pending = ref(false)
 const error = ref('')
 const options = (Object.keys(ACTIVITY_LABELS) as ActivityType[]).map(value => ({ value, label: value === 'unknown' ? 'Другое' : ACTIVITY_LABELS[value], icon: ACTIVITY_ICONS[value] }))
 const editorTimezone = ref('UTC')
+const pointMode = ref(false)
 
 const sourcePoints = computed(() => props.dayData?.rawPoints ?? props.dayData?.points ?? [])
 const sessions = computed(() => [...new Set(sourcePoints.value.map(p => p.sessionId))].map((value, index) => ({ value, label: `Запись ${index + 1}` })))
@@ -98,8 +100,11 @@ function resetRange(time?: number) {
     return
 
   const segment = findSegment(time)
-  start.value = inputTime(segment?.startedAt ?? points[0].tsUtc)
-  end.value = inputTime(segment?.endedAt ?? points[points.length - 1].tsUtc)
+  pointMode.value = points.length === 1 || (!!segment && segment.startedAt === segment.endedAt)
+  const selectedTime = time ?? points[0].tsUtc
+  const bounds = segment ?? { startedAt: points[0].tsUtc, endedAt: points[points.length - 1].tsUtc }
+  start.value = inputTime(pointMode.value ? selectedTime : bounds.startedAt)
+  end.value = inputTime(pointMode.value ? selectedTime : bounds.endedAt)
   activity.value = segment?.activity ?? 'vehicle'
   error.value = ''
 }
@@ -116,31 +121,50 @@ function changeSession(value: string) {
 
   resetRange()
 }
+function readRange() {
+  let startedAt = parseInputTime(start.value)
+
+  if (pointMode.value) {
+    const point = sourcePoints.value.filter(p => p.sessionId === sessionId.value && inputTime(p.tsUtc) === start.value).sort((a, b) => Math.abs(a.tsUtc - props.initialTime) - Math.abs(b.tsUtc - props.initialTime))[0]
+
+    if (!point)
+      throw new Error('Нет GPS-точки в выбранное время.')
+
+    startedAt = point.tsUtc
+  }
+
+  const endedAt = pointMode.value ? startedAt : parseInputTime(end.value)
+
+  if (endedAt < startedAt || (!pointMode.value && endedAt === startedAt))
+    throw new Error('Конец интервала должен быть позже начала.')
+
+  return { startedAt, endedAt }
+}
 async function save() {
-  let startedAt: number
-  let endedAt: number
+  let range: { startedAt: number, endedAt: number }
 
   try {
-    startedAt = parseInputTime(start.value)
-    endedAt = parseInputTime(end.value)
+    range = readRange()
   }
-  catch {
-    error.value = 'Укажите корректные начало и конец интервала.'
+  catch (err) {
+    error.value = err instanceof Error ? err.message : 'Укажите корректные начало и конец интервала.'
 
     return
   }
 
-  if (!Number.isFinite(startedAt) || !Number.isFinite(endedAt) || endedAt <= startedAt) {
-    error.value = 'Укажите начало и конец интервала; конец должен быть позже начала.'
-
-    return
-  }
+  const { startedAt, endedAt } = range
 
   pending.value = true
   error.value = ''
 
   try {
-    await trackingService.correctActivity({ sessionId: sessionId.value, startedAt, endedAt, activity: activity.value })
+    await trackingService.correctActivity({
+      sessionId: sessionId.value,
+      startedAt,
+      endedAt,
+      activity: activity.value,
+      ...(pointMode.value ? { point: true } : {}),
+    })
     emit('saved')
     visible.value = false
   }
@@ -183,37 +207,35 @@ async function remove(id: string) {
           </KitBtn>
         </template>
       </KitDropdown>
+      <span v-if="sessions.length === 1" class="session-badge">{{ sessions[0].label }}</span>
       <p class="timezone-label">
         {{ timezoneLabel }}
       </p>
+      <label class="point-mode"><input v-model="pointMode" type="checkbox" :disabled="pending">Одна GPS-точка</label>
       <div class="time-interval">
-        <KitInput
-          v-model="start"
-          type="text"
-          placeholder="ДД.ММ.ГГГГ ЧЧ:ММ:СС"
-          label="Начало"
-          required
-          :disabled="pending"
-        />
-        <KitInput
+        <TrackDateTimeField v-model="start" :label="pointMode ? 'Время точки' : 'Начало'" :disabled="pending" />
+        <TrackDateTimeField
+          v-if="!pointMode"
           v-model="end"
-          type="text"
-          placeholder="ДД.ММ.ГГГГ ЧЧ:ММ:СС"
           label="Конец"
-          required
           :disabled="pending"
         />
       </div>
-      <p class="interval-preview">
-        Интервал выбранного участка можно изменить.
-      </p>
-      <KitRadioGroup
+      <RadioGroupRoot
         v-model="activity"
         class="activity-options"
-        :options="options"
         :disabled="pending"
         aria-label="Тип движения"
-      />
+      >
+        <RadioGroupItem
+          v-for="option in options"
+          :key="option.value"
+          :value="option.value"
+          class="activity-option"
+        >
+          <Icon :icon="option.icon" /><span>{{ option.label }}</span>
+        </RadioGroupItem>
+      </RadioGroupRoot>
       <p v-if="error" class="editor-error" role="alert">
         {{ error }}
       </p>
@@ -221,9 +243,12 @@ async function remove(id: string) {
         {{ pending ? 'Сохранение…' : 'Применить исправление' }}
       </KitBtn>
       <div v-if="corrections.length" class="saved-corrections">
-        <p>Сохранённые исправления</p>
+        <h3>Сохранённые исправления</h3>
+        <p class="history-hint">
+          История: при пересечении применяется последнее исправление.
+        </p>
         <div v-for="correction in corrections" :key="correction.id" class="correction-row">
-          <span>{{ formatTime(correction.startedAt) }} – {{ formatTime(correction.endedAt) }} · {{ ACTIVITY_LABELS[correction.activity] }}</span>
+          <span><Icon :icon="ACTIVITY_ICONS[correction.activity]" /> {{ formatTime(correction.startedAt) }} – {{ formatTime(correction.endedAt) }} · {{ ACTIVITY_LABELS[correction.activity] }}</span>
           <KitBtn
             type="button"
             size="sm"
@@ -280,5 +305,69 @@ async function remove(id: string) {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+}
+.point-mode {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  font-size: 0.85rem;
+  min-height: 36px;
+}
+.session-badge {
+  align-self: flex-start;
+  padding: 4px 10px;
+  border-radius: var(--r-s);
+  color: var(--fg-accent-color);
+  background: var(--bg-tertiary-color);
+  font-size: 0.85rem;
+}
+.activity-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px;
+  min-height: 44px;
+  border: 1px solid var(--border-secondary-color);
+  border-radius: var(--r-s);
+  background: var(--bg-secondary-color);
+  color: var(--fg-primary-color);
+  cursor: pointer;
+  text-align: left;
+}
+.activity-option svg {
+  font-size: 22px;
+  flex-shrink: 0;
+}
+.activity-option[data-state='checked'] {
+  color: var(--fg-accent-color);
+  border-color: var(--fg-accent-color);
+  background: color-mix(in srgb, var(--fg-accent-color) 10%, var(--bg-secondary-color));
+}
+.activity-option:focus-visible {
+  outline: 2px solid var(--fg-accent-color);
+  outline-offset: 2px;
+}
+.saved-corrections {
+  border-top: 1px solid var(--border-secondary-color);
+  padding-top: 12px;
+}
+.saved-corrections h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+.history-hint {
+  font-size: 0.75rem;
+  color: var(--fg-secondary-color);
+}
+.correction-row {
+  padding: 6px 8px;
+  border: 1px solid var(--border-secondary-color);
+  border-radius: var(--r-s);
+  margin-top: 6px;
+  font-size: 0.8rem;
+}
+.correction-row :deep(.kit-btn) {
+  min-height: 44px;
+  flex-shrink: 0;
 }
 </style>

@@ -184,7 +184,7 @@ export function useDayTrackPlayback(options: UseDayTrackPlaybackOptions) {
     return resolveCurrentPoint(pts, idx, t.value)
   })
 
-  const currentActivity = computed<ActivityType>(() => currentSegment.value?.activitySource === 'manual' ? currentSegment.value.activity : currentPoint.value?.stop ? 'still' : currentSegment.value?.activity || 'unknown')
+  const currentActivity = computed<ActivityType>(() => currentPoint.value?.activitySource === 'manual' ? currentPoint.value.activity : currentSegment.value?.activitySource === 'manual' ? currentSegment.value.activity : currentPoint.value?.stop ? 'still' : currentSegment.value?.activity || 'unknown')
   const currentActivityColor = computed(() => ACTIVITY_COLORS[currentActivity.value] || '#2196f3')
   const currentActivityIcon = computed(() => ACTIVITY_ICONS[currentActivity.value] || 'mdi:crosshairs-question')
   const currentActivityLabel = computed(() => ACTIVITY_LABELS[currentActivity.value] || 'Движение')

@@ -227,6 +227,12 @@ function handleBack() {
     }
   }
 }
+function followCurrentPoint() {
+  playback.isFollowCamera.value = !playback.isFollowCamera.value
+
+  if (playback.isFollowCamera.value)
+    map.centerCurrentPoint()
+}
 function editActivity(time = playback.t.value) {
   playback.isPlaying.value = false
   activityEditorTime.value = time
@@ -284,16 +290,19 @@ async function onDeletePoint(pt: DayPoint) {
     <!-- Контейнер карты OpenLayers -->
     <div ref="mapHost" class="memories-map" />
 
-    <KitBtn
-      class="floating-follow-btn"
-      variant="tonal"
-      :aria-pressed="playback.isFollowCamera.value"
-      aria-label="Слежение камерой"
-      title="Слежение камерой (C)"
-      @click="playback.isFollowCamera.value = !playback.isFollowCamera.value"
-    >
-      <Icon :icon="playback.isFollowCamera.value ? 'mdi:crosshairs-gps' : 'mdi:crosshairs'" />
-    </KitBtn>
+    <div class="track-map-controls" role="group" aria-label="Управление картой">
+      <button type="button" aria-label="Весь трек на карте" @click="map.fitTrackBounds()">
+        <Icon icon="mdi:fit-to-screen-outline" />
+      </button>
+      <button
+        type="button"
+        :aria-pressed="playback.isFollowCamera.value"
+        aria-label="Слежение за текущей точкой"
+        @click="followCurrentPoint"
+      >
+        <Icon :icon="playback.isFollowCamera.value ? 'mdi:crosshairs-gps' : 'mdi:crosshairs'" />
+      </button>
+    </div>
 
     <!-- Анимированный маркер воспроизведения на карте -->
     <div v-if="isBeaconVisible" ref="playbackMarkerHost" class="playback-marker-host">
@@ -410,14 +419,31 @@ async function onDeletePoint(pt: DayPoint) {
 </template>
 
 <style scoped lang="scss">
-.floating-follow-btn {
+.track-map-controls {
   position: absolute;
-  right: 14px;
+  right: 12px;
   top: 76px;
   z-index: 21;
-  min-width: 44px;
-  min-height: 44px;
-  border-radius: 50%;
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--r-s);
+  background: var(--bg-secondary-color);
+  border: 1px solid var(--border-secondary-color);
+  button {
+    width: 44px;
+    height: 44px;
+    border: 0;
+    background: transparent;
+    color: var(--fg-secondary-color);
+    cursor: pointer;
+    font-size: 20px;
+  }
+  button + button {
+    border-top: 1px solid var(--border-secondary-color);
+  }
+  button[aria-pressed='true'] {
+    color: var(--fg-accent-color);
+  }
 }
 
 .memories-player {
