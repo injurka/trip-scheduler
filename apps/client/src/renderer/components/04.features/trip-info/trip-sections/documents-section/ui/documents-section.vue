@@ -1,12 +1,16 @@
 <script setup lang="ts">
 import type { DocumentFile, DocumentsSectionContent } from '../models/types'
 import { Icon } from '@iconify/vue'
+import { folderPath } from '@injurka/type-utils'
 import { useDropZone, useFileDialog } from '@vueuse/core'
-import { computed, ref } from 'vue'
+import { DialogTitle } from 'reka-ui'
+import { computed, ref, watch } from 'vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
+import { KitDrawer } from '~/components/01.kit/kit-drawer'
 import { KitImageViewer, useImageViewer } from '~/components/01.kit/kit-image-viewer'
 import { ErrorPlaceholder } from '~/components/02.shared/error-placeholder'
 import { useConnectivity } from '~/shared/lib/connectivity'
+import { resolveApiUrl } from '~/shared/lib/url'
 import { useOfflineStore } from '~/shared/store/offline.store'
 import { useDocumentsSection } from '../composables/use-documents-section'
 import DocumentEditDialog from './document-edit-dialog.vue'
@@ -21,6 +25,7 @@ import {
   DocumentsToolbar,
   DocumentsViewBar,
 } from './partials'
+import DocumentsTree from './partials/documents-tree.vue'
 
 interface Props {
   section: {
@@ -56,6 +61,7 @@ const {
   addFolder,
   deleteFolder,
   renameFolder,
+  updateFolder,
   uploadFiles,
   deleteDocument,
   updateDocument,
@@ -84,6 +90,9 @@ const { open: openFileDialog, onChange: onFileChange, reset: resetFileDialog } =
 const { isOnline } = useConnectivity()
 const offlineStore = useOfflineStore()
 
+const treeOpen = ref(false)
+const sidebarVisible = ref(true)
+const activeDocument = ref<DocumentFile | null>(null)
 const dropZoneRef = ref<HTMLElement>()
 
 // Перетаскивание файлов в основную область
@@ -102,6 +111,8 @@ const editingDocument = ref<DocumentFile | null>(null)
 const previewDialogVisible = ref(false)
 const previewDocument = ref<DocumentFile | null>(null)
 
+const folderChoices = computed(() => folders.value.map(folder => ({ ...folder, name: folderPath(folders.value, folder.id).map(part => part.name).join(' / ') })))
+const activeDocumentUrl = computed(() => activeDocument.value?.url ?? '')
 const isOfflineUnavailable = computed(() => {
   if (isOnline.value)
     return false
@@ -126,6 +137,21 @@ const viewerImages = computed(() => {
   }))
 })
 
+watch(documents, (docs) => {
+  if (activeDocument.value)
+    activeDocument.value = docs.find(d => d.id === activeDocument.value?.id) ?? null
+})
+
+function selectTreeFolder(id: string | null) {
+  setCurrentFolder(id)
+  activeDocument.value = null
+  treeOpen.value = false
+}
+function selectTreeDocument(doc: DocumentFile) {
+  setCurrentFolder(doc.folderId)
+  activeDocument.value = doc
+  treeOpen.value = false
+}
 function handleOpenPreview(doc: DocumentFile) {
   const ext = doc.url.split('.').pop()?.toLowerCase().split('?')[0] || ''
   const isImg = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'avif', 'heic'].includes(ext)
@@ -172,13 +198,20 @@ onFileChange((files) => {
   />
 
   <div v-else class="documents-section">
+    <div class="explorer-toggle">
+      <KitBtn variant="text" icon="mdi:file-tree-outline" @click="treeOpen = true">
+        Папки и файлы
+      </KitBtn><KitBtn class="desktop-tree-toggle" variant="text" @click="sidebarVisible = !sidebarVisible">
+        {{ sidebarVisible ? 'Скрыть панель' : 'Показать панель' }}
+      </KitBtn>
+    </div>
     <!-- 1. ХЕДЕР НАВИГАЦИИ И ДЕЙСТВИЙ -->
     <DocumentsHeader
       :breadcrumbs="breadcrumbs"
       :total-stats="totalStats"
       :is-selection-mode="isSelectionMode"
       :has-documents="documents.length > 0"
-      :can-add-folder="!currentFolderId"
+      :can-add-folder="true"
       :readonly="readonly"
       :is-uploading="isUploading"
       :upload-progress="uploadProgress"
@@ -203,7 +236,7 @@ onFileChange((files) => {
       v-if="isSelectionMode"
       :selected-count="selectedDocIds.size"
       :total-filtered-count="filteredDocuments.length"
-      :folders="folders"
+      :folders="folderChoices"
       :current-folder-id="currentFolderId"
       @select-all="selectAll"
       @clear-selection="clearSelection"
@@ -212,143 +245,209 @@ onFileChange((files) => {
       @exit-selection-mode="exitSelectionMode"
     />
 
-    <!-- 4. ОСНОВНОЙ КОНТЕНТ (DROP ZONE) -->
-    <div
-      ref="dropZoneRef"
-      class="section-content"
-      :class="{ 'is-dragging': isOverDropZone && !readonly }"
-    >
-      <!-- Глобальное пустое состояние (нет ни папок, ни файлов) -->
-      <div v-if="folders.length === 0 && documents.length === 0" class="empty-state">
-        <div class="empty-illustration">
-          <Icon icon="mdi:folder-file-outline" width="64" height="64" />
-        </div>
-        <h3>Документов пока нет</h3>
-        <p v-if="!readonly">
-          Прикрепляйте сюда электронные билеты, брони отелей, страховки, визы и важные памятки для поездки.
-        </p>
-        <p v-else>
-          В этой поездке пока нет прикрепленных документов.
-        </p>
-
-        <div v-if="!readonly" class="empty-actions">
-          <KitBtn icon="mdi:cloud-upload-outline" @click="openFileDialog()">
-            Загрузить первый документ
-          </KitBtn>
-          <KitBtn variant="outlined" icon="mdi:folder-plus-outline" @click="isAddingFolder = true">
-            Создать папку
-          </KitBtn>
-        </div>
-      </div>
-
-      <template v-else>
-        <!-- БЛОК ПАПОК (Только в корне и без поисковых фильтров) -->
-        <DocumentsFoldersGrid
-          v-if="visibleFolders.length > 0 || isAddingFolder"
+    <div class="documents-workspace" :class="{ 'sidebar-hidden': !sidebarVisible }">
+      <aside v-if="sidebarVisible" class="documents-sidebar">
+        <DocumentsTree
           :folders="folders"
-          :visible-folders="visibleFolders"
-          :folder-stats="folderStats"
+          :documents="documents"
+          :current-folder-id="currentFolderId"
+          :selected-document-id="activeDocument?.id"
           :readonly="readonly"
-          :is-adding-folder="isAddingFolder"
-          @select-folder="setCurrentFolder"
-          @rename-folder="renameFolder"
-          @delete-folder="deleteFolder"
+          :storage-key="section.id"
+          @select-folder="selectTreeFolder"
+          @select-document="selectTreeDocument"
           @create-folder="addFolder"
-          @cancel-create-folder="isAddingFolder = false"
+          @update-folder="updateFolder"
+          @delete-folder="deleteFolder"
         />
-
-        <!-- БЛОК ДОКУМЕНТОВ -->
-        <div class="docs-block">
-          <DocumentsViewBar
-            v-model:sort-option="sortOption"
-            v-model:view-mode="viewMode"
-            :current-folder="currentFolder"
-            :count="filteredDocuments.length"
-            :sort-options="sortOptions"
-          />
-
-          <!-- Документы найдены -->
-          <div
-            v-if="filteredDocuments.length > 0"
-            :class="viewMode === 'grid' ? 'documents-grid' : 'documents-list'"
-          >
-            <DocumentItem
-              v-for="doc in filteredDocuments"
-              :key="doc.id"
-              :document="doc"
-              :readonly="readonly"
-              :view-mode="viewMode"
-              :folders="folders"
-              :is-selected="selectedDocIds.has(doc.id)"
-              :is-selection-mode="isSelectionMode"
-              @delete="deleteDocument(doc.id)"
-              @update="updateDocument"
-              @preview="handleOpenPreview"
-              @edit="handleOpenEdit"
-              @toggle-select="toggleDocSelection"
-              @toggle-favorite="toggleFavorite(doc)"
-              @move="targetFolderId => moveDocument(doc, targetFolderId)"
-            />
-          </div>
-
-          <!-- Ничего не найдено по фильтрам поиска -->
-          <div
-            v-else-if="searchQuery.trim() || selectedCategory !== 'all' || onlyFavorites"
-            class="filter-empty-state"
-          >
-            <Icon
-              icon="mdi:file-search-outline"
-              width="48"
-              height="48"
-              class="empty-icon"
-            />
-            <h4>Ничего не найдено</h4>
-            <p>Попробуйте изменить поисковый запрос или сбросить активные фильтры</p>
-            <KitBtn variant="outlined" size="sm" @click="resetFilters">
-              Сбросить фильтры
+      </aside>
+      <div class="documents-main">
+        <div v-if="activeDocument" class="document-reader">
+          <div class="reader-heading">
+            <h3>{{ activeDocument.title || activeDocument.originalName }}</h3><KitBtn variant="text" aria-label="Открыть документ на весь экран" @click="handleOpenPreview(activeDocument)">
+              <Icon icon="mdi:fullscreen" />
+            </KitBtn><KitBtn variant="text" aria-label="Закрыть документ" @click="activeDocument = null">
+              <Icon icon="mdi:close" />
             </KitBtn>
           </div>
-
-          <!-- Папка пуста -->
-          <div v-else-if="currentFolderId" class="empty-folder-state">
-            <Icon
-              icon="mdi:folder-open-outline"
-              width="48"
-              height="48"
-              class="empty-icon"
-            />
-            <h4>Папка пуста</h4>
+          <img
+            v-if="/\.(?:png|jpe?g|webp|gif|avif)(?:\?|$)/i.test(activeDocumentUrl)"
+            :src="resolveApiUrl(activeDocumentUrl)"
+            :alt="activeDocument.title || activeDocument.originalName"
+            class="reader-image"
+          >
+          <DocumentPreviewDialog
+            v-else
+            inline
+            :visible="true"
+            :document="activeDocument"
+          />
+        </div>
+        <!-- 4. ОСНОВНОЙ КОНТЕНТ (DROP ZONE) -->
+        <div
+          v-show="!activeDocument"
+          ref="dropZoneRef"
+          class="section-content"
+          :class="{ 'is-dragging': isOverDropZone && !readonly }"
+        >
+          <!-- Глобальное пустое состояние (нет ни папок, ни файлов) -->
+          <div v-if="folders.length === 0 && documents.length === 0 && !isAddingFolder" class="empty-state">
+            <div class="empty-illustration">
+              <Icon icon="mdi:folder-file-outline" width="64" height="64" />
+            </div>
+            <h3>Документов пока нет</h3>
             <p v-if="!readonly">
-              Перетащите файлы сюда или нажмите «Загрузить»
+              Прикрепляйте сюда электронные билеты, брони отелей, страховки, визы и важные памятки для поездки.
             </p>
             <p v-else>
-              В этой папке пока нет файлов
+              В этой поездке пока нет прикрепленных документов.
             </p>
-            <KitBtn
-              v-if="!readonly"
-              size="sm"
-              icon="mdi:cloud-upload-outline"
-              @click="openFileDialog()"
-            >
-              Загрузить в эту папку
-            </KitBtn>
-          </div>
-        </div>
-      </template>
 
-      <!-- ОВЕРЛЕЙ DRAG & DROP ПРИ ПЕРЕТАСКИВАНИИ -->
-      <DocumentsDropzoneOverlay
-        v-if="isOverDropZone && !readonly"
-        :folder-name="currentFolder?.name || null"
-      />
+            <div v-if="!readonly" class="empty-actions">
+              <KitBtn icon="mdi:cloud-upload-outline" @click="openFileDialog()">
+                Загрузить первый документ
+              </KitBtn>
+              <KitBtn variant="outlined" icon="mdi:folder-plus-outline" @click="isAddingFolder = true">
+                Создать папку
+              </KitBtn>
+            </div>
+          </div>
+
+          <template v-else>
+            <!-- БЛОК ПАПОК (Только в корне и без поисковых фильтров) -->
+            <DocumentsFoldersGrid
+              v-if="visibleFolders.length > 0 || isAddingFolder"
+              :folders="folders"
+              :visible-folders="visibleFolders"
+              :folder-stats="folderStats"
+              :readonly="readonly"
+              :is-adding-folder="isAddingFolder"
+              @select-folder="setCurrentFolder"
+              @rename-folder="renameFolder"
+              @delete-folder="deleteFolder"
+              @create-folder="addFolder"
+              @cancel-create-folder="isAddingFolder = false"
+            />
+
+            <!-- БЛОК ДОКУМЕНТОВ -->
+            <div class="docs-block">
+              <DocumentsViewBar
+                v-model:sort-option="sortOption"
+                v-model:view-mode="viewMode"
+                :current-folder="currentFolder"
+                :count="filteredDocuments.length"
+                :sort-options="sortOptions"
+              />
+
+              <!-- Документы найдены -->
+              <div
+                v-if="filteredDocuments.length > 0"
+                :class="viewMode === 'grid' ? 'documents-grid' : 'documents-list'"
+              >
+                <DocumentItem
+                  v-for="doc in filteredDocuments"
+                  :key="doc.id"
+                  :document="doc"
+                  :readonly="readonly"
+                  :view-mode="viewMode"
+                  :folders="folderChoices"
+                  :is-selected="selectedDocIds.has(doc.id)"
+                  :is-selection-mode="isSelectionMode"
+                  @delete="deleteDocument(doc.id)"
+                  @update="updateDocument"
+                  @preview="selectTreeDocument"
+                  @edit="handleOpenEdit"
+                  @toggle-select="toggleDocSelection"
+                  @toggle-favorite="toggleFavorite(doc)"
+                  @move="targetFolderId => moveDocument(doc, targetFolderId)"
+                />
+              </div>
+
+              <!-- Ничего не найдено по фильтрам поиска -->
+              <div
+                v-else-if="searchQuery.trim() || selectedCategory !== 'all' || onlyFavorites"
+                class="filter-empty-state"
+              >
+                <Icon
+                  icon="mdi:file-search-outline"
+                  width="48"
+                  height="48"
+                  class="empty-icon"
+                />
+                <h4>Ничего не найдено</h4>
+                <p>Попробуйте изменить поисковый запрос или сбросить активные фильтры</p>
+                <KitBtn variant="outlined" size="sm" @click="resetFilters">
+                  Сбросить фильтры
+                </KitBtn>
+              </div>
+
+              <!-- Папка пуста -->
+              <div v-else-if="currentFolderId" class="empty-folder-state">
+                <Icon
+                  icon="mdi:folder-open-outline"
+                  width="48"
+                  height="48"
+                  class="empty-icon"
+                />
+                <h4>Папка пуста</h4>
+                <p v-if="!readonly">
+                  Перетащите файлы сюда или нажмите «Загрузить»
+                </p>
+                <p v-else>
+                  В этой папке пока нет файлов
+                </p>
+                <KitBtn
+                  v-if="!readonly"
+                  size="sm"
+                  icon="mdi:cloud-upload-outline"
+                  @click="openFileDialog()"
+                >
+                  Загрузить в эту папку
+                </KitBtn>
+              </div>
+            </div>
+          </template>
+
+          <!-- ОВЕРЛЕЙ DRAG & DROP ПРИ ПЕРЕТАСКИВАНИИ -->
+          <DocumentsDropzoneOverlay
+            v-if="isOverDropZone && !readonly"
+            :folder-name="currentFolder?.name || null"
+          />
+        </div>
+      </div>
     </div>
   </div>
+  <KitDrawer
+    v-model:open="treeOpen"
+    side="left"
+    width="320px"
+    class="documents-tree-drawer"
+  >
+    <DialogTitle class="tree-drawer-title">
+      Папки и файлы
+    </DialogTitle>
+    <div class="tree-drawer-content">
+      <DocumentsTree
+        :folders="folders"
+        :documents="documents"
+        :current-folder-id="currentFolderId"
+        :selected-document-id="activeDocument?.id"
+        :readonly="readonly"
+        :storage-key="section.id"
+        @select-folder="selectTreeFolder"
+        @select-document="selectTreeDocument"
+        @create-folder="addFolder"
+        @update-folder="updateFolder"
+        @delete-folder="deleteFolder"
+      />
+    </div>
+  </KitDrawer>
 
   <!-- ДИАЛОГ РЕДАКТИРОВАНИЯ СВОЙСТВ ДОКУМЕНТА -->
   <DocumentEditDialog
     v-model:visible="editDialogVisible"
     :document="editingDocument"
-    :folders="folders"
+    :folders="folderChoices"
     @save="updateDocument"
   />
 
@@ -356,7 +455,6 @@ onFileChange((files) => {
   <DocumentPreviewDialog
     v-model:visible="previewDialogVisible"
     :document="previewDocument"
-    @download="doc => updateDocument(doc)"
   />
 
   <!-- ПРОСМОТРЩИК ИЗОБРАЖЕНИЙ (KIT IMAGE VIEWER) -->
@@ -478,5 +576,72 @@ onFileChange((files) => {
   display: flex;
   gap: 12px;
   margin-top: 0.5rem;
+}
+.documents-workspace {
+  display: grid;
+  grid-template-columns: 250px minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+.documents-workspace.sidebar-hidden {
+  grid-template-columns: minmax(0, 1fr);
+}
+.documents-sidebar {
+  position: sticky;
+  top: calc(var(--safe-area-inset-top, 0px) + 72px);
+  max-height: 75dvh;
+  overflow: auto;
+  padding: 8px;
+  background: var(--bg-secondary-color);
+  border: 1px solid var(--border-secondary-color);
+  border-radius: var(--r-m);
+}
+.documents-main,
+.document-reader {
+  min-width: 0;
+}
+.reader-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: space-between;
+}
+.reader-heading h3 {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.reader-image {
+  max-width: 100%;
+  max-height: 75dvh;
+  object-fit: contain;
+}
+.explorer-toggle {
+  display: flex;
+  gap: 8px;
+}
+.explorer-toggle > :first-child {
+  display: none;
+}
+.tree-drawer-title {
+  margin: 0;
+  padding: 16px 56px 16px 16px;
+  font-size: 1.1rem;
+}
+.tree-drawer-content {
+  padding: 0 12px 16px;
+  min-height: 0;
+  overflow-y: auto;
+}
+@media (max-width: 959px) {
+  .documents-workspace {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .documents-sidebar,
+  .desktop-tree-toggle {
+    display: none;
+  }
+  .explorer-toggle > :first-child {
+    display: inline-flex;
+  }
 }
 </style>

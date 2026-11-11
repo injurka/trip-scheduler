@@ -25,6 +25,7 @@ export interface DocumentFile {
 }
 
 export interface DocumentFolder {
+  parentId?: string | null
   id: string
   name: string
   color?: string

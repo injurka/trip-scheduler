@@ -42,8 +42,9 @@ const emit = defineEmits<{
       <button
         v-if="breadcrumbs.length > 1"
         class="back-btn"
-        title="Назад ко всем документам"
-        @click="emit('selectCrumb', null)"
+        title="На уровень выше"
+        aria-label="На уровень выше"
+        @click="emit('selectCrumb', breadcrumbs[breadcrumbs.length - 2]?.id ?? null)"
       >
         <Icon icon="mdi:arrow-left" width="18" height="18" />
       </button>
@@ -53,6 +54,8 @@ const emit = defineEmits<{
           <button
             class="crumb"
             :class="{ 'is-active': index === breadcrumbs.length - 1 }"
+            :aria-current="index === breadcrumbs.length - 1 ? 'location' : undefined"
+            :title="crumb.name"
             @click="emit('selectCrumb', crumb.id)"
           >
             <Icon v-if="index === 0" icon="mdi:folder-home-outline" class="crumb-icon" />
@@ -246,5 +249,30 @@ const emit = defineEmits<{
       display: none;
     }
   }
+}
+.header-left {
+  min-width: 0;
+  max-width: 100%;
+}
+.breadcrumbs {
+  flex: 1;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow-x: auto;
+}
+.breadcrumbs .crumb {
+  flex-shrink: 0;
+  min-height: 44px;
+  max-width: 240px;
+}
+.crumb-text {
+  overflow-wrap: anywhere;
+  text-align: left;
+}
+.back-btn {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
 }
 </style>
