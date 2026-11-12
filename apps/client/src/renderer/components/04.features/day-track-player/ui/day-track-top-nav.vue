@@ -196,10 +196,20 @@ function parseDay(day?: string): CalendarDate | undefined {
 
       <slot name="top-actions" />
     </div>
+    <div v-if="$slots['map-controls']" class="map-controls">
+      <slot name="map-controls" />
+    </div>
   </div>
 </template>
 
 <style scoped lang="scss">
+.map-controls {
+  position: absolute;
+  right: -2px;
+  top: 62px;
+  z-index: 1;
+}
+
 .top-nav-bar {
   position: absolute;
   top: 14px;
@@ -426,6 +436,13 @@ function parseDay(day?: string): CalendarDate | undefined {
 }
 
 @media (max-width: 640px) {
+  .map-controls {
+    position: static;
+    align-self: flex-end;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+
   .top-nav-bar {
     top: 8px;
     left: 8px;

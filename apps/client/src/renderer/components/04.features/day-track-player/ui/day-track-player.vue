@@ -280,6 +280,18 @@ async function onDeletePoint(pt: DayPoint) {
       @update:view-mode="viewMode = $event"
       @update:is-photos-visible="isPhotosVisible = $event"
     >
+      <template #map-controls>
+        <button
+          type="button"
+          class="track-follow-btn"
+          :aria-pressed="playback.isFollowCamera.value"
+          aria-label="Слежение за текущей точкой"
+          title="Следить за текущей точкой"
+          @click="followCurrentPoint"
+        >
+          <Icon :icon="playback.isFollowCamera.value ? 'mdi:crosshairs-gps' : 'mdi:crosshairs'" />
+        </button>
+      </template>
       <template #top-actions>
         <slot name="top-actions" />
       </template>
@@ -300,20 +312,6 @@ async function onDeletePoint(pt: DayPoint) {
 
     <!-- Контейнер карты OpenLayers -->
     <div ref="mapHost" class="memories-map" />
-
-    <div class="track-map-controls" role="group" aria-label="Управление картой">
-      <button type="button" aria-label="Весь трек на карте" @click="map.fitTrackBounds()">
-        <Icon icon="mdi:fit-to-screen-outline" />
-      </button>
-      <button
-        type="button"
-        :aria-pressed="playback.isFollowCamera.value"
-        aria-label="Слежение за текущей точкой"
-        @click="followCurrentPoint"
-      >
-        <Icon :icon="playback.isFollowCamera.value ? 'mdi:crosshairs-gps' : 'mdi:crosshairs'" />
-      </button>
-    </div>
 
     <!-- Анимированный маркер воспроизведения на карте -->
     <div v-if="isBeaconVisible" ref="playbackMarkerHost" class="playback-marker-host">
@@ -434,30 +432,24 @@ async function onDeletePoint(pt: DayPoint) {
 </template>
 
 <style scoped lang="scss">
-.track-map-controls {
-  position: absolute;
-  right: 12px;
-  top: 76px;
-  z-index: 21;
-  display: flex;
-  flex-direction: column;
-  border-radius: var(--r-s);
+.track-follow-btn {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--r-full);
   background: var(--bg-secondary-color);
   border: 1px solid var(--border-secondary-color);
-  button {
-    width: 44px;
-    height: 44px;
-    border: 0;
-    background: transparent;
-    color: var(--fg-secondary-color);
-    cursor: pointer;
-    font-size: 20px;
-  }
-  button + button {
-    border-top: 1px solid var(--border-secondary-color);
-  }
-  button[aria-pressed='true'] {
+  box-shadow: var(--s-m);
+  color: var(--fg-secondary-color);
+  cursor: pointer;
+  font-size: 20px;
+  &[aria-pressed='true'] {
     color: var(--fg-accent-color);
+  }
+  &:focus-visible {
+    outline: 2px solid var(--fg-accent-color);
+    outline-offset: 2px;
   }
 }
 
