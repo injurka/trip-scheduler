@@ -2,8 +2,9 @@ import type { UseDayTrackMapOptions } from '../src/renderer/components/04.featur
 import type { DayData, DayPoint } from '../src/renderer/components/04.features/day-track-player/models/types'
 import { flushPromises, mount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { computed, defineComponent, h, ref } from 'vue'
-import { createMemoryHistory, createRouter, matchedRouteKey } from 'vue-router'
+import { computed, defineComponent, effectScope, h, nextTick, ref } from 'vue'
+import { createMemoryHistory, createRouter, createWebHashHistory, createWebHistory, matchedRouteKey } from 'vue-router'
+import { useDialogHistory, waitForDialogHistory } from '../src/renderer/components/01.kit/kit-dialog-with-close/composables/use-dialog-history'
 import Player from '../src/renderer/components/04.features/day-track-player/ui/day-track-player.vue'
 
 const api = vi.hoisted(() => ({ getDay: vi.fn(), correctActivities: vi.fn(), mapOptions: null as unknown as UseDayTrackMapOptions }))
@@ -63,8 +64,8 @@ const points: DayPoint[] = Array.from({ length: 100 }, (_, i) => ({
 }))
 const data: DayData = { points, segments: [], corrections: [] }
 const choice = { sessionId: 'test-session', startedAt: start, endedAt: start + 400000, activity: 'vehicle' }
-async function setup() {
-  const router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/', component: { render: () => null } }] })
+async function setup(history = createMemoryHistory()) {
+  const router = createRouter({ history, routes: [{ path: '/', component: { render: () => null } }] })
   await router.push('/')
   await router.isReady()
   const wrapper = mount(Player, {
@@ -180,5 +181,53 @@ describe('batch correction player', () => {
     expect(api.correctActivities).toHaveBeenCalledTimes(1)
     expect(api.getDay).toHaveBeenCalledTimes(2)
     wrapper.unmount()
+  })
+  it.each(['web', 'hash'])('keeps tracking open after staging and Stay with %s history', async (mode) => {
+    window.history.replaceState(null, '', '/')
+    const history = mode === 'hash' ? createWebHashHistory() : createWebHistory()
+    const wrapper = await setup(history)
+    const outerOpen = ref(false)
+    const parentOpen = ref(false)
+    const editorOpen = ref(false)
+    const scope = effectScope()
+    scope.run(() => {
+      useDialogHistory(`outer-${mode}`, outerOpen)
+      useDialogHistory(`tracking-${mode}`, parentOpen, { canClose: () => (wrapper.vm as unknown as { requestLeave: () => Promise<boolean> }).requestLeave() })
+      useDialogHistory(`editor-${mode}`, editorOpen)
+    })
+    outerOpen.value = true
+    await nextTick()
+    parentOpen.value = true
+    await nextTick()
+    editorOpen.value = true
+    await nextTick()
+    wrapper.findComponent({ name: 'Editor' }).vm.$emit('stage', choice)
+    editorOpen.value = false
+    await waitForDialogHistory()
+    await flushPromises()
+    expect(parentOpen.value).toBe(true)
+    expect(document.querySelector('[role=alertdialog]')).toBeNull()
+    window.history.back()
+    await new Promise(resolve => setTimeout(resolve, 100))
+    await flushPromises()
+    expect(parentOpen.value).toBe(true)
+    const stay = [...document.body.querySelectorAll('button')].find(b => b.textContent?.trim() === 'Остаться')
+    expect(stay).toBeDefined()
+    stay!.click()
+    await flushPromises()
+    expect(parentOpen.value).toBe(true)
+    expect(wrapper.text()).toContain('Изменений: 1')
+    expect(window.history.state.dialogId).toBe(`tracking-${mode}`)
+    await button(wrapper, 'Отменить').trigger('click')
+    window.history.back()
+    await new Promise(resolve => setTimeout(resolve, 100))
+    await waitForDialogHistory()
+    expect(parentOpen.value).toBe(false)
+    expect(outerOpen.value).toBe(true)
+    wrapper.unmount()
+    outerOpen.value = false
+    await waitForDialogHistory()
+    scope.stop()
+    history.destroy()
   })
 })

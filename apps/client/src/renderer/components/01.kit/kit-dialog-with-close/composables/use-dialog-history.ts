@@ -2,7 +2,7 @@ import type { Ref } from 'vue'
 import { getCurrentInstance, nextTick, onUnmounted, watch } from 'vue'
 
 export interface UseDialogHistoryOptions {
-  canClose?: () => boolean
+  canClose?: () => boolean | Promise<boolean>
 }
 
 const openModalsStack: string[] = []
@@ -19,6 +19,10 @@ if (typeof window !== 'undefined') {
   window.addEventListener('pageshow', () => {
     isUnloading = false
   })
+}
+
+export function isTopModal(dialogId: string) {
+  return openModalsStack.at(-1) === dialogId
 }
 
 export function hasOpenModals() {
@@ -69,6 +73,7 @@ function waitForPopState(onPop?: () => void): Promise<void> {
 
 export function useDialogHistory(dialogId: string, visible: Ref<boolean>, options?: UseDialogHistoryOptions) {
   let disposed = false
+  let awaitingClose = false
   let closingFromPopState = false
   let didCleanupOnPopState = false
   let savedScroll = { left: 0, top: 0 }
@@ -92,6 +97,22 @@ export function useDialogHistory(dialogId: string, visible: Ref<boolean>, option
     window.addEventListener('popstate', handlePopState)
   }
 
+  function awaitClosePermission(permission: Promise<boolean>) {
+    awaitingClose = true
+    restoreModalHistoryEntry()
+    restoreScrollPosition()
+    void permission.then((allowed) => {
+      if (allowed && !disposed && visible.value)
+        visible.value = false
+    }).catch(() => {}).finally(() => {
+      awaitingClose = false
+    })
+  }
+
+  function closePermission() {
+    return awaitingClose ? false : options?.canClose?.()
+  }
+
   function handlePopState(event: PopStateEvent) {
     if (pendingBack)
       return
@@ -106,7 +127,15 @@ export function useDialogHistory(dialogId: string, visible: Ref<boolean>, option
     if (state?.dialogId === dialogId)
       return
 
-    if (options?.canClose && !options.canClose()) {
+    const permission = closePermission()
+
+    if (permission instanceof Promise) {
+      awaitClosePermission(permission)
+
+      return
+    }
+
+    if (permission === false) {
       restoreModalHistoryEntry()
       restoreScrollPosition()
 

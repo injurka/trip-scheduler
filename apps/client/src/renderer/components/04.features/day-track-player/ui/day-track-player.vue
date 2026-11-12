@@ -398,8 +398,8 @@ function discardAndLeave() {
   resolveNavigation(true)
 }
 
-onBeforeRouteLeave(requestLeave)
-onBeforeRouteUpdate(requestLeave)
+onBeforeRouteLeave((to, from) => to.fullPath === from.fullPath || requestLeave())
+onBeforeRouteUpdate((to, from) => to.fullPath === from.fullPath || requestLeave())
 useEventListener(window, 'beforeunload', (event: BeforeUnloadEvent) => {
   if (drafts.count.value) {
     event.preventDefault()

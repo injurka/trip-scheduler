@@ -1,4 +1,4 @@
-import { mount } from '@vue/test-utils'
+import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { defineComponent, h, nextTick, ref } from 'vue'
 import { useDialogHistory } from '../src/renderer/components/01.kit/kit-dialog-with-close/composables/use-dialog-history'
@@ -16,7 +16,7 @@ afterEach(() => {
 })
 async function flush() {
   await nextTick()
-  await Promise.resolve()
+  await flushPromises()
   await nextTick()
 }
 

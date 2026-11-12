@@ -254,7 +254,6 @@ async function handleNotifyParticipants() {
 }
 
 useDialogHistory('memories-fullscreen', isFullScreen)
-useDialogHistory('memories-track-player', isMemoriesTrackPlayerOpen)
 useFullscreenBackground(isFullScreen)
 onKeyStroke('Escape', (e) => {
   if (isFullScreen.value && !isAddNoteDialogVisible.value && !isAddActivityDialogVisible.value && !isGenerateDialogVisible.value && !isMemoriesTrackPlayerOpen.value) {
