@@ -11,6 +11,9 @@ import {
 import { detailedRouteSegments } from '../lib/track-route-geometry'
 
 export interface UseDayTrackDataOptions {
+  preview?: (data: DayData) => DayData
+  beforeChange?: () => Promise<boolean>
+  onRejectedChange?: () => void
   tripId?: Ref<string | undefined>
   dayUtcProp?: Ref<string | undefined>
   /**
@@ -38,13 +41,20 @@ export function useDayTrackData(options: UseDayTrackDataOptions = {}) {
   const selectedDay = ref(isValidDay(initialDay) ? initialDay : todayUtc)
 
   const isLoading = ref(true)
-  const dayData = ref<DayData | null>(null)
+  const loadedDayData = ref<DayData | null>(null)
+  const dayData = computed({
+    get: () => loadedDayData.value && (options.preview?.(loadedDayData.value) ?? loadedDayData.value),
+    set: (value: DayData | null) => {
+      loadedDayData.value = value
+    },
+  })
   const loadError = ref<string | null>(null)
   const isDeletingPoint = ref(false)
   let loadSequence = 0
 
+  const activeTripId = ref(options.tripId?.value)
   function requestDay(day: string) {
-    const tripId = options.tripId?.value
+    const tripId = activeTripId.value
     const shareSlug = String(route.query.shareSlug ?? route.params.slug ?? route.params.id ?? '') || undefined
 
     return tripId ? trackingService.getTripDay(tripId, day, shareSlug) : trackingService.getDay(day)
@@ -72,10 +82,14 @@ export function useDayTrackData(options: UseDayTrackDataOptions = {}) {
       }
 
       dayData.value = res
+
+      return true
     }
     catch (e) {
       if (sequence === loadSequence)
-        loadError.value = e instanceof Error ? e.message : String(e)
+        loadError.value = loadedDayData.value ? null : e instanceof Error ? e.message : String(e)
+
+      return false
     }
     finally {
       if (sequence === loadSequence)
@@ -84,21 +98,34 @@ export function useDayTrackData(options: UseDayTrackDataOptions = {}) {
   }
 
   if (options.dayUtcProp) {
-    watch(options.dayUtcProp, (val) => {
+    watch(options.dayUtcProp, async (val) => {
       if (val && isValidDay(val) && val !== selectedDay.value) {
+        if (options.beforeChange && !await options.beforeChange()) {
+          options.onRejectedChange?.()
+
+          return
+        }
+
         selectedDay.value = val
       }
     })
   }
 
-  watch(() => route.query.day, (val) => {
+  watch(() => route.query.day, async (val) => {
     if (isValidDay(val) && val !== selectedDay.value) {
+      if (options.beforeChange && !await options.beforeChange())
+        return
+
       selectedDay.value = val
     }
   })
 
   if (options.tripId) {
-    watch(options.tripId, () => {
+    watch(options.tripId, async () => {
+      if (options.beforeChange && !await options.beforeChange())
+        return
+
+      activeTripId.value = options.tripId?.value
       dayData.value = null
       void loadDay(selectedDay.value)
     })

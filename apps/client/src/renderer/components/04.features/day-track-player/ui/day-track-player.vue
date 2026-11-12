@@ -1,19 +1,24 @@
 <script setup lang="ts">
+import type { CorrectionChoice } from '../composables/use-track-correction-drafts'
 import type { DayPoint, RouteVisibility, TrackPhoto, ViewMode } from '../models/types'
 import type { ImageViewerImage } from '~/components/01.kit/kit-image-viewer'
 import type { Memory } from '~/shared/types/models/memory'
 import { Icon } from '@iconify/vue'
+import { useEventListener } from '@vueuse/core'
+import { AlertDialogContent, AlertDialogDescription, AlertDialogOverlay, AlertDialogPortal, AlertDialogRoot, AlertDialogTitle } from 'reka-ui'
 import { computed, getCurrentInstance, ref, toRef } from 'vue'
-import { useRouter } from 'vue-router'
+import { onBeforeRouteLeave, onBeforeRouteUpdate, useRouter } from 'vue-router'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitImageViewer, useImageViewer } from '~/components/01.kit/kit-image-viewer'
 import { AppRouteNames } from '~/shared/constants/routes'
+import { trackingService } from '~/shared/services/database/tracking.service'
 import { useAuthStore } from '~/shared/store/auth.store'
 import { useDayTrackData } from '../composables/use-day-track-data'
 import { useDayTrackMap } from '../composables/use-day-track-map'
 import { useDayTrackPhotos } from '../composables/use-day-track-photos'
 import { useDayTrackPlayback } from '../composables/use-day-track-playback'
 import { useDayTrackTimezone } from '../composables/use-day-track-timezone'
+import { useTrackCorrectionDrafts } from '../composables/use-track-correction-drafts'
 import DayTrackActivityEditor from './day-track-activity-editor.vue'
 import DayTrackBeacon from './day-track-beacon.vue'
 import DayTrackEmpty from './day-track-empty.vue'
@@ -55,9 +60,11 @@ const emit = defineEmits<{
   (e: 'close'): void
   (e: 'dayChange', day: string): void
 }>()
+defineExpose({ requestLeave })
 
 const router = useRouter()
 const authStore = useAuthStore()
+const drafts = useTrackCorrectionDrafts()
 // ─── 1. Данные дня ─────────────────────────────────────────────────────────────
 const {
   todayUtc,
@@ -79,6 +86,9 @@ const {
   formatHeaderDay,
   handleDeletePoint,
 } = useDayTrackData({
+  preview: drafts.preview,
+  beforeChange: requestLeave,
+  onRejectedChange: () => emit('dayChange', selectedDay.value),
   tripId: toRef(props, 'tripId'),
   dayUtcProp: toRef(props, 'dayUtc'),
   availableDays: toRef(props, 'dayDates'),
@@ -119,6 +129,13 @@ const timezone = useDayTrackTimezone({
 // ─── 6. Полноэкранный просмотр фотографий ─────────────────────────────────────
 const imageViewer = useImageViewer()
 
+const draftTripId = ref(props.tripId)
+const applying = ref(false)
+const committed = ref(false)
+const draftError = ref('')
+const leaveOpen = ref(false)
+let leaveResult: Promise<boolean> | null = null
+let resolveLeave: ((value: boolean) => void) | null = null
 const instance = getCurrentInstance()
 const mapHost = ref<HTMLElement | null>(null)
 const popupHost = ref<HTMLElement | null>(null)
@@ -198,28 +215,40 @@ function handleOpenViewer(photo: TrackPhoto) {
  * Смена дня внутри плеера должна уехать наверх: в секции поездки день выбирается
  * стором плана, и без события воспоминания (а с ними и фото) остаются на прежнем дне.
  */
-function handleChangeDay(offset: number) {
+async function handleChangeDay(offset: number) {
+  if (!await requestLeave())
+    return
+
   const before = selectedDay.value
   changeDay(offset)
 
   if (selectedDay.value !== before)
     emit('dayChange', selectedDay.value)
 }
-function handleSelectDay(day: string) {
+async function handleSelectDay(day: string) {
+  if (!await requestLeave())
+    return
+
   const before = selectedDay.value
   selectDay(day)
 
   if (selectedDay.value !== before)
     emit('dayChange', selectedDay.value)
 }
-function handleGoToToday() {
+async function handleGoToToday() {
+  if (!await requestLeave())
+    return
+
   const before = selectedDay.value
   goToToday()
 
   if (selectedDay.value !== before)
     emit('dayChange', selectedDay.value)
 }
-function handleBack() {
+async function handleBack() {
+  if (!await requestLeave())
+    return
+
   emit('back')
   emit('close')
 
@@ -239,7 +268,7 @@ function followCurrentPoint() {
     map.centerCurrentPoint()
 }
 function editActivity(time = playback.t.value) {
-  if (!canEditTrack.value)
+  if (!canEditTrack.value || applying.value || committed.value)
     return
 
   playback.isPlaying.value = false
@@ -250,11 +279,133 @@ async function onDeletePoint(pt: DayPoint) {
   if (!canEditTrack.value)
     return
 
+  if (!await requestLeave())
+    return
+
   await handleDeletePoint(pt, () => {
     map.closePointPopup()
     map.rebuildFeatures()
   })
 }
+function stageCorrection(choice: CorrectionChoice) {
+  if (applying.value || committed.value)
+    return
+
+  try {
+    if (!drafts.count.value)
+      draftTripId.value = props.tripId
+
+    drafts.stage(choice, dayData.value)
+    draftError.value = ''
+  }
+  catch (error) {
+    draftError.value = error instanceof Error ? error.message : 'Не удалось добавить правку'
+  }
+}
+function removeCorrection(id: string) {
+  if (applying.value || committed.value)
+    return
+
+  try {
+    if (!drafts.count.value)
+      draftTripId.value = props.tripId
+
+    drafts.remove(id)
+    draftError.value = ''
+  }
+  catch (error) {
+    draftError.value = error instanceof Error ? error.message : 'Не удалось отменить исправление'
+  }
+}
+function discardDrafts() {
+  if (applying.value)
+    return
+
+  clearDrafts()
+}
+function clearDrafts() {
+  drafts.clear()
+  committed.value = false
+  draftError.value = ''
+}
+async function applyDrafts(): Promise<boolean> {
+  if (applying.value)
+    return false
+
+  applying.value = true
+  playback.isPlaying.value = false
+  draftError.value = ''
+
+  try {
+    if (!committed.value) {
+      drafts.markSubmitted()
+      await trackingService.correctActivities({ tripId: draftTripId.value, dayUtc: selectedDay.value, additions: drafts.additions.value, removals: drafts.removals.value })
+      committed.value = true
+    }
+
+    if (!await loadDay(selectedDay.value))
+      throw new Error('Правки сохранены. Не удалось загрузить трек — повторите загрузку.')
+
+    clearDrafts()
+
+    return true
+  }
+  catch (error) {
+    draftError.value = error instanceof Error ? error.message : 'Не удалось применить изменения'
+
+    return false
+  }
+  finally {
+    applying.value = false
+  }
+}
+function resolveNavigation(result: boolean) {
+  leaveOpen.value = false
+  resolveLeave?.(result)
+  resolveLeave = null
+  leaveResult = null
+}
+function requestLeave(): Promise<boolean> {
+  if (applying.value)
+    return Promise.resolve(false)
+
+  if (committed.value) {
+    clearDrafts()
+
+    return Promise.resolve(true)
+  }
+
+  if (!drafts.count.value)
+    return Promise.resolve(true)
+
+  if (leaveResult)
+    return leaveResult
+
+  playback.isPlaying.value = false
+  leaveOpen.value = true
+  leaveResult = new Promise((resolve) => {
+    resolveLeave = resolve
+  })
+
+  return leaveResult
+}
+async function applyAndLeave() {
+  if (await applyDrafts())
+    resolveNavigation(true)
+}
+function discardAndLeave() {
+  discardDrafts()
+  resolveNavigation(true)
+}
+
+onBeforeRouteLeave(requestLeave)
+onBeforeRouteUpdate(requestLeave)
+useEventListener(window, 'beforeunload', (event: BeforeUnloadEvent) => {
+  if (drafts.count.value) {
+    event.preventDefault()
+    event.returnValue = ''
+  }
+})
 </script>
 
 <template>
@@ -280,6 +431,18 @@ async function onDeletePoint(pt: DayPoint) {
       @update:view-mode="viewMode = $event"
       @update:is-photos-visible="isPhotosVisible = $event"
     >
+      <template #map-controls>
+        <button
+          type="button"
+          class="track-follow-btn"
+          :aria-pressed="playback.isFollowCamera.value"
+          aria-label="Слежение за текущей точкой"
+          title="Следить за текущей точкой"
+          @click="followCurrentPoint"
+        >
+          <Icon :icon="playback.isFollowCamera.value ? 'mdi:crosshairs-gps' : 'mdi:crosshairs'" />
+        </button>
+      </template>
       <template #top-actions>
         <slot name="top-actions" />
       </template>
@@ -300,20 +463,6 @@ async function onDeletePoint(pt: DayPoint) {
 
     <!-- Контейнер карты OpenLayers -->
     <div ref="mapHost" class="memories-map" />
-
-    <div class="track-map-controls" role="group" aria-label="Управление картой">
-      <button type="button" aria-label="Весь трек на карте" @click="map.fitTrackBounds()">
-        <Icon icon="mdi:fit-to-screen-outline" />
-      </button>
-      <button
-        type="button"
-        :aria-pressed="playback.isFollowCamera.value"
-        aria-label="Слежение за текущей точкой"
-        @click="followCurrentPoint"
-      >
-        <Icon :icon="playback.isFollowCamera.value ? 'mdi:crosshairs-gps' : 'mdi:crosshairs'" />
-      </button>
-    </div>
 
     <!-- Анимированный маркер воспроизведения на карте -->
     <div v-if="isBeaconVisible" ref="playbackMarkerHost" class="playback-marker-host">
@@ -411,7 +560,27 @@ async function onDeletePoint(pt: DayPoint) {
       @seek-start="playback.t.value = dayStart"
       @seek-end="playback.t.value = dayEnd"
       @seek-photo="(ts) => { playback.t.value = ts }"
-    />
+    >
+      <template #draft-actions>
+        <div v-if="drafts.count.value" class="draft-toolbar" :aria-busy="applying">
+          <span role="status">{{ committed ? 'Сохранено' : `Изменений: ${drafts.count.value}` }}</span>
+          <KitBtn
+            size="sm"
+            variant="text"
+            :disabled="applying"
+            @click="discardDrafts"
+          >
+            Отменить
+          </KitBtn>
+          <KitBtn size="sm" :disabled="applying" @click="applyDrafts">
+            {{ applying ? 'Применяем…' : committed ? 'Загрузить' : 'Применить' }}
+          </KitBtn>
+          <p v-if="draftError" class="draft-error" role="alert">
+            {{ draftError }}
+          </p>
+        </div>
+      </template>
+    </DayTrackPlaybackPanel>
 
     <DayTrackActivityEditor
       v-if="canEditTrack"
@@ -419,10 +588,31 @@ async function onDeletePoint(pt: DayPoint) {
       :trip-id="tripId"
       :day-data="dayData"
       :initial-time="activityEditorTime"
-      @saved="loadDay(selectedDay)"
+      @stage="stageCorrection"
+      @remove="removeCorrection"
     />
 
-    <!-- Полноэкранный просмотрщик фотографий -->
+    <AlertDialogRoot :open="leaveOpen">
+      <AlertDialogPortal>
+        <AlertDialogOverlay class="draft-leave-overlay" />
+        <AlertDialogContent class="draft-leave-card" @escape-key-down.prevent="!applying && resolveNavigation(false)">
+          <AlertDialogTitle>Есть неприменённые изменения</AlertDialogTitle>
+          <AlertDialogDescription>Применить правки перед выходом?</AlertDialogDescription>
+          <p v-if="draftError" role="alert">
+            {{ draftError }}
+          </p>
+          <KitBtn :disabled="applying" @click="applyAndLeave">
+            Применить и продолжить
+          </KitBtn>
+          <KitBtn variant="outlined" :disabled="applying" @click="discardAndLeave">
+            Сбросить и продолжить
+          </KitBtn>
+          <KitBtn variant="text" :disabled="applying" @click="resolveNavigation(false)">
+            Остаться
+          </KitBtn>
+        </AlertDialogContent>
+      </AlertDialogPortal>
+    </AlertDialogRoot>
     <KitImageViewer
       v-if="imageViewer.isOpen.value"
       v-model:visible="imageViewer.isOpen.value"
@@ -434,30 +624,74 @@ async function onDeletePoint(pt: DayPoint) {
 </template>
 
 <style scoped lang="scss">
-.track-map-controls {
-  position: absolute;
-  right: 12px;
-  top: 76px;
-  z-index: 21;
+.draft-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  flex-wrap: wrap;
+  border-bottom: 1px solid var(--border-secondary-color);
+  padding-bottom: 8px;
+  margin-bottom: 8px;
+}
+.draft-toolbar > span {
+  margin-right: auto;
+  font-size: 0.8rem;
+}
+.draft-error {
+  width: 100%;
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--fg-error-color, #c45148);
+}
+.draft-leave-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 11000;
+  background: #0005;
+}
+.draft-leave-card {
+  box-sizing: border-box;
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
+  position: fixed;
+  z-index: 11001;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(360px, calc(100% - 32px));
+  background: var(--bg-secondary-color);
+  color: var(--fg-primary-color);
+  border-radius: 20px;
+  padding: 20px;
+  max-width: 360px;
   display: flex;
   flex-direction: column;
-  border-radius: var(--r-s);
+  gap: 12px;
+}
+.draft-leave-card h3,
+.draft-leave-card p {
+  margin: 0;
+}
+
+.track-follow-btn {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--r-full);
   background: var(--bg-secondary-color);
   border: 1px solid var(--border-secondary-color);
-  button {
-    width: 44px;
-    height: 44px;
-    border: 0;
-    background: transparent;
-    color: var(--fg-secondary-color);
-    cursor: pointer;
-    font-size: 20px;
-  }
-  button + button {
-    border-top: 1px solid var(--border-secondary-color);
-  }
-  button[aria-pressed='true'] {
+  box-shadow: var(--s-m);
+  color: var(--fg-secondary-color);
+  cursor: pointer;
+  font-size: 20px;
+  &[aria-pressed='true'] {
     color: var(--fg-accent-color);
+  }
+  &:focus-visible {
+    outline: 2px solid var(--fg-accent-color);
+    outline-offset: 2px;
   }
 }
 

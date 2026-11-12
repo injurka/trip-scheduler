@@ -4,6 +4,7 @@ import { trackActivityCorrections, trackPoints } from 'db/schema'
 import { and, eq } from 'drizzle-orm'
 import { z } from 'zod'
 import { protectedProcedure, publicProcedure } from '~/lib/trpc'
+import { CorrectionBatchSchema, saveCorrectionBatch } from './correction-batch'
 import { DeleteTrackPointInputSchema, GetTrackDayInputSchema, IngestBatchInputSchema, TrackActivityTypeSchema } from './tracking.schemas'
 import { trackingService } from './tracking.service'
 import { assertTripTrackRange, editableTripTrack, tripTrackAccess } from './trip-track-access'
@@ -67,6 +68,14 @@ const DaySummarySchema = z.object({
 })
 
 export const trackingProcedures = {
+  correctActivities: protectedProcedure.input(CorrectionBatchSchema).output(z.object({ success: z.boolean() })).mutation(async ({ input, ctx }) => {
+    if (!input.tripId)
+      return saveCorrectionBatch(ctx.user.id, input)
+    const access = await editableTripTrack(input.tripId, ctx.user)
+    const from = Date.parse(`${input.dayUtc}T00:00:00Z`)
+    assertTripTrackRange(access, from, from + 86399999)
+    return saveCorrectionBatch(access.ownerId, input)
+  }),
   ingestBatch: protectedProcedure
     .meta({
       openapi: {
