@@ -1,10 +1,10 @@
 import type { GetTrackDayInput, IngestBatchInput } from './tracking.schemas'
 import { annotateTrackPoints, applyActivityCorrections, processDayTrack } from '@limiteddissolve/track-processing'
-import { TRPCError } from '@trpc/server'
 import { db } from 'db'
 import { trackActivityCorrections, trackPoints, trackSegments } from 'db/schema'
 import { and, eq, gt, gte, inArray, lt, lte } from 'drizzle-orm'
 import { measureDbQuery } from '~/lib/db-monitoring'
+import { saveCorrectionBatch } from './correction-batch'
 
 /** Активность в терминах пакета @limiteddissolve/track-processing. */
 type TrackActivity = 'still' | 'walk' | 'bike' | 'vehicle' | 'rail' | 'unknown'
@@ -272,22 +272,11 @@ export const trackingService = {
   },
 
   async correctActivity(userId: string, input: { sessionId: string, startedAt: number, endedAt: number, activity: TrackActivity }) {
-    const start = new Date(input.startedAt)
-    const end = new Date(input.endedAt)
-    const owned = await measureDbQuery('track_points', 'select', () => db.select({ id: trackPoints.id })
-      .from(trackPoints)
-      .where(and(eq(trackPoints.userId, userId), eq(trackPoints.sessionId, input.sessionId), gte(trackPoints.tsUtc, start), lte(trackPoints.tsUtc, end)))
-      .limit(1))
-    if (!owned.length)
-      throw new TRPCError({ code: 'BAD_REQUEST', message: 'В выбранном интервале нет ваших GPS-точек этой сессии' })
-    await measureDbQuery('track_activity_corrections', 'insert', () => db.insert(trackActivityCorrections).values({
-      userId,
-      sessionId: input.sessionId,
-      startedAt: start,
-      endedAt: end,
-      activity: input.activity,
-    }))
-    return { success: true }
+    return saveCorrectionBatch(userId, {
+      dayUtc: new Date(input.startedAt).toISOString().slice(0, 10),
+      additions: [{ ...input, id: crypto.randomUUID() }],
+      removals: [],
+    }, false)
   },
 
   async removeActivityCorrection(userId: string, id: string) {

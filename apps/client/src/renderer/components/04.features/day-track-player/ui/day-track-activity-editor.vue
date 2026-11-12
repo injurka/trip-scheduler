@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { CorrectionChoice } from '../composables/use-track-correction-drafts'
 import type { DayData } from '../models/types'
 import type { ActivityType } from '~/shared/services/tracking/track-processing'
 import { Icon } from '@iconify/vue'
@@ -9,7 +10,6 @@ import { computed, ref, watch } from 'vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitDialogWithClose } from '~/components/01.kit/kit-dialog-with-close'
 import { KitDropdown } from '~/components/01.kit/kit-dropdown'
-import { trackingService } from '~/shared/services/database/tracking.service'
 import { ACTIVITY_ICONS, ACTIVITY_LABELS } from '../models/types'
 import TrackDateTimeField from './track-date-time-field.vue'
 
@@ -20,7 +20,7 @@ interface Props {
 }
 
 const props = defineProps<Props>()
-const emit = defineEmits<{ (e: 'saved'): void }>()
+const emit = defineEmits<{ (e: 'stage', choice: CorrectionChoice): void, (e: 'remove', id: string): void }>()
 const visible = defineModel<boolean>('visible', { required: true })
 
 const sessionId = ref('')
@@ -155,41 +155,17 @@ async function save() {
 
   const { startedAt, endedAt } = range
 
-  pending.value = true
-  error.value = ''
-
-  try {
-    await trackingService.correctActivity({
-      sessionId: sessionId.value,
-      startedAt,
-      endedAt,
-      activity: activity.value,
-      ...(pointMode.value ? { point: true } : {}),
-    })
-    emit('saved')
-    visible.value = false
-  }
-  catch (err) {
-    error.value = err instanceof Error ? err.message : 'Не удалось сохранить исправление'
-  }
-  finally {
-    pending.value = false
-  }
+  emit('stage', {
+    sessionId: sessionId.value,
+    startedAt,
+    endedAt,
+    activity: activity.value,
+    ...(pointMode.value ? { point: true } : {}),
+  })
+  visible.value = false
 }
-async function remove(id: string) {
-  pending.value = true
-  error.value = ''
-
-  try {
-    await trackingService.removeCorrection(id, props.tripId)
-    emit('saved')
-  }
-  catch (err) {
-    error.value = err instanceof Error ? err.message : 'Не удалось отменить исправление'
-  }
-  finally {
-    pending.value = false
-  }
+function remove(id: string) {
+  emit('remove', id)
 }
 </script>
 
@@ -241,10 +217,10 @@ async function remove(id: string) {
         {{ error }}
       </p>
       <KitBtn type="submit" :disabled="pending">
-        {{ pending ? 'Сохранение…' : 'Применить исправление' }}
+        Добавить в пакет
       </KitBtn>
       <div v-if="corrections.length" class="saved-corrections">
-        <h3>Сохранённые исправления</h3>
+        <h3>Исправления движения</h3>
         <p class="history-hint">
           История: при пересечении применяется последнее исправление.
         </p>

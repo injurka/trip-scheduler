@@ -312,6 +312,7 @@ useEventListener(typeof window !== 'undefined' ? window : null, 'keydown', (e: K
 
 <template>
   <div class="memories-panel">
+    <slot name="draft-actions" />
     <!-- Верхняя строка: Телеметрия, Часовой пояс и Слежение камерой -->
     <div class="memories-readout">
       <div class="readout-time-group">
@@ -1192,7 +1193,7 @@ useEventListener(typeof window !== 'undefined' ? window : null, 'keydown', (e: K
     min-height: 44px;
     padding: 0;
   }
-  .points-badge {
+  .memories-actions .actions-left .points-badge {
     display: none;
   }
   .memories-actions .playback-controls {
@@ -1213,6 +1214,9 @@ useEventListener(typeof window !== 'undefined' ? window : null, 'keydown', (e: K
     padding: 4px;
   }
   @media (max-width: 640px) {
+    .memories-actions {
+      gap: 4px;
+    }
     .readout-time-group .tz-toggle-chip .tz-text {
       display: none;
     }

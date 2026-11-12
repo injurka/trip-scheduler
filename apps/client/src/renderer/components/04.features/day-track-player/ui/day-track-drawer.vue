@@ -3,7 +3,8 @@ import type { ImageViewerImage } from '~/components/01.kit/kit-image-viewer'
 import type { Memory } from '~/shared/types/models/memory'
 import { Icon } from '@iconify/vue'
 import { useEventListener, useScrollLock } from '@vueuse/core'
-import { toRef, watch } from 'vue'
+import { ref, toRef, watch } from 'vue'
+import { hasOpenModals } from '~/components/01.kit/kit-dialog-with-close/composables/use-dialog-history'
 import DayTrackPlayer from './day-track-player.vue'
 
 interface Props {
@@ -26,7 +27,6 @@ const props = withDefaults(defineProps<Props>(), {
   memories: () => [],
   galleryImages: () => [],
 })
-
 const emit = defineEmits<{
   (e: 'close'): void
   (e: 'update:open', val: boolean): void
@@ -36,18 +36,23 @@ const emit = defineEmits<{
 const isBodyScrollLocked = useScrollLock(typeof document !== 'undefined' ? document.body : null)
 const isHtmlScrollLocked = useScrollLock(typeof document !== 'undefined' ? document.documentElement : null)
 
+const player = ref<{ requestLeave: () => Promise<boolean> } | null>(null)
+
 watch(toRef(props, 'open'), (isOpen) => {
   isBodyScrollLocked.value = isOpen
   isHtmlScrollLocked.value = isOpen
 }, { immediate: true })
 
-function handleClose() {
+async function handleClose() {
+  if (player.value && !await player.value.requestLeave())
+    return
+
   emit('close')
   emit('update:open', false)
 }
 
 useEventListener(typeof window !== 'undefined' ? window : null, 'keydown', (e: KeyboardEvent) => {
-  if (props.open && e.key === 'Escape') {
+  if (props.open && e.key === 'Escape' && !e.defaultPrevented && !hasOpenModals()) {
     handleClose()
   }
 })
@@ -73,6 +78,7 @@ useEventListener(typeof window !== 'undefined' ? window : null, 'keydown', (e: K
             <Icon icon="mdi:close" />
           </button>
           <DayTrackPlayer
+            ref="player"
             class="track-player-embedded"
             :day-utc="dayUtc"
             :trip-id="tripId"
