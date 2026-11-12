@@ -185,7 +185,6 @@ export function useDayTrackMap(options: UseDayTrackMapOptions) {
   const PHOTO_ROUTE_SOURCE_ID = 'day-track-photo-route-source'
 
   const ROUTE_LAYER_ID = 'day-track-route-layer'
-  const ROUTE_CASING_LAYER_ID = 'day-track-route-casing-layer'
   const PROGRESS_GLOW_LAYER_ID = 'day-track-progress-glow-layer'
   const PROGRESS_LINE_LAYER_ID = 'day-track-progress-line-layer'
   const POINTS_LAYER_ID = 'day-track-points-layer'
@@ -368,27 +367,6 @@ export function useDayTrackMap(options: UseDayTrackMapOptions) {
           'line-opacity': 0.95,
         },
       })
-    }
-
-    // Подложка-кант под линией маршрута: отделяет цвет трека от подложки карты,
-    // чтобы маршрут читался линией, а не набором цветных пятен.
-    // Параметры сохранены в исходном эталонном виде: line-blur 1.5, width + 5, opacity 0.35.
-    if (!map.getLayer(ROUTE_CASING_LAYER_ID)) {
-      map.addLayer({
-        id: ROUTE_CASING_LAYER_ID,
-        type: 'line',
-        source: ROUTE_SOURCE_ID,
-        layout: {
-          'line-cap': 'round',
-          'line-join': 'round',
-        },
-        paint: {
-          'line-color': '#0f172a',
-          'line-opacity': 0.35,
-          'line-width': ['+', ['get', 'width'], 5],
-          'line-blur': 1.5,
-        },
-      }, ROUTE_LAYER_ID)
     }
 
     if (!map.getSource(PROGRESS_SOURCE_ID)) {
@@ -759,7 +737,7 @@ export function useDayTrackMap(options: UseDayTrackMapOptions) {
       source: 'day-track-stop-areas',
       minzoom: 16,
       paint: { 'fill-color': '#64748b', 'fill-opacity': 0.10, 'fill-outline-color': '#64748b' },
-    }, ROUTE_CASING_LAYER_ID)
+    }, ROUTE_LAYER_ID)
   }
 
   function createPhotoMarkerElement(cluster: TrackPhotoCluster, onPhotoClick: (p: TrackPhoto) => void, onClusterClick: (photos: TrackPhoto[]) => void): HTMLElement {
