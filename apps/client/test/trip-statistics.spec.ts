@@ -57,11 +57,20 @@ describe('trip statistics widget', () => {
     expect(wrapper.find('.highlights').exists()).toBe(true)
     wrapper.unmount()
   })
-  it('hides mutation controls for viewers', async () => {
+  it('shows refresh controls and calculation metadata only while editing', async () => {
     api.query.mockResolvedValue(saved)
     const wrapper = mount(Widget, { props: { ...props, canEdit: false } })
     await flushPromises()
     expect(wrapper.find('button').exists()).toBe(false)
+    expect(wrapper.find('footer').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain('Обновлено')
+    await wrapper.setProps({ canEdit: true })
+    expect(wrapper.find('button').exists()).toBe(true)
+    expect(wrapper.find('footer').exists()).toBe(true)
+    await wrapper.setProps({ canEdit: false })
+    expect(wrapper.find('footer').exists()).toBe(false)
+    expect(api.query).toHaveBeenCalledTimes(1)
+    expect(api.mutate).not.toHaveBeenCalled()
     wrapper.unmount()
   })
   it('keeps the previous snapshot if recalculation fails', async () => {
