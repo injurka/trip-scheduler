@@ -64,7 +64,7 @@ watch(() => [props.tripId, props.shareSlug], async () => {
 }, { immediate: true })
 
 async function refresh() {
-  if (refreshing.value)
+  if (!props.canEdit || refreshing.value)
     return
 
   const current = request
@@ -88,6 +88,7 @@ async function refresh() {
 }
 const number = (n: number) => n.toLocaleString('ru-RU')
 const km = (m: number) => (m / 1000).toLocaleString('ru-RU', { maximumFractionDigits: 1 })
+const share = (distance: number) => (totalM.value ? distance / totalM.value * 100 : 0).toLocaleString('ru-RU', { maximumFractionDigits: 1 })
 const date = (value: string) => new Date(`${value}T12:00:00Z`).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', timeZone: 'UTC' })
 </script>
 
@@ -118,11 +119,23 @@ const date = (value: string) => new Date(`${value}T12:00:00Z`).toLocaleDateStrin
         <div><Icon icon="mdi:map-marker-path" /><strong>{{ km(totalM) }} <small>км</small></strong><span>по записанным трекам</span></div>
         <div><Icon icon="mdi:movie-outline" /><strong>{{ number(data.videos) }}</strong><span>видеоисторий</span></div>
       </div>
+      <div class="route-heading">
+        <h3>Движение в поездке</h3>
+        <span>Доля от общего расстояния</span>
+      </div>
       <div class="route-stats">
-        <div v-for="mode in modes" :key="mode.key" class="mode">
-          <Icon :icon="mode.icon" :style="{ color: mode.color }" />
-          <span>{{ mode.label }}</span><strong>{{ km(data.distanceM[mode.key] ?? 0) }} км</strong>
-          <div class="bar">
+        <div
+          v-for="mode in modes"
+          :key="mode.key"
+          class="mode"
+          :style="{ '--mode-color': mode.color }"
+        >
+          <div class="mode-label">
+            <span class="mode-icon"><Icon :icon="mode.icon" /></span><span>{{ mode.label }}</span>
+          </div>
+          <strong>{{ km(data.distanceM[mode.key] ?? 0) }} <small>км</small></strong>
+          <span class="mode-share">{{ share(data.distanceM[mode.key] ?? 0) }}% пути</span>
+          <div class="bar" aria-hidden="true">
             <i :style="{ width: `${totalM ? (data.distanceM[mode.key] ?? 0) / totalM * 100 : 0}%`, background: mode.color }" />
           </div>
         </div>
@@ -142,11 +155,11 @@ const date = (value: string) => new Date(`${value}T12:00:00Z`).toLocaleDateStrin
       <p class="note">
         Трек владельца · {{ data.trackedDays }} дн. с GPS · {{ (data.movingDurationMs / 3600000).toLocaleString('ru-RU', { maximumFractionDigits: 1 }) }} ч движения. Даты учитываются по UTC. Расстояния зависят от полноты и точности GPS.
       </p>
-      <footer>
+      <footer v-if="canEdit">
         <span>Обновлено {{ new Date(data.computedAt).toLocaleString('ru-RU') }}</span>
         <span>Пересчёт по кнопке · не чаще раза в минуту</span>
       </footer>
-      <p v-if="staleRange" class="note">
+      <p v-if="canEdit && staleRange" class="note">
         Даты поездки изменились. Обновите данные, чтобы пересчитать итоги.
       </p>
     </template>
@@ -213,31 +226,114 @@ footer,
   line-height: 1.6;
   color: var(--fg-secondary-color);
 }
+.route-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin-bottom: 12px;
+}
+.route-heading h3 {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+.route-heading > span {
+  font-size: 0.75rem;
+  color: var(--fg-secondary-color);
+}
 .route-stats {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 20px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
 }
 .mode {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  padding: 16px;
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--mode-color) 14%, var(--bg-secondary-color));
+  border: 1px solid color-mix(in srgb, var(--mode-color) 24%, transparent);
+}
+.mode-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+  font-size: 0.8rem;
+  line-height: 1.3;
+}
+.mode-icon {
+  width: 30px;
   display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 7px;
-  font-size: 0.85rem;
+  place-items: center;
+  flex: 0 0 30px;
+  height: 30px;
+  border-radius: 10px;
+  color: var(--mode-color);
+  background: color-mix(in srgb, var(--mode-color) 14%, transparent);
 }
-.mode strong,
-.bar {
-  grid-column: 1 / -1;
+.mode-label > span:last-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.mode-icon svg {
+  font-size: 18px;
+}
+.mode strong {
+  margin-top: 2px;
+  font-size: clamp(1.2rem, 2.5vw, 1.55rem);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+.mode strong small {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--fg-secondary-color);
+}
+.mode-share {
+  font-size: 0.7rem;
+  color: var(--fg-secondary-color);
 }
 .bar {
-  background: #8882;
+  background: color-mix(in srgb, var(--mode-color) 15%, transparent);
   height: 4px;
   border-radius: 8px;
   overflow: hidden;
+  margin-top: auto;
 }
 .bar i {
   display: block;
   height: 100%;
+  border-radius: inherit;
 }
+.mode:last-child {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 4px 12px;
+  .mode-label {
+    grid-row: 1 / 3;
+    flex-direction: row;
+    align-items: center;
+  }
+  strong {
+    font-size: 1.1rem;
+    margin: 0;
+  }
+  .mode-share {
+    text-align: right;
+  }
+  .bar {
+    grid-column: 1 / -1;
+    margin-top: 6px;
+  }
+}
+
 .achievement {
   display: flex;
   align-items: center;
@@ -297,6 +393,11 @@ footer {
   color: var(--fg-error-color, #c45148);
   font-size: 0.85rem;
 }
+@media (max-width: 900px) {
+  .route-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
 @media (max-width: 480px) {
   .highlights {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -306,6 +407,25 @@ footer {
   }
   .highlights > div {
     padding: 14px;
+  }
+  .route-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .mode {
+    padding: 12px;
+    gap: 8px;
+  }
+  .mode-label {
+    font-size: 0.8rem;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  .mode-icon {
+    width: 26px;
+    flex-basis: 26px;
+    height: 26px;
+    border-radius: 8px;
   }
   .details {
     grid-template-columns: minmax(0, 1fr);

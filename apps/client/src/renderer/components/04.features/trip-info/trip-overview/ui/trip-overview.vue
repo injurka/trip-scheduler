@@ -833,7 +833,7 @@ async function handleConfirmOfflineDownload(options: OfflineDownloadOptions) {
       :key="trip.id"
       :trip-id="trip.id"
       :share-slug="trip.shareSlug"
-      :can-edit="canEdit"
+      :can-edit="isEditable"
       :start-date="trip.startDate"
       :end-date="trip.endDate"
     />
