@@ -1,6 +1,5 @@
 import type { DaySummary } from '../models/types'
 import { computed, onMounted, ref } from 'vue'
-import { useDialogHistory } from '~/components/01.kit/kit-dialog-with-close/composables/use-dialog-history'
 import { trpc } from '~/shared/services/trpc/trpc.service'
 
 export function useActivityTracking() {
@@ -131,8 +130,6 @@ export function useActivityTracking() {
   function closePlayer() {
     isPlayerOpen.value = false
   }
-
-  useDialogHistory('activity-tracking-player', isPlayerOpen)
 
   onMounted(() => {
     void loadSummaries()
