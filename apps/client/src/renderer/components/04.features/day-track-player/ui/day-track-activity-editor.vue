@@ -6,8 +6,9 @@ import { Icon } from '@iconify/vue'
 import { parseDateTime } from '@internationalized/date'
 import { RadioGroupItem, RadioGroupRoot } from 'reka-ui'
 import tzLookup from 'tz-lookup'
-import { computed, ref, watch } from 'vue'
+import { computed, ref, useId, watch } from 'vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
+import { KitCheckbox } from '~/components/01.kit/kit-checkbox'
 import { KitDialogWithClose } from '~/components/01.kit/kit-dialog-with-close'
 import { KitDropdown } from '~/components/01.kit/kit-dropdown'
 import { ACTIVITY_ICONS, ACTIVITY_LABELS } from '../models/types'
@@ -23,6 +24,8 @@ const props = defineProps<Props>()
 const emit = defineEmits<{ (e: 'stage', choice: CorrectionChoice): void, (e: 'remove', id: string): void }>()
 const visible = defineModel<boolean>('visible', { required: true })
 
+const historyId = useId()
+
 const sessionId = ref('')
 const start = ref<string | number | null>('')
 const end = ref<string | number | null>('')
@@ -32,6 +35,7 @@ const error = ref('')
 const options = (Object.keys(ACTIVITY_LABELS) as ActivityType[]).map(value => ({ value, label: value === 'unknown' ? 'Другое' : ACTIVITY_LABELS[value], icon: ACTIVITY_ICONS[value] }))
 const editorTimezone = ref('UTC')
 const pointMode = ref(false)
+const historyExpanded = ref(false)
 
 const sourcePoints = computed(() => props.dayData?.rawPoints ?? props.dayData?.points ?? [])
 const sessions = computed(() => [...new Set(sourcePoints.value.map(p => p.sessionId))].map((value, index) => ({ value, label: `Запись ${index + 1}` })))
@@ -42,10 +46,14 @@ const timezoneLabel = computed(() => {
   return `Местное время · ${editorTimezone.value} · ${offset ?? ''}`
 })
 
+watch(sessionId, () => {
+  historyExpanded.value = false
+})
 watch(visible, (open) => {
   if (!open)
     return
 
+  historyExpanded.value = false
   const points = sourcePoints.value
   sessionId.value = points.find(p => p.tsUtc >= props.initialTime)?.sessionId ?? points[0]?.sessionId ?? ''
   const point = points.find(p => p.sessionId === sessionId.value && p.tsUtc >= props.initialTime) ?? points[0]
@@ -188,7 +196,9 @@ function remove(id: string) {
       <p class="timezone-label">
         {{ timezoneLabel }}
       </p>
-      <label class="point-mode"><input v-model="pointMode" type="checkbox" :disabled="pending">Одна GPS-точка</label>
+      <KitCheckbox v-model="pointMode" class="point-mode" :disabled="pending">
+        Одна GPS-точка
+      </KitCheckbox>
       <div class="time-interval">
         <TrackDateTimeField v-model="start" :label="pointMode ? 'Время точки' : 'Начало'" :disabled="pending" />
         <TrackDateTimeField
@@ -220,21 +230,39 @@ function remove(id: string) {
         Добавить в пакет
       </KitBtn>
       <div v-if="corrections.length" class="saved-corrections">
-        <h3>Исправления движения</h3>
-        <p class="history-hint">
-          История: при пересечении применяется последнее исправление.
-        </p>
-        <div v-for="correction in corrections" :key="correction.id" class="correction-row">
-          <span><Icon :icon="ACTIVITY_ICONS[correction.activity]" /> {{ formatTime(correction.startedAt) }} – {{ formatTime(correction.endedAt) }} · {{ ACTIVITY_LABELS[correction.activity] }}</span>
-          <KitBtn
-            type="button"
-            size="sm"
-            variant="text"
-            :disabled="pending"
-            @click="remove(correction.id)"
-          >
-            Отменить
-          </KitBtn>
+        <KitBtn
+          type="button"
+          variant="text"
+          class="history-toggle"
+          :aria-expanded="historyExpanded"
+          :aria-controls="historyId"
+          @click="historyExpanded = !historyExpanded"
+        >
+          <span class="history-heading">Исправления движения <span class="history-count">{{ corrections.length }}</span></span>
+          <Icon :icon="historyExpanded ? 'mdi:chevron-up' : 'mdi:chevron-down'" />
+        </KitBtn>
+        <div v-if="historyExpanded" :id="historyId">
+          <p class="history-hint">
+            История: при пересечении применяется последнее исправление.
+          </p>
+          <div v-for="correction in corrections" :key="correction.id" class="correction-row">
+            <div class="correction-summary">
+              <Icon :icon="ACTIVITY_ICONS[correction.activity]" aria-hidden="true" />
+              <div class="correction-description">
+                <span class="correction-time">{{ formatTime(correction.startedAt) }}<template v-if="correction.endedAt !== correction.startedAt"> – {{ formatTime(correction.endedAt) }}</template></span>
+                <span class="correction-activity">{{ ACTIVITY_LABELS[correction.activity] }}</span>
+              </div>
+            </div>
+            <KitBtn
+              type="button"
+              size="sm"
+              variant="text"
+              :disabled="pending"
+              @click="remove(correction.id)"
+            >
+              Отменить
+            </KitBtn>
+          </div>
         </div>
       </div>
     </form>
@@ -249,7 +277,7 @@ function remove(id: string) {
 }
 .time-interval {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
   gap: 8px;
   :deep(input) {
     min-width: 0;
@@ -288,7 +316,7 @@ function remove(id: string) {
   gap: 8px;
   align-items: center;
   font-size: 0.85rem;
-  min-height: 36px;
+  min-height: 44px;
 }
 .session-badge {
   align-self: flex-start;
@@ -299,6 +327,9 @@ function remove(id: string) {
   font-size: 0.85rem;
 }
 .activity-option {
+  font-size: 0.875rem;
+  line-height: 1.4;
+  min-width: 0;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -312,6 +343,8 @@ function remove(id: string) {
   text-align: left;
 }
 .activity-option svg {
+  width: 22px;
+  height: 22px;
   font-size: 22px;
   flex-shrink: 0;
 }
@@ -328,9 +361,57 @@ function remove(id: string) {
   border-top: 1px solid var(--border-secondary-color);
   padding-top: 12px;
 }
-.saved-corrections h3 {
-  margin: 0;
-  font-size: 1rem;
+.history-toggle {
+  width: 100%;
+  min-height: 44px;
+  justify-content: space-between;
+  text-align: left;
+  padding: 0 4px;
+}
+.history-toggle :deep(.kit-btn-content) {
+  width: 100%;
+  justify-content: space-between;
+}
+.history-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.history-toggle :deep(svg) {
+  flex-shrink: 0;
+  font-size: 20px;
+}
+.history-count {
+  font-size: 0.75rem;
+  color: var(--fg-secondary-color);
+  background: var(--bg-tertiary-color);
+  padding: 2px 8px;
+  border-radius: var(--r-full);
+}
+.correction-summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.correction-summary > svg {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 20px;
+  color: var(--fg-secondary-color);
+}
+.correction-description {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.correction-time {
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.correction-activity {
+  color: var(--fg-secondary-color);
 }
 .history-hint {
   font-size: 0.75rem;

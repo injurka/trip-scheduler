@@ -93,9 +93,15 @@ it('converts local Samara time to UTC for the correct session', async () => {
 it('stages cancellation of a saved correction without a server request', async () => {
   const wrapper = mount(ActivityEditor, wrapperOptions)
   await wrapper.setProps({ visible: true })
+  expect(wrapper.find('.correction-row').exists()).toBe(false)
+  await wrapper.get('[aria-expanded]').trigger('click')
+  expect(wrapper.get('[aria-expanded]').attributes('aria-expanded')).toBe('true')
   await wrapper.findAll('button').find(button => button.text() === 'Отменить')!.trigger('click')
   expect(wrapper.emitted('remove')?.[0]).toEqual(['correction'])
   expect(api.removeCorrection).not.toHaveBeenCalled()
+  await wrapper.setProps({ visible: false })
+  await wrapper.setProps({ visible: true })
+  expect(wrapper.find('.correction-row').exists()).toBe(false)
   wrapper.unmount()
 })
 

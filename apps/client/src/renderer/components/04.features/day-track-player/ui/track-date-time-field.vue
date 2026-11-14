@@ -4,6 +4,7 @@ import { Icon } from '@iconify/vue'
 import { parseDate, parseDateTime } from '@internationalized/date'
 import { DateFieldInput, DateFieldRoot, PopoverContent, PopoverPortal, PopoverRoot, PopoverTrigger } from 'reka-ui'
 import { computed, ref, useId } from 'vue'
+import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitCalendar } from '~/components/01.kit/kit-calendar'
 
 interface Props { label: string, disabled?: boolean }
@@ -50,8 +51,17 @@ const day = computed({
     <label :id="id">{{ label }}</label>
     <div class="date-control">
       <PopoverRoot v-model:open="open">
-        <PopoverTrigger :disabled="disabled" :aria-label="`Выбрать дату: ${label}`" class="calendar-trigger">
-          <Icon icon="mdi:calendar-outline" />
+        <PopoverTrigger as-child>
+          <KitBtn
+            type="button"
+            variant="text"
+            size="sm"
+            :disabled="disabled"
+            :aria-label="`Выбрать дату: ${label}`"
+            class="calendar-trigger"
+          >
+            <Icon icon="mdi:calendar-outline" />
+          </KitBtn>
         </PopoverTrigger>
         <PopoverPortal>
           <PopoverContent class="track-calendar-popup" :side-offset="6" align="start">
@@ -97,15 +107,21 @@ const day = computed({
   background: var(--bg-secondary-color);
 }
 .calendar-trigger {
-  width: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  min-width: 44px;
   height: 44px;
-  flex-shrink: 0;
+  flex: 0 0 44px;
   padding: 0;
-  background: transparent;
-  border: 0;
   color: var(--fg-secondary-color);
   font-size: 20px;
-  cursor: pointer;
+}
+.calendar-trigger :deep(svg) {
+  display: block;
+  width: 20px;
+  height: 20px;
 }
 .date-segments {
   display: flex;
