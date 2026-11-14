@@ -296,6 +296,7 @@ function stageCorrection(choice: CorrectionChoice) {
       draftTripId.value = props.tripId
 
     drafts.stage(choice, dayData.value)
+    map.closePointPopup()
     draftError.value = ''
   }
   catch (error) {
@@ -347,6 +348,7 @@ async function applyDrafts(): Promise<boolean> {
       throw new Error('Правки сохранены. Не удалось загрузить трек — повторите загрузку.')
 
     clearDrafts()
+    map.closePointPopup()
 
     return true
   }
@@ -475,7 +477,7 @@ useEventListener(window, 'beforeunload', (event: BeforeUnloadEvent) => {
     </div>
 
     <!-- Интерактивный попап инспекции точки -->
-    <div ref="popupHost">
+    <div ref="popupHost" class="point-popup-host">
       <DayTrackPointPopup
         :selected-point="map.selectedPoint.value"
         :readonly="!canEditTrack"
@@ -815,6 +817,49 @@ useEventListener(window, 'beforeunload', (event: BeforeUnloadEvent) => {
     }
   }
 
+  > .point-popup-host {
+    display: none;
+  }
+  :deep(.maplibregl-popup.day-track-point-popup) {
+    .maplibregl-popup-content {
+      padding: 0;
+      background: transparent;
+      box-shadow: none;
+    }
+    &.maplibregl-popup-anchor-bottom,
+    &.maplibregl-popup-anchor-bottom-left,
+    &.maplibregl-popup-anchor-bottom-right {
+      .maplibregl-popup-tip {
+        border-top-color: var(--bg-secondary-color);
+      }
+    }
+    &.maplibregl-popup-anchor-top,
+    &.maplibregl-popup-anchor-top-left,
+    &.maplibregl-popup-anchor-top-right {
+      .maplibregl-popup-tip {
+        border-bottom-color: var(--bg-secondary-color);
+      }
+    }
+    &.maplibregl-popup-anchor-left .maplibregl-popup-tip {
+      border-right-color: var(--bg-secondary-color);
+    }
+    &.maplibregl-popup-anchor-right .maplibregl-popup-tip {
+      border-left-color: var(--bg-secondary-color);
+    }
+    @media (max-width: 640px) {
+      top: var(--track-point-popup-top, 140px);
+      left: 50%;
+      transform: translateX(-50%) !important;
+      max-width: calc(100% - 24px) !important;
+      .maplibregl-popup-tip {
+        display: none;
+      }
+      .point-popup-card {
+        width: min(310px, calc(100vw - 24px));
+        max-width: 100%;
+      }
+    }
+  }
   :deep(.maplibregl-popup.day-track-photo-popup) {
     .maplibregl-popup-content {
       padding: 0;
