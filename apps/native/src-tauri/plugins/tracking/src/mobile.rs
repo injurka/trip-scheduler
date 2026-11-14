@@ -75,6 +75,14 @@ impl<R: Runtime> Tracking<R> {
         self.0.run_mobile_plugin("exportMemory", payload).map_err(Into::into)
     }
 
+    pub fn start_memory_export(&self, payload: serde_json::Value) -> Result<bool> {
+        self.0.run_mobile_plugin("startMemoryExport", payload).map_err(Into::into)
+    }
+
+    pub fn memory_export_status(&self) -> Result<serde_json::Value> {
+        self.0.run_mobile_plugin("memoryExportStatus", ()).map_err(Into::into)
+    }
+
     pub fn open_kmz_in_maps_me(&self, payload: OpenKmzPayload) -> Result<OpenKmzResult> {
         self.0.run_mobile_plugin("openKmzInMapsMe", payload).map_err(Into::into)
     }

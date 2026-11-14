@@ -208,10 +208,19 @@ async fn memory_export_file(
     #[cfg(desktop)]
     {
         let _ = (app, mime_type);
+        // Also serialize native calls from multiple windows.
+        static EXPORT_LOCK: std::sync::OnceLock<futures_util::lock::Mutex<()>> = std::sync::OnceLock::new();
+        let _guard = EXPORT_LOCK.get_or_init(|| futures_util::lock::Mutex::new(())).lock().await;
         let destination = safe_vault_path(&folder, &file_name)?;
-        // Never truncate an existing original. Each export uses a unique filename.
-        let mut output = fs::OpenOptions::new().write(true).create_new(true)
-            .open(&destination).map_err(|e| e.to_string())?;
+        // Check the actual destination, so this survives navigation and app restarts.
+        if fs::metadata(&destination).is_ok_and(|meta| meta.is_file() && meta.len() > 0) {
+            return Ok(0); // Already saved; no network request.
+        }
+        // Publish only complete files. A crash must not leave a partial original
+        // that a later export would mistake for a successful download.
+        let temporary = destination.with_file_name(format!(".{}.{}.part", file_name, std::process::id()));
+        let mut output = fs::OpenOptions::new().write(true).create(true).truncate(true)
+            .open(&temporary).map_err(|e| e.to_string())?;
         let result: Result<u64, String> = async {
             use std::io::Write;
             let client = reqwest::Client::builder().timeout(std::time::Duration::from_secs(600))
@@ -224,17 +233,55 @@ async fn memory_export_file(
                 output.write_all(&chunk).map_err(|e| e.to_string())?;
                 bytes += chunk.len() as u64;
             }
-            if expected.is_some_and(|size| size != bytes) {
+            if bytes == 0 || expected.is_some_and(|size| size != bytes) {
                 return Err("Incomplete download".into());
             }
             output.sync_all().map_err(|e| e.to_string())?;
             Ok(bytes)
         }.await;
         drop(output);
-        if result.is_err() {
-            let _ = fs::remove_file(destination);
+        if result.is_ok() {
+            // An empty destination is not a completed export and can be replaced.
+            if destination.exists() {
+                fs::remove_file(&destination).map_err(|e| e.to_string())?;
+            }
+            if let Err(error) = fs::rename(&temporary, &destination) {
+                let _ = fs::remove_file(&temporary);
+                return Err(error.to_string());
+            }
+        } else {
+            let _ = fs::remove_file(&temporary);
         }
         result
+    }
+}
+
+/// Android owns the complete batch so WebView suspension cannot pause the queue.
+#[tauri::command]
+async fn memory_export_start(app: tauri::AppHandle, files: Vec<serde_json::Value>) -> Result<bool, String> {
+    #[cfg(mobile)]
+    {
+        use tauri_plugin_tracking::TrackingExt;
+        app.tracking().start_memory_export(serde_json::json!({ "files": files })).map_err(|e| e.to_string())
+    }
+    #[cfg(desktop)]
+    {
+        let _ = (app, files);
+        Err("Background export is only available on Android".into())
+    }
+}
+
+#[tauri::command]
+async fn memory_export_status(app: tauri::AppHandle) -> Result<serde_json::Value, String> {
+    #[cfg(mobile)]
+    {
+        use tauri_plugin_tracking::TrackingExt;
+        app.tracking().memory_export_status().map_err(|e| e.to_string())
+    }
+    #[cfg(desktop)]
+    {
+        let _ = app;
+        Err("Background export is only available on Android".into())
     }
 }
 
@@ -596,6 +643,8 @@ pub fn run() {
             vault_delete_file,
             memory_export_folder,
             memory_export_file,
+            memory_export_start,
+            memory_export_status,
             download_app_update,
             open_downloaded_apk,
             install_app_update,

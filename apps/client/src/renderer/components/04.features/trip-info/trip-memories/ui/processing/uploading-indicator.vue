@@ -20,7 +20,6 @@ const currentUpload = computed(() => props.processingMemories.find(m => m.status
 const queuedUploads = computed(() => props.processingMemories.filter(m => m.status === 'queued'))
 const failedUploads = computed(() => props.processingMemories.filter(m => m.status === 'error'))
 const totalCount = computed(() => props.processingMemories.length)
-const uploadingCount = computed(() => (currentUpload.value ? 1 : 0))
 const queuedCount = computed(() => queuedUploads.value.length)
 const failedCount = computed(() => failedUploads.value.length)
 const activeProgressStyle = computed(() => ({
@@ -88,16 +87,8 @@ function handleRetryAll() {
         </div>
       </div>
 
-      <!-- 2. Three-column Summary Stats -->
+      <!-- 2. Queue and Error Summary -->
       <div class="manager-stats-row">
-        <div class="stat-col">
-          <div class="stat-value">
-            {{ uploadingCount }}
-          </div>
-          <div class="stat-label">
-            Загружается
-          </div>
-        </div>
         <div class="stat-col">
           <div class="stat-value">
             {{ queuedCount }}
@@ -360,7 +351,7 @@ function handleRetryAll() {
 // 2. Stats Summary
 .manager-stats-row {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   gap: 8px;
   text-align: center;
 }

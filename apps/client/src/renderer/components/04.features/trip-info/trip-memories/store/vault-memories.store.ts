@@ -53,6 +53,7 @@ export const useVaultMemoriesStore = defineStore('vaultMemories', {
       current: 0,
       total: 0,
       loadedBytes: 0,
+      skippedCount: 0,
     },
   }),
 
@@ -109,6 +110,7 @@ export const useVaultMemoriesStore = defineStore('vaultMemories', {
         current: 0,
         total: 0,
         loadedBytes: 0,
+        skippedCount: 0,
       }
 
       const tasks = images.map(img => ({

@@ -7,6 +7,7 @@ export interface MemoryExportProgress {
   current: number
   total: number
   loadedBytes: number
+  skippedCount?: number
 }
 
 export function memoryExportName(image: Pick<TripMedia, 'id' | 'originalName' | 'name'>, prefix: string): string {
@@ -23,17 +24,23 @@ export function memoryExportName(image: Pick<TripMedia, 'id' | 'originalName' | 
 
 export async function exportMemoryFiles(media: TripMedia[], folder: string, progress: MemoryExportProgress): Promise<number> {
   let failed = 0
+  progress.skippedCount = 0
 
   for (const image of media) {
-    const exportId = image.id.slice(0, 8)
+    const exportId = image.id
 
     try {
-      progress.loadedBytes += await invoke<number>('memory_export_file', {
+      const bytes = await invoke<number>('memory_export_file', {
         folder,
         url: resolveApiUrl(image.url),
-        fileName: memoryExportName(image, `${exportId}-${progress.current + 1}`),
+        fileName: memoryExportName(image, exportId),
         mimeType: image.fileType || 'application/octet-stream',
       })
+
+      if (bytes === 0)
+        progress.skippedCount++
+      else
+        progress.loadedBytes += bytes
     }
     catch (error) {
       failed++

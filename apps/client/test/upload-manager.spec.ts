@@ -26,7 +26,7 @@ function createMockItem(
 }
 
 describe('uploading-indicator (Unified Upload Manager)', () => {
-  it('renders unified manager with statistics for uploading, queued and failed items', () => {
+  it('renders queue and error statistics without a redundant active upload count', () => {
     const memories: IProcessingMemory[] = [
       createMockItem(
         '1',
@@ -68,9 +68,10 @@ describe('uploading-indicator (Unified Upload Manager)', () => {
     expect(wrapper.text()).toContain('7 файлов')
 
     // Stats row
-    expect(wrapper.find('.stat-col:nth-child(1) .stat-value').text()).toBe('1')
-    expect(wrapper.find('.stat-col:nth-child(2) .stat-value').text()).toBe('5')
-    expect(wrapper.find('.stat-col:nth-child(3) .stat-value').text()).toBe('1')
+    expect(wrapper.findAll('.stat-col')).toHaveLength(2)
+    expect(wrapper.find('.stat-col:nth-child(1) .stat-value').text()).toBe('5')
+    expect(wrapper.find('.stat-col:nth-child(2) .stat-value').text()).toBe('1')
+    expect(wrapper.find('.manager-stats-row').text()).not.toContain('Загружается')
 
     // Active upload section
     expect(wrapper.text()).toContain('PXL_2026_1108.jpg')
