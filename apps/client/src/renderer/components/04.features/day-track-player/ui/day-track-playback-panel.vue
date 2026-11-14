@@ -97,6 +97,14 @@ const hoverPreview = ref<{
 const visibilityLabel = computed(() => routeVisibilityItems.find(item => item.value === props.routeVisibility)?.label ?? '')
 const visibilityIcon = computed(() => routeVisibilityItems.find(item => item.value === props.routeVisibility)?.icon ?? 'mdi:routes')
 const telemetryLabel = computed(() => `${props.currentActivityLabel}${props.speedKmh != null && props.speedKmh > 0.5 ? ` · ${props.speedKmh.toFixed(0)} км/ч` : ''}`)
+const mobileSettingsValue = computed(() => props.routeVisibility === 'recent' ? `recent-${props.trailMinutes}` : props.routeVisibility)
+const mobileSettingsItems = computed<KitDropdownItem<string>[]>(() => [
+  ...routeVisibilityItems.filter(item => item.value !== 'recent'),
+  ...[5, 15, 30, 60].map(value => ({ value: `recent-${value}`, label: `Последние ${value} мин`, icon: 'mdi:history' })),
+  { value: 'timezone', label: props.timezoneMode === 'track' ? 'Время записи → время устройства' : 'Время устройства → время записи', icon: 'mdi:clock-outline' },
+  { value: 'start', label: 'В начало дня', icon: 'mdi:skip-backward' },
+  { value: 'end', label: 'В конец дня', icon: 'mdi:skip-forward' },
+])
 const currentT = computed({
   get: () => props.t,
   set: (val: number) => emit('update:t', val),
@@ -184,6 +192,24 @@ const speedDropdownItems = computed<KitDropdownItem<number>[]>(() =>
     label: `${s}x скорость`,
   })))
 
+function selectMobileSetting(value: string) {
+  if (value === 'timezone') {
+    emit('toggleTimezone')
+  }
+  else if (value === 'start') {
+    emit('seekStart')
+  }
+  else if (value === 'end') {
+    emit('seekEnd')
+  }
+  else if (value === 'full' || value === 'elapsed') {
+    emit('update:routeVisibility', value)
+  }
+  else if (value.startsWith('recent-')) {
+    emit('update:trailMinutes', Number(value.slice(7)))
+    emit('update:routeVisibility', 'recent')
+  }
+}
 function formatTimeShort(ms: number): string {
   if (ms <= 0)
     return '--:--'
@@ -383,6 +409,27 @@ useEventListener(typeof window !== 'undefined' ? window : null, 'keydown', (e: K
           </template>
         </div>
       </div>
+      <div class="mobile-playback-settings">
+        <KitDropdown
+          :items="mobileSettingsItems"
+          :model-value="mobileSettingsValue"
+          align="end"
+          size="sm"
+          @update:model-value="selectMobileSetting"
+        >
+          <template #trigger>
+            <KitBtn
+              variant="text"
+              color="secondary"
+              size="sm"
+              aria-label="Настройки воспроизведения"
+              :title="`${visibilityLabel}${routeVisibility === 'recent' ? ` · ${trailMinutes} мин` : ''}. ${timezoneChipLabel}`"
+            >
+              <Icon icon="mdi:tune-variant" />
+            </KitBtn>
+          </template>
+        </KitDropdown>
+      </div>
     </div>
 
     <!-- Интеллектуальный таймлайн со сегментами активности и превью -->
@@ -495,7 +542,7 @@ useEventListener(typeof window !== 'undefined' ? window : null, 'keydown', (e: K
       <!-- Центральная группа кнопок воспроизведения -->
       <div class="playback-controls">
         <button
-          class="control-btn"
+          class="control-btn boundary-control"
           aria-label="В начало дня"
           title="В начало дня"
           @click="emit('seekStart')"
@@ -532,7 +579,7 @@ useEventListener(typeof window !== 'undefined' ? window : null, 'keydown', (e: K
         </button>
 
         <button
-          class="control-btn"
+          class="control-btn boundary-control"
           aria-label="В конец дня"
           title="В конец дня"
           @click="emit('seekEnd')"
@@ -551,7 +598,12 @@ useEventListener(typeof window !== 'undefined' ? window : null, 'keydown', (e: K
           @update:model-value="emit('update:speedMultiplier', $event)"
         >
           <template #trigger>
-            <button class="speed-pill-btn" type="button" title="Скорость воспроизведения">
+            <button
+              class="speed-pill-btn"
+              type="button"
+              title="Скорость воспроизведения"
+              :aria-label="`Скорость воспроизведения: ${speedMultiplier}×`"
+            >
               <Icon icon="mdi:play-speed" class="speed-icon" />
               <span class="speed-text">{{ speedMultiplier }}x</span>
               <Icon icon="mdi:chevron-down" class="chevron-icon" />
@@ -1242,73 +1294,104 @@ useEventListener(typeof window !== 'undefined' ? window : null, 'keydown', (e: K
     }
   }
 }
+.mobile-playback-settings {
+  display: none;
+}
 @media (max-width: 640px) {
-  .memories-panel .memories-readout {
-    display: grid;
-    grid-template-columns: auto minmax(0, 1fr) auto;
-    align-items: center;
-    gap: 4px;
-    flex-wrap: nowrap;
-    .readout-time-group {
-      grid-column: 1;
-      grid-row: 1;
-      height: auto;
-      gap: 4px;
-      .time {
-        font-size: clamp(1rem, 4.3vw, 1.15rem);
-        white-space: nowrap;
+  .memories-panel {
+    padding: 8px 10px;
+    gap: 6px;
+    .memories-readout {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr) 44px;
+      gap: 8px;
+      flex-wrap: nowrap;
+      .readout-time-group {
+        height: auto;
+        .time {
+          font-size: 1.15rem;
+          white-space: nowrap;
+        }
+        .tz-toggle-chip {
+          display: none;
+        }
       }
-      .tz-toggle-chip {
-        width: 44px;
-        height: 44px;
-        flex: 0 0 44px;
-        padding: 0;
-        justify-content: center;
-      }
-    }
-    .readout-telemetry {
-      grid-column: 2;
-      grid-row: 1;
-      justify-self: center;
-      min-width: 0;
-      .telemetry-pill {
-        gap: 4px;
-        padding: 0;
-        border: 0;
-        background: transparent;
-      }
-      .pill-label,
-      .pill-sep {
+      .route-visibility-controls {
         display: none;
       }
+      .readout-telemetry {
+        min-width: 0;
+        justify-self: end;
+        .telemetry-pill {
+          gap: 5px;
+          height: 28px;
+          padding: 0 7px;
+          font-size: 0.75rem;
+          border: 1px solid color-mix(in srgb, var(--act-color) 20%, transparent);
+          background: color-mix(in srgb, var(--act-color) 8%, transparent);
+          .pill-label {
+            display: inline;
+          }
+          .pill-speed,
+          .pill-sep {
+            display: none;
+          }
+        }
+      }
     }
-    .route-visibility-controls {
-      grid-column: 3;
-      grid-row: 1;
-      display: flex;
-      flex-wrap: nowrap;
-      gap: 0;
+    .mobile-playback-settings {
+      display: block;
       :deep(.kit-btn) {
         width: 44px;
-        min-width: 44px;
         height: 44px;
-        min-height: 44px;
         padding: 0;
-      }
-      .route-visibility-label,
-      .visibility-chevron,
-      .trail-unit {
-        display: none;
+        box-shadow: none;
+        font-size: 20px;
       }
     }
-  }
-  .memories-panel[data-route-visibility='recent'] .memories-readout .pill-speed {
-    display: none;
-  }
-}
-@media (max-width: 380px) {
-  .memories-panel .memories-readout .pill-speed {
-    display: none;
+    .timeline-container {
+      gap: 8px;
+      margin: 0;
+      .timeline-track-wrap {
+        height: 32px;
+      }
+    }
+    .memories-actions {
+      display: grid;
+      grid-template-columns: 44px minmax(0, 1fr) 44px;
+      gap: 4px;
+      .actions-left,
+      .actions-right {
+        min-width: 0;
+      }
+      .playback-controls {
+        justify-content: center;
+        .control-btn {
+          width: 44px;
+          height: 44px;
+          flex: 0 0 44px;
+          font-size: 22px;
+        }
+        .boundary-control {
+          display: none;
+        }
+        .play-btn {
+          width: 48px;
+          height: 48px;
+          flex-basis: 48px;
+          font-size: 26px;
+        }
+      }
+      .actions-right .speed-pill-btn {
+        width: 44px;
+        height: 44px;
+        padding: 0;
+        justify-content: center;
+        border-radius: var(--r-s);
+        background: transparent;
+        font-size: 0.85rem;
+      }
+    }
   }
 }
 </style>
