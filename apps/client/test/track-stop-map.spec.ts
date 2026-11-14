@@ -1,16 +1,41 @@
 import type { LayerSpecification, SourceSpecification } from 'maplibre-gl'
 import type { UseDayTrackMapOptions } from '../src/renderer/components/04.features/day-track-player/composables/use-day-track-map'
 import type { DayPoint, RenderSegment, RouteVisibility } from '../src/renderer/components/04.features/day-track-player/models/types'
-import { mount } from '@vue/test-utils'
+import { flushPromises, mount } from '@vue/test-utils'
 import { expect, it, vi } from 'vitest'
 import { computed, defineComponent, h, nextTick, ref, shallowRef } from 'vue'
 import { useDayTrackMap } from '../src/renderer/components/04.features/day-track-player/composables/use-day-track-map'
 
-const state = vi.hoisted(() => ({ map: null as unknown }))
+const state = vi.hoisted(() => ({ map: null as unknown, popupContents: [] as string[] }))
 vi.mock('~/components/01.kit/kit-map/composables/use-kit-map', () => ({
   useKitMap: () => ({ mapInstance: shallowRef(state.map), isMapReady: ref(true), initMap: vi.fn().mockResolvedValue(undefined) }),
 }))
-vi.mock('maplibre-gl', () => ({}))
+vi.mock('maplibre-gl', () => ({
+  Popup: class {
+    element: HTMLElement | null = null
+    opened = false
+    setDOMContent(element: HTMLElement) {
+      this.element = element
+
+      return this
+    }
+
+    setLngLat() { return this }
+    addTo() {
+      this.opened = true
+      state.popupContents.push(this.element?.textContent ?? '')
+
+      return this
+    }
+
+    isOpen() { return this.opened }
+    remove() {
+      this.opened = false
+
+      return this
+    }
+  },
+}))
 
 it('renders stops as individual unclustered points, preserves popup indices and hides labels below close zoom', async () => {
   const sources = new Map<string, { data: GeoJSON.FeatureCollection, config: SourceSpecification, setData: (data: GeoJSON.FeatureCollection) => void }>()
@@ -115,7 +140,7 @@ it('renders stops as individual unclustered points, preserves popup indices and 
       const mapApi = useDayTrackMap(options)
       selectedPointResult = mapApi.selectedPoint
 
-      return () => h('div')
+      return () => h('div', [h('div', { ref: options.popupHost }, mapApi.selectedPoint.value?.point.clientPointId ?? '')])
     },
   }))
   await nextTick()
@@ -144,7 +169,9 @@ it('renders stops as individual unclustered points, preserves popup indices and 
 
   // Клик по маркеру паузы выбирает именно эту точку
   click!({ point: { x: 0, y: 0 } })
-  await Promise.resolve()
+  await flushPromises()
+  expect(state.popupContents[0]).toBe('b')
+  expect(sources.get('day-track-selection-source')!.data.features[0].geometry).toEqual({ type: 'Point', coordinates: [48.001, 54.001] })
   expect((selectedPointResult as { value: { index: number, point: DayPoint } })?.value?.index).toBe(2)
 
   const mapMock = state.map as { fitBounds: ReturnType<typeof vi.fn> }

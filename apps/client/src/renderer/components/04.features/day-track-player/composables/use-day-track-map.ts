@@ -1,9 +1,10 @@
 import type { ComputedRef, Ref } from 'vue'
 import type { DayData, DayPoint, PointStatusBadge, RenderSegment, RouteVisibility, SelectedPointInfo, TrackPhoto, TrackPhotoCluster, ViewMode } from '../models/types'
 import * as maplibregl from 'maplibre-gl'
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useKitMap } from '~/components/01.kit/kit-map/composables/use-kit-map'
 import { haversineM, splitTrackIntoLegs } from '~/shared/services/tracking/track-processing'
+import { observeTrackPopupLayout } from '../lib/track-popup-layout'
 import { roundedRouteCoordinates } from '../lib/track-route-geometry'
 import { clipTrackLeg, upperTimeIndex } from '../lib/track-time-window'
 import { ACTIVITY_COLORS } from '../models/types'
@@ -131,6 +132,8 @@ export function useDayTrackMap(options: UseDayTrackMapOptions) {
 
   let playbackMarker: maplibregl.Marker | null = null
   let pointPopup: maplibregl.Popup | null = null
+  let stopPopupLayout: (() => void) | undefined
+  let popupResize: ResizeObserver | undefined
   let photoPopup: maplibregl.Popup | null = null
   let activePhotoMarkers: Array<{
     marker: maplibregl.Marker
@@ -173,16 +176,13 @@ export function useDayTrackMap(options: UseDayTrackMapOptions) {
       index,
       total: renderedPoints.length,
     }
-
-    if (pointPopup && mapInstance.value) {
-      pointPopup.setLngLat([p.lng, p.lat]).addTo(mapInstance.value)
-    }
   }
 
   const ROUTE_SOURCE_ID = 'day-track-route-source'
   const PROGRESS_SOURCE_ID = 'day-track-progress-source'
   const POINTS_SOURCE_ID = 'day-track-points-source'
   const PHOTO_ROUTE_SOURCE_ID = 'day-track-photo-route-source'
+  const SELECTION_SOURCE_ID = 'day-track-selection-source'
 
   const ROUTE_LAYER_ID = 'day-track-route-layer'
   const PROGRESS_GLOW_LAYER_ID = 'day-track-progress-glow-layer'
@@ -507,6 +507,23 @@ export function useDayTrackMap(options: UseDayTrackMapOptions) {
           'line-width': 2.5,
           'line-dasharray': [2, 3],
           'line-opacity': 0.75,
+        },
+      })
+    }
+
+    if (!map.getSource(SELECTION_SOURCE_ID))
+      map.addSource(SELECTION_SOURCE_ID, { type: 'geojson', data: selectionGeojson() })
+
+    if (!map.getLayer('day-track-selection-point')) {
+      map.addLayer({
+        id: 'day-track-selection-point',
+        type: 'circle',
+        source: SELECTION_SOURCE_ID,
+        paint: {
+          'circle-radius': 8,
+          'circle-color': ['get', 'color'],
+          'circle-stroke-color': '#ffffff',
+          'circle-stroke-width': 3,
         },
       })
     }
@@ -1178,13 +1195,28 @@ export function useDayTrackMap(options: UseDayTrackMapOptions) {
     }
 
     selectedPoint.value = selection
-    pointPopup?.setLngLat([selection.point.lng, selection.point.lat]).addTo(map)
   }
+
+  function selectionGeojson(): GeoJSON.FeatureCollection {
+    const point = selectedPoint.value?.point
+
+    return { type: 'FeatureCollection', features: point ? [{ type: 'Feature', properties: { color: ACTIVITY_COLORS[point.activity] }, geometry: { type: 'Point', coordinates: [point.lng, point.lat] } }] : [] }
+  }
+
+  // Vue renders the selected card before MapLibre measures it for anchoring.
+  watch(selectedPoint, async (selection) => {
+    (mapInstance.value?.getSource(SELECTION_SOURCE_ID) as maplibregl.GeoJSONSource | undefined)?.setData(selectionGeojson())
+    await nextTick()
+
+    if (selection && selectedPoint.value === selection && pointPopup && mapInstance.value)
+      pointPopup.setLngLat([selection.point.lng, selection.point.lat]).addTo(mapInstance.value)
+  }, { flush: 'post' })
 
   onMounted(async () => {
     if (!mapHost.value)
       return
 
+    stopPopupLayout = observeTrackPopupLayout(mapHost.value)
     await initMap(mapHost.value, null, { center: mapCenter, zoom: 11 })
     const map = mapInstance.value
 
@@ -1216,7 +1248,15 @@ export function useDayTrackMap(options: UseDayTrackMapOptions) {
         closeButton: false,
         closeOnClick: false,
         className: 'day-track-point-popup',
+        maxWidth: 'none',
       }).setDOMContent(popupHost.value)
+      popupResize = new ResizeObserver(() => {
+        const point = selectedPoint.value?.point
+
+        if (point && pointPopup?.isOpen())
+          pointPopup.setLngLat([point.lng, point.lat])
+      })
+      popupResize.observe(popupHost.value)
     }
 
     if (photoPopupHost?.value) {
@@ -1316,6 +1356,9 @@ export function useDayTrackMap(options: UseDayTrackMapOptions) {
   }
 
   onBeforeUnmount(() => {
+    popupResize?.disconnect()
+    stopPopupLayout?.()
+
     if (copyTimer)
       clearTimeout(copyTimer)
 

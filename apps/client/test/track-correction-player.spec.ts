@@ -7,7 +7,7 @@ import { createMemoryHistory, createRouter, createWebHashHistory, createWebHisto
 import { useDialogHistory, waitForDialogHistory } from '../src/renderer/components/01.kit/kit-dialog-with-close/composables/use-dialog-history'
 import Player from '../src/renderer/components/04.features/day-track-player/ui/day-track-player.vue'
 
-const api = vi.hoisted(() => ({ getDay: vi.fn(), correctActivities: vi.fn(), mapOptions: null as unknown as UseDayTrackMapOptions }))
+const api = vi.hoisted(() => ({ getDay: vi.fn(), correctActivities: vi.fn(), closePopup: vi.fn(), mapOptions: null as unknown as UseDayTrackMapOptions }))
 vi.mock('~/shared/services/database/tracking.service', () => ({ trackingService: api }))
 vi.mock('~/shared/services/tracking/geotrack-client', () => ({ deleteStoredPoint: vi.fn() }))
 vi.mock('~/shared/store/auth.store', () => ({ useAuthStore: () => ({ isAuthenticated: true }) }))
@@ -21,7 +21,7 @@ vi.mock('../src/renderer/components/04.features/day-track-player/composables/use
       selectedPoint: ref(null),
       isCopied: ref(false),
       centerCurrentPoint: vi.fn(),
-      closePointPopup: vi.fn(),
+      closePointPopup: api.closePopup,
       closePhotoPopup: vi.fn(),
     }
   },
@@ -94,6 +94,7 @@ function button(wrapper: Awaited<ReturnType<typeof setup>>, text: string) {
   return wrapper.findAll('button').find(b => b.text() === text)!
 }
 beforeEach(() => {
+  api.closePopup.mockReset()
   api.getDay.mockReset().mockImplementation(async () => structuredClone(data))
   api.correctActivities.mockReset().mockResolvedValue({ success: true })
 })
@@ -105,6 +106,7 @@ describe('batch correction player', () => {
     editor.vm.$emit('stage', { ...choice, startedAt: start + 100000, endedAt: start + 200000, activity: 'bike' })
     await flushPromises()
     expect(wrapper.text()).toContain('Изменений: 2')
+    expect(api.closePopup).toHaveBeenCalledTimes(2)
     expect(api.correctActivities).not.toHaveBeenCalled()
     expect(api.getDay).toHaveBeenCalledTimes(1)
     api.mapOptions.t.value = start + 170000
@@ -113,6 +115,7 @@ describe('batch correction player', () => {
     expect(api.correctActivities).toHaveBeenCalledTimes(1)
     expect(api.correctActivities.mock.calls[0][0].additions).toHaveLength(2)
     expect(api.getDay).toHaveBeenCalledTimes(2)
+    expect(api.closePopup).toHaveBeenCalledTimes(3)
     expect(api.mapOptions.t.value).toBe(start + 170000)
     expect(wrapper.find('.draft-toolbar').exists()).toBe(false)
     wrapper.unmount()

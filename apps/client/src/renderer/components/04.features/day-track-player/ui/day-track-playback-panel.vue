@@ -41,7 +41,6 @@ interface Props {
   renderSegments?: RenderSegment[]
   photoMarkers?: Array<{ id: string, tsUtc: number, percent: number, photo: TrackPhoto }>
 }
-
 // ─── 2. Визуальные сегменты таймлайна активности ────────────────────────────────
 interface VisualSegment {
   leftPercent: number
@@ -81,12 +80,11 @@ const emit = defineEmits<{
 }>()
 
 const routeVisibilityItems: KitDropdownItem<RouteVisibility>[] = [
-  { value: 'full', label: 'Весь маршрут' },
-  { value: 'elapsed', label: 'До текущего времени' },
-  { value: 'recent', label: 'Последний отрезок' },
+  { value: 'full', label: 'Весь маршрут', icon: 'mdi:routes' },
+  { value: 'elapsed', label: 'До текущего времени', icon: 'mdi:timeline-clock-outline' },
+  { value: 'recent', label: 'Последний отрезок', icon: 'mdi:history' },
 ]
 const trailItems = [5, 15, 30, 60].map(value => ({ value, label: `${value} мин` }))
-
 // ─── 3. Hover Preview на таймлайне (Scrubber tooltip) ───────────────────────────
 const timelineBarRef = ref<HTMLElement | null>(null)
 const hoverPreview = ref<{
@@ -96,6 +94,9 @@ const hoverPreview = ref<{
   activityColor?: string
 } | null>(null)
 
+const visibilityLabel = computed(() => routeVisibilityItems.find(item => item.value === props.routeVisibility)?.label ?? '')
+const visibilityIcon = computed(() => routeVisibilityItems.find(item => item.value === props.routeVisibility)?.icon ?? 'mdi:routes')
+const telemetryLabel = computed(() => `${props.currentActivityLabel}${props.speedKmh != null && props.speedKmh > 0.5 ? ` · ${props.speedKmh.toFixed(0)} км/ч` : ''}`)
 const currentT = computed({
   get: () => props.t,
   set: (val: number) => emit('update:t', val),
@@ -258,7 +259,6 @@ function handlePhotoDotClick(tsUtc: number) {
   emit('update:t', tsUtc)
   emit('seekPhoto', tsUtc)
 }
-
 // ─── 5. Горячие клавиши (Keyboard shortcuts) ───────────────────────────────────
 function isInteractiveTarget(target: HTMLElement | null): boolean {
   if (!target)
@@ -271,11 +271,9 @@ function isInteractiveTarget(target: HTMLElement | null): boolean {
     || isNonRangeInput(target)
     || Boolean(target.closest('button, [role="button"], [role="menuitem"], [role="option"], [role="combobox"], [role="listbox"], .kit-dropdown, a[href]'))
 }
-
 function isNonRangeInput(target: HTMLElement): boolean {
   return target.tagName === 'INPUT' && target.getAttribute('type') !== 'range'
 }
-
 function handleTimelineShortcut(e: KeyboardEvent) {
   if (e.code === 'Space') {
     e.preventDefault()
@@ -311,7 +309,7 @@ useEventListener(typeof window !== 'undefined' ? window : null, 'keydown', (e: K
 </script>
 
 <template>
-  <div class="memories-panel">
+  <div class="memories-panel" :data-route-visibility="routeVisibility">
     <slot name="draft-actions" />
     <!-- Верхняя строка: Телеметрия, Часовой пояс и Слежение камерой -->
     <div class="memories-readout">
@@ -319,6 +317,7 @@ useEventListener(typeof window !== 'undefined' ? window : null, 'keydown', (e: K
         <span class="time">{{ timeLabel }}</span>
         <button
           class="tz-toggle-chip"
+          :aria-label="`Переключить часовой пояс. Сейчас: ${timezoneMode === 'track' ? 'местное время записи' : 'время устройства'}`"
           :class="{ 'is-track': timezoneMode === 'track', 'is-device': timezoneMode === 'device' }"
           :title="timezoneMode === 'track'
             ? `Показывается местное время записи${trackTimezone ? ` (${trackTimezone})` : ''}. Нажмите для переключения на локальное время устройства (${deviceTimezone})`
@@ -337,11 +336,13 @@ useEventListener(typeof window !== 'undefined' ? window : null, 'keydown', (e: K
               size="sm"
               variant="text"
               color="secondary"
-              aria-label="Отображение маршрута"
+              class="route-visibility-trigger"
+              :aria-label="`Отображение маршрута: ${visibilityLabel}`"
+              :title="visibilityLabel"
             >
-              <Icon icon="mdi:routes" />
-              {{ routeVisibilityItems.find(item => item.value === routeVisibility)?.label }}
-              <Icon icon="mdi:chevron-down" />
+              <Icon :icon="visibilityIcon" />
+              <span class="route-visibility-label">{{ visibilityLabel }}</span>
+              <Icon icon="mdi:chevron-down" class="visibility-chevron" />
             </KitBtn>
           </template>
         </KitDropdown>
@@ -356,10 +357,11 @@ useEventListener(typeof window !== 'undefined' ? window : null, 'keydown', (e: K
               size="sm"
               variant="text"
               color="secondary"
-              aria-label="Длительность последнего отрезка"
+              :aria-label="`Длительность последнего отрезка: ${trailMinutes} минут`"
+              :title="`${trailMinutes} минут`"
             >
-              {{ trailMinutes }} мин
-              <Icon icon="mdi:chevron-down" />
+              {{ trailMinutes }}<span class="trail-unit">мин</span>
+              <Icon icon="mdi:chevron-down" class="visibility-chevron" />
             </KitBtn>
           </template>
         </KitDropdown>
@@ -368,6 +370,9 @@ useEventListener(typeof window !== 'undefined' ? window : null, 'keydown', (e: K
       <div class="readout-telemetry">
         <div
           class="telemetry-pill"
+          role="img"
+          :aria-label="telemetryLabel"
+          :title="telemetryLabel"
           :style="{ '--act-color': currentActivityColor }"
         >
           <Icon :icon="currentActivityIcon" class="pill-icon" />
@@ -1235,6 +1240,75 @@ useEventListener(typeof window !== 'undefined' ? window : null, 'keydown', (e: K
     .chevron-icon {
       display: none;
     }
+  }
+}
+@media (max-width: 640px) {
+  .memories-panel .memories-readout {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 4px;
+    flex-wrap: nowrap;
+    .readout-time-group {
+      grid-column: 1;
+      grid-row: 1;
+      height: auto;
+      gap: 4px;
+      .time {
+        font-size: clamp(1rem, 4.3vw, 1.15rem);
+        white-space: nowrap;
+      }
+      .tz-toggle-chip {
+        width: 44px;
+        height: 44px;
+        flex: 0 0 44px;
+        padding: 0;
+        justify-content: center;
+      }
+    }
+    .readout-telemetry {
+      grid-column: 2;
+      grid-row: 1;
+      justify-self: center;
+      min-width: 0;
+      .telemetry-pill {
+        gap: 4px;
+        padding: 0;
+        border: 0;
+        background: transparent;
+      }
+      .pill-label,
+      .pill-sep {
+        display: none;
+      }
+    }
+    .route-visibility-controls {
+      grid-column: 3;
+      grid-row: 1;
+      display: flex;
+      flex-wrap: nowrap;
+      gap: 0;
+      :deep(.kit-btn) {
+        width: 44px;
+        min-width: 44px;
+        height: 44px;
+        min-height: 44px;
+        padding: 0;
+      }
+      .route-visibility-label,
+      .visibility-chevron,
+      .trail-unit {
+        display: none;
+      }
+    }
+  }
+  .memories-panel[data-route-visibility='recent'] .memories-readout .pill-speed {
+    display: none;
+  }
+}
+@media (max-width: 380px) {
+  .memories-panel .memories-readout .pill-speed {
+    display: none;
   }
 }
 </style>
