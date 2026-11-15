@@ -75,6 +75,10 @@ impl<R: Runtime> Tracking<R> {
         self.0.run_mobile_plugin("exportMemory", payload).map_err(Into::into)
     }
 
+    pub fn memory_upload(&self, payload: serde_json::Value) -> Result<serde_json::Value> {
+        self.0.run_mobile_plugin("memoryUpload", payload).map_err(Into::into)
+    }
+
     pub fn start_memory_export(&self, payload: serde_json::Value) -> Result<bool> {
         self.0.run_mobile_plugin("startMemoryExport", payload).map_err(Into::into)
     }

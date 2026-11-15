@@ -132,7 +132,7 @@ function handleRetryAll() {
               <span class="active-filename">{{ currentUpload.file.name }}</span>
             </KitTooltip>
             <span class="active-meta">
-              {{ currentUpload.uploadedImage ? 'Обработка' : 'Загрузка' }} · {{ formatFileSize(currentUpload.file.size) }}
+              {{ currentUpload.preparing ? 'Подготовка к фоновой загрузке' : currentUpload.uploadedImage ? 'Обработка' : 'Загрузка' }} · {{ formatFileSize(currentUpload.file.size) }}
             </span>
           </div>
 

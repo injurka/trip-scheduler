@@ -8,10 +8,12 @@ import { useTripPlanStore } from '~/components/04.features/trip-info/trip-plan'
 import { useAbortRequest, useRequest, useRequestStatus, useRequestStore } from '~/plugins/request'
 import { getDatabaseService } from '~/plugins/request/lib/service'
 import { getLocalDate } from '~/shared/lib/date-time'
+import { isMobileApp } from '~/shared/lib/env'
 import { useOfflineStore } from '~/shared/store/offline.store'
 import { TripMediaPlacement } from '~/shared/types/models/trip'
 import { refreshImportedPhotoRating } from '../composables/refresh-imported-photo-rating'
 import { groupMemories } from '../lib/group-memories'
+import { runNativeMemoryUploads } from '../lib/native-memory-upload'
 
 const editedRatings = new WeakSet<Memory>()
 
@@ -115,6 +117,15 @@ export const useTripMemoriesStore = defineStore('tripMemories', {
     },
 
     async _processUploadQueue() {
+      if (isMobileApp && /android/i.test(navigator.userAgent)) {
+        const plan = useTripPlanStore()
+
+        if (plan.currentTripId)
+          await runNativeMemoryUploads(this, plan.currentTripId, plan.days.map(day => day.date?.slice(0, 10)).filter((date): date is string => !!date))
+
+        return
+      }
+
       const isUploading = this.getProcessingMemories.some(p => p.status === 'uploading')
 
       if (isUploading)
@@ -314,6 +325,18 @@ export const useTripMemoriesStore = defineStore('tripMemories', {
     },
 
     cancelMemoryUpload(tempId: string) {
+      if (isMobileApp && /android/i.test(navigator.userAgent)) {
+        void import('@tauri-apps/api/core').then(({ invoke }) => invoke('memory_upload', { operation: 'cancel', payload: { id: tempId } }))
+        const item = this.processingMemories.get(tempId)
+
+        if (item)
+          URL.revokeObjectURL(item.previewUrl)
+
+        this.processingMemories.delete(tempId)
+
+        return
+      }
+
       const { abort } = useAbortRequest()
       const requestKey = `${ETripMemoriesKeys.UPLOAD}:${tempId}`
       abort(requestKey)

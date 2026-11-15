@@ -357,6 +357,37 @@ class TrackingPlugin(private val activity: Activity) : Plugin(activity) {
     }
 
     @Command
+    fun memoryUpload(invoke: Invoke) {
+        val args = invoke.getArgs()
+        try {
+            when (args.getString("operation")) {
+                "stage" -> {
+                    Thread {
+                        try { MemoryUploadFiles.append(activity.applicationContext, args.getJSONObject("payload")); invoke.resolveObject(true) }
+                        catch (e: Exception) { invoke.reject(e.message ?: "Не удалось подготовить файл") }
+                    }.start()
+                    return
+                }
+                "start" -> {
+                    check(hasNotificationPermission()) { "Разрешите уведомления для фоновой загрузки" }
+                    MemoryUploadService.start(activity.applicationContext, args.getJSONObject("payload"))
+                }
+                "cancel" -> MemoryUploadService.cancelItem(args.getJSONObject("payload").getString("id"))
+                "stop" -> MemoryUploadService.cancelAll()
+                "status" -> {
+                    val status = MemoryUploadService.status()
+                    val result = JSObject()
+                    status.keys().forEach { key -> result.put(key, status.get(key)) }
+                    invoke.resolve(result)
+                    return
+                }
+                else -> throw IllegalArgumentException("Unknown operation")
+            }
+            invoke.resolveObject(true)
+        } catch (e: Exception) { invoke.reject(e.message ?: "Ошибка фоновой загрузки") }
+    }
+
+    @Command
     fun startMemoryExport(invoke: Invoke) {
         if (!hasNotificationPermission()) {
             invoke.reject("Разрешите уведомления для фонового скачивания")

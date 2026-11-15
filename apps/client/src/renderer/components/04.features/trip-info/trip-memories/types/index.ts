@@ -6,6 +6,7 @@ export interface IProcessingMemory {
   file: File
   previewUrl: string
   status: 'queued' | 'uploading' | 'error' | 'success'
+  preparing?: boolean
   progress: number
   error?: string
   uploadedImage?: TripImage

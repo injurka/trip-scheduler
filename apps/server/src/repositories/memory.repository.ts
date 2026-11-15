@@ -28,6 +28,15 @@ export const memoryRepository = {
       const [image] = data.imageId
         ? await tx.select({ metadata: tripImages.metadata }).from(tripImages).where(and(eq(tripImages.id, data.imageId), eq(tripImages.tripId, data.tripId))).for('update')
         : []
+      // Native uploads can retry finalization after an acknowledgement is lost.
+      // The image lock above serializes concurrent attempts without changing existing edits.
+      if (data.imageId) {
+        const existing = await tx.query.memories.findFirst({
+          where: and(eq(memories.tripId, data.tripId), eq(memories.imageId, data.imageId)),
+        })
+        if (existing)
+          return existing
+      }
       const [created] = await tx.insert(memories)
         .values({
           tripId: data.tripId,

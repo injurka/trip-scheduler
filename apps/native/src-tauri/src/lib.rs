@@ -256,6 +256,20 @@ async fn memory_export_file(
     }
 }
 
+#[tauri::command]
+async fn memory_upload(app: tauri::AppHandle, operation: String, payload: Option<serde_json::Value>) -> Result<serde_json::Value, String> {
+    #[cfg(mobile)]
+    {
+        use tauri_plugin_tracking::TrackingExt;
+        app.tracking().memory_upload(serde_json::json!({ "operation": operation, "payload": payload })).map_err(|e| e.to_string())
+    }
+    #[cfg(desktop)]
+    {
+        let _ = (app, operation, payload);
+        Err("Android background upload only".into())
+    }
+}
+
 /// Android owns the complete batch so WebView suspension cannot pause the queue.
 #[tauri::command]
 async fn memory_export_start(app: tauri::AppHandle, files: Vec<serde_json::Value>) -> Result<bool, String> {
@@ -644,6 +658,7 @@ pub fn run() {
             memory_export_folder,
             memory_export_file,
             memory_export_start,
+            memory_upload,
             memory_export_status,
             download_app_update,
             open_downloaded_apk,
