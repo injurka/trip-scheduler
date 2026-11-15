@@ -16,10 +16,12 @@ import android.content.pm.ServiceInfo
 import android.location.Location
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
 import android.os.HandlerThread
 import android.os.IBinder
 import android.os.Looper
 import android.os.PowerManager
+import android.os.SystemClock
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import com.google.android.gms.location.ActivityRecognition
@@ -47,7 +49,17 @@ class TrackingService : Service() {
     private var wakeLock: PowerManager.WakeLock? = null
     private var activityBroadcastReceiver: BroadcastReceiver? = null
     private var activityPendingIntent: PendingIntent? = null
-    private var recordedCount = 0
+    private var sessionStartedAt = 0L
+    @Volatile private var lastFixElapsedMs: Long? = null
+    @Volatile private var notificationAccuracy: Float? = null
+    private val notificationHandler = Handler(Looper.getMainLooper())
+    private val notificationRefresh = object : Runnable {
+        override fun run() {
+            if (!isRunning && !isStarting) return
+            updateTrackingNotification()
+            notificationHandler.postDelayed(this, 15_000L)
+        }
+    }
 
     companion object {
         const val CHANNEL_ID = "tripscheduler_tracking_channel"
@@ -57,6 +69,7 @@ class TrackingService : Service() {
         const val ACTION_ACTIVITY_UPDATE = "ru.tripscheduler.tracking.ACTIVITY_UPDATE"
         private const val BUFFER_FILENAME = "tracking_buffered_points.jsonl"
         private const val PREFS_NAME = "tracking_service_prefs"
+        private const val KEY_SESSION_STARTED_AT = "notification_session_started_at"
         private const val KEY_EXPLICITLY_STOPPED = "explicitly_stopped"
         private val fileLock = Any()
 
@@ -66,6 +79,9 @@ class TrackingService : Service() {
                     .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
                     .edit()
                     .putBoolean(KEY_EXPLICITLY_STOPPED, stopped)
+                    .apply {
+                        if (stopped) remove(KEY_SESSION_STARTED_AT)
+                    }
                     .apply()
             } catch (e: Exception) {
                 android.util.Log.w("TrackingService", "Error saving explicitly_stopped state", e)
@@ -305,7 +321,8 @@ class TrackingService : Service() {
         }
     }
 
-    private fun buildNotification(statusText: String): Notification {
+    private fun buildNotification(): Notification {
+        val statusText = TrackingNotificationContent.status(SystemClock.elapsedRealtime(), lastFixElapsedMs, notificationAccuracy)
         val launchIntent = packageManager.getLaunchIntentForPackage(packageName)
         val pendingIntent = if (launchIntent != null) {
             PendingIntent.getActivity(
@@ -316,28 +333,23 @@ class TrackingService : Service() {
             )
         } else null
 
-        val stopIntent = Intent(this, TrackingService::class.java).apply {
-            action = ACTION_STOP
-        }
-        val stopPendingIntent = PendingIntent.getService(
-            this,
-            1,
-            stopIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT or (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0)
-        )
-
-        val appIcon = applicationInfo.icon.takeIf { it != 0 } ?: android.R.drawable.ic_menu_mylocation
-
         val builder = NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("TripScheduler: Запись маршрута")
+            .setContentTitle("Запись маршрута")
             .setContentText(statusText)
-            .setSmallIcon(appIcon)
+            .setSmallIcon(R.drawable.ic_notification_trip)
             .setOngoing(true)
+            .setOnlyAlertOnce(true)
+            .setSilent(true)
+            .setWhen(sessionStartedAt)
+            .setShowWhen(true)
+            .setUsesChronometer(true)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setCategory(NotificationCompat.CATEGORY_SERVICE)
             .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
-            .addAction(android.R.drawable.ic_menu_close_clear_cancel, "Остановить", stopPendingIntent)
 
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            builder.setColor(getColor(android.R.color.system_accent1_600))
+        }
         if (pendingIntent != null) {
             builder.setContentIntent(pendingIntent)
         }
@@ -348,11 +360,15 @@ class TrackingService : Service() {
     @SuppressLint("MissingPermission")
     private fun startTracking() {
         if (!isRunning && !isStarting) {
-            recordedCount = countBufferedPoints(applicationContext)
+            val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            val now = System.currentTimeMillis()
+            val saved = prefs.getLong(KEY_SESSION_STARTED_AT, 0L)
+            sessionStartedAt = saved.takeIf { it in 1..now } ?: now
+            prefs.edit().putLong(KEY_SESSION_STARTED_AT, sessionStartedAt).apply()
         }
 
         // Обязательно сразу вызываем startForeground, соблюдая 5-секундный контракт Android 8+
-        val notification = buildNotification(if (recordedCount > 0) "Записано точек: $recordedCount" else "GPS-трекинг активен")
+        val notification = buildNotification()
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 startForeground(
@@ -371,6 +387,8 @@ class TrackingService : Service() {
 
         if (isRunning || isStarting) return
         isStarting = true
+        notificationHandler.removeCallbacks(notificationRefresh)
+        notificationHandler.post(notificationRefresh)
         markExplicitlyStopped(this, false)
 
         // 1. Захватываем CPU Partial WakeLock для предотвращения сна процессора при заблокированном экране
@@ -551,7 +569,10 @@ class TrackingService : Service() {
     }
 
     private fun handleLocation(location: Location) {
-        recordedCount++
+        if (!isRunning && !isStarting) return
+        val firstFix = lastFixElapsedMs == null
+        lastFixElapsedMs = location.elapsedRealtimeNanos / 1_000_000L
+        notificationAccuracy = if (location.hasAccuracy()) location.accuracy else null
 
         // 0. Приклеиваем к точке текущее состояние Activity Recognition: без него
         //    классификация видит только координаты и на плохом приёме путает покой с движением.
@@ -571,19 +592,26 @@ class TrackingService : Service() {
             android.util.Log.w("TrackingService", "Error dispatching location update", e)
         }
 
-        // 4. Периодически обновляем статус в шторке и на экране блокировки
-        if (recordedCount % 5 == 0) {
-            try {
-                val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-                manager.notify(NOTIFICATION_ID, buildNotification("Записано точек: $recordedCount"))
-            } catch (_: Exception) {}
+        // First fix is visible immediately; subsequent refreshes are rate-limited by the handler.
+        if (firstFix) notificationHandler.post { updateTrackingNotification() }
+    }
+
+    private fun updateTrackingNotification() {
+        if (!isRunning && !isStarting) return
+        try {
+            getSystemService(NotificationManager::class.java)?.notify(NOTIFICATION_ID, buildNotification())
+        } catch (error: Exception) {
+            android.util.Log.w("TrackingService", "Notification update failed", error)
         }
     }
 
     private fun stopTracking() {
+        notificationHandler.removeCallbacks(notificationRefresh)
         if (!isRunning && !isStarting) return
         isStarting = false
         isRunning = false
+        lastFixElapsedMs = null
+        notificationAccuracy = null
         onStateChanged?.invoke(false)
 
         stopActivityRecognition()
