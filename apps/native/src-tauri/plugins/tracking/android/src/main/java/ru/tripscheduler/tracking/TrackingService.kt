@@ -66,6 +66,8 @@ class TrackingService : Service() {
         const val NOTIFICATION_ID = 90210
         const val ACTION_START = "ru.tripscheduler.tracking.START"
         const val ACTION_STOP = "ru.tripscheduler.tracking.STOP"
+        private const val ACTION_NOTIFICATION_DISMISSED = "ru.tripscheduler.tracking.NOTIFICATION_DISMISSED"
+        private const val EXTRA_NOTIFICATION_SESSION = "notification_session"
         const val ACTION_ACTIVITY_UPDATE = "ru.tripscheduler.tracking.ACTIVITY_UPDATE"
         private const val BUFFER_FILENAME = "tracking_buffered_points.jsonl"
         private const val PREFS_NAME = "tracking_service_prefs"
@@ -285,6 +287,21 @@ class TrackingService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        if (intent?.action == ACTION_NOTIFICATION_DISMISSED) {
+            // Android 14+ allows swiping ongoing notifications. Restore immediately,
+            // without restarting GPS or treating a stale dismissal as a new session.
+            if (isRunning || isStarting) {
+                if (!isExplicitlyStopped(this) &&
+                    intent.getLongExtra(EXTRA_NOTIFICATION_SESSION, 0L) == sessionStartedAt
+                ) {
+                    updateTrackingNotification()
+                }
+                return START_STICKY
+            }
+            stopSelf(startId)
+            return START_NOT_STICKY
+        }
+
         if (intent?.action == ACTION_STOP) {
             markExplicitlyStopped(this, true)
             stopTracking()
@@ -333,11 +350,22 @@ class TrackingService : Service() {
             )
         } else null
 
+        val dismissIntent = PendingIntent.getService(
+            this,
+            3,
+            Intent(this, TrackingService::class.java)
+                .setAction(ACTION_NOTIFICATION_DISMISSED)
+                .putExtra(EXTRA_NOTIFICATION_SESSION, sessionStartedAt),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
         val builder = NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("Запись маршрута")
             .setContentText(statusText)
             .setSmallIcon(R.drawable.ic_notification_trip)
             .setOngoing(true)
+            .setAutoCancel(false)
+            .setDeleteIntent(dismissIntent)
             .setOnlyAlertOnce(true)
             .setSilent(true)
             .setWhen(sessionStartedAt)
