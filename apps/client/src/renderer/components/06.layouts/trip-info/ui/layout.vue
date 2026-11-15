@@ -8,6 +8,7 @@ import { KitTooltip } from '~/components/01.kit/kit-tooltip'
 import { AppFooter } from '~/components/02.shared/app-footer'
 import { AppHeader } from '~/components/02.shared/app-header'
 import { BackgroundEffects } from '~/components/02.shared/background-effects'
+import { OfflineBanner } from '~/components/02.shared/offline-banner'
 import { ThemeManager } from '~/components/02.shared/theme-manager'
 import { TripCommentsWidget } from '~/components/04.features/trip-info/trip-comments'
 import { useModuleStore } from '~/components/05.modules/trip-info'
@@ -126,7 +127,11 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <AppHeader />
+  <AppHeader>
+    <template #center>
+      <OfflineBanner />
+    </template>
+  </AppHeader>
 
   <main class="main" :class="{ 'is-notes-view': isNotesView }">
     <div class="main-content">
@@ -338,7 +343,7 @@ onBeforeUnmount(() => {
   &.is-notes-view {
     flex: 0 0 auto;
     // Keyboard-Aware: редактор заметок сжимается до видимой области над клавиатурой
-    height: calc(var(--visible-height, 100dvh) - var(--offline-banner-offset, 0px));
+    height: var(--visible-height, 100dvh);
     min-height: 0;
     overflow: hidden;
   }

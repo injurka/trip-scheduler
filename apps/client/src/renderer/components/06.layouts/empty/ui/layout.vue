@@ -1,6 +1,7 @@
 <script lang="ts" setup>
 import { useRoute } from 'vue-router'
 import { BackgroundEffects } from '~/components/02.shared/background-effects'
+import { OfflineBanner } from '~/components/02.shared/offline-banner'
 import { AppRouteNames, AppRoutePaths } from '~/shared/constants/routes'
 import { isMobileApp } from '~/shared/lib/env'
 
@@ -20,6 +21,8 @@ const route = useRoute()
     <div class="main-content">
       <slot />
     </div>
+
+    <OfflineBanner class="empty-layout-offline-status" />
 
     <BackgroundEffects />
   </main>
@@ -71,5 +74,12 @@ const route = useRoute()
   min-height: 0;
   width: 100%;
   height: 100%;
+}
+
+.empty-layout-offline-status {
+  position: absolute;
+  top: calc(var(--safe-area-inset-top, 0px) + 8px);
+  left: max(12px, var(--safe-area-inset-left, 0px));
+  z-index: 11;
 }
 </style>

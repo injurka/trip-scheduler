@@ -153,6 +153,7 @@ onMounted(() => {
 </script>
 
 <template>
+  <div v-if="isMobileApp" class="header-system-bar" aria-hidden="true" />
   <header
     class="header"
     :class="{
@@ -320,9 +321,18 @@ onMounted(() => {
 </template>
 
 <style lang="scss" scoped>
+.header-system-bar {
+  position: fixed;
+  inset: 0 0 auto;
+  height: var(--safe-area-inset-top, 0px);
+  background-color: var(--bg-primary-color);
+  pointer-events: none;
+  z-index: 7;
+}
+
 .header {
   position: fixed;
-  top: var(--offline-banner-offset, 0px);
+  top: 0;
   left: 0;
   right: 0;
   display: flex;
@@ -330,7 +340,6 @@ onMounted(() => {
   width: 100%;
   z-index: 7;
   transition:
-    top 0.3s cubic-bezier(0.4, 0, 0.2, 1),
     backdrop-filter 0.3s ease,
     background-color 0.3s ease,
     transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
@@ -430,11 +439,11 @@ onMounted(() => {
 
   &--small-screen {
     .header-content {
-      grid-template-columns: auto 1fr auto;
+      grid-template-columns: auto minmax(0, 1fr) auto;
       gap: 8px;
     }
     .header-center {
-      display: none;
+      display: flex;
     }
     .header-left {
       justify-self: start;
@@ -446,10 +455,10 @@ onMounted(() => {
 
   &-content {
     width: 100%;
-    height: 100%;
+    height: var(--header-height);
     margin: 0 auto;
     font-family: var(--font-base);
-    padding: 0 12px;
+    padding: 0 max(12px, var(--safe-area-inset-right, 0px)) 0 max(12px, var(--safe-area-inset-left, 0px));
     align-items: center;
 
     display: grid;
@@ -555,6 +564,7 @@ onMounted(() => {
     justify-content: center;
     height: 40px;
     position: relative;
+    min-width: 0;
   }
 
   &-right {
@@ -801,13 +811,13 @@ onMounted(() => {
 @include media-down(sm) {
   .header {
     &-content {
-      padding: 0 8px;
-      grid-template-columns: auto 1fr auto;
+      padding: 0 max(8px, var(--safe-area-inset-right, 0px)) 0 max(8px, var(--safe-area-inset-left, 0px));
+      grid-template-columns: auto minmax(0, 1fr) auto;
       gap: 4px;
     }
 
     &-center {
-      display: none;
+      display: flex;
     }
 
     &-left {

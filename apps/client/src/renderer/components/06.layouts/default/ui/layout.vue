@@ -2,12 +2,17 @@
 import { AppFooter } from '~/components/02.shared/app-footer'
 import { AppHeader } from '~/components/02.shared/app-header'
 import { BackgroundEffects } from '~/components/02.shared/background-effects'
+import { OfflineBanner } from '~/components/02.shared/offline-banner'
 import { ThemeManager } from '~/components/02.shared/theme-manager'
 </script>
 
 <template>
   <!-- eslint-disable vue/no-multiple-template-root -->
-  <AppHeader />
+  <AppHeader>
+    <template #center>
+      <OfflineBanner />
+    </template>
+  </AppHeader>
 
   <main class="main">
     <div class="main-content">

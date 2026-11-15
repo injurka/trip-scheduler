@@ -3,7 +3,6 @@ import { useHead, useSeoMeta } from '@vueuse/head'
 import { ConfigProvider } from 'reka-ui'
 import { AppUpdatePrompt } from '~/components/02.shared/app-update-prompt'
 import { ConfirmDialogManager } from '~/components/02.shared/confirm-dialog-manager'
-import { OfflineBanner } from '~/components/02.shared/offline-banner'
 import { ReloadPrompt } from '~/components/02.shared/reload-prompt'
 import { ToastManager } from '~/components/02.shared/toast-manager'
 import { useKeyboardAwareLayout } from '~/shared/composables/use-keyboard-aware-layout'
@@ -113,8 +112,6 @@ onMounted(async () => {
 
 <template>
   <ConfigProvider :scroll-body="false">
-    <OfflineBanner />
-
     <component
       :is="layouts[layout]"
       :key="`${layout}:${authStore.user?.id || 'guest'}`"
@@ -136,22 +133,3 @@ onMounted(async () => {
     <OfflineProgressDialog />
   </ConfigProvider>
 </template>
-
-<style lang="scss">
-#app {
-  --offline-banner-height: 40px;
-  --offline-banner-offset: 0px;
-
-  padding-top: var(--offline-banner-offset);
-}
-
-html[data-offline='true'] #app {
-  --offline-banner-offset: var(--offline-banner-height);
-}
-
-@media (max-width: 600px) {
-  #app {
-    --offline-banner-height: 36px;
-  }
-}
-</style>
