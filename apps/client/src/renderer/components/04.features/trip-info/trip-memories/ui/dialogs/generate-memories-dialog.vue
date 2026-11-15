@@ -1,10 +1,13 @@
 <script setup lang="ts">
+import type { Time } from '@internationalized/date'
 import type { Memory, MemoryProposal } from '~/shared/types/models/memory'
 import { Icon } from '@iconify/vue'
+import { parseTime } from '@internationalized/date'
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
-import { KitBottomSheet } from '~/components/01.kit/kit-bottom-sheet'
 import { KitBtn } from '~/components/01.kit/kit-btn'
+import { KitDialogWithClose } from '~/components/01.kit/kit-dialog-with-close'
 import { KitInput } from '~/components/01.kit/kit-input'
+import { KitTimeField } from '~/components/01.kit/kit-time-field'
 import { useRequest } from '~/plugins/request'
 import { useVoiceRecorder } from '../../composables/use-voice-recorder'
 
@@ -127,6 +130,14 @@ function adjustTextareaHeight() {
   const newHeight = Math.min(Math.max(textareaRef.value.scrollHeight, 100), 220)
   textareaRef.value.style.height = `${newHeight}px`
 }
+function previewTime(value: string) {
+  return /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(value) ? parseTime(value) : null
+}
+function updateTime(block: MemoryProposal['blocks'][number], value: Time | null | undefined) {
+  block.time = value?.toString().slice(0, 5) ?? ''
+  block.timeEstimated = false
+}
+
 function close(value: boolean) {
   if (!busy.value && !transcribing.value) {
     voiceRecorder.reset()
@@ -299,19 +310,19 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <KitBottomSheet
-    :model-value="visible"
+  <KitDialogWithClose
+    :visible="visible"
+    :persistent="busy || transcribing"
     :title="preview ? 'Предпросмотр воспоминаний' : 'Создать воспоминание'"
     icon="mdi:auto-fix"
-    max-height="92dvh"
-    max-width="580px"
-    @update:model-value="close"
+    :max-width="680"
+    @update:visible="close"
   >
     <div class="sheet-content" :aria-busy="busy || transcribing">
       <!-- ЭТАП 1: ВВОД РАССКАЗА -->
       <template v-if="!preview">
         <p class="sheet-subtitle">
-          Расскажи, что произошло, а ИИ поможет оформить это в воспоминания дня.
+          Расскажи, что произошло. ИИ учтёт план дня и уже сохранённые воспоминания поездки, включая заметки и время событий.
         </p>
 
         <!-- Главная карточка рассказа -->
@@ -555,11 +566,12 @@ onBeforeUnmount(() => {
 
             <!-- Время блока -->
             <div v-if="block.type !== 'description'" class="block-time-row">
-              <KitInput
-                v-model="block.time"
-                type="time"
-                label="Время"
+              <span class="time-label">Время</span>
+              <KitTimeField
+                :model-value="previewTime(block.time)"
                 :disabled="busy"
+                :hour-cycle="24"
+                @update:model-value="updateTime(block, $event)"
               />
             </div>
 
@@ -593,15 +605,14 @@ onBeforeUnmount(() => {
           <span>Перед сохранением можно проверить и изменить результат</span>
         </div>
 
-        <button
-          type="button"
+        <KitBtn
           class="primary-action-btn"
           :disabled="busy || transcribing || !text.trim()"
           @click="generate"
         >
           <Icon :icon="busy ? 'mdi:loading' : 'mdi:auto-fix'" :class="{ 'spin-icon': busy }" />
           <span>{{ busy ? 'Готовим воспоминания…' : 'Создать предпросмотр' }}</span>
-        </button>
+        </KitBtn>
       </div>
 
       <!-- Футер этапа предпросмотра -->
@@ -616,23 +627,22 @@ onBeforeUnmount(() => {
           <span>К рассказу</span>
         </KitBtn>
 
-        <button
-          type="button"
+        <KitBtn
           class="primary-action-btn"
           :disabled="busy || !canSave"
           @click="save"
         >
           <Icon :icon="busy ? 'mdi:loading' : 'mdi:check'" :class="{ 'spin-icon': busy }" />
           <span>{{ busy ? 'Сохраняем…' : `Сохранить (${blocks.length})` }}</span>
-        </button>
+        </KitBtn>
       </div>
     </template>
-  </KitBottomSheet>
+  </KitDialogWithClose>
 </template>
 
 <style scoped lang="scss">
 .sheet-content {
-  padding: 12px 16px 8px;
+  padding: 0;
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -660,12 +670,12 @@ onBeforeUnmount(() => {
     box-shadow 0.2s ease;
 
   &:focus-within {
-    border-color: var(--color-primary-500, #f97316);
+    border-color: var(--fg-accent-color);
   }
 
   &.is-recording {
-    border-color: #ef4444;
-    box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.15);
+    border-color: var(--fg-error-color);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--fg-error-color) 15%, transparent);
   }
 }
 
@@ -684,7 +694,7 @@ onBeforeUnmount(() => {
   overflow-y: auto;
 
   &::placeholder {
-    color: var(--fg-muted-color, #71717a);
+    color: var(--fg-muted-color);
   }
 }
 
@@ -711,7 +721,7 @@ onBeforeUnmount(() => {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  color: var(--color-primary-500, #f97316);
+  color: var(--fg-accent-color);
   font-weight: 500;
 
   .draft-clear-btn {
@@ -732,7 +742,7 @@ onBeforeUnmount(() => {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  color: #ef4444;
+  color: var(--fg-error-color);
   font-weight: 600;
 }
 
@@ -740,7 +750,7 @@ onBeforeUnmount(() => {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background-color: #ef4444;
+  background-color: var(--fg-error-color);
   animation: pulse-dot 1.2s infinite ease-in-out;
 }
 
@@ -748,7 +758,7 @@ onBeforeUnmount(() => {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  color: #f59e0b;
+  color: var(--fg-warning-color);
   font-weight: 500;
 }
 
@@ -756,7 +766,7 @@ onBeforeUnmount(() => {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  color: var(--color-primary-500, #f97316);
+  color: var(--fg-accent-color);
   font-weight: 500;
 }
 
@@ -777,7 +787,7 @@ onBeforeUnmount(() => {
 
   .mic-icon {
     font-size: 1.25rem;
-    color: var(--color-primary-500, #f97316);
+    color: var(--fg-accent-color);
   }
 
   &:hover {
@@ -786,21 +796,21 @@ onBeforeUnmount(() => {
   }
 
   &.is-recording {
-    background: #ef4444;
-    border-color: #ef4444;
+    background: var(--fg-error-color);
+    border-color: var(--fg-error-color);
     animation: mic-pulse 1.4s infinite;
 
     .mic-icon {
-      color: #fff;
+      color: var(--fg-inverted-color);
     }
   }
 
   &.is-paused {
-    background: #f59e0b;
-    border-color: #f59e0b;
+    background: var(--fg-warning-color);
+    border-color: var(--fg-warning-color);
 
     .mic-icon {
-      color: #fff;
+      color: var(--fg-inverted-color);
     }
   }
 
@@ -839,7 +849,7 @@ onBeforeUnmount(() => {
 .wave-bar {
   width: 3px;
   height: 100%;
-  background-color: #ef4444;
+  background-color: var(--fg-error-color);
   border-radius: 2px;
   animation: wave 1s infinite ease-in-out;
 
@@ -858,7 +868,7 @@ onBeforeUnmount(() => {
 
   &.paused {
     animation-play-state: paused;
-    background-color: #f59e0b;
+    background-color: var(--fg-warning-color);
   }
 }
 
@@ -894,9 +904,9 @@ onBeforeUnmount(() => {
   }
 
   &.primary {
-    background: var(--color-primary-500, #f97316);
-    border-color: var(--color-primary-500, #f97316);
-    color: #fff;
+    background: var(--fg-accent-color);
+    border-color: var(--fg-accent-color);
+    color: var(--fg-inverted-color);
 
     &:hover {
       opacity: 0.92;
@@ -904,11 +914,11 @@ onBeforeUnmount(() => {
   }
 
   &.danger {
-    color: #ef4444;
+    color: var(--fg-error-color);
     padding: 6px 10px;
 
     &:hover {
-      background: rgba(239, 68, 68, 0.12);
+      background: color-mix(in srgb, var(--fg-error-color) 12%, transparent);
     }
   }
 }
@@ -942,8 +952,8 @@ onBeforeUnmount(() => {
   height: 34px;
   border-radius: 50%;
   border: none;
-  background: var(--color-primary-500, #f97316);
-  color: #fff;
+  background: var(--fg-accent-color);
+  color: var(--fg-inverted-color);
   cursor: pointer;
   font-size: 1.125rem;
   flex-shrink: 0;
@@ -985,8 +995,8 @@ onBeforeUnmount(() => {
   font-size: 1.125rem;
 
   &:hover {
-    color: #ef4444;
-    background: rgba(239, 68, 68, 0.1);
+    color: var(--fg-error-color);
+    background: color-mix(in srgb, var(--fg-error-color) 10%, transparent);
   }
 }
 
@@ -999,8 +1009,8 @@ onBeforeUnmount(() => {
   padding: 10px 16px;
   border-radius: var(--r-s);
   border: none;
-  background: linear-gradient(135deg, var(--color-primary-500, #f97316), #ea580c);
-  color: #fff;
+  background: var(--fg-accent-color);
+  color: var(--fg-inverted-color);
   font-size: 0.875rem;
   font-weight: 600;
   cursor: pointer;
@@ -1023,9 +1033,9 @@ onBeforeUnmount(() => {
   gap: 8px;
   padding: 8px 12px;
   border-radius: var(--r-s);
-  background: rgba(16, 185, 129, 0.12);
-  border: 1px solid rgba(16, 185, 129, 0.25);
-  color: #10b981;
+  background: color-mix(in srgb, var(--fg-success-color) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--fg-success-color) 25%, transparent);
+  color: var(--fg-success-color);
   font-size: 0.8125rem;
 }
 
@@ -1035,9 +1045,9 @@ onBeforeUnmount(() => {
   gap: 8px;
   padding: 8px 12px;
   border-radius: var(--r-s);
-  background: rgba(239, 68, 68, 0.12);
-  border: 1px solid rgba(239, 68, 68, 0.25);
-  color: #ef4444;
+  background: color-mix(in srgb, var(--fg-error-color) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--fg-error-color) 25%, transparent);
+  color: var(--fg-error-color);
   font-size: 0.8125rem;
 }
 
@@ -1046,8 +1056,6 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  max-height: 55dvh;
-  overflow-y: auto;
   padding-right: 2px;
 }
 
@@ -1061,15 +1069,15 @@ onBeforeUnmount(() => {
   gap: 10px;
 
   &.type-activity {
-    border-left: 3px solid var(--color-primary-500, #f97316);
+    border-left: 3px solid var(--fg-accent-color);
   }
 
   &.type-note {
-    border-left: 3px solid #3b82f6;
+    border-left: 3px solid var(--fg-info-color);
   }
 
   &.type-description {
-    border-left: 3px solid #10b981;
+    border-left: 3px solid var(--fg-success-color);
   }
 }
 
@@ -1097,18 +1105,18 @@ onBeforeUnmount(() => {
   border-radius: var(--r-xs);
 
   &.badge-activity {
-    background: rgba(249, 115, 22, 0.15);
-    color: var(--color-primary-500, #f97316);
+    background: color-mix(in srgb, var(--fg-accent-color) 15%, transparent);
+    color: var(--fg-accent-color);
   }
 
   &.badge-note {
-    background: rgba(59, 130, 246, 0.15);
-    color: #3b82f6;
+    background: color-mix(in srgb, var(--fg-info-color) 15%, transparent);
+    color: var(--fg-info-color);
   }
 
   &.badge-description {
-    background: rgba(16, 185, 129, 0.15);
-    color: #10b981;
+    background: color-mix(in srgb, var(--fg-success-color) 15%, transparent);
+    color: var(--fg-success-color);
   }
 }
 
@@ -1140,8 +1148,8 @@ onBeforeUnmount(() => {
   transition: all 0.2s ease;
 
   &:hover {
-    color: #ef4444;
-    background: rgba(239, 68, 68, 0.1);
+    color: var(--fg-error-color);
+    background: color-mix(in srgb, var(--fg-error-color) 10%, transparent);
   }
 }
 
@@ -1179,6 +1187,9 @@ onBeforeUnmount(() => {
 }
 
 .block-time-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
   max-width: 140px;
 }
 
@@ -1204,35 +1215,8 @@ onBeforeUnmount(() => {
 }
 
 .primary-action-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
   width: 100%;
-  height: 46px;
-  border-radius: var(--r-m);
-  border: none;
-  background: var(--color-primary-500, #f97316);
-  color: #fff;
-  font-size: 0.9375rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition:
-    opacity 0.2s ease,
-    transform 0.1s ease;
-
-  &:hover:not(:disabled) {
-    opacity: 0.93;
-  }
-
-  &:active:not(:disabled) {
-    transform: scale(0.99);
-  }
-
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
+  min-height: 44px;
 }
 
 .footer-preview-mode {
@@ -1273,13 +1257,13 @@ onBeforeUnmount(() => {
 
 @keyframes mic-pulse {
   0% {
-    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.5);
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--fg-error-color) 50%, transparent);
   }
   70% {
-    box-shadow: 0 0 0 10px rgba(239, 68, 68, 0);
+    box-shadow: 0 0 0 10px color-mix(in srgb, var(--fg-error-color) 0%, transparent);
   }
   100% {
-    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--fg-error-color) 0%, transparent);
   }
 }
 

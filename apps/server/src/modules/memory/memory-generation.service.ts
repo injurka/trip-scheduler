@@ -1,12 +1,13 @@
 import type { z } from 'zod'
 import type { ApplyMemoriesInputSchema } from './memory.schemas'
 import { db } from 'db'
-import { activities, memories } from 'db/schema'
-import { and, eq, gte, lt } from 'drizzle-orm'
+import { activities, days, memories } from 'db/schema'
+import { and, eq, gte, inArray, lt } from 'drizzle-orm'
 import { measureDbQuery } from '~/lib/db-monitoring'
 import { createTRPCError } from '~/lib/trpc'
 import { dayService } from '~/modules/day/day.service'
 import { memoryGenerationService } from '~/services/llm/memory-generation.service'
+import { buildMemoryTimeline } from './memory-generation-context'
 import { validateMemoryTargets } from './memory-proposal'
 
 interface GeoPointLike {
@@ -49,14 +50,21 @@ async function getContext(dayId: string, userId: string, role: string) {
 
 export const memoryDraftService = {
   async generate(dayId: string, text: string, userId: string, role: string) {
-    const { day, start, end } = await getContext(dayId, userId, role)
+    const { day, date } = await getContext(dayId, userId, role)
     const [existing, dayActivities] = await Promise.all([
       measureDbQuery('memories', 'select', () => db.select({
         id: memories.id,
         title: memories.title,
         comment: memories.comment,
         timestamp: memories.timestamp,
-      }).from(memories).where(and(eq(memories.tripId, day.tripId), gte(memories.timestamp, start), lt(memories.timestamp, end)))),
+        tag: memories.tag,
+        tags: memories.tags,
+        imageId: memories.imageId,
+        sourceActivityId: memories.sourceActivityId,
+        plannedTitle: activities.title,
+        plannedStart: activities.startTime,
+        plannedEnd: activities.endTime,
+      }).from(memories).leftJoin(activities, and(eq(memories.sourceActivityId, activities.id), inArray(activities.dayId, db.select({ id: days.id }).from(days).where(eq(days.tripId, day.tripId))))).where(eq(memories.tripId, day.tripId)).orderBy(memories.timestamp, memories.createdAt)),
       measureDbQuery('activities', 'select', () => db.query.activities.findMany({
         where: eq(activities.dayId, dayId),
         columns: {
@@ -75,6 +83,7 @@ export const memoryDraftService = {
     const tripTitle = typeof trip?.title === 'string' ? trip.title : undefined
     const tripDescription = typeof trip?.description === 'string' ? trip.description : undefined
 
+    const timeline = buildMemoryTimeline(existing, date)
     const contextPayload = {
       tripTitle,
       tripDescription,
@@ -83,21 +92,17 @@ export const memoryDraftService = {
       dayDescription: day.description || undefined,
       dayNote: day.note || undefined,
       plannedActivities: dayActivities.map(a => ({
+        id: a.id,
         title: a.title,
         time: `${a.startTime} - ${a.endTime}`,
         tag: a.tag,
         highlights: extractSectionHighlights(a.sections),
       })),
-      existingMemories: existing.map(m => ({
-        id: m.id,
-        title: m.title,
-        comment: m.comment,
-        time: m.timestamp ? new Date(m.timestamp).toISOString().slice(11, 16) : undefined,
-      })),
+      existingMemories: timeline,
     }
 
     const proposal = await memoryGenerationService.generate(userId, text, JSON.stringify(contextPayload))
-    validateMemoryTargets(proposal, new Set(existing.map(m => m.id)))
+    validateMemoryTargets(proposal, new Set(timeline.filter(m => m.editable).map(m => m.id)))
     return proposal
   },
   async apply(input: z.infer<typeof ApplyMemoriesInputSchema>, userId: string, role: string) {

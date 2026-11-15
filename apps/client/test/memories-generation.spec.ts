@@ -1,6 +1,10 @@
+import { Time } from '@internationalized/date'
 import { flushPromises, mount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { KitTimeField } from '../src/renderer/components/01.kit/kit-time-field'
 import GenerateDialog from '../src/renderer/components/04.features/trip-info/trip-memories/ui/dialogs/generate-memories-dialog.vue'
+
+vi.mock('@iconify/vue', () => ({ Icon: { render: () => null } }))
 
 const api = vi.hoisted(() => ({ generate: vi.fn(), applyGenerated: vi.fn() }))
 vi.mock('~/plugins/request', () => ({
@@ -13,7 +17,7 @@ vi.mock('~/plugins/request', () => ({
     }
   },
 }))
-vi.mock('~/components/01.kit/kit-dialog-with-close', () => ({ KitDialogWithClose: { template: '<div><slot /></div>' } }))
+vi.mock('~/components/01.kit/kit-dialog-with-close', () => ({ KitDialogWithClose: { template: '<div><slot /><slot name="footer" /></div>' } }))
 vi.mock('~/components/01.kit/kit-bottom-sheet', () => ({ KitBottomSheet: { template: '<div><slot /><slot name="footer" /></div>' } }))
 vi.mock('~/components/01.kit/kit-btn', () => ({ KitBtn: { template: '<button><slot /></button>' } }))
 vi.mock('~/components/01.kit/kit-input', () => ({
@@ -51,11 +55,26 @@ describe('memories generation preview', () => {
     expect(api.applyGenerated).not.toHaveBeenCalled()
     expect(wrapper.text()).toContain('Активность')
     expect(wrapper.text()).toContain('~приблизительно')
-    await wrapper.findAll('textarea')[2]!.setValue('Гуляли по набережной у моря.')
+    await wrapper.findAll('textarea')[1]!.setValue('Гуляли по набережной у моря.')
     await wrapper.find('.footer-preview-mode .primary-action-btn').trigger('click')
     await flushPromises()
     expect(api.applyGenerated).toHaveBeenCalledWith({ dayId, blocks: [{ ...block, comment: 'Гуляли по набережной у моря.' }] })
     expect(wrapper.emitted('saved')).toEqual([[[]]])
+    wrapper.unmount()
+  })
+
+  it('edits preview time through the kit field in 24-hour format', async () => {
+    const wrapper = mount(GenerateDialog, { props: { visible: true, dayId, existing: [] } })
+    await wrapper.find('textarea').setValue('После обеда гуляли у моря')
+    await wrapper.find('.primary-action-btn').trigger('click')
+    await flushPromises()
+    const timeField = wrapper.findComponent(KitTimeField)
+    expect(timeField.props('hourCycle')).toBe(24)
+    timeField.vm.$emit('update:modelValue', new Time(14, 35))
+    await flushPromises()
+    await wrapper.find('.footer-preview-mode .primary-action-btn').trigger('click')
+    await flushPromises()
+    expect(api.applyGenerated).toHaveBeenCalledWith({ dayId, blocks: [{ ...block, time: '14:35', timeEstimated: false }] })
     wrapper.unmount()
   })
 

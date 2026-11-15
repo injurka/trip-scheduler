@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { Time } from '@internationalized/date'
 import { TimeFieldInput, TimeFieldRoot } from 'reka-ui'
-import { computed } from 'vue'
+import { computed, useId } from 'vue'
 
 interface Props {
   placeholder?: string
@@ -16,8 +16,9 @@ const props = withDefaults(defineProps<Props>(), {
   hourCycle: 24,
   locale: 'ru-RU',
 })
-
 const model = defineModel<Time | null | undefined>({ required: true })
+
+const fieldId = useId()
 
 /**
  * Reka UI ожидает `Time | undefined`, а не `Time | null`.
@@ -37,9 +38,10 @@ const internalModel = computed({
 <template>
   <div class="kit-time-field-wrapper">
     <TimeFieldRoot
-      id="time-field"
+      :id="fieldId"
       v-slot="{ segments }"
       v-model="internalModel"
+      aria-label="Время"
       granularity="minute"
       :disabled="props.disabled"
       :readonly="props.readonly"
