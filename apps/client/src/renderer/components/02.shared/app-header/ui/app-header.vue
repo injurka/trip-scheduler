@@ -439,7 +439,7 @@ onMounted(() => {
 
   &--small-screen {
     .header-content {
-      grid-template-columns: auto minmax(0, 1fr) auto;
+      grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
       gap: 8px;
     }
     .header-center {
@@ -458,11 +458,11 @@ onMounted(() => {
     height: var(--header-height);
     margin: 0 auto;
     font-family: var(--font-base);
-    padding: 0 max(12px, var(--safe-area-inset-right, 0px)) 0 max(12px, var(--safe-area-inset-left, 0px));
+    padding: 0 max(12px, var(--safe-area-inset-right, 0px), var(--safe-area-inset-left, 0px));
     align-items: center;
 
     display: grid;
-    grid-template-columns: 1fr minmax(auto, 1040px) 1fr;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1040px) minmax(0, 1fr);
     transition: grid-template-columns 0.3s ease;
   }
 
@@ -811,8 +811,8 @@ onMounted(() => {
 @include media-down(sm) {
   .header {
     &-content {
-      padding: 0 max(8px, var(--safe-area-inset-right, 0px)) 0 max(8px, var(--safe-area-inset-left, 0px));
-      grid-template-columns: auto minmax(0, 1fr) auto;
+      padding: 0 max(8px, var(--safe-area-inset-right, 0px), var(--safe-area-inset-left, 0px));
+      grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
       gap: 4px;
     }
 
