@@ -11,6 +11,7 @@ import { getLocalDate } from '~/shared/lib/date-time'
 import { useOfflineStore } from '~/shared/store/offline.store'
 import { TripMediaPlacement } from '~/shared/types/models/trip'
 import { refreshImportedPhotoRating } from '../composables/refresh-imported-photo-rating'
+import { groupMemories } from '../lib/group-memories'
 
 const editedRatings = new WeakSet<Memory>()
 
@@ -82,48 +83,7 @@ export const useTripMemoriesStore = defineStore('tripMemories', {
     },
 
     timelineGroupsForSelectedDay(): TimelineGroup[] {
-      const memoriesList = this.memoriesForSelectedDay
-
-      if (!memoriesList.length)
-        return []
-
-      const groups: TimelineGroup[] = []
-      let currentGroup: TimelineGroup | null = null
-
-      const ensureStartGroup = (): TimelineGroup => {
-        let startGroup = groups.find(g => g.type === 'start')
-
-        if (!startGroup) {
-          startGroup = { type: 'start', title: '', memories: [], activity: null }
-          groups.unshift(startGroup)
-        }
-
-        return startGroup
-      }
-
-      for (const memory of memoriesList) {
-        if (memory.title) {
-          currentGroup = { type: 'activity', activity: memory, title: memory.title, memories: [] }
-
-          if (memory.imageId || memory.comment)
-            currentGroup.memories.push(memory)
-
-          groups.push(currentGroup)
-        }
-        else if (currentGroup) {
-          currentGroup.memories.push(memory)
-        }
-        else {
-          ensureStartGroup().memories.push(memory)
-        }
-      }
-
-      const startGroup = groups.find(g => g.type === 'start')
-
-      if (startGroup && startGroup.memories.length === 0)
-        return groups.filter(g => g.type !== 'start')
-
-      return groups
+      return groupMemories(this.memoriesForSelectedDay)
     },
   },
 

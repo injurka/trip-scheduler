@@ -21,7 +21,7 @@ describe('memory generation timeline', () => {
     expect(timeline[1]).toMatchObject({ date: '2026-11-13', editable: false })
     expect(timeline[2]).toMatchObject({ date: null, time: null, editable: false })
     const allowed = new Set(timeline.filter(m => m.editable).map(m => m.id))
-    const block = { type: 'description' as const, targetId: 'yesterday', title: '', comment: 'Изменение', time: '15:00', timeEstimated: false, tag: 'activity' as const }
+    const block = { type: 'note' as const, targetId: 'yesterday', title: '', comment: 'Изменение', time: '15:00', timeEstimated: false, tag: 'activity' as const }
     expect(() => validateMemoryTargets({ blocks: [block] }, allowed)).toThrow()
     expect(() => validateMemoryTargets({ blocks: [{ ...block, targetId: 'note' }] }, allowed)).not.toThrow()
   })

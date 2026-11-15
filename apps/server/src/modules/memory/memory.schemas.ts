@@ -10,6 +10,7 @@ export const MemorySchema = z.object({
   title: z.string().nullable(),
   tag: z.enum(['activity', 'transport', 'walk', 'food', 'attraction', 'relax']).nullable(),
   sourceActivityId: z.string().uuid().nullable(),
+  parentMemoryId: z.string().uuid().nullable().optional(),
   createdAt: z.date(),
   updatedAt: z.date(),
   image: TripMediaSchema.optional().nullable(),
@@ -56,7 +57,7 @@ export const GetMemoriesInputSchema = z.object({
 // The same contract validates model output and the edited preview before saving.
 export const MemoryProposalSchema = z.object({
   blocks: z.array(z.object({
-    type: z.enum(['activity', 'note', 'description']),
+    type: z.enum(['activity', 'note']),
     targetId: z.string().uuid().nullable(),
     title: z.string().trim().max(300),
     comment: z.string().trim().min(1).max(10000),
@@ -64,10 +65,10 @@ export const MemoryProposalSchema = z.object({
     timeEstimated: z.boolean(),
     tag: z.enum(['activity', 'transport', 'walk', 'food', 'attraction', 'relax']),
   }).superRefine((block, ctx) => {
-    if (block.type === 'description' && !block.targetId)
-      ctx.addIssue({ code: 'custom', message: 'Для описания нужен существующий блок.' })
-    if (block.type !== 'description' && block.targetId)
-      ctx.addIssue({ code: 'custom', message: 'Новый блок не должен иметь targetId.' })
+    if (block.type === 'activity' && block.targetId)
+      ctx.addIssue({ code: 'custom', message: 'Новая активность не должна иметь targetId.' })
+    if (block.type === 'note' && block.title)
+      ctx.addIssue({ code: 'custom', message: 'Заметка не должна переименовывать активность.' })
     if (block.type === 'activity' && !block.title)
       ctx.addIssue({ code: 'custom', message: 'Укажите название активности.' })
   })).min(1).max(30),

@@ -8,7 +8,7 @@ import { createTRPCError } from '~/lib/trpc'
 import { dayService } from '~/modules/day/day.service'
 import { memoryGenerationService } from '~/services/llm/memory-generation.service'
 import { buildMemoryTimeline } from './memory-generation-context'
-import { validateMemoryTargets } from './memory-proposal'
+import { alignExplicitNoteTimes, validateMemoryTargets } from './memory-proposal'
 
 interface GeoPointLike {
   title?: string
@@ -57,6 +57,7 @@ export const memoryDraftService = {
         title: memories.title,
         comment: memories.comment,
         timestamp: memories.timestamp,
+        parentMemoryId: memories.parentMemoryId,
         tag: memories.tag,
         tags: memories.tags,
         imageId: memories.imageId,
@@ -102,27 +103,24 @@ export const memoryDraftService = {
     }
 
     const proposal = await memoryGenerationService.generate(userId, text, JSON.stringify(contextPayload))
-    validateMemoryTargets(proposal, new Set(timeline.filter(m => m.editable).map(m => m.id)))
+    alignExplicitNoteTimes(proposal)
+    validateMemoryTargets(proposal, new Set(timeline.filter(m => m.editable && m.type === 'activity').map(m => m.id)))
     return proposal
   },
   async apply(input: z.infer<typeof ApplyMemoriesInputSchema>, userId: string, role: string) {
     const { day, date, start, end } = await getContext(input.dayId, userId, role)
     return measureDbQuery('memories', 'transaction', () => db.transaction(async (tx) => {
-      const existing = await tx.select({ id: memories.id }).from(memories).where(and(eq(memories.tripId, day.tripId), gte(memories.timestamp, start), lt(memories.timestamp, end))).for('update')
-      validateMemoryTargets(input, new Set(existing.map(m => m.id)))
+      const existing = await tx.select({ id: memories.id, title: memories.title }).from(memories).where(and(eq(memories.tripId, day.tripId), gte(memories.timestamp, start), lt(memories.timestamp, end))).for('update')
+      validateMemoryTargets(input, new Set(existing.filter(m => m.title).map(m => m.id)))
       for (const block of input.blocks) {
-        if (block.type === 'description') {
-          await tx.update(memories).set({ comment: block.comment, updatedAt: new Date() }).where(and(eq(memories.id, block.targetId!), eq(memories.tripId, day.tripId)))
-        }
-        else {
-          await tx.insert(memories).values({
-            tripId: day.tripId,
-            title: block.type === 'activity' ? block.title : null,
-            comment: block.comment,
-            timestamp: new Date(`${date}T${block.time}:00.000Z`),
-            tag: block.type === 'activity' ? block.tag : null,
-          })
-        }
+        await tx.insert(memories).values({
+          tripId: day.tripId,
+          parentMemoryId: block.type === 'note' ? block.targetId : null,
+          title: block.type === 'activity' ? block.title : null,
+          comment: block.comment,
+          timestamp: new Date(`${date}T${block.time}:00.000Z`),
+          tag: block.type === 'activity' ? block.tag : null,
+        })
       }
       return tx.query.memories.findMany({ where: eq(memories.tripId, day.tripId), with: { image: true } })
     }))

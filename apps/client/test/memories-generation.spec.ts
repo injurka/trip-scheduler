@@ -1,3 +1,4 @@
+import type { Memory } from '../src/renderer/shared/types/models/memory'
 import { Time } from '@internationalized/date'
 import { flushPromises, mount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -75,6 +76,30 @@ describe('memories generation preview', () => {
     await wrapper.find('.footer-preview-mode .primary-action-btn').trigger('click')
     await flushPromises()
     expect(api.applyGenerated).toHaveBeenCalledWith({ dayId, blocks: [{ ...block, time: '14:35', timeEstimated: false }] })
+    wrapper.unmount()
+  })
+
+  it('previews an attached note and saves the association without a description replacement', async () => {
+    const parentId = '505a53ea-0ccb-4a64-aaaf-a19103b276af'
+    const note = {
+      ...block,
+      type: 'note',
+      title: '',
+      targetId: parentId,
+      time: '09:40',
+      timeEstimated: false,
+      comment: 'Остановка была перенесена, на автобус не успел.',
+    }
+    api.generate.mockResolvedValueOnce({ blocks: [note] })
+    const wrapper = mount(GenerateDialog, { props: { visible: true, dayId, existing: [{ id: parentId, title: 'Переход к остановке' } as Memory] } })
+    await wrapper.find('textarea').setValue('В 9:40 остановка оказалась закрыта')
+    await wrapper.find('.primary-action-btn').trigger('click')
+    await flushPromises()
+    expect(wrapper.text()).toContain('Заметка к активности: Переход к остановке')
+    expect(wrapper.text()).not.toContain('Было ранее')
+    await wrapper.find('.footer-preview-mode .primary-action-btn').trigger('click')
+    await flushPromises()
+    expect(api.applyGenerated).toHaveBeenCalledWith({ dayId, blocks: [note] })
     wrapper.unmount()
   })
 

@@ -43,7 +43,6 @@ const DRAFT_KEY_PREFIX = 'ts_memory_story_draft_'
 const blockTypeLabels = {
   activity: 'Активность',
   note: 'Заметка',
-  description: 'Дополнение описания',
 }
 const tagOptions = [
   { value: 'walk', label: 'Прогулка' },
@@ -526,7 +525,7 @@ onBeforeUnmount(() => {
                   {{ tagOptions.find(t => t.value === block.tag)?.label || block.tag }}
                 </span>
 
-                <span v-if="block.timeEstimated && block.type !== 'description'" class="estimated-badge">
+                <span v-if="block.timeEstimated" class="estimated-badge">
                   ~приблизительно
                 </span>
               </div>
@@ -542,15 +541,9 @@ onBeforeUnmount(() => {
               </button>
             </div>
 
-            <!-- Если это дополнение описания -->
-            <div v-if="block.type === 'description'" class="description-target-info">
-              <span class="target-title">
-                {{ existing.find(m => m.id === block.targetId)?.title || 'Существующее воспоминание' }}
-              </span>
-              <details class="previous-desc-details">
-                <summary>Было ранее</summary>
-                <p>{{ existing.find(m => m.id === block.targetId)?.comment || 'Без описания' }}</p>
-              </details>
+            <div v-if="block.type === 'note' && block.targetId" class="note-target-info">
+              <Icon icon="mdi:link-variant" />
+              <span>Заметка к активности: {{ existing.find(m => m.id === block.targetId)?.title || 'Активность выбранного дня' }}</span>
             </div>
 
             <!-- Поля ввода активности -->
@@ -565,7 +558,7 @@ onBeforeUnmount(() => {
             </div>
 
             <!-- Время блока -->
-            <div v-if="block.type !== 'description'" class="block-time-row">
+            <div class="block-time-row">
               <span class="time-label">Время</span>
               <KitTimeField
                 :model-value="previewTime(block.time)"
@@ -580,7 +573,7 @@ onBeforeUnmount(() => {
               <KitInput
                 v-model="block.comment"
                 type="textarea"
-                :label="block.type === 'description' ? 'Новое итоговое описание' : 'Текст воспоминания'"
+                label="Текст воспоминания"
                 :disabled="busy"
                 :maxlength="10000"
                 rows="3"
@@ -1075,10 +1068,6 @@ onBeforeUnmount(() => {
   &.type-note {
     border-left: 3px solid var(--fg-info-color);
   }
-
-  &.type-description {
-    border-left: 3px solid var(--fg-success-color);
-  }
 }
 
 .block-card-header {
@@ -1112,11 +1101,6 @@ onBeforeUnmount(() => {
   &.badge-note {
     background: color-mix(in srgb, var(--fg-info-color) 15%, transparent);
     color: var(--fg-info-color);
-  }
-
-  &.badge-description {
-    background: color-mix(in srgb, var(--fg-success-color) 15%, transparent);
-    color: var(--fg-success-color);
   }
 }
 
@@ -1153,37 +1137,12 @@ onBeforeUnmount(() => {
   }
 }
 
-.description-target-info {
-  background: var(--bg-primary-color);
-  border-radius: var(--r-s);
-  padding: 8px 10px;
-  font-size: 0.8125rem;
-
-  .target-title {
-    font-weight: 600;
-    color: var(--fg-primary-color);
-    display: block;
-    margin-bottom: 4px;
-  }
-
-  .previous-desc-details {
-    summary {
-      cursor: pointer;
-      color: var(--fg-secondary-color);
-      font-size: 0.75rem;
-    }
-
-    p {
-      margin: 4px 0 0;
-      color: var(--fg-muted-color);
-      font-style: italic;
-    }
-  }
-}
-
-.block-field {
+.note-target-info {
   display: flex;
-  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.875rem;
+  color: var(--fg-secondary-color);
 }
 
 .block-time-row {

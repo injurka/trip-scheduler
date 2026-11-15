@@ -1,4 +1,5 @@
 interface ContextMemory {
+  parentMemoryId?: string | null
   id: string
   title: string | null
   comment: string | null
@@ -18,6 +19,7 @@ export function buildMemoryTimeline(memories: ContextMemory[], selectedDate: str
     const timestamp = memory.timestamp?.toISOString()
     return {
       id: memory.id,
+      parentMemoryId: memory.parentMemoryId ?? null,
       type: memory.imageId ? 'media' : memory.title ? 'activity' : 'note',
       title: memory.title,
       comment: memory.comment,

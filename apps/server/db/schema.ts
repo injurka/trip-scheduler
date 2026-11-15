@@ -323,6 +323,7 @@ export const activities = pgTable('activities', {
 })
 
 export const memories = pgTable('memories', {
+  parentMemoryId: uuid('parent_memory_id').references((): AnyPgColumn => memories.id, { onDelete: 'set null' }),
   id: uuid('id').primaryKey().defaultRandom(),
   tripId: uuid('trip_id').notNull().references(() => trips.id, { onDelete: 'cascade' }),
   timestamp: timestamp('timestamp'),

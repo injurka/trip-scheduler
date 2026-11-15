@@ -1,0 +1,2 @@
+ALTER TABLE "memories" ADD COLUMN "parent_memory_id" uuid;--> statement-breakpoint
+ALTER TABLE "memories" ADD CONSTRAINT "memories_parent_memory_id_memories_id_fk" FOREIGN KEY ("parent_memory_id") REFERENCES "public"."memories"("id") ON DELETE set null ON UPDATE no action;

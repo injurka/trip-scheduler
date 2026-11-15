@@ -3,6 +3,7 @@ import type { EActivityTag } from './activity'
 import type { TripMedia } from './trip'
 
 export interface Memory {
+  parentMemoryId?: string | null
   id: string
   title: string
   tripId: string

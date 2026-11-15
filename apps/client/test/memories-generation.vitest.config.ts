@@ -13,5 +13,5 @@ export default defineConfig({
   })],
   resolve: { alias: { '~': fileURLToPath(new URL('../src/renderer', import.meta.url)) } },
   css: { preprocessorOptions: { scss: { additionalData: '@use "~/assets/scss/_setup.scss" as *;' } } },
-  test: { environment: 'happy-dom', include: ['test/memories-generation.spec.ts'], maxWorkers: 1 },
+  test: { environment: 'happy-dom', include: ['test/memories-generation.spec.ts', 'test/linked-memory-notes.spec.ts'], maxWorkers: 1 },
 })
