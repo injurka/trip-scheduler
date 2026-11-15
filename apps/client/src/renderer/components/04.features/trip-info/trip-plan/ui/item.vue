@@ -821,17 +821,20 @@ onClickOutside(timeEditorRef, saveTimeChanges)
   }
 
   &.is-current-activity {
-    padding: 8px 10px;
-    border-radius: var(--r-s);
-    border: 1px solid rgba(var(--fg-success-color-rgb, 34, 197, 94), 0.45);
-    background-color: rgba(var(--fg-success-color-rgb, 34, 197, 94), 0.04);
+    &::before {
+      background-color: var(--fg-success-color);
+    }
+
+    .activity-header .activity-time::before {
+      color: var(--fg-success-color);
+      opacity: 1;
+    }
   }
 
   &.is-next-activity {
-    padding: 8px 10px;
-    border-radius: var(--r-s);
-    border: 1px dashed rgba(var(--fg-info-color-rgb, 59, 130, 246), 0.45);
-    background-color: rgba(var(--fg-info-color-rgb, 59, 130, 246), 0.03);
+    &::before {
+      background-color: var(--fg-info-color);
+    }
   }
 
   .activity-live-badge {

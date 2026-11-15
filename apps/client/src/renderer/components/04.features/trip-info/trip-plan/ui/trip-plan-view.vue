@@ -388,7 +388,7 @@ onKeyStroke('Escape', (e) => {
               <KitBtn
                 size="xs"
                 variant="tonal"
-                icon="mdi:map-Search-outline"
+                icon="mdi:directions"
                 @click="openActivityMapRoute(currentActivity)"
               >
                 Маршрут в картах
