@@ -109,37 +109,6 @@ const currentT = computed({
   get: () => props.t,
   set: (val: number) => emit('update:t', val),
 })
-// ─── 1. Форматирование времени границ дня ───────────────────────────────────────
-const formattedStart = computed(() => {
-  if (props.dayStartFormatted)
-    return props.dayStartFormatted
-
-  if (props.dayStart <= 0)
-    return '--:--'
-
-  const tz = props.timezoneMode === 'track' ? props.trackTimezone : undefined
-
-  return new Date(props.dayStart).toLocaleTimeString('ru-RU', {
-    hour: '2-digit',
-    minute: '2-digit',
-    ...(tz ? { timeZone: tz } : {}),
-  })
-})
-const formattedEnd = computed(() => {
-  if (props.dayEndFormatted)
-    return props.dayEndFormatted
-
-  if (props.dayEnd <= 0)
-    return '--:--'
-
-  const tz = props.timezoneMode === 'track' ? props.trackTimezone : undefined
-
-  return new Date(props.dayEnd).toLocaleTimeString('ru-RU', {
-    hour: '2-digit',
-    minute: '2-digit',
-    ...(tz ? { timeZone: tz } : {}),
-  })
-})
 // Название часового пояса для компактного чипа
 const timezoneChipLabel = computed(() => {
   if (props.timezoneMode === 'device')
@@ -281,7 +250,7 @@ function formatPhotoTime(tsUtc: number): string {
     ...(tz ? { timeZone: tz } : {}),
   })
 }
-function handlePhotoDotClick(tsUtc: number) {
+function handlePhotoTickClick(tsUtc: number) {
   emit('update:t', tsUtc)
   emit('seekPhoto', tsUtc)
 }
@@ -434,67 +403,70 @@ useEventListener(typeof window !== 'undefined' ? window : null, 'keydown', (e: K
 
     <!-- Интеллектуальный таймлайн со сегментами активности и превью -->
     <div class="timeline-container">
-      <span class="timeline-bound-time start">{{ formattedStart }}</span>
-
       <div
-        ref="timelineBarRef"
         class="timeline-track-wrap"
         @mousemove="handleTimelineMouseMove"
         @mouseleave="handleTimelineMouseLeave"
       >
-        <!-- Дорожка таймлайна с фоном и цветными сегментами активности -->
-        <div class="timeline-segments-track">
-          <div
-            v-for="(seg, idx) in timelineSegments"
-            :key="idx"
-            class="timeline-segment"
-            :style="{
-              '--seg-left': `${seg.leftPercent}%`,
-              '--seg-width': `${seg.widthPercent}%`,
-              '--seg-color': seg.color,
-            }"
-            :title="`${seg.label}: ${seg.timeStr}`"
-          />
-        </div>
-
-        <!-- Заливка пройденной части таймлайна -->
-        <div
-          class="timeline-progress-fill"
-          :style="{ '--progress-width': `${progressPercent}%` }"
-        />
-
-        <!-- Засечки фотографий на таймлайне -->
-        <div v-if="photoMarkers && photoMarkers.length > 0" class="timeline-photo-markers">
-          <div
-            v-for="pm in photoMarkers"
-            :key="pm.id"
-            class="timeline-photo-dot"
-            :class="{ 'is-active': Math.abs(currentT - pm.tsUtc) < 45_000 }"
-            :style="{ left: `${pm.percent}%` }"
-            :title="`Фото: ${formatPhotoTime(pm.tsUtc)}${pm.photo.title ? ` (${pm.photo.title})` : ''}`"
-            @click.stop="handlePhotoDotClick(pm.tsUtc)"
-          />
-        </div>
-
-        <!-- Всплывающее превью при наведении курсора -->
-        <div
-          v-if="hoverPreview"
-          class="timeline-hover-indicator"
-          :style="{
-            '--hover-left': `${hoverPreview.leftPercent}%`,
-            '--hover-color': hoverPreview.activityColor,
-          }"
-        >
-          <div class="hover-bubble">
-            <span class="hover-time">{{ hoverPreview.timeStr }}</span>
-            <span
-              v-if="hoverPreview.activityLabel"
-              class="hover-activity"
-            >
-              {{ hoverPreview.activityLabel }}
-            </span>
+        <div ref="timelineBarRef" class="timeline-rail">
+          <!-- Дорожка таймлайна с фоном и цветными сегментами активности -->
+          <div class="timeline-segments-track">
+            <div
+              v-for="(seg, idx) in timelineSegments"
+              :key="idx"
+              class="timeline-segment"
+              :style="{
+                '--seg-left': `${seg.leftPercent}%`,
+                '--seg-width': `${seg.widthPercent}%`,
+                '--seg-color': seg.color,
+              }"
+              :title="`${seg.label}: ${seg.timeStr}`"
+            />
           </div>
-          <div class="hover-needle" />
+
+          <!-- Заливка пройденной части таймлайна -->
+          <div
+            class="timeline-progress-fill"
+            :style="{ '--progress-width': `${progressPercent}%` }"
+          />
+
+          <!-- Засечки фотографий на таймлайне -->
+          <div v-if="photoMarkers && photoMarkers.length > 0" class="timeline-photo-markers">
+            <button
+              v-for="pm in photoMarkers"
+              :key="pm.id"
+              type="button"
+              class="timeline-photo-tick"
+              :class="{ 'is-active': Math.abs(currentT - pm.tsUtc) < 45_000 }"
+              :style="{ left: `${pm.percent}%` }"
+              :title="`Фото: ${formatPhotoTime(pm.tsUtc)}${pm.photo.title ? ` (${pm.photo.title})` : ''}`"
+              :aria-label="`Перейти к фото: ${formatPhotoTime(pm.tsUtc)}${pm.photo.title ? ` (${pm.photo.title})` : ''}`"
+              @click.stop="handlePhotoTickClick(pm.tsUtc)"
+            />
+          </div>
+
+          <!-- Всплывающее превью при наведении курсора -->
+          <div
+            v-if="hoverPreview"
+            class="timeline-hover-indicator"
+            :style="{
+              '--hover-left': `${hoverPreview.leftPercent}%`,
+              '--hover-color': hoverPreview.activityColor,
+            }"
+          >
+            <div class="hover-bubble">
+              <span class="hover-time">{{ hoverPreview.timeStr }}</span>
+              <span
+                v-if="hoverPreview.activityLabel"
+                class="hover-activity"
+              >
+                {{ hoverPreview.activityLabel }}
+              </span>
+            </div>
+            <div class="hover-needle" />
+          </div>
+
+          <div class="timeline-playhead" :style="{ left: `${progressPercent}%` }" aria-hidden="true" />
         </div>
 
         <!-- Нативный ползунок range для плавного скраббинга и доступности -->
@@ -505,12 +477,10 @@ useEventListener(typeof window !== 'undefined' ? window : null, 'keydown', (e: K
           :min="dayStart"
           :max="dayEnd"
           step="1000"
-          :disabled="dayEnd === 0"
+          :disabled="dayEnd <= dayStart"
           aria-label="Временная шкала трека"
         >
       </div>
-
-      <span class="timeline-bound-time end">{{ formattedEnd }}</span>
     </div>
 
     <!-- Кнопки управления воспроизведением и селектор скорости -->
@@ -561,7 +531,7 @@ useEventListener(typeof window !== 'undefined' ? window : null, 'keydown', (e: K
 
         <button
           class="control-btn play-btn"
-          :disabled="dayEnd === 0"
+          :disabled="dayEnd <= dayStart"
           :aria-label="isPlaying ? 'Пауза' : 'Воспроизвести'"
           :title="isPlaying ? 'Пауза (Пробел)' : 'Воспроизведение (Пробел)'"
           @click="emit('update:isPlaying', !isPlaying)"
@@ -773,30 +743,40 @@ useEventListener(typeof window !== 'undefined' ? window : null, 'keydown', (e: K
     width: 100%;
     margin: 2px 0;
 
-    .timeline-bound-time {
-      font-size: 0.76rem;
-      font-weight: 500;
-      color: var(--fg-tertiary-color);
-      font-variant-numeric: tabular-nums;
-      flex-shrink: 0;
-      min-width: 36px;
-
-      &.start {
-        text-align: right;
-      }
-
-      &.end {
-        text-align: left;
-      }
-    }
-
     .timeline-track-wrap {
       position: relative;
       flex: 1;
-      height: 24px;
+      min-width: 0;
+      height: 44px;
       display: flex;
       align-items: center;
       cursor: pointer;
+
+      // Same endpoints as the native 24px thumb's centre.
+      .timeline-rail {
+        position: absolute;
+        inset: 0 12px;
+        z-index: 3;
+        pointer-events: none;
+      }
+
+      .timeline-playhead {
+        position: absolute;
+        top: 50%;
+        width: 3px;
+        height: 24px;
+        transform: translate(-50%, -50%);
+        border-radius: 2px;
+        background: var(--fg-accent-color);
+        box-shadow: 0 0 0 2px var(--bg-primary-color);
+        pointer-events: none;
+        z-index: 6;
+      }
+
+      &:has(.memories-slider:focus-visible) .timeline-playhead {
+        outline: 2px solid var(--fg-accent-color);
+        outline-offset: 3px;
+      }
 
       .timeline-segments-track {
         position: absolute;
@@ -842,34 +822,46 @@ useEventListener(typeof window !== 'undefined' ? window : null, 'keydown', (e: K
         z-index: 5;
       }
 
-      .timeline-photo-dot {
+      .timeline-photo-tick {
         position: absolute;
         top: 50%;
-        width: 10px;
-        height: 10px;
-        margin-top: -5px;
-        margin-left: -5px;
-        border-radius: 50%;
-        background: #ffffff;
-        border: 2px solid #2563eb;
-        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+        width: 12px;
+        height: 32px;
+        transform: translate(-50%, -50%);
+        padding: 0;
+        border: 0;
+        background: transparent;
         cursor: pointer;
         pointer-events: auto;
-        transition:
-          transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1),
-          background-color 0.15s;
 
-        &:hover {
-          transform: scale(1.6);
-          background: #2563eb;
-          border-color: #ffffff;
-          z-index: 15;
+        &::before {
+          content: '';
+          position: absolute;
+          left: 50%;
+          top: 50%;
+          transform: translate(-50%, -50%);
+          width: 2px;
+          height: 12px;
+          border-radius: 1px;
+          background: var(--fg-secondary-color);
         }
 
+        &:hover::before,
+        &:focus-visible::before,
+        &.is-active::before {
+          height: 16px;
+          background: var(--fg-accent-color);
+        }
+
+        // Let dragging start on the playhead when a photo shares its time.
         &.is-active {
-          transform: scale(1.4);
-          background: #f59e0b;
-          border-color: #ffffff;
+          pointer-events: none;
+        }
+
+        &:focus-visible {
+          outline: 2px solid var(--fg-accent-color);
+          outline-offset: 1px;
+          border-radius: 2px;
         }
       }
 
@@ -932,7 +924,7 @@ useEventListener(typeof window !== 'undefined' ? window : null, 'keydown', (e: K
         appearance: none;
         background: transparent;
         cursor: pointer;
-        z-index: 5;
+        z-index: 2;
 
         &:focus {
           outline: none;
@@ -941,54 +933,44 @@ useEventListener(typeof window !== 'undefined' ? window : null, 'keydown', (e: K
         &::-webkit-slider-runnable-track {
           background: transparent;
           border: none;
-          height: 100%;
+          height: 6px;
         }
 
         &::-moz-range-track {
           background: transparent;
           border: none;
-          height: 100%;
+          height: 6px;
         }
 
         &::-webkit-slider-thumb {
           -webkit-appearance: none;
           appearance: none;
-          width: 14px;
-          height: 14px;
-          border-radius: 50%;
-          background: #ffffff;
-          border: 2px solid var(--fg-accent-color);
-          box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
-          margin-top: 5px;
+          box-sizing: border-box;
+          width: 24px;
+          height: 44px;
+          margin-top: -19px;
+          border: 0;
+          border-radius: 0;
+          background: transparent;
           cursor: grab;
-          transition:
-            transform 0.12s ease,
-            box-shadow 0.12s ease;
         }
 
         &::-moz-range-thumb {
-          width: 14px;
-          height: 14px;
-          border-radius: 50%;
-          background: #ffffff;
-          border: 2px solid var(--fg-accent-color);
-          box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+          box-sizing: border-box;
+          width: 24px;
+          height: 44px;
+          border: 0;
+          border-radius: 0;
+          background: transparent;
           cursor: grab;
-          transition:
-            transform 0.12s ease,
-            box-shadow 0.12s ease;
         }
 
         &:active::-webkit-slider-thumb {
           cursor: grabbing;
-          transform: scale(1.25);
-          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
         }
 
         &:active::-moz-range-thumb {
           cursor: grabbing;
-          transform: scale(1.25);
-          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
         }
       }
     }
@@ -1189,13 +1171,6 @@ useEventListener(typeof window !== 'undefined' ? window : null, 'keydown', (e: K
             flex-shrink: 0;
           }
         }
-      }
-    }
-
-    .timeline-container {
-      .timeline-bound-time {
-        font-size: 0.68rem;
-        min-width: 30px;
       }
     }
 

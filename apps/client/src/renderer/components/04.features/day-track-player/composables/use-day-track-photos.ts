@@ -360,7 +360,7 @@ export function useDayTrackPhotos(options: UseDayTrackPhotosOptions) {
     const end = dayEnd.value
     const span = end - start
 
-    if (span <= 0 || photos.length === 0)
+    if (!isPhotosVisible.value || span <= 0 || photos.length === 0)
       return []
 
     return photos
