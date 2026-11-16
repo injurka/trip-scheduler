@@ -10,7 +10,7 @@ import { normalizeStarRating } from '~/services/photo-rating'
 const memoryImageQuery = {
   columns: { metadata: false as const },
   extras: {
-    metadata: sql<{ timezoneOffset?: number }>`jsonb_strip_nulls(jsonb_build_object('timezoneOffset', ${tripImages.metadata}->'timezoneOffset'))`.as('metadata'),
+    metadata: sql<{ timezoneOffset?: number }>`jsonb_strip_nulls(jsonb_build_object('timezoneOffset', ${tripImages.metadata}->'timezoneOffset', 'technical', ${tripImages.metadata}->'technical'))`.as('metadata'),
   },
 }
 

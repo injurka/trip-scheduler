@@ -102,10 +102,11 @@ export const useTripMemoriesStore = defineStore('tripMemories', {
         abortOnUnmount: true,
         fn: db => db.memories.getByTripId(tripId),
         onSuccess: (result) => {
-          this.memories = result
+          if (this.currentTripId === tripId)
+            this.memories = result
         },
         onError: () => {
-          if (offlineStore.isTripCached(tripId)) {
+          if (this.currentTripId === tripId && offlineStore.isTripCached(tripId)) {
             this.memories = offlineStore.getSavedTripMemories(tripId)
             const requestStore = useRequestStore()
             requestStore.setError(ETripMemoriesKeys.FETCH, null)
@@ -276,7 +277,8 @@ export const useTripMemoriesStore = defineStore('tripMemories', {
           })
         },
         onSuccess: (newMemory) => {
-          this.memories.push(newMemory)
+          if (this.currentTripId === tripId)
+            this.memories.push(newMemory)
 
           if (newMemory.imageId && newMemory.image?.mediaType !== 'video' && newMemory.rating == null) {
             const db = getDatabaseService()
@@ -371,10 +373,13 @@ export const useTripMemoriesStore = defineStore('tripMemories', {
       const item = this.processingMemories.get(tempId)
 
       if (item) {
-        if (item.status === 'uploading')
+        if (item.status === 'uploading') {
           this.cancelMemoryUpload(tempId)
-        else
+        }
+        else {
+          URL.revokeObjectURL(item.previewUrl)
           this.processingMemories.delete(tempId)
+        }
       }
     },
 

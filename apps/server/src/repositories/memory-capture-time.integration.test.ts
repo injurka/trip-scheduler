@@ -23,17 +23,20 @@ describe.skipIf(!process.env.MEMORY_CAPTURE_TEST_DATABASE_URL)('memory capture t
             url: 'test/photo.jpg',
             placement: 'memories',
             takenAt,
-            metadata: offset === undefined ? null : { timezoneOffset: offset, camera: { model: 'Excluded from list' } },
+            metadata: offset === undefined ? null : { timezoneOffset: offset, technical: { fileSize: 123 }, camera: { model: 'Excluded from list' } },
           }).returning()
           const created = (await memoryRepository.create({ tripId, imageId: image.id }))!
           const reloaded = (await memoryRepository.getByTripId({ tripId })).find(memory => memory.id === created.id)!
           const updated = (await memoryRepository.update({ id: created.id, comment: 'Keep capture time' }))!
+          const retried = (await memoryRepository.create({ tripId, imageId: image.id }))!
+          expect(retried.id).toBe(created.id)
+          expect(retried.comment).toBe('Keep capture time')
           const assigned = (await memoryRepository.applyTakenAtTimestamp(created.id))!
           const unassigned = (await memoryRepository.unassignTimestamp(created.id))!
           for (const response of [created, reloaded, updated, assigned, unassigned]) {
             const output = MemorySchema.parse(response)
             expect(output.image?.takenAt).toEqual(takenAt)
-            expect(output.image?.metadata).toEqual(offset === undefined ? {} : { timezoneOffset: offset })
+            expect(output.image?.metadata).toEqual(offset === undefined ? {} : { timezoneOffset: offset, technical: { fileSize: 123 } })
           }
         }
       }

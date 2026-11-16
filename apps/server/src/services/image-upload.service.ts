@@ -337,7 +337,7 @@ export class ImageUploadService {
 
     const isVideo = /\.(?:mp4|webm|mov|mkv|avi|ogg|quicktime)$/i.test(ctx.fileName)
     const mediaType: 'image' | 'video' = isVideo ? 'video' : 'image'
-    const metadata = {
+    let metadata: UploadMetadata = {
       originalName: ctx.fileName,
       mediaType,
       ...ctx.customMetadata,
@@ -351,6 +351,19 @@ export class ImageUploadService {
       buffer: Buffer.alloc(0),
       file: { name: ctx.fileName, size: ctx.fileSize, type: isVideo ? 'video/mp4' : 'application/octet-stream' },
       customMetadata: ctx.customMetadata,
+    }
+
+    // Capture metadata is required by the caller before creating a memory.
+    // Preview generation remains asynchronous and cannot delay/erase capture time.
+    let preparedImage: { buffer: Buffer, extracted: Awaited<ReturnType<typeof extractAndStructureMetadata>> } | undefined
+    if (entityType === 'trip' && ctx.placement === 'memories' && mediaType === 'image') {
+      const original = await s3Service.getFile(ctx.key)
+      if (!original?.buffer)
+        throw new HTTPException(503, { message: 'Не удалось прочитать загруженное фото.' })
+      const buffer = Buffer.from(original.buffer)
+      const extracted = await extractAndStructureMetadata(buffer)
+      metadata = { ...metadata, ...extracted.metadata }
+      preparedImage = { buffer, extracted }
     }
 
     const dbRecord = await handler.afterSave(uploadCtx, {
@@ -367,7 +380,7 @@ export class ImageUploadService {
       })
     }
     else if (mediaType === 'image' && dbRecord && 'id' in dbRecord && typeof dbRecord.id === 'string') {
-      this.processImageBackground(dbRecord.id, entityType, ctx.key, ctx.userId).catch((err) => {
+      this.processImageBackground(dbRecord.id, entityType, ctx.key, ctx.userId, preparedImage).catch((err) => {
         console.error('[MultipartUpload] Error in background image processing:', err)
       })
     }
@@ -387,16 +400,17 @@ export class ImageUploadService {
     entityType: EntityType,
     s3Key: string,
     userId: string,
+    prepared?: { buffer: Buffer, extracted: Awaited<ReturnType<typeof extractAndStructureMetadata>> },
   ): Promise<void> {
     try {
-      const s3Res = await s3Service.getFile(s3Key)
+      const s3Res = prepared ? { buffer: prepared.buffer } : await s3Service.getFile(s3Key)
       if (!s3Res || !s3Res.buffer) {
         console.warn(`[ImageUploadService] Could not fetch buffer for image ${s3Key}`)
         return
       }
 
       const fileBuffer = Buffer.isBuffer(s3Res.buffer) ? s3Res.buffer : Buffer.from(s3Res.buffer)
-      const metaResult = await extractAndStructureMetadata(fileBuffer)
+      const metaResult = prepared?.extracted ?? await extractAndStructureMetadata(fileBuffer)
       const variants = await generateImageVariants(fileBuffer)
 
       const dirName = path.dirname(s3Key)

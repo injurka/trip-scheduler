@@ -56,6 +56,33 @@ class MemoryUploaderTest {
             assertEquals(2, creates)
             assertEquals("2026-11-15T09:30:00Z", input!!.getString("timestamp"))
             assertEquals(100, progress.last())
+            // These cases cross device timezone, capture timezone and itinerary day.
+            val cases = listOf(
+                Triple("2026-11-15T09:48:00.000Z", 480, "2026-11-15T17:48:00Z"),
+                Triple("2026-11-15T10:02:00.000Z", 480, "2026-11-15T18:02:00Z"),
+                Triple("2026-11-16T07:12:00.000Z", 480, "2026-11-16T15:12:00Z"),
+                Triple("2026-11-15T20:30:00.000Z", 480, "2026-11-16T04:30:00Z"),
+                Triple("2026-11-16T02:30:00.000Z", -300, "2026-11-15T21:30:00Z"),
+                Triple("2026-11-16T07:12:00.000Z", 0, "2026-11-16T07:12:00Z")
+            )
+            val previousZone = java.util.TimeZone.getDefault()
+            try {
+                java.util.TimeZone.setDefault(java.util.TimeZone.getTimeZone("America/New_York"))
+                config.put("dates", JSONArray().put("2026-11-15").put("2026-11-16"))
+                for ((takenAt, offset, expected) in cases) {
+                    item.put("image", JSONObject().put("id", "image").put("takenAt", takenAt)
+                        .put("metadata", JSONObject().put("timezoneOffset", offset)))
+                    uploader.upload(item, { false }, {})
+                    assertEquals(expected, input!!.getString("timestamp"))
+                }
+                config.put("dates", JSONArray().put("2026-11-17"))
+                uploader.upload(item, { false }, {})
+                assertTrue(input!!.isNull("timestamp"))
+                item.getJSONObject("image").put("takenAt", JSONObject.NULL)
+                uploader.upload(item, { false }, {})
+                assertTrue(input!!.isNull("timestamp"))
+                assertEquals(1, initiations)
+            } finally { java.util.TimeZone.setDefault(previousZone) }
         } finally { server.stop(0); directory.deleteRecursively() }
     }
 }

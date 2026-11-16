@@ -42,7 +42,11 @@ class MemoryUploadService : Service() {
             } catch (e: Exception) { job = null; throw e }
         }
 
-        fun cancelItem(id: String) = synchronized(lock) {
+        fun cancelItem(context: Context, id: String) = synchronized(lock) {
+            if (job?.running != true || job?.files?.none { it.getString("id") == id } != false) {
+                MemoryUploadFiles.path(context, id).delete()
+                return@synchronized
+            }
             job?.files?.filter { it.getString("id") == id }?.forEach {
                 it.put("cancelled", true)
                 if (it.optString("status") == "uploading") {
@@ -51,9 +55,12 @@ class MemoryUploadService : Service() {
                 }
             }
         }
-        fun cancelAll() { service?.cancel() }
+        fun cancelAll() = synchronized(lock) {
+            job?.cancelled = true
+            service?.cancel()
+        }
         fun status(): JSONObject = synchronized(lock) {
-            job?.json() ?: JSONObject().put("isRunning", false).put("total", 0)
+            (job?.json() ?: JSONObject().put("isRunning", false).put("total", 0)).put("ready", service == null && job?.running != true)
         }
     }
 
@@ -69,14 +76,14 @@ class MemoryUploadService : Service() {
         fun json(): JSONObject = JSONObject().put("id", id).put("tripId", config.getString("tripId"))
             .put("isRunning", running).put("current", current).put("total", files.size)
             .put("skippedCount", skipped).put("failed", failed).put("loadedBytes", bytes)
-            .put("cancelled", cancelled).put("error", error ?: JSONObject.NULL).put("items", JSONArray(files))
+            .put("cancelled", cancelled).put("error", error ?: JSONObject.NULL).put("items", JSONArray(files.map { JSONObject(it.toString()) }))
             .put("accountId", config.optString("accountId"))
             .put("tokens", synchronized(config) { if (config.optBoolean("refreshed")) JSONObject().put("accessToken", config.getString("accessToken")).put("refreshToken", config.getString("refreshToken")) else JSONObject.NULL })
     }
 
     private val cancelled = AtomicBoolean(false)
     private val finished = AtomicBoolean(false)
-    private var uploader: MemoryUploader? = null
+    @Volatile private var uploader: MemoryUploader? = null
     private var worker: Thread? = null
     private var lastNotification = 0L
     private var wakeLock: PowerManager.WakeLock? = null
@@ -104,6 +111,7 @@ class MemoryUploadService : Service() {
             stopSelf()
             return START_NOT_STICKY
         }
+        if (active.cancelled) cancelled.set(true)
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 startForeground(NOTIFICATION_ID, notification(active), ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
@@ -111,19 +119,23 @@ class MemoryUploadService : Service() {
                 startForeground(NOTIFICATION_ID, notification(active))
             }
             wakeLock = (getSystemService(POWER_SERVICE) as PowerManager)
-                .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "TripScheduler:MemoryExport").apply {
+                .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "TripScheduler:MemoryUpload").apply {
                     acquire(6 * 60 * 60 * 1000L)
                 }
             worker = Thread {
                 try {
-                    val engine = MemoryUploader(applicationContext, active.config)
+                    val engine = MemoryUploader(applicationContext, active.config) { item, image -> synchronized(lock) { item.put("image", image); Unit } }
                     uploader = engine
                     for (item in active.files) {
                         if (cancelled.get()) break
-                        if (item.optBoolean("cancelled")) { item.put("status", "cancelled"); MemoryUploadFiles.path(applicationContext, item.getString("id")).delete(); continue }
+                        if (synchronized(lock) { item.optBoolean("cancelled") }) {
+                            synchronized(lock) { item.put("status", "cancelled") }
+                            MemoryUploadFiles.path(applicationContext, item.getString("id")).delete()
+                            continue
+                        }
                         synchronized(lock) { item.put("status", "uploading").put("progress", 0) }
                         try {
-                            engine.upload(item, { cancelled.get() || item.optBoolean("cancelled") }) { percent ->
+                            engine.upload(item, { cancelled.get() || synchronized(lock) { item.optBoolean("cancelled") } }) { percent ->
                                 synchronized(lock) { item.put("progress", percent) }
                                 val now = android.os.SystemClock.elapsedRealtime()
                                 if (now - lastNotification > 750) {
@@ -139,7 +151,11 @@ class MemoryUploadService : Service() {
                                 else { item.put("status", "error").put("error", e.message ?: "Ошибка загрузки"); active.failed++ }
                             }
                             if (cancelled.get()) break
-                        if (item.optBoolean("cancelled")) { item.put("status", "cancelled"); MemoryUploadFiles.path(applicationContext, item.getString("id")).delete(); continue }
+                        if (synchronized(lock) { item.optBoolean("cancelled") }) {
+                            synchronized(lock) { item.put("status", "cancelled") }
+                            MemoryUploadFiles.path(applicationContext, item.getString("id")).delete()
+                            continue
+                        }
                         }
                         getSystemService(NotificationManager::class.java)?.notify(NOTIFICATION_ID, notification(active))
                     }
@@ -148,7 +164,7 @@ class MemoryUploadService : Service() {
                 } finally {
                     Handler(Looper.getMainLooper()).post { finish(active) }
                 }
-            }.apply { name = "memory-export"; start() }
+            }.apply { name = "memory-upload"; start() }
         } catch (e: Exception) {
             synchronized(lock) { active.error = "Не удалось запустить фоновое загрузку: ${e.message}" }
             cancel()
@@ -187,7 +203,7 @@ class MemoryUploadService : Service() {
         val text = when {
             active.error != null -> active.error!!
             !active.running && active.cancelled -> "Остановлено. Загружено: $saved."
-            !active.running -> "Загружено: $saved.. Ошибок: ${active.failed}"
+            !active.running -> "Загружено: $saved. Ошибок: ${active.failed}"
             else -> "Загружено ${active.current} из ${active.files.size} · ошибок ${active.failed}"
         }
         val currentPercent = active.files.firstOrNull { it.optString("status") == "uploading" }?.optInt("progress") ?: 0

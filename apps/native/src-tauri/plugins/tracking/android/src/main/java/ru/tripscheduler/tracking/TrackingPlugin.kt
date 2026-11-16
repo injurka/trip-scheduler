@@ -372,7 +372,7 @@ class TrackingPlugin(private val activity: Activity) : Plugin(activity) {
                     check(hasNotificationPermission()) { "Разрешите уведомления для фоновой загрузки" }
                     MemoryUploadService.start(activity.applicationContext, args.getJSONObject("payload"))
                 }
-                "cancel" -> MemoryUploadService.cancelItem(args.getJSONObject("payload").getString("id"))
+                "cancel" -> MemoryUploadService.cancelItem(activity.applicationContext, args.getJSONObject("payload").getString("id"))
                 "stop" -> MemoryUploadService.cancelAll()
                 "status" -> {
                     val status = MemoryUploadService.status()

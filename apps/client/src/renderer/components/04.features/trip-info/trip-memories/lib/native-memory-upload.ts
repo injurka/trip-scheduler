@@ -17,6 +17,7 @@ interface NativeStatus {
   id?: string
   tripId?: string
   accountId?: string
+  ready?: boolean
   isRunning: boolean
   error?: string
   tokens?: { accessToken: string, refreshToken: string }
@@ -33,9 +34,13 @@ function base64(bytes: Uint8Array) {
   return btoa(pieces.join(''))
 }
 
-async function stageFile(store: UploadStore, item: IProcessingMemory) {
+async function stageFile(store: UploadStore, item: IProcessingMemory, assertContext: () => void) {
+  if (!item.file.size)
+    throw new Error('Файл пуст')
+
   for (let offset = 0; offset < item.file.size; offset += 128 * 1024) {
     requireAppOnline()
+    assertContext()
 
     if (!store.processingMemories.has(item.tempId))
       break
@@ -45,7 +50,7 @@ async function stageFile(store: UploadStore, item: IProcessingMemory) {
   }
 }
 
-async function prepareFiles(store: UploadStore) {
+async function prepareFiles(store: UploadStore, assertContext: () => void) {
   const pending = [...store.processingMemories.values()].filter(item => item.status === 'queued')
   const files = []
 
@@ -57,7 +62,7 @@ async function prepareFiles(store: UploadStore) {
     item.preparing = true
 
     try {
-      await stageFile(store, item)
+      await stageFile(store, item, assertContext)
 
       if (store.processingMemories.has(item.tempId)) {
         files.push({
@@ -73,7 +78,12 @@ async function prepareFiles(store: UploadStore) {
       item.status = 'error'
       item.error = String(error)
     }
-    finally { item.preparing = false }
+    finally {
+      item.preparing = false
+
+      if (!store.processingMemories.has(item.tempId) || item.status === 'error')
+        await invoke('memory_upload', { operation: 'cancel', payload: { id: item.tempId } })
+    }
 
     if (item.status !== 'error')
       item.status = 'queued'
@@ -102,6 +112,23 @@ function applyStatus(store: UploadStore, status: NativeStatus) {
   }
 }
 
+function assertUploadContext(store: UploadStore, status: NativeStatus, accountId: string | undefined) {
+  if (status.tripId !== store.currentTripId || status.accountId !== accountId)
+    throw new Error('Контекст загрузки изменился')
+}
+
+function saveNativeTokens(status: NativeStatus, lastToken: string | undefined) {
+  const auth = useAuthStore()
+
+  if (status.tokens && status.accountId === auth.user?.id && status.tokens.accessToken !== lastToken) {
+    auth.saveTokens(status.tokens)
+
+    return status.tokens.accessToken
+  }
+
+  return lastToken
+}
+
 async function observeUpload(store: UploadStore) {
   const auth = useAuthStore()
   let lastToken: string | undefined
@@ -112,10 +139,9 @@ async function observeUpload(store: UploadStore) {
     if (!status.id)
       throw new Error('Фоновая загрузка прервана. Повторите отправку оставшихся файлов.')
 
-    if (status.tokens && status.accountId === auth.user?.id && status.tokens.accessToken !== lastToken) {
-      auth.saveTokens(status.tokens)
-      lastToken = status.tokens.accessToken
-    }
+    lastToken = saveNativeTokens(status, lastToken)
+
+    assertUploadContext(store, status, auth.user?.id)
 
     applyStatus(store, status)
 
@@ -123,7 +149,8 @@ async function observeUpload(store: UploadStore) {
       if (status.error)
         throw new Error(status.error)
 
-      break
+      if (status.ready !== false)
+        break
     }
 
     await new Promise(resolve => setTimeout(resolve, 750))
@@ -148,9 +175,28 @@ async function refreshMemories(store: UploadStore, tripId: string, accountId: st
     store.memories = memories
 }
 
-function continueQueuedUploads(store: UploadStore, tripId: string, dates: string[]) {
+function continueQueuedUploads(
+  store: UploadStore,
+  tripId: string,
+  dates: string[],
+  interrupted: boolean,
+  accountId: string | undefined,
+) {
+  if (interrupted || useAuthStore().user?.id !== accountId)
+    return
+
   if (store.currentTripId === tripId && [...store.processingMemories.values()].some(item => item.status === 'queued'))
     void runNativeMemoryUploads(store, tripId, dates)
+}
+
+function markContextFailed(
+  store: UploadStore,
+  tripId: string,
+  accountId: string | undefined,
+  error: unknown,
+) {
+  if (store.currentTripId === tripId && useAuthStore().user?.id === accountId)
+    markFailed(store, error)
 }
 
 export async function runNativeMemoryUploads(store: UploadStore, tripId: string, dates: string[]) {
@@ -161,9 +207,16 @@ export async function runNativeMemoryUploads(store: UploadStore, tripId: string,
   const auth = useAuthStore()
   const accountId = auth.user?.id
   const { forcedOffline } = useConnectivity()
+  let interrupted = false
+  const assertContext = () => {
+    if (interrupted || auth.user?.id !== accountId || store.currentTripId !== tripId)
+      throw new Error('Контекст загрузки изменился')
+  }
   const stopWatch = watch(() => [auth.user?.id, forcedOffline.value], () => {
-    if (auth.user?.id !== accountId || forcedOffline.value)
+    if (auth.user?.id !== accountId || forcedOffline.value) {
+      interrupted = true
       void invoke('memory_upload', { operation: 'stop' })
+    }
   })
 
   try {
@@ -172,12 +225,13 @@ export async function runNativeMemoryUploads(store: UploadStore, tripId: string,
     if (!await invoke<boolean>('tracking_request_notification_permission'))
       throw new Error('Разрешите уведомления для фоновой загрузки')
 
-    const files = await prepareFiles(store)
+    const files = (await prepareFiles(store, assertContext)).filter(file => store.processingMemories.has(file.id))
 
     if (!files.length)
       return
 
     requireAppOnline()
+    assertContext()
     await invoke('memory_upload', {
       operation: 'start',
       payload: {
@@ -185,7 +239,7 @@ export async function runNativeMemoryUploads(store: UploadStore, tripId: string,
         tripId,
         accountId,
         dates,
-        files: files.filter(file => store.processingMemories.has(file.id)),
+        files,
         accessToken: auth.tokenPair?.accessToken,
         refreshToken: auth.tokenPair?.refreshToken,
       },
@@ -195,11 +249,23 @@ export async function runNativeMemoryUploads(store: UploadStore, tripId: string,
     await refreshMemories(store, tripId, accountId)
   }
   catch (error) {
-    markFailed(store, error)
+    markContextFailed(
+      store,
+      tripId,
+      accountId,
+      error,
+    )
   }
   finally {
     stopWatch()
     active.delete(store)
-    continueQueuedUploads(store, tripId, dates)
+
+    continueQueuedUploads(
+      store,
+      tripId,
+      dates,
+      interrupted,
+      accountId,
+    )
   }
 }

@@ -28,7 +28,11 @@ object MemoryUploadFiles {
 }
 
 /** All network steps, including memory creation, execute without the WebView. */
-class MemoryUploader(private val context: Context, private val config: JSONObject) {
+class MemoryUploader(
+    private val context: Context,
+    private val config: JSONObject,
+    private val saveImage: (JSONObject, JSONObject) -> Unit = { item, image -> item.put("image", image); Unit }
+) {
     @Volatile var connection: HttpURLConnection? = null
     private val base = config.getString("serverUrl").trimEnd('/')
     init {
@@ -108,7 +112,7 @@ class MemoryUploader(private val context: Context, private val config: JSONObjec
                 if (cancelled()) throw CancellationException()
                 info.put("uploadId", uploadId).put("key", key).put("parts", parts)
                 image = json("/api/upload/multipart/complete", info)
-                item.put("image", image) // Retry memory creation without re-uploading the original.
+                saveImage(item, image) // Retry memory creation without re-uploading the original.
             } catch (error: Exception) {
                 runCatching { json("/api/upload/multipart/abort", JSONObject().put("uploadId", uploadId).put("key", key)) }
                 throw error

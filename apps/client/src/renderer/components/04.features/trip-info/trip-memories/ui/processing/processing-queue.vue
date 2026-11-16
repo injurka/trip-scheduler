@@ -53,7 +53,7 @@ const {
       <div class="queue-header">
         <div class="header-content">
           <h4><Icon icon="mdi:image-sync-outline" /> Медиафайлы для обработки</h4>
-          <p>Здесь находятся медиа без даты или снятые в другой день. Назначьте им время и комментарий, чтобы они появились в ленте воспоминаний.</p>
+          <p>У этих медиа ещё не назначено время в ленте. Проверьте дату съёмки или укажите дату и время вручную, чтобы добавить их в воспоминания.</p>
         </div>
         <div class="header-actions">
           <KitTooltip :text="isFullScreen ? 'Свернуть из полноэкранного режима' : 'На весь экран'">
@@ -74,7 +74,7 @@ const {
             Без даты
           </KitCheckbox>
           <KitCheckbox v-model="filters.showWithDate">
-            Снятые в другой день
+            С датой съёмки
           </KitCheckbox>
         </div>
         <div v-if="filteredMemories.length > 0" class="queue-grid">
