@@ -5,6 +5,15 @@ import { memories, tripImages } from 'db/schema'
 import { and, asc, eq, gte, isNull, lte, sql } from 'drizzle-orm'
 import { normalizeStarRating } from '~/services/photo-rating'
 
+// Keep list responses small, but preserve the capture offset needed by processing
+// cards after reload/native upload. takenAt is UTC; memory timestamps are wall time.
+const memoryImageQuery = {
+  columns: { metadata: false as const },
+  extras: {
+    metadata: sql<{ timezoneOffset?: number }>`jsonb_strip_nulls(jsonb_build_object('timezoneOffset', ${tripImages.metadata}->'timezoneOffset'))`.as('metadata'),
+  },
+}
+
 /** Called inside the transaction holding the image lock. Never overwrite manual choices. */
 export async function applyImportedImageRating(tx: Pick<typeof db, 'update'>, imageId: string, value: unknown) {
   const rating = normalizeStarRating(value)
@@ -57,11 +66,7 @@ export const memoryRepository = {
     const result = await db.query.memories.findFirst({
       where: eq(memories.id, newMemory.id),
       with: {
-        image: {
-          columns: {
-            metadata: false,
-          },
-        },
+        image: memoryImageQuery,
       },
     })
 
@@ -90,11 +95,7 @@ export const memoryRepository = {
     return await db.query.memories.findMany({
       where: and(...conditions),
       with: {
-        image: {
-          columns: {
-            metadata: false,
-          },
-        },
+        image: memoryImageQuery,
       },
       orderBy: [asc(memories.timestamp), asc(memories.createdAt)],
     })
@@ -143,11 +144,7 @@ export const memoryRepository = {
     return await db.query.memories.findFirst({
       where: eq(memories.id, updatedMemory.id),
       with: {
-        image: {
-          columns: {
-            metadata: false,
-          },
-        },
+        image: memoryImageQuery,
       },
     })
   },
@@ -206,7 +203,7 @@ export const memoryRepository = {
     return await db.query.memories.findFirst({
       where: eq(memories.id, updatedMemory.id),
       with: {
-        image: { columns: { metadata: false } },
+        image: memoryImageQuery,
       },
     })
   },
@@ -229,7 +226,7 @@ export const memoryRepository = {
     return await db.query.memories.findFirst({
       where: eq(memories.id, updatedMemory.id),
       with: {
-        image: { columns: { metadata: false } },
+        image: memoryImageQuery,
       },
     })
   },
