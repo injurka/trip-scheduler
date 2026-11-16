@@ -6,7 +6,7 @@ import type { Memory } from '~/shared/types/models/memory'
 import { Icon } from '@iconify/vue'
 import { useEventListener } from '@vueuse/core'
 import { AlertDialogContent, AlertDialogDescription, AlertDialogOverlay, AlertDialogPortal, AlertDialogRoot, AlertDialogTitle } from 'reka-ui'
-import { computed, getCurrentInstance, ref, toRef } from 'vue'
+import { computed, getCurrentInstance, ref, toRef, useId } from 'vue'
 import { onBeforeRouteLeave, onBeforeRouteUpdate, useRouter } from 'vue-router'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitImageViewer, useImageViewer } from '~/components/01.kit/kit-image-viewer'
@@ -128,6 +128,7 @@ const timezone = useDayTrackTimezone({
 })
 // ─── 6. Полноэкранный просмотр фотографий ─────────────────────────────────────
 const imageViewer = useImageViewer()
+const playbackPanelId = useId()
 
 const draftTripId = ref(props.tripId)
 const applying = ref(false)
@@ -142,6 +143,7 @@ const popupHost = ref<HTMLElement | null>(null)
 const photoPopupHost = ref<HTMLElement | null>(null)
 const playbackMarkerHost = ref<HTMLElement | null>(null)
 const viewMode = ref<ViewMode>('route')
+const isPlaybackPanelVisible = ref(true)
 const routeVisibility = ref<RouteVisibility>('full')
 const trailMinutes = ref(15)
 
@@ -444,6 +446,18 @@ useEventListener(window, 'beforeunload', (event: BeforeUnloadEvent) => {
         >
           <Icon :icon="playback.isFollowCamera.value ? 'mdi:crosshairs-gps' : 'mdi:crosshairs'" />
         </button>
+        <button
+          v-if="renderSegments.length > 0 || totalPointsCount > 0"
+          type="button"
+          class="track-follow-btn playback-visibility-btn"
+          :aria-pressed="isPlaybackPanelVisible"
+          :aria-label="isPlaybackPanelVisible ? 'Скрыть плеер' : 'Показать плеер'"
+          :title="isPlaybackPanelVisible ? 'Скрыть плеер' : 'Показать плеер'"
+          :aria-controls="playbackPanelId"
+          @click="isPlaybackPanelVisible = !isPlaybackPanelVisible"
+        >
+          <Icon :icon="isPlaybackPanelVisible ? 'mdi:eye-outline' : 'mdi:eye-off-outline'" />
+        </button>
       </template>
       <template #top-actions>
         <slot name="top-actions" />
@@ -527,7 +541,8 @@ useEventListener(window, 'beforeunload', (event: BeforeUnloadEvent) => {
     <!-- Нижняя панель плеера: только для дней с GPS-треком. В день из одних
          воспоминаний таймлайн пуст («--:--», выключенный ползунок) и бесполезен -->
     <DayTrackPlaybackPanel
-      v-if="renderSegments.length > 0 || totalPointsCount > 0"
+      v-if="isPlaybackPanelVisible && (renderSegments.length > 0 || totalPointsCount > 0)"
+      :id="playbackPanelId"
       v-model:route-visibility="routeVisibility"
       v-model:trail-minutes="trailMinutes"
       v-model:t="playback.t.value"
@@ -694,6 +709,15 @@ useEventListener(window, 'beforeunload', (event: BeforeUnloadEvent) => {
   &:focus-visible {
     outline: 2px solid var(--fg-accent-color);
     outline-offset: 2px;
+  }
+}
+
+@media (max-width: 640px) {
+  .track-follow-btn {
+    width: 36px;
+    height: 36px;
+    font-size: 18px;
+    flex-shrink: 0;
   }
 }
 

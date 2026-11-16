@@ -140,6 +140,10 @@ function scrollActiveButtonIntoView(button: HTMLElement) {
 useResizeObserver(switcherRef, () => {
   gliderStyle.value.transition = 'none'
   updateGliderPosition()
+  const activeButton = buttonRefs.value[model.value]
+
+  if (activeButton)
+    scrollActiveButtonIntoView(activeButton)
 })
 
 onMounted(() => {

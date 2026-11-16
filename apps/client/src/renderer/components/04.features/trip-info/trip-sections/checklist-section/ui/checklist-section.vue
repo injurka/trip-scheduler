@@ -131,6 +131,30 @@ async function handleNavigateToItem(payload: { itemId: string, tabId: ChecklistT
     <div class="tabs-header-wrapper">
       <div class="tabs-control">
         <KitTabs v-model="activeTab" :items="tabItems">
+          <template v-if="!readonly" #header-actions>
+            <div class="tab-management-actions" role="group" aria-label="Управление вкладками">
+              <KitTooltip text="Добавить новую вкладку">
+                <button
+                  type="button"
+                  class="tab-action-btn"
+                  aria-label="Добавить новую вкладку"
+                  @click="openNewTabDialog"
+                >
+                  <Icon icon="mdi:tab-plus" />
+                </button>
+              </KitTooltip>
+              <KitTooltip v-if="currentTabConfig?.isCustom" text="Настроить активную вкладку">
+                <button
+                  type="button"
+                  class="tab-action-btn"
+                  aria-label="Настроить активную вкладку"
+                  @click="openEditTabDialog"
+                >
+                  <Icon icon="mdi:dots-vertical" />
+                </button>
+              </KitTooltip>
+            </div>
+          </template>
           <template #[activeTab]>
             <div class="tab-content-wrapper">
               <!-- Панель действий -->
@@ -316,20 +340,6 @@ async function handleNavigateToItem(payload: { itemId: string, tabId: ChecklistT
           </template>
         </KitTabs>
       </div>
-
-      <!-- Кнопки управления вкладками -->
-      <div v-if="!readonly" class="tab-management-actions">
-        <KitTooltip text="Добавить новую вкладку">
-          <button class="tab-action-btn" @click="openNewTabDialog">
-            <Icon icon="mdi:tab-plus" />
-          </button>
-        </KitTooltip>
-        <KitTooltip v-if="currentTabConfig?.isCustom" text="Настроить активную вкладку">
-          <button class="tab-action-btn" @click="openEditTabDialog">
-            <Icon icon="mdi:dots-vertical" />
-          </button>
-        </KitTooltip>
-      </div>
     </div>
 
     <!-- Модальные окна -->
@@ -383,18 +393,15 @@ async function handleNavigateToItem(payload: { itemId: string, tabId: ChecklistT
   display: flex;
   align-items: center;
   gap: 4px;
-  position: absolute;
-  right: 6px;
-  top: 6px;
-  z-index: 10;
 }
 
 .tab-action-btn {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
   border-radius: var(--r-s);
   background: var(--bg-secondary-color);
   border: 1px solid var(--border-secondary-color);

@@ -72,7 +72,12 @@ function onAfterEnter() {
 
 <template>
   <div class="kit-tabs" :class="{ single: items.length === 1 }">
-    <KitViewSwitcher v-model="model" :items="items" full-width />
+    <div class="kit-tabs-header">
+      <KitViewSwitcher v-model="model" :items="items" full-width />
+      <div v-if="$slots['header-actions']" class="kit-tabs-header-actions">
+        <slot name="header-actions" />
+      </div>
+    </div>
 
     <div v-if="smAndDown && currentTab" class="mobile-tab-info">
       <KitDivider>
@@ -127,6 +132,24 @@ function onAfterEnter() {
       opacity: 0 !important;
     }
   }
+}
+
+.kit-tabs-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+
+  :deep(.kit-view-switcher) {
+    flex: 1 1 0%;
+    min-width: 0;
+  }
+}
+
+.kit-tabs-header-actions {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
 }
 
 .mobile-tab-info {

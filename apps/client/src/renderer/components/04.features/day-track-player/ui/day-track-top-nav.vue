@@ -144,9 +144,6 @@ function parseDay(day?: string): CalendarDate | undefined {
       >
         <Icon icon="mdi:chevron-right" />
       </button>
-    </div>
-
-    <div class="top-actions">
       <KitBtn
         v-if="showTodayButton && selectedDay !== todayUtc"
         variant="subtle"
@@ -155,55 +152,79 @@ function parseDay(day?: string): CalendarDate | undefined {
       >
         Сегодня
       </KitBtn>
-
-      <!-- Переключатель режима: Маршрут / Точки Безье (только когда трек есть) -->
-      <div v-if="hasTrack" class="view-mode-tabs">
-        <button
-          class="mode-tab-btn"
-          :class="{ 'is-active': viewMode === 'route' }"
-          title="Отображать сегменты маршрута с классификацией"
-          @click="emit('update:viewMode', 'route')"
-        >
-          <Icon icon="mdi:map-marker-path" class="tab-icon" />
-          <span class="tab-label">Маршрут</span>
-        </button>
-        <button
-          class="mode-tab-btn"
-          :class="{ 'is-active': viewMode === 'points' }"
-          title="Исходные измерения GPS: включая погрешности и дрейф на остановках"
-          @click="emit('update:viewMode', 'points')"
-        >
-          <Icon icon="mdi:vector-bezier" class="tab-icon" />
-          <span class="tab-label">Исходные точки</span>
-          <span v-if="totalPointsCount > 0" class="points-pill">{{ totalPointsCount }}</span>
-        </button>
-      </div>
-
-      <!-- Переключатель слоя фотографий (если есть фото) -->
-      <button
-        v-if="totalPhotosCount && totalPhotosCount > 0"
-        class="photos-toggle-btn"
-        :class="{ 'is-active': isPhotosVisible }"
-        :title="isPhotosVisible
-          ? `Скрыть фото (${locatedPhotosCount ?? 0} на карте${unlocatedPhotosCount ? `, ${unlocatedPhotosCount} без геоданных` : ''})`
-          : `Показать фото (${locatedPhotosCount ?? 0} на карте${unlocatedPhotosCount ? `, ${unlocatedPhotosCount} без геоданных` : ''})`"
-        type="button"
-        @click="emit('update:isPhotosVisible', !isPhotosVisible)"
-      >
-        <Icon icon="mdi:camera-outline" class="toggle-icon" />
-        <span class="photos-count-badge">{{ locatedPhotosCount ?? 0 }}</span>
-      </button>
-
-      <slot name="top-actions" />
     </div>
-    <div v-if="$slots['map-controls']" class="map-controls">
-      <slot name="map-controls" />
+
+    <div class="map-toolbar">
+      <div class="top-actions">
+        <!-- Переключатель режима: Маршрут / Точки Безье (только когда трек есть) -->
+        <div v-if="hasTrack" class="view-mode-tabs">
+          <button
+            class="mode-tab-btn"
+            :class="{ 'is-active': viewMode === 'route' }"
+            type="button"
+            aria-label="Маршрут"
+            :aria-pressed="viewMode === 'route'"
+            title="Отображать сегменты маршрута с классификацией"
+            @click="emit('update:viewMode', 'route')"
+          >
+            <Icon icon="mdi:map-marker-path" class="tab-icon" />
+            <span class="tab-label">Маршрут</span>
+          </button>
+          <button
+            class="mode-tab-btn"
+            :class="{ 'is-active': viewMode === 'points' }"
+            type="button"
+            aria-label="Исходные точки"
+            :aria-pressed="viewMode === 'points'"
+            title="Исходные измерения GPS: включая погрешности и дрейф на остановках"
+            @click="emit('update:viewMode', 'points')"
+          >
+            <Icon icon="mdi:vector-bezier" class="tab-icon" />
+            <span class="tab-label tab-label-full">Исходные точки</span>
+            <span class="tab-label tab-label-compact">Точки</span>
+            <span v-if="totalPointsCount > 0" class="points-pill">{{ totalPointsCount }}</span>
+          </button>
+        </div>
+
+        <!-- Переключатель слоя фотографий (если есть фото) -->
+        <button
+          v-if="totalPhotosCount && totalPhotosCount > 0"
+          class="photos-toggle-btn"
+          :class="{ 'is-active': isPhotosVisible }"
+          :aria-pressed="isPhotosVisible"
+          :aria-label="isPhotosVisible ? `Скрыть фотографии (${totalPhotosCount})` : `Показать фотографии (${totalPhotosCount})`"
+          :title="isPhotosVisible
+            ? `Скрыть фото (${locatedPhotosCount ?? 0} на карте${unlocatedPhotosCount ? `, ${unlocatedPhotosCount} без геоданных` : ''})`
+            : `Показать фото (${locatedPhotosCount ?? 0} на карте${unlocatedPhotosCount ? `, ${unlocatedPhotosCount} без геоданных` : ''})`"
+          type="button"
+          @click="emit('update:isPhotosVisible', !isPhotosVisible)"
+        >
+          <Icon icon="mdi:camera-outline" class="toggle-icon" />
+          <span class="photos-count-badge">{{ locatedPhotosCount ?? 0 }}</span>
+        </button>
+
+        <slot name="top-actions" />
+      </div>
+      <div v-if="$slots['map-controls']" class="map-controls">
+        <slot name="map-controls" />
+      </div>
     </div>
   </div>
 </template>
 
 <style scoped lang="scss">
+.map-toolbar {
+  display: contents;
+}
+
+.tab-label-compact {
+  display: none;
+}
+
 .map-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   position: absolute;
   right: -2px;
   top: 62px;
@@ -438,9 +459,15 @@ function parseDay(day?: string): CalendarDate | undefined {
 @media (max-width: 640px) {
   .map-controls {
     position: static;
-    align-self: flex-end;
-    flex-shrink: 0;
-    margin-top: 2px;
+    flex: 0 0 auto;
+    margin: 0;
+  }
+
+  .map-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
   }
 
   .top-nav-bar {
@@ -485,8 +512,21 @@ function parseDay(day?: string): CalendarDate | undefined {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      width: 100%;
+      flex: 1;
+      min-width: 0;
       gap: 6px;
+
+      .photos-toggle-btn {
+        flex: 0 0 36px;
+        width: 36px;
+        height: 36px;
+        padding: 0;
+        justify-content: center;
+
+        .photos-count-badge {
+          display: none;
+        }
+      }
 
       .view-mode-tabs {
         flex: 1;
@@ -495,6 +535,8 @@ function parseDay(day?: string): CalendarDate | undefined {
 
         .mode-tab-btn {
           flex: 1;
+          min-width: 0;
+          white-space: nowrap;
           justify-content: center;
           padding: 4px 6px;
 
@@ -503,12 +545,25 @@ function parseDay(day?: string): CalendarDate | undefined {
             font-size: 0.74rem;
           }
 
+          .tab-label-full {
+            display: none;
+          }
+
+          .tab-label-compact {
+            display: inline;
+          }
+
           .points-pill {
             display: none;
           }
         }
       }
     }
+  }
+}
+@media (max-width: 360px) {
+  .top-nav-bar .top-actions .view-mode-tabs .mode-tab-btn .tab-label {
+    display: none;
   }
 }
 </style>

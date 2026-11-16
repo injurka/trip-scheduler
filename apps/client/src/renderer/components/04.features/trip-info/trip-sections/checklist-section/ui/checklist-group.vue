@@ -86,11 +86,23 @@ function onAddItem() {
 
 <template>
   <div class="checklist-group">
-    <header v-ripple class="group-header" @click="isCollapsed = !isCollapsed">
+    <header
+      v-ripple
+      class="group-header"
+      :class="{ 'is-readonly': readonly, 'has-items': groupProgress.total > 0 }"
+      @click="isCollapsed = !isCollapsed"
+    >
+      <button
+        v-if="!readonly"
+        type="button"
+        class="drag-handle-group"
+        title="Перетащить группу"
+        aria-label="Перетащить группу"
+        @click.stop
+      >
+        <Icon icon="mdi:drag" />
+      </button>
       <div class="title-container">
-        <button v-if="!readonly" class="drag-handle-group" title="Перетащить группу">
-          <Icon icon="mdi:drag" />
-        </button>
         <ChecklistIconPicker
           v-if="!readonly"
           :model-value="group.icon"
@@ -122,19 +134,29 @@ function onAddItem() {
         </div>
         <button
           v-if="!readonly"
+          type="button"
           class="delete-group-btn"
           title="Удалить группу"
+          aria-label="Удалить группу"
           @click.stop="$emit('delete')"
         >
           <Icon icon="mdi:trash-can-outline" />
         </button>
-        <button class="collapse-btn" :title="isCollapsed ? 'Развернуть' : 'Свернуть'">
+        <button
+          type="button"
+          class="collapse-btn"
+          :title="isCollapsed ? 'Развернуть' : 'Свернуть'"
+          :aria-label="isCollapsed ? 'Развернуть группу' : 'Свернуть группу'"
+          :aria-expanded="!isCollapsed"
+          :aria-controls="`checklist-group-${group.id}`"
+          @click.stop="isCollapsed = !isCollapsed"
+        >
           <Icon icon="mdi:chevron-down" :class="{ 'is-collapsed': isCollapsed }" />
         </button>
       </div>
     </header>
 
-    <div v-show="!isCollapsed" class="group-content">
+    <div v-show="!isCollapsed" :id="`checklist-group-${group.id}`" class="group-content">
       <draggable
         v-if="!readonly"
         :model-value="items"
@@ -192,17 +214,24 @@ function onAddItem() {
 }
 
 .group-header {
-  display: flex;
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) auto 28px 28px;
+  grid-template-areas: 'drag title progress delete collapse';
   align-items: center;
-  justify-content: space-between;
   gap: 0.75rem;
   padding: 0.5rem 0.5rem 0.5rem 0.75rem;
   background-color: var(--bg-tertiary-color);
   cursor: pointer;
   border-radius: var(--r-m);
+
+  &.is-readonly {
+    grid-template-columns: minmax(0, 1fr) auto 28px;
+    grid-template-areas: 'title progress collapse';
+  }
 }
 
 .title-container {
+  grid-area: title;
   display: flex;
   align-items: center;
   gap: 0.75rem;
@@ -211,6 +240,12 @@ function onAddItem() {
 }
 
 .drag-handle-group {
+  grid-area: drag;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  background: transparent;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -224,6 +259,10 @@ function onAddItem() {
 }
 
 .group-name {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  line-height: 1.4;
   font-weight: 600;
   font-size: 1rem;
   min-height: 40px;
@@ -232,14 +271,34 @@ function onAddItem() {
 }
 
 .header-actions {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
+  display: contents;
+}
+
+.title-container > :not(.group-name) {
   flex-shrink: 0;
+}
+
+.group-name :deep(.kit-editable-controls) {
+  flex-shrink: 0;
+}
+
+.group-name :deep(.kit-editable-area) {
+  padding: 0;
+}
+
+.delete-group-btn {
+  grid-area: delete;
+}
+
+.collapse-btn {
+  grid-area: collapse;
 }
 
 /* Стили для нового прогресс-бара группы */
 .group-progress-container {
+  grid-area: progress;
+  justify-self: start;
+  white-space: nowrap;
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -255,6 +314,9 @@ function onAddItem() {
 
 .delete-group-btn,
 .collapse-btn {
+  padding: 0;
+  border: 0;
+  background: transparent;
   color: var(--fg-tertiary-color);
   display: inline-flex;
   align-items: center;
@@ -279,6 +341,50 @@ function onAddItem() {
   transition: transform 0.2s ease-in-out;
   &.is-collapsed {
     transform: rotate(-180deg);
+  }
+}
+
+@include media-down(sm) {
+  .group-header {
+    grid-template-columns: 36px minmax(0, 1fr) 36px;
+    grid-template-areas:
+      'title title collapse'
+      'drag progress delete';
+    gap: 8px;
+    padding: 12px;
+    background-color: var(--bg-secondary-color);
+
+    &.is-readonly {
+      grid-template-columns: minmax(0, 1fr) 36px;
+      grid-template-areas:
+        'title collapse'
+        'progress progress';
+
+      &:not(.has-items) {
+        grid-template-areas: 'title collapse';
+      }
+    }
+  }
+
+  .title-container {
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .group-name {
+    min-height: 36px;
+    font-size: 0.95rem;
+  }
+
+  .drag-handle-group,
+  .delete-group-btn,
+  .collapse-btn {
+    width: 36px;
+    height: 36px;
+  }
+
+  .collapse-btn {
+    align-self: start;
   }
 }
 

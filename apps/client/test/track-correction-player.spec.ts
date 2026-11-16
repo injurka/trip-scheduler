@@ -74,14 +74,14 @@ async function setup(history = createMemoryHistory()) {
       provide: { [matchedRouteKey as symbol]: computed(() => router.currentRoute.value.matched[0]) },
       plugins: [router],
       stubs: {
-        DayTrackTopNav: true,
+        DayTrackTopNav: defineComponent({ setup: (_, { slots }) => () => h('nav', slots['map-controls']?.()) }),
         DayTrackBeacon: true,
         DayTrackPointPopup: true,
         DayTrackPhotoPopup: true,
         DayTrackOverlayState: true,
         DayTrackEmpty: true,
         DayTrackActivityEditor: defineComponent({ name: 'Editor', props: ['visible'], emits: ['stage', 'remove', 'update:visible'], render: () => null }),
-        DayTrackPlaybackPanel: defineComponent({ setup: (_, { slots }) => () => h('div', slots['draft-actions']?.()) }),
+        DayTrackPlaybackPanel: defineComponent({ name: 'DayTrackPlaybackPanel', props: { t: Number, speedMultiplier: Number }, setup: (_, { slots }) => () => h('div', { 'data-testid': 'playback-panel' }, slots['draft-actions']?.()) }),
         KitBtn: defineComponent({ setup: (_, { slots, attrs }) => () => h('button', attrs, slots.default?.()) }),
       },
     },
@@ -99,6 +99,28 @@ beforeEach(() => {
   api.correctActivities.mockReset().mockResolvedValue({ success: true })
 })
 describe('batch correction player', () => {
+  it('hides and restores the player without losing position, speed or correction drafts', async () => {
+    const wrapper = await setup()
+    const panel = wrapper.findComponent({ name: 'DayTrackPlaybackPanel' })
+    panel.vm.$emit('update:t', start + 100000)
+    panel.vm.$emit('update:speedMultiplier', 4)
+    wrapper.findComponent({ name: 'Editor' }).vm.$emit('stage', choice)
+    await flushPromises()
+    const before = { ...panel.props() }
+    expect(before.t).toBe(start + 100000)
+    expect(before.speedMultiplier).toBe(4)
+    await wrapper.get('[aria-label="Скрыть плеер"]').trigger('click')
+    expect(wrapper.find('[data-testid="playback-panel"]').exists()).toBe(false)
+    expect(wrapper.get('[aria-label="Показать плеер"]').attributes('aria-pressed')).toBe('false')
+    await wrapper.get('[aria-label="Показать плеер"]').trigger('click')
+    const restored = wrapper.findComponent({ name: 'DayTrackPlaybackPanel' })
+    expect(restored.props('t')).toBe(before.t)
+    expect(restored.props('speedMultiplier')).toBe(before.speedMultiplier)
+    expect(wrapper.text()).toContain('Изменений: 1')
+    expect(api.correctActivities).not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
+
   it('stages several edits without requests and applies with one mutation and one day reload', async () => {
     const wrapper = await setup()
     const editor = wrapper.findComponent({ name: 'Editor' })
