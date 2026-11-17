@@ -131,3 +131,69 @@ describe('pedestrian speed consistency', () => {
     expect(processDayTrack(points).every(s => s.activity !== 'walk')).toBe(true)
   })
 })
+
+describe('slow walking continuity', () => {
+  it('keeps a 2–5 km/h walking stretch continuous when device recognition disappears', () => {
+    for (const accuracy of [7, 30]) {
+      for (const speed of [0.55, 0.83, 1.11, 1.39]) {
+        const points = route(Array.from({ length: 180 }, (_, i) => i < 60 || i >= 120 ? 1.4 : speed), 'walk')
+        points.forEach((point) => {
+          point.accuracy = accuracy
+        })
+        for (const point of points.slice(60, 120)) {
+          point.deviceActivity = null
+          point.deviceActivityConfidence = null
+        }
+        const segments = processDayTrack(points)
+        expect(segments.length).toBeGreaterThan(0)
+        expect(segments.every(segment => segment.activity === 'walk')).toBe(true)
+      }
+    }
+  })
+  it('recognizes geometry-backed slow walking without an accelerometer hint', () => {
+    for (const interval of [1000, 5000, 15000, 45000]) {
+      const points = route(Array.from<number>({ length: Math.max(8, Math.floor(300000 / interval)) }).fill(0.55))
+        .map((point, i) => ({ ...point, tsUtc: 1800000000000 + i * interval, lng: 48 + i * 0.55 * interval / 1000 / 111195 }))
+      const segments = processDayTrack(points)
+      expect(segments.length).toBeGreaterThan(0)
+      expect(segments.every(segment => segment.activity === 'walk')).toBe(true)
+      expect(classifySegment(points).activity).toBe('walk')
+    }
+  })
+  it('does not call a stationary phone walking just because its speed says 5 km/h', () => {
+    const points = route(Array.from<number>({ length: 120 }).fill(1.4))
+    points.forEach((point, i) => {
+      point.lng = 48 + Math.sin(i) * 2 / 111195
+    })
+    const segments = processDayTrack(points)
+    expect(segments.length).toBeGreaterThan(0)
+    expect(segments.every(segment => segment.activity === 'still')).toBe(true)
+  })
+  it('does not bridge separate sessions or real GPS gaps with a walking segment', () => {
+    const points = route(Array.from<number>({ length: 180 }).fill(0.55))
+    for (const point of points.slice(60, 120)) point.tsUtc += 1800000
+    for (const point of points.slice(120)) {
+      point.tsUtc += 3600000
+      point.sessionId = 'second-session'
+    }
+    const segments = processDayTrack(points)
+    expect(segments.length).toBeGreaterThan(0)
+    expect(segments.every(segment => segment.points.every(point => point.sessionId === segment.points[0].sessionId))).toBe(true)
+    expect(segments.every(segment => segment.points.at(-1)!.tsUtc - segment.points[0].tsUtc < 900000)).toBe(true)
+  })
+})
+
+it('preserves confirmed bicycle and vehicle recognition at walking speed', () => {
+  for (const activity of ['bike', 'vehicle'] as const) {
+    const points = route(Array.from<number>({ length: 120 }).fill(0.55), activity)
+    expect(classifySegment(points, deviceReco(points)).activity).toBe(activity)
+    expect(processDayTrack(points).every(segment => segment.activity === activity)).toBe(true)
+  }
+})
+
+it('retains a real stationary pause between two walking stretches', () => {
+  const points = route(Array.from({ length: 180 }, (_, i) => i < 60 || i >= 120 ? 1.4 : 0))
+  const segments = processDayTrack(points)
+  expect(segments.some(segment => segment.activity === 'walk')).toBe(true)
+  expect(segments.some(segment => segment.activity === 'still')).toBe(true)
+})

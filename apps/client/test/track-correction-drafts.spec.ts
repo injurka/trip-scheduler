@@ -67,3 +67,16 @@ describe('local correction queue', () => {
     expect(drafts.removals.value).toEqual([submittedId, replacement])
   })
 })
+
+it('reuses a loaded day without leaking earlier preview labels into subsequent edits', () => {
+  const drafts = useTrackCorrectionDrafts()
+  drafts.stage(choice, data)
+  const first = drafts.preview(data)
+  drafts.stage({ ...choice, activity: 'bike' }, data)
+  const second = drafts.preview(data)
+  expect(first.rawPoints?.[10].activity).toBe('vehicle')
+  expect(second.rawPoints?.[10].activity).toBe('bike')
+  expect(data.rawPoints?.[10].activity).toBe('walk')
+  drafts.clear()
+  expect(drafts.preview(data)).toBe(data)
+})

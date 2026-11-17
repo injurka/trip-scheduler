@@ -589,15 +589,15 @@ useEventListener(window, 'beforeunload', (event: BeforeUnloadEvent) => {
       @seek-photo="(ts) => { playback.t.value = ts }"
     >
       <template #quality>
-        <details class="recording-quality">
-          <summary>Качество записи · пропуски {{ quality.gapCount }} · неточные участки {{ quality.inaccurateSections }} · правки {{ quality.manualCorrections }}</summary>
+        <section class="recording-quality">
+          <h3>Качество записи</h3>
           <dl>
             <div><dt>Пропуски GPS более 30 с</dt><dd>{{ quality.gapCount }} · {{ Math.round(quality.gapDurationMs / 60000) }} мин</dd></div>
             <div><dt>Неточные участки (погрешность &gt;35 м)</dt><dd>{{ quality.inaccurateSections }} · точек {{ quality.inaccuratePoints }}</dd></div>
             <div><dt>Точки без данных о точности</dt><dd>{{ quality.unknownAccuracyPoints }}</dd></div>
             <div><dt>Ручные исправления</dt><dd>{{ quality.manualCorrections }}</dd></div>
           </dl>
-        </details>
+        </section>
       </template>
       <template #draft-actions>
         <div v-if="drafts.count.value" class="draft-toolbar" :aria-busy="applying">
@@ -665,9 +665,10 @@ useEventListener(window, 'beforeunload', (event: BeforeUnloadEvent) => {
 .recording-quality {
   font-size: 0.75rem;
   color: var(--fg-secondary-color);
-  summary {
-    cursor: pointer;
-    padding-block: var(--p-xs);
+  h3 {
+    margin: 0 0 var(--p-s);
+    font-size: 0.95rem;
+    color: var(--fg-primary-color);
   }
   dl {
     margin: var(--p-xs) 0;
@@ -678,6 +679,10 @@ useEventListener(window, 'beforeunload', (event: BeforeUnloadEvent) => {
     display: flex;
     justify-content: space-between;
     gap: var(--p-s);
+    align-items: baseline;
+  }
+  dt {
+    min-width: 0;
   }
   dd {
     margin: 0;

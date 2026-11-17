@@ -4,6 +4,7 @@ import type { KitDropdownItem } from '~/components/01.kit/kit-dropdown'
 import type { ActivityType } from '~/shared/services/tracking/track-processing'
 import { Icon } from '@iconify/vue'
 import { useEventListener } from '@vueuse/core'
+import { PopoverContent, PopoverPortal, PopoverRoot, PopoverTrigger } from 'reka-ui'
 import { computed, ref } from 'vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitDropdown } from '~/components/01.kit/kit-dropdown'
@@ -79,6 +80,7 @@ const emit = defineEmits<{
   (e: 'seekPhoto', tsUtc: number): void
 }>()
 
+const qualityOpen = ref(false)
 const routeVisibilityItems: KitDropdownItem<RouteVisibility>[] = [
   { value: 'full', label: 'Весь маршрут', icon: 'mdi:routes' },
   { value: 'elapsed', label: 'До текущего времени', icon: 'mdi:timeline-clock-outline' },
@@ -256,12 +258,13 @@ function handlePhotoTickClick(tsUtc: number) {
 }
 // ─── 5. Горячие клавиши (Keyboard shortcuts) ───────────────────────────────────
 function isInteractiveTarget(target: HTMLElement | null): boolean {
-  if (!target)
+  if (!(target instanceof HTMLElement))
     return false
 
   const interactiveTags = ['BUTTON', 'SELECT', 'TEXTAREA']
 
   return interactiveTags.includes(target.tagName)
+    || Boolean(target.closest('[role="dialog"]'))
     || target.isContentEditable
     || isNonRangeInput(target)
     || Boolean(target.closest('button, [role="button"], [role="menuitem"], [role="option"], [role="combobox"], [role="listbox"], .kit-dropdown, a[href]'))
@@ -306,7 +309,6 @@ useEventListener(typeof window !== 'undefined' ? window : null, 'keydown', (e: K
 <template>
   <div class="memories-panel" :data-route-visibility="routeVisibility">
     <slot name="draft-actions" />
-    <slot name="quality" />
     <!-- Верхняя строка: Телеметрия, Часовой пояс и Слежение камерой -->
     <div class="memories-readout">
       <div class="readout-time-group">
@@ -363,42 +365,80 @@ useEventListener(typeof window !== 'undefined' ? window : null, 'keydown', (e: K
         </KitDropdown>
       </div>
       <!-- Единый аккуратный чип телеметрии по центру -->
-      <div class="readout-telemetry">
-        <div
-          class="telemetry-pill"
-          role="img"
-          :aria-label="telemetryLabel"
-          :title="telemetryLabel"
-          :style="{ '--act-color': currentActivityColor }"
-        >
-          <Icon :icon="currentActivityIcon" class="pill-icon" />
-          <span class="pill-label">{{ currentActivityLabel }}</span>
-          <template v-if="speedKmh !== null && speedKmh > 0.5">
-            <span class="pill-sep">•</span>
-            <span class="pill-speed">{{ speedKmh.toFixed(0) }} км/ч</span>
-          </template>
+      <div class="readout-actions">
+        <div class="readout-telemetry">
+          <div
+            class="telemetry-pill"
+            role="img"
+            :aria-label="telemetryLabel"
+            :title="telemetryLabel"
+            :style="{ '--act-color': currentActivityColor }"
+          >
+            <Icon :icon="currentActivityIcon" class="pill-icon" />
+            <span class="pill-label">{{ currentActivityLabel }}</span>
+            <template v-if="speedKmh !== null && speedKmh > 0.5">
+              <span class="pill-sep">•</span>
+              <span class="pill-speed">{{ speedKmh.toFixed(0) }} км/ч</span>
+            </template>
+          </div>
         </div>
-      </div>
-      <div class="mobile-playback-settings">
-        <KitDropdown
-          :items="mobileSettingsItems"
-          :model-value="mobileSettingsValue"
-          align="end"
-          size="sm"
-          @update:model-value="selectMobileSetting"
-        >
-          <template #trigger>
+        <PopoverRoot v-if="$slots.quality" v-model:open="qualityOpen">
+          <PopoverTrigger as-child>
             <KitBtn
               variant="text"
               color="secondary"
               size="sm"
-              aria-label="Настройки воспроизведения"
-              :title="`${visibilityLabel}${routeVisibility === 'recent' ? ` · ${trailMinutes} мин` : ''}. ${timezoneChipLabel}`"
+              class="quality-trigger"
+              aria-label="Качество записи"
+              title="Качество записи"
             >
-              <Icon icon="mdi:tune-variant" />
+              <Icon icon="mdi:chart-box-outline" />
             </KitBtn>
-          </template>
-        </KitDropdown>
+          </PopoverTrigger>
+          <PopoverPortal>
+            <PopoverContent
+              class="recording-quality-popover"
+              side="top"
+              align="end"
+              :side-offset="8"
+              :collision-padding="12"
+              aria-label="Качество записи"
+            >
+              <KitBtn
+                class="quality-close"
+                variant="text"
+                color="secondary"
+                size="xs"
+                aria-label="Закрыть качество записи"
+                @click="qualityOpen = false"
+              >
+                <Icon icon="mdi:close" />
+              </KitBtn>
+              <slot name="quality" />
+            </PopoverContent>
+          </PopoverPortal>
+        </PopoverRoot>
+        <div class="mobile-playback-settings">
+          <KitDropdown
+            :items="mobileSettingsItems"
+            :model-value="mobileSettingsValue"
+            align="end"
+            size="sm"
+            @update:model-value="selectMobileSetting"
+          >
+            <template #trigger>
+              <KitBtn
+                variant="text"
+                color="secondary"
+                size="sm"
+                aria-label="Настройки воспроизведения"
+                :title="`${visibilityLabel}${routeVisibility === 'recent' ? ` · ${trailMinutes} мин` : ''}. ${timezoneChipLabel}`"
+              >
+                <Icon icon="mdi:tune-variant" />
+              </KitBtn>
+            </template>
+          </KitDropdown>
+        </div>
       </div>
     </div>
 
@@ -587,6 +627,46 @@ useEventListener(typeof window !== 'undefined' ? window : null, 'keydown', (e: K
 </template>
 
 <style scoped lang="scss">
+.readout-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  min-width: 0;
+}
+.readout-actions .readout-telemetry {
+  min-width: 0;
+}
+.readout-actions .pill-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.quality-close {
+  float: right;
+  margin-left: var(--p-xs);
+}
+.quality-trigger {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  font-size: 20px;
+}
+.recording-quality-popover {
+  z-index: 2000;
+  width: min(360px, calc(100vw - 24px));
+  max-height: min(420px, var(--reka-popover-content-available-height));
+  overflow-y: auto;
+  box-sizing: border-box;
+  padding: var(--p-m);
+  border: 1px solid var(--border-secondary-color);
+  border-radius: var(--r-m);
+  background: var(--bg-secondary-color);
+  color: var(--fg-primary-color);
+  box-shadow: var(--s-l);
+}
+
 .route-visibility-controls {
   display: flex;
   flex-wrap: wrap;
@@ -1279,7 +1359,7 @@ useEventListener(typeof window !== 'undefined' ? window : null, 'keydown', (e: K
     gap: 6px;
     .memories-readout {
       display: grid;
-      grid-template-columns: auto minmax(0, 1fr) 44px;
+      grid-template-columns: auto minmax(0, 1fr);
       gap: 8px;
       flex-wrap: nowrap;
       .readout-time-group {

@@ -6,7 +6,7 @@ import { Icon } from '@iconify/vue'
 import { parseDateTime } from '@internationalized/date'
 import { RadioGroupItem, RadioGroupRoot } from 'reka-ui'
 import tzLookup from 'tz-lookup'
-import { computed, ref, useId, watch } from 'vue'
+import { computed, nextTick, onScopeDispose, ref, useId, watch } from 'vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitCheckbox } from '~/components/01.kit/kit-checkbox'
 import { KitDialogWithClose } from '~/components/01.kit/kit-dialog-with-close'
@@ -32,6 +32,7 @@ const end = ref<string | number | null>('')
 const activity = ref<ActivityType>('vehicle')
 const pending = ref(false)
 const error = ref('')
+let disposed = false
 const options = (Object.keys(ACTIVITY_LABELS) as ActivityType[]).map(value => ({ value, label: value === 'unknown' ? 'Другое' : ACTIVITY_LABELS[value], icon: ACTIVITY_ICONS[value] }))
 const editorTimezone = ref('UTC')
 const pointMode = ref(false)
@@ -45,6 +46,16 @@ const timezoneLabel = computed(() => {
 
   return `Местное время · ${editorTimezone.value} · ${offset ?? ''}`
 })
+const inputTimeFormatter = computed(() => new Intl.DateTimeFormat('sv-SE', {
+  timeZone: editorTimezone.value,
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+  second: '2-digit',
+  hourCycle: 'h23',
+}))
 
 watch(sessionId, () => {
   historyExpanded.value = false
@@ -69,16 +80,7 @@ watch(visible, (open) => {
 })
 
 function inputTime(time: number) {
-  const parts = new Intl.DateTimeFormat('sv-SE', {
-    timeZone: editorTimezone.value,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hourCycle: 'h23',
-  }).formatToParts(new Date(time))
+  const parts = inputTimeFormatter.value.formatToParts(new Date(time))
   const part = (type: string) => parts.find(p => p.type === type)?.value
 
   return `${part('day')}.${part('month')}.${part('year')} ${part('hour')}:${part('minute')}:${part('second')}`
@@ -150,36 +152,54 @@ function readRange() {
   return { startedAt, endedAt }
 }
 async function save() {
-  let range: { startedAt: number, endedAt: number }
+  if (pending.value)
+    return
+
+  pending.value = true
+  error.value = ''
 
   try {
-    range = readRange()
+    // Flush the busy state, then let the browser paint before synchronous track processing.
+    await nextTick()
+    await new Promise<void>(resolve => requestAnimationFrame(() => setTimeout(resolve, 0)))
+
+    if (disposed || !visible.value)
+      return
+
+    const { startedAt, endedAt } = readRange()
+    emit('stage', {
+      sessionId: sessionId.value,
+      startedAt,
+      endedAt,
+      activity: activity.value,
+      ...(pointMode.value ? { point: true } : {}),
+    })
+    // Parent updates rebuild the preview/map in the Vue flush; keep feedback visible until done.
+    await nextTick()
+    visible.value = false
   }
   catch (err) {
-    error.value = err instanceof Error ? err.message : 'Укажите корректные начало и конец интервала.'
-
-    return
+    error.value = err instanceof Error ? err.message : 'Не удалось добавить правку. Проверьте интервал и повторите.'
   }
-
-  const { startedAt, endedAt } = range
-
-  emit('stage', {
-    sessionId: sessionId.value,
-    startedAt,
-    endedAt,
-    activity: activity.value,
-    ...(pointMode.value ? { point: true } : {}),
-  })
-  visible.value = false
+  finally {
+    pending.value = false
+  }
 }
 function remove(id: string) {
+  if (pending.value)
+    return
+
   emit('remove', id)
 }
+
+onScopeDispose(() => {
+  disposed = true
+})
 </script>
 
 <template>
-  <KitDialogWithClose v-model:visible="visible" title="Исправить движение">
-    <form class="activity-editor" @submit.prevent="save">
+  <KitDialogWithClose v-model:visible="visible" title="Исправить движение" :persistent="pending">
+    <form class="activity-editor" :aria-busy="pending" @submit.prevent="save">
       <KitDropdown
         v-if="sessions.length > 1"
         :items="sessions"
@@ -227,13 +247,20 @@ function remove(id: string) {
         {{ error }}
       </p>
       <KitBtn type="submit" :disabled="pending">
-        Добавить в пакет
+        <Icon
+          v-if="pending"
+          icon="mdi:loading"
+          class="pending-spinner"
+          aria-hidden="true"
+        />
+        <span role="status" aria-live="polite">{{ pending ? 'Добавляем…' : 'Добавить в пакет' }}</span>
       </KitBtn>
       <div v-if="corrections.length" class="saved-corrections">
         <KitBtn
           type="button"
           variant="text"
           class="history-toggle"
+          :disabled="pending"
           :aria-expanded="historyExpanded"
           :aria-controls="historyId"
           @click="historyExpanded = !historyExpanded"
@@ -270,6 +297,16 @@ function remove(id: string) {
 </template>
 
 <style scoped lang="scss">
+.pending-spinner {
+  animation: editor-spin 0.8s linear infinite;
+  will-change: transform;
+}
+@keyframes editor-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .activity-editor {
   display: flex;
   flex-direction: column;

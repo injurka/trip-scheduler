@@ -200,8 +200,50 @@ class TrackingService : Service() {
             return list.distinctBy { it.extras?.getString("clientPointId") ?: "${it.extras?.getString("sessionId")}:${it.time}" }.sortedBy { it.time }.take(500)
         }
 
+        /** Adopt only unowned pre-migration records; tagged records keep their original owner. */
+        private fun migrateLegacyBuffer(context: Context, owner: String) {
+            val file = File(context.filesDir, BUFFER_FILENAME)
+            if (!file.exists()) return
+            val lines = file.readLines()
+            val hasLegacy = lines.any { line ->
+                try { JSONObject(line).optString("ownerId").isEmpty() } catch (_: Exception) { false }
+            }
+            if (!hasLegacy) return
+            val marker = File(context.filesDir, "tracking_legacy_owner")
+            if (marker.exists() && marker.readText() != owner) return
+            if (!marker.exists()) {
+                val markerTemporary = File(context.filesDir, "tracking_legacy_owner.tmp")
+                java.io.FileOutputStream(markerTemporary).use { stream ->
+                    stream.write(owner.toByteArray(Charsets.UTF_8))
+                    stream.fd.sync()
+                }
+                check(markerTemporary.renameTo(marker)) { "Cannot bind legacy GPS owner" }
+            }
+            val migrated = lines.map { line ->
+                val json = try { JSONObject(line) } catch (_: Exception) { null }
+                if (json == null || json.optString("ownerId").isNotEmpty()) line
+                else {
+                    val timestamp = json.getLong("time")
+                    val session = json.optString("sessionId").ifEmpty {
+                        java.util.UUID.nameUUIDFromBytes("legacy:$owner:${timestamp / 86400000}".toByteArray()).toString()
+                    }
+                    val id = json.optString("clientPointId").ifEmpty {
+                        java.util.UUID.nameUUIDFromBytes("legacy:$owner:$line".toByteArray()).toString()
+                    }
+                    json.put("ownerId", owner).put("sessionId", session).put("clientPointId", id).toString()
+                }
+            }
+            val temporary = File(context.filesDir, "$BUFFER_FILENAME.migration")
+            java.io.FileOutputStream(temporary).use { stream ->
+                stream.write(migrated.joinToString("\n", postfix = "\n").toByteArray(Charsets.UTF_8))
+                stream.fd.sync()
+            }
+            check(temporary.renameTo(file)) { "Cannot migrate GPS buffer" }
+        }
+
         private fun readPersistedPoints(context: Context, out: MutableList<Location>, owner: String) {
             try {
+                migrateLegacyBuffer(context, owner)
                 legacyQueuePreserved = false
                 val file = File(context.filesDir, BUFFER_FILENAME)
                 if (file.exists()) {

@@ -1027,6 +1027,9 @@ function isCompatibleActivityHint(activity: TrackActivityType, f: WindowFeatures
   return true
 }
 
+/** Minimum walking speed only after displacement exceeds GPS uncertainty. */
+export const MIN_CONFIRMED_WALK_SPEED_KMH = 1
+
 function kinematicVotes(f: WindowFeatures): { still: number, walk: number, bike: number, vehicle: number } {
   // Геометрия окна не подтвердила перемещение: окно длинное, а прямого смещения,
   // уверенно превышающего погрешность GPS, нет. «Стою на месте» для человека,
@@ -1036,13 +1039,14 @@ function kinematicVotes(f: WindowFeatures): { still: number, walk: number, bike:
     return { still: 2, walk: 0, bike: 0, vehicle: 0 }
 
   const v = f.p50SpeedKmh
-  // Нижняя граница ходьбы — 2.5 км/ч: ниже неё шум покоя (дрожание фиксов в пределах
-  // погрешности) неотличим от перемещения, и «сижу» перестаёт превращаться в «иду/еду».
+  // Sustained displacement above GPS uncertainty also supports slow walking.
+  // Keep the conservative floor when geometry has not confirmed movement.
+  const minWalkingSpeed = f.movementCredible ? MIN_CONFIRMED_WALK_SPEED_KMH : 2.5
   const still
-    = (v < 2.5 ? 1 : 0)
+    = (v < minWalkingSpeed ? 1 : 0)
       + (f.stopCount >= Math.max(1, (f.durationMs / 60_000) / 10) ? 0.5 : 0)
   const walk
-    = (v >= 2.5 && v < 8 ? 1 : v < 2.5 ? 0.3 : 0)
+    = (v >= minWalkingSpeed && v < 8 ? 1 : v < minWalkingSpeed ? 0.3 : 0)
       + (f.speedCv > 0.35 ? 0.5 : 0)
       + (f.meanTurnRateDegPerKm > 150 ? 0.5 : 0)
   const bike
@@ -1179,6 +1183,39 @@ function classificationWindows(points: TrackPoint[]): Array<{ start: number, end
   return windows
 }
 
+/** Repair bounded uncertainty inside a walk using the longer segment's displacement. */
+function bridgeWalkingUncertainty(segments: TrackSegment[], protectedTimes: Set<number>): TrackSegment[] {
+  return segments.map((segment, index) => {
+    const previous = segments[index - 1]
+    const next = segments[index + 1]
+    if (!['unknown', 'still'].includes(segment.activity) || previous?.activity !== 'walk' || next?.activity !== 'walk')
+      return segment
+    if (segment.points.some(point => protectedTimes.has(point.tsUtc)))
+      return segment
+    if (!hasContinuousWalkingSession(previous, segment, next) || !hasSlowWalkingEvidence(segment))
+      return segment
+    return { ...segment, activity: 'walk' as const, confidence: Math.min(previous.confidence, next.confidence) * 0.8 }
+  })
+}
+
+function hasContinuousWalkingSession(previous: TrackSegment, segment: TrackSegment, next: TrackSegment): boolean {
+  const sessionId = segment.points[0].sessionId
+  if (previous.points[0].sessionId !== sessionId || next.points[0].sessionId !== sessionId)
+    return false
+  const chain = [previous.points.at(-1)!, ...segment.points, next.points[0]]
+  return chain.every((point, i) => i === 0 || (point.tsUtc >= chain[i - 1].tsUtc && point.tsUtc - chain[i - 1].tsUtc <= 30000))
+}
+
+function hasSlowWalkingEvidence(segment: TrackSegment): boolean {
+  const features = segment.features
+  if (!features.movementCredible || features.durationMs > 360000)
+    return false
+  if (features.p50SpeedKmh < MIN_CONFIRMED_WALK_SPEED_KMH || features.p50SpeedKmh >= 8 || features.evidenceSpeedKmh >= 8)
+    return false
+  const sensor = deviceReco(segment.points)
+  return typeof sensor === 'string' || sensor.activity === 'walk' || (sensor.share ?? 0) < 0.5
+}
+
 function processMovingTrack(raw: TrackPoint[]): TrackSegment[] {
   if (raw.length < 2)
     return []
@@ -1280,7 +1317,7 @@ function processMovingTrack(raw: TrackPoint[]): TrackSegment[] {
     flushSegment()
 
     // Склейка остатков дробления: без неё маршрут состоял из микро-плеч и «жирных точек» на стыках
-    classifiedSegments.push(...consolidateSegments(legSegments, { canAbsorb: (donor, segment) => donor.activity !== 'walk' || !segment.points.some(p => protectedWalkingTimes.has(p.tsUtc)) }))
+    classifiedSegments.push(...bridgeWalkingUncertainty(consolidateSegments(legSegments, { canAbsorb: (donor, segment) => donor.activity !== 'walk' || !segment.points.some(p => protectedWalkingTimes.has(p.tsUtc)) }), protectedWalkingTimes))
   }
 
   // 3. RDP-упрощение геометрии сегментов с сохранением точных кинематических признаков (дистанция, длительность)

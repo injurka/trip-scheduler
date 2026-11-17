@@ -22,13 +22,15 @@ class TrackingBufferTest {
         try {
             file.writeText(listOf(legacy, first, first, second, foreign).joinToString("\n", postfix = "\n"))
             val points = TrackingService.drainBuffer(context, "A")
-            assertTrue(TrackingService.legacyQueuePreserved)
-            assertEquals(listOf("point-1", "point-2"), points.map { it.extras?.getString("clientPointId") })
-            assertEquals(listOf("session-1", "session-2"), points.map { it.extras?.getString("sessionId") })
+            assertFalse(TrackingService.legacyQueuePreserved)
+            assertEquals(3, points.size)
+            assertEquals(listOf("point-1", "point-2"), points.mapNotNull { it.extras?.getString("clientPointId")?.takeIf { id -> id.startsWith("point-") } })
+            assertEquals(listOf("session-1", "session-2"), points.mapNotNull { it.extras?.getString("sessionId")?.takeIf { id -> id.startsWith("session-") } })
             TrackingService.acknowledgeBuffer(context, setOf("point-1"), "A")
-            assertEquals(listOf("point-2"), TrackingService.drainBuffer(context, "A").map { it.extras?.getString("clientPointId") })
+            assertEquals(listOf("point-2"), TrackingService.drainBuffer(context, "A").mapNotNull { it.extras?.getString("clientPointId")?.takeIf { id -> id.startsWith("point-") } })
             assertEquals(1, TrackingService.drainBuffer(context, "B").size)
-            assertTrue(file.readText().contains(legacy))
+            assertEquals(2, TrackingService.drainBuffer(context, "A").size)
+            assertEquals("A", File(directory, "tracking_legacy_owner").readText())
             assertTrue(file.readText().contains(foreign))
         } finally { directory.deleteRecursively() }
     }

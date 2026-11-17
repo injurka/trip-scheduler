@@ -1,7 +1,7 @@
 import type { TrackActivityType } from '@limiteddissolve/track-processing'
 import type { PluginListener } from '@tauri-apps/api/core'
 import { getErrorMessage } from '@injurka/type-utils'
-import { ActivityState, bearingDeg, evaluatePointValidity, haversineM, MAX_ACCURACY_M, movementEvidence, prepareTrack } from '@limiteddissolve/track-processing'
+import { ActivityState, bearingDeg, evaluatePointValidity, haversineM, MAX_ACCURACY_M, MIN_CONFIRMED_WALK_SPEED_KMH, movementEvidence, prepareTrack } from '@limiteddissolve/track-processing'
 import { addPluginListener, invoke } from '@tauri-apps/api/core'
 import {
   checkPermissions as tauriCheckPermissions,
@@ -73,9 +73,7 @@ export class GeotrackUnavailableError extends Error {
   }
 }
 
-function readStoredPoints(owner = trackingOwner()): TrackPoint[] {
-  const raw = localStorage.getItem(trackingStorageKey(STORAGE_POINTS_KEY, owner))
-
+function parseStoredQueue(raw: string | null): TrackPoint[] {
   if (!raw)
     return []
 
@@ -90,6 +88,39 @@ function readStoredPoints(owner = trackingOwner()): TrackPoint[] {
     throw new Error('В очереди GPS есть некорректные точки. Данные не удалены.')
 
   return points as TrackPoint[]
+}
+
+/** The owner explicitly authorized importing pre-account queues into this account. */
+function migrateLegacyQueue(owner: string | null): void {
+  const legacy = localStorage.getItem(STORAGE_POINTS_KEY)
+
+  if (!owner || legacy === null)
+    return
+
+  const points = parseStoredQueue(legacy)
+  const marker = `${STORAGE_POINTS_KEY}:migration-owner`
+  const boundOwner = localStorage.getItem(marker)
+
+  if (boundOwner && boundOwner !== owner)
+    return
+
+  // Bind before copying so an interrupted migration cannot be claimed by another login.
+  localStorage.setItem(marker, owner)
+  const key = trackingStorageKey(STORAGE_POINTS_KEY, owner)
+  const current = parseStoredQueue(localStorage.getItem(key))
+  const merged = new Map(points.map(point => [point.clientPointId, point]))
+
+  for (const point of current) merged.set(point.clientPointId, point)
+
+  localStorage.setItem(key, JSON.stringify([...merged.values()]))
+  localStorage.removeItem(STORAGE_POINTS_KEY)
+  localStorage.removeItem(STORAGE_SESSION_KEY)
+}
+
+function readStoredPoints(owner = trackingOwner()): TrackPoint[] {
+  migrateLegacyQueue(owner)
+
+  return parseStoredQueue(localStorage.getItem(trackingStorageKey(STORAGE_POINTS_KEY, owner)))
 }
 
 function writeStoredPoints(points: TrackPoint[], owner = trackingOwner()): void {
@@ -355,11 +386,11 @@ function normalizeDeviceActivity(raw: unknown, confidence: unknown): DeviceActiv
 function estimateActivity(speedMs: number): ActivityType {
   const kmh = speedMs * 3.6
 
-  if (kmh < 2.5)
+  if (kmh < MIN_CONFIRMED_WALK_SPEED_KMH)
     return 'still'
 
   if (kmh < 8)
-    return 'walk' // 2.5-8 км/ч
+    return 'walk' // Подтверждённое перемещение, включая медленную ходьбу.
 
   if (kmh < 30)
     return 'bike' // 8-30 км/ч

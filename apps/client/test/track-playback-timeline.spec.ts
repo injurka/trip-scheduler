@@ -1,5 +1,5 @@
 import type { Memory } from '../src/renderer/shared/types/models/memory'
-import { mount } from '@vue/test-utils'
+import { flushPromises, mount } from '@vue/test-utils'
 import { describe, expect, it, vi } from 'vitest'
 import { computed, ref } from 'vue'
 import { useDayTrackPhotos } from '../src/renderer/components/04.features/day-track-player/composables/use-day-track-photos'
@@ -7,7 +7,7 @@ import Panel from '../src/renderer/components/04.features/day-track-player/ui/da
 
 vi.mock('~/shared/lib/thumbhash', () => ({ getImageThumbhash: () => null }))
 vi.mock('@iconify/vue', () => ({ Icon: { template: '<svg />' } }))
-vi.mock('~/components/01.kit/kit-btn', () => ({ KitBtn: { template: '<button><slot /></button>' } }))
+vi.mock('~/components/01.kit/kit-btn', () => ({ KitBtn: { emits: ['click'], template: '<button @click="$emit(\'click\', $event)"><slot /></button>' } }))
 vi.mock('~/components/01.kit/kit-dropdown', () => ({ KitDropdown: { template: '<div><slot name="trigger" /></div>' } }))
 
 const start = Date.parse('2026-11-16T02:00:00Z')
@@ -67,4 +67,24 @@ describe('playback timeline', () => {
     expect(wrapper.find('.timeline-photo-markers').exists()).toBe(false)
     wrapper.unmount()
   })
+})
+
+it('opens quality details from the readout icon without expanding the player', async () => {
+  const wrapper = mount(Panel, { props, slots: { quality: '<p>Пропуски GPS: 22</p>' }, attachTo: document.body })
+  await flushPromises()
+  expect(wrapper.text()).not.toContain('Пропуски GPS')
+  const trigger = wrapper.get('[aria-label="Качество записи"]')
+  expect(trigger.element.closest('.memories-readout')).not.toBeNull()
+  await trigger.trigger('click')
+  await flushPromises()
+  expect(trigger.attributes('aria-expanded')).toBe('true')
+  await vi.waitFor(() => expect(document.body.querySelector('.recording-quality-popover')?.textContent).toContain('Пропуски GPS: 22'))
+  await trigger.trigger('click')
+  await flushPromises()
+  await vi.waitFor(() => expect(document.body.querySelector('.recording-quality-popover')).toBeNull())
+  await trigger.trigger('click')
+  await flushPromises()
+  document.activeElement?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+  await vi.waitFor(() => expect(document.body.querySelector('.recording-quality-popover')).toBeNull())
+  wrapper.unmount()
 })

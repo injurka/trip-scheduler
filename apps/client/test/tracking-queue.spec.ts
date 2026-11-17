@@ -58,9 +58,30 @@ it('isolates accounts and acknowledges the original account after a switch', asy
   await geotrack.markSynced([point.clientPointId], originalOwner)
   expect(JSON.parse(localStorage.getItem(key)!)).toEqual([])
 })
-it('retains legacy unowned points without sending them as the current user', async () => {
+it('migrates old points once, preserving IDs and existing account points', async () => {
   localStorage.setItem('tripscheduler_tracking_points', JSON.stringify([point]))
+  expect(await geotrack.getUnsent()).toEqual([expect.objectContaining(point)])
+  expect(await geotrack.getUnsent()).toEqual([expect.objectContaining(point)])
+  expect(localStorage.getItem('tripscheduler_tracking_points')).toBeNull()
+  expect((await geotrack.status()).legacyQueuePreserved).toBe(false)
+})
+it('cleans an empty old queue without reporting pending legacy data', async () => {
+  localStorage.setItem('tripscheduler_tracking_points', '[]')
   expect(await geotrack.getUnsent()).toEqual([])
-  expect((await geotrack.status()).legacyQueuePreserved).toBe(true)
-  expect(JSON.parse(localStorage.getItem('tripscheduler_tracking_points')!)).toEqual([point])
+  expect(localStorage.getItem('tripscheduler_tracking_points')).toBeNull()
+})
+it('keeps the migration bound to its original owner after a failed write', async () => {
+  localStorage.setItem('tripscheduler_tracking_points', JSON.stringify([point]))
+  const write = localStorage.setItem.bind(localStorage)
+  vi.spyOn(localStorage, 'setItem').mockImplementation((name, value) => {
+    if (name === key)
+      throw new Error('disk full')
+
+    write(name, value)
+  })
+  await expect(geotrack.getUnsent()).rejects.toThrow('disk full')
+  vi.restoreAllMocks()
+  localStorage.setItem('auth_user', JSON.stringify({ id: '22222222-2222-4222-8222-222222222222' }))
+  expect(await geotrack.getUnsent()).toEqual([])
+  expect(localStorage.getItem('tripscheduler_tracking_points')).not.toBeNull()
 })

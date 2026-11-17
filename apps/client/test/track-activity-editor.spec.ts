@@ -82,7 +82,7 @@ it('converts local Samara time to UTC for the correct session', async () => {
   await inputs[1].setValue('10.11.2026 17:01:30')
   await wrapper.findAll('[role=radio]').find(button => button.text() === 'Авто')!.trigger('click')
   await wrapper.get('form').trigger('submit')
-  await flushPromises()
+  await vi.waitFor(() => expect(wrapper.get('form').attributes('aria-busy')).toBe('false'))
   expect(wrapper.emitted('stage')?.[0]).toEqual([{ sessionId: 'session-a', startedAt: time + 10_000, endedAt: time + 90_000, activity: 'vehicle' }])
   expect(api.correctActivity).not.toHaveBeenCalled()
   expect(wrapper.emitted('stage')).toHaveLength(1)
@@ -139,7 +139,7 @@ it('corrects a single final GPS fix without inventing an end time, including mil
   const wrapper = mount(ActivityEditor, { ...wrapperOptions, props: { ...wrapperOptions.props, initialTime: fix.tsUtc, dayData: { points: [fix], segments: [], corrections: [] } } })
   await wrapper.setProps({ visible: true })
   await wrapper.get('form').trigger('submit')
-  await flushPromises()
+  await vi.waitFor(() => expect(wrapper.get('form').attributes('aria-busy')).toBe('false'))
   expect(wrapper.emitted('stage')?.[0]).toEqual([expect.objectContaining({ startedAt: fix.tsUtc, endedAt: fix.tsUtc, point: true })])
   expect(wrapper.find('[role=alert]').exists()).toBe(false)
   wrapper.unmount()
@@ -189,4 +189,69 @@ it('hides point mutations from visitors while preserving point information and c
   expect(wrapper.find('.coords-card').exists()).toBe(true)
   expect(wrapper.text()).toContain('13:00:00')
   wrapper.unmount()
+})
+
+it('paints busy feedback before staging and ignores duplicate submissions', async () => {
+  let paint!: FrameRequestCallback
+  const frame = vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
+    paint = callback
+
+    return 1
+  })
+  const wrapper = mount(ActivityEditor, wrapperOptions)
+
+  try {
+    await wrapper.setProps({ visible: true })
+    await wrapper.get('form').trigger('submit')
+    expect(wrapper.get('form').attributes('aria-busy')).toBe('true')
+    expect(wrapper.get('button[type="submit"]').attributes('disabled')).toBeDefined()
+    expect(wrapper.get('[role="status"]').text()).toBe('Добавляем…')
+    expect(wrapper.emitted('stage')).toBeUndefined()
+    await wrapper.get('form').trigger('submit')
+    expect(frame).toHaveBeenCalledOnce()
+    paint(performance.now())
+    await vi.waitFor(() => expect(wrapper.emitted('stage')).toHaveLength(1))
+    await vi.waitFor(() => expect(wrapper.get('form').attributes('aria-busy')).toBe('false'))
+    expect(wrapper.emitted('update:visible')?.at(-1)).toEqual([false])
+  }
+  finally {
+    wrapper.unmount()
+    frame.mockRestore()
+  }
+})
+it('restores the form after validation fails and allows retrying', async () => {
+  const wrapper = mount(ActivityEditor, wrapperOptions)
+  await wrapper.setProps({ visible: true })
+  const inputs = wrapper.findAll<HTMLInputElement>('input:not([type=checkbox])')
+  await inputs[1].setValue('10.11.2026 16:00:00')
+  await wrapper.get('form').trigger('submit')
+  await vi.waitFor(() => expect(wrapper.get('[role="alert"]').text()).toContain('позже начала'))
+  expect(wrapper.get('form').attributes('aria-busy')).toBe('false')
+  expect(wrapper.emitted('stage')).toBeUndefined()
+  expect(wrapper.emitted('update:visible')).toBeUndefined()
+  await inputs[1].setValue('10.11.2026 17:02:00')
+  await wrapper.get('form').trigger('submit')
+  await vi.waitFor(() => expect(wrapper.emitted('stage')).toHaveLength(1))
+  wrapper.unmount()
+})
+
+it('does not stage a correction after the editor is unmounted before processing', async () => {
+  let paint!: FrameRequestCallback
+  const frame = vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
+    paint = callback
+
+    return 1
+  })
+  const wrapper = mount(ActivityEditor, wrapperOptions)
+
+  try {
+    await wrapper.setProps({ visible: true })
+    await wrapper.get('form').trigger('submit')
+    wrapper.unmount()
+    paint(performance.now())
+    await new Promise(resolve => setTimeout(resolve, 0))
+    await flushPromises()
+    expect(wrapper.emitted('stage')).toBeUndefined()
+  }
+  finally { frame.mockRestore() }
 })

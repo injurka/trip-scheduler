@@ -10,7 +10,25 @@ export function useTrackCorrectionDrafts() {
   const removals = ref<string[]>([])
   const attempted = new Set<string>()
   const count = computed(() => additions.value.length + removals.value.length)
-  const automatic = new WeakMap<DayData, ReturnType<typeof processDayTrack>>()
+  const prepared = new WeakMap<DayData, { raw: TrackPoint[], automatic: ReturnType<typeof processDayTrack> }>()
+  function prepareDay(base: DayData) {
+    const cached = prepared.get(base)
+
+    if (cached)
+      return cached
+
+    const raw: TrackPoint[] = (base.rawPoints ?? base.points).map(p => ({
+      ...p,
+      activity: p.recordedActivity ?? p.activity,
+      altitude: p.altitude ?? null,
+      bearing: p.bearing ?? null,
+      activityConfidence: p.activityConfidence ?? 0,
+    }))
+    const result = { raw, automatic: processDayTrack(raw) }
+    prepared.set(base, result)
+
+    return result
+  }
   function stage(choice: CorrectionChoice, data: DayData | null) {
     const replaced = additions.value.filter(c => c.sessionId === choice.sessionId && c.startedAt === choice.startedAt && c.endedAt === choice.endedAt)
     const cleanup = replaced.filter(c => attempted.has(c.id) && !removals.value.includes(c.id)).map(c => c.id)
@@ -46,19 +64,7 @@ export function useTrackCorrectionDrafts() {
     if (!count.value)
       return base
 
-    const raw: TrackPoint[] = (base.rawPoints ?? base.points).map(p => ({
-      ...p,
-      activity: p.recordedActivity ?? p.activity,
-      altitude: p.altitude ?? null,
-      bearing: p.bearing ?? null,
-      activityConfidence: p.activityConfidence ?? 0,
-    }))
-    let auto = automatic.get(base)
-
-    if (!auto) {
-      auto = processDayTrack(raw)
-      automatic.set(base, auto)
-    }
+    const { raw, automatic: auto } = prepareDay(base)
 
     const corrections = [...(base.corrections ?? []).filter(c => !removals.value.includes(c.id)), ...additions.value]
     const segments = applyActivityCorrections(auto, corrections, raw)

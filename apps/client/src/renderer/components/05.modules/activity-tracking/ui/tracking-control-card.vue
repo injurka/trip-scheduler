@@ -266,10 +266,6 @@ onMounted(() => {
       </div>
     </div>
 
-    <p v-if="tracking.legacyQueuePreserved" class="legacy-notice" role="status">
-      Старая GPS-очередь сохранена отдельно. В ней нет владельца, поэтому автоматическая отправка отключена.
-    </p>
-
     <!-- Футер синхронизации буфера с сервером -->
     <div class="sync-bar">
       <div class="sync-status">
@@ -305,11 +301,6 @@ onMounted(() => {
 </template>
 
 <style scoped lang="scss">
-.legacy-notice {
-  margin: 0;
-  font-size: 0.8rem;
-  color: var(--fg-secondary-color);
-}
 .tracking-control-card {
   background-color: var(--bg-secondary-color);
   border: 1px solid var(--border-secondary-color);
