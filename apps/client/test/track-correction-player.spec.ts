@@ -8,6 +8,24 @@ import { useDialogHistory, waitForDialogHistory } from '../src/renderer/componen
 import Player from '../src/renderer/components/04.features/day-track-player/ui/day-track-player.vue'
 
 const api = vi.hoisted(() => ({ getDay: vi.fn(), correctActivities: vi.fn(), closePopup: vi.fn(), mapOptions: null as unknown as UseDayTrackMapOptions }))
+vi.mock('../src/renderer/components/04.features/day-track-player/lib/track-preview-client', async () => {
+  const { createTrackPreviewTask } = await import('../src/renderer/components/04.features/day-track-player/lib/track-preview-task')
+
+  return {
+    createTrackPreviewProcessor: () => {
+      const task = createTrackPreviewTask()
+
+      return {
+        process: async (base: DayData, corrections: NonNullable<DayData['corrections']>) => {
+          task.initialize(base)
+
+          return task.calculate(corrections)
+        },
+        cancel: () => {},
+      }
+    },
+  }
+})
 vi.mock('~/shared/services/database/tracking.service', () => ({ trackingService: api }))
 vi.mock('~/shared/services/tracking/geotrack-client', () => ({ deleteStoredPoint: vi.fn() }))
 vi.mock('~/shared/store/auth.store', () => ({ useAuthStore: () => ({ isAuthenticated: true }) }))
@@ -80,7 +98,7 @@ async function setup(history = createMemoryHistory()) {
         DayTrackPhotoPopup: true,
         DayTrackOverlayState: true,
         DayTrackEmpty: true,
-        DayTrackActivityEditor: defineComponent({ name: 'Editor', props: ['visible'], emits: ['stage', 'remove', 'update:visible'], render: () => null }),
+        DayTrackActivityEditor: defineComponent({ name: 'Editor', props: ['visible', 'stageCorrection', 'removeCorrection'], emits: ['update:visible'], render: () => null }),
         DayTrackPlaybackPanel: defineComponent({ name: 'DayTrackPlaybackPanel', props: { t: Number, speedMultiplier: Number }, setup: (_, { slots }) => () => h('div', { 'data-testid': 'playback-panel' }, slots['draft-actions']?.()) }),
         KitBtn: defineComponent({ setup: (_, { slots, attrs }) => () => h('button', attrs, slots.default?.()) }),
       },
@@ -104,7 +122,7 @@ describe('batch correction player', () => {
     const panel = wrapper.findComponent({ name: 'DayTrackPlaybackPanel' })
     panel.vm.$emit('update:t', start + 100000)
     panel.vm.$emit('update:speedMultiplier', 4)
-    wrapper.findComponent({ name: 'Editor' }).vm.$emit('stage', choice)
+    await wrapper.findComponent({ name: 'Editor' }).props('stageCorrection')(choice)
     await flushPromises()
     const before = { ...panel.props() }
     expect(before.t).toBe(start + 100000)
@@ -124,8 +142,8 @@ describe('batch correction player', () => {
   it('stages several edits without requests and applies with one mutation and one day reload', async () => {
     const wrapper = await setup()
     const editor = wrapper.findComponent({ name: 'Editor' })
-    editor.vm.$emit('stage', choice)
-    editor.vm.$emit('stage', { ...choice, startedAt: start + 100000, endedAt: start + 200000, activity: 'bike' })
+    await editor.props('stageCorrection')(choice)
+    await editor.props('stageCorrection')({ ...choice, startedAt: start + 100000, endedAt: start + 200000, activity: 'bike' })
     await flushPromises()
     expect(wrapper.text()).toContain('Изменений: 2')
     expect(api.closePopup).toHaveBeenCalledTimes(2)
@@ -144,7 +162,7 @@ describe('batch correction player', () => {
   })
   it('retains edits after a failed save and retries the same IDs', async () => {
     const wrapper = await setup()
-    wrapper.findComponent({ name: 'Editor' }).vm.$emit('stage', choice)
+    await wrapper.findComponent({ name: 'Editor' }).props('stageCorrection')(choice)
     api.correctActivities.mockRejectedValueOnce(new Error('Нет сети'))
     await flushPromises()
     await button(wrapper, 'Применить').trigger('click')
@@ -159,7 +177,7 @@ describe('batch correction player', () => {
   })
   it('retries only the reload when saving succeeded but reading failed', async () => {
     const wrapper = await setup()
-    wrapper.findComponent({ name: 'Editor' }).vm.$emit('stage', choice)
+    await wrapper.findComponent({ name: 'Editor' }).props('stageCorrection')(choice)
     api.getDay.mockRejectedValueOnce(new Error('Нет сети'))
     await flushPromises()
     await button(wrapper, 'Применить').trigger('click')
@@ -173,7 +191,7 @@ describe('batch correction player', () => {
   })
   it('guards exit and allows staying or discarding without requests', async () => {
     const wrapper = await setup()
-    wrapper.findComponent({ name: 'Editor' }).vm.$emit('stage', choice)
+    await wrapper.findComponent({ name: 'Editor' }).props('stageCorrection')(choice)
     await flushPromises()
     const leaving = (wrapper.vm as unknown as { requestLeave: () => Promise<boolean> }).requestLeave()
     await flushPromises()
@@ -194,7 +212,7 @@ describe('batch correction player', () => {
   })
   it('applies the packet before allowing navigation', async () => {
     const wrapper = await setup()
-    wrapper.findComponent({ name: 'Editor' }).vm.$emit('stage', choice)
+    await wrapper.findComponent({ name: 'Editor' }).props('stageCorrection')(choice)
     await flushPromises()
     const leaving = (wrapper.vm as unknown as { requestLeave: () => Promise<boolean> }).requestLeave()
     await flushPromises()
@@ -226,7 +244,7 @@ describe('batch correction player', () => {
     await nextTick()
     editorOpen.value = true
     await nextTick()
-    wrapper.findComponent({ name: 'Editor' }).vm.$emit('stage', choice)
+    await wrapper.findComponent({ name: 'Editor' }).props('stageCorrection')(choice)
     editorOpen.value = false
     await waitForDialogHistory()
     await flushPromises()

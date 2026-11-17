@@ -4,10 +4,10 @@ import type { DayPoint, RouteVisibility, TrackPhoto, ViewMode } from '../models/
 import type { ImageViewerImage } from '~/components/01.kit/kit-image-viewer'
 import type { Memory } from '~/shared/types/models/memory'
 import { Icon } from '@iconify/vue'
-import { recordingQuality } from '@limiteddissolve/track-processing'
+import { classificationExplanation, recordingQuality } from '@limiteddissolve/track-processing'
 import { useEventListener } from '@vueuse/core'
 import { AlertDialogContent, AlertDialogDescription, AlertDialogOverlay, AlertDialogPortal, AlertDialogRoot, AlertDialogTitle } from 'reka-ui'
-import { computed, getCurrentInstance, ref, toRef, useId } from 'vue'
+import { computed, getCurrentInstance, ref, toRef, useId, watch } from 'vue'
 import { onBeforeRouteLeave, onBeforeRouteUpdate, useRouter } from 'vue-router'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitImageViewer, useImageViewer } from '~/components/01.kit/kit-image-viewer'
@@ -20,6 +20,8 @@ import { useDayTrackPhotos } from '../composables/use-day-track-photos'
 import { useDayTrackPlayback } from '../composables/use-day-track-playback'
 import { useDayTrackTimezone } from '../composables/use-day-track-timezone'
 import { useTrackCorrectionDrafts } from '../composables/use-track-correction-drafts'
+import { originalTrackView, saveTrackGpx } from '../lib/track-export'
+import { upperTimeIndex } from '../lib/track-time-window'
 import DayTrackActivityEditor from './day-track-activity-editor.vue'
 import DayTrackBeacon from './day-track-beacon.vue'
 import DayTrackEmpty from './day-track-empty.vue'
@@ -27,6 +29,7 @@ import DayTrackOverlayState from './day-track-overlay-state.vue'
 import DayTrackPhotoPopup from './day-track-photo-popup.vue'
 import DayTrackPlaybackPanel from './day-track-playback-panel.vue'
 import DayTrackPointPopup from './day-track-point-popup.vue'
+import DayTrackQuality from './day-track-quality.vue'
 import DayTrackTopNav from './day-track-top-nav.vue'
 
 interface Props {
@@ -67,8 +70,14 @@ defineExpose({ requestLeave })
 const router = useRouter()
 const authStore = useAuthStore()
 const drafts = useTrackCorrectionDrafts()
+const imageViewer = useImageViewer()
+const playbackPanelId = useId()
+
+const showOriginal = ref(false)
+
 // ─── 1. Данные дня ─────────────────────────────────────────────────────────────
 const {
+  sourceDayData,
   todayUtc,
   selectedDay,
   isLoading,
@@ -88,7 +97,8 @@ const {
   formatHeaderDay,
   handleDeletePoint,
 } = useDayTrackData({
-  preview: drafts.preview,
+  canRefresh: () => !drafts.count.value && !drafts.processing.value,
+  preview: data => showOriginal.value ? originalTrackView(data) : drafts.preview(data),
   beforeChange: requestLeave,
   onRejectedChange: () => emit('dayChange', selectedDay.value),
   tripId: toRef(props, 'tripId'),
@@ -129,9 +139,9 @@ const timezone = useDayTrackTimezone({
   dayData,
   t: playback.t,
 })
-const imageViewer = useImageViewer()
-const playbackPanelId = useId()
 
+const exporting = ref(false)
+const exportStatus = ref('')
 const draftTripId = ref(props.tripId)
 const applying = ref(false)
 const committed = ref(false)
@@ -181,8 +191,22 @@ const isActivityEditorOpen = ref(false)
 const activityEditorTime = ref(0)
 
 // ─── 6. Полноэкранный просмотр фотографий ─────────────────────────────────────
-const quality = computed(() => recordingQuality(dayData.value?.rawPoints ?? [], dayData.value?.corrections ?? []))
-const canEditTrack = computed(() => !props.tripId || (authStore.isAuthenticated && dayData.value?.canEdit === true))
+const quality = computed(() => recordingQuality(sourceDayData.value?.rawPoints ?? [], drafts.preview(sourceDayData.value ?? { points: [], segments: [] }).corrections ?? []))
+const currentExplanation = computed(() => {
+  const point = playback.currentPoint.value
+
+  if (!point)
+    return 'Нет GPS-точки в выбранное время.'
+
+  if (point.activitySource === 'manual')
+    return 'Тип движения исправлен вручную.'
+
+  const raw = sourceDayData.value?.rawPoints ?? []
+  const index = upperTimeIndex(raw, point.tsUtc) - 1
+
+  return classificationExplanation(point, raw[index - 1], raw[index + 1])
+})
+const canEditTrack = computed(() => !showOriginal.value && (!props.tripId || (authStore.isAuthenticated && dayData.value?.canEdit === true)))
 // Маячок воспроизведения — маркер «я здесь сейчас». В режиме воспоминаний
 // (просмотр прожитого дня) он читается как текущая геопозиция, поэтому скрыт.
 const isBeaconVisible = computed(() => props.mode !== 'memories')
@@ -208,6 +232,48 @@ const viewerImages = computed<ImageViewerImage[]>(() => {
   }))
 })
 
+watch(sourceDayData, () => drafts.clear(), { flush: 'sync' })
+
+async function exportGpx() {
+  const data = sourceDayData.value
+
+  if (!data || exporting.value)
+    return
+
+  exporting.value = true
+  exportStatus.value = ''
+
+  try {
+    exportStatus.value = await saveTrackGpx(selectedDay.value, data.rawPoints ?? data.points, drafts.preview(data).points)
+  }
+  catch (error) { draftError.value = error instanceof Error ? error.message : 'Не удалось сохранить GPX' }
+  finally { exporting.value = false }
+}
+function currentCorrectionIds(data: NonNullable<typeof sourceDayData.value>, point: DayPoint) {
+  const segment = playback.currentSegment.value
+  const from = segment?.t0 ?? point.tsUtc
+  const to = segment?.t1 ?? point.tsUtc
+
+  return (drafts.preview(data).corrections ?? []).filter(c => c.sessionId === point.sessionId && c.startedAt <= to && c.endedAt >= from).map(c => c.id)
+}
+async function resetCurrentCorrections() {
+  const point = playback.currentPoint.value
+  const data = sourceDayData.value
+
+  if (!point || !data || !canEditTrack.value || applying.value || drafts.processing.value)
+    return
+
+  try {
+    await drafts.removeMany(currentCorrectionIds(data, point), data)
+  }
+  catch (error) { draftError.value = error instanceof Error ? error.message : 'Не удалось сбросить правки' }
+}
+function seekQualityIssue(issue: { startedAt: number, endedAt: number }, close: () => void) {
+  playback.isPlaying.value = false
+  playback.t.value = issue.startedAt
+  map.centerCurrentPoint()
+  close()
+}
 function handleOpenViewer(photo: TrackPhoto) {
   const list = viewerImages.value
 
@@ -274,7 +340,7 @@ function followCurrentPoint() {
     map.centerCurrentPoint()
 }
 function editActivity(time = playback.t.value) {
-  if (!canEditTrack.value || applying.value || committed.value)
+  if (!canEditTrack.value || applying.value || committed.value || drafts.processing.value)
     return
 
   playback.isPlaying.value = false
@@ -293,39 +359,46 @@ async function onDeletePoint(pt: DayPoint) {
     map.rebuildFeatures()
   })
 }
-function stageCorrection(choice: CorrectionChoice) {
-  if (applying.value || committed.value)
-    return
+async function stageCorrection(choice: CorrectionChoice) {
+  if (applying.value || committed.value || drafts.processing.value)
+    throw new Error('Дождитесь завершения текущей операции')
 
   try {
+    const pending = sourceDayData.value?.rawPoints?.some(p => p.localPending && p.sessionId === choice.sessionId && p.tsUtc >= choice.startedAt && p.tsUtc <= choice.endedAt)
+
+    if (pending)
+      throw new Error('Сначала отправьте GPS-точки выбранного участка на сервер.')
+
     if (!drafts.count.value)
       draftTripId.value = props.tripId
 
-    drafts.stage(choice, dayData.value)
+    await drafts.stage(choice, sourceDayData.value)
     map.closePointPopup()
     draftError.value = ''
   }
   catch (error) {
     draftError.value = error instanceof Error ? error.message : 'Не удалось добавить правку'
+    throw error
   }
 }
-function removeCorrection(id: string) {
-  if (applying.value || committed.value)
-    return
+async function removeCorrection(id: string) {
+  if (applying.value || committed.value || drafts.processing.value)
+    throw new Error('Дождитесь завершения текущей операции')
 
   try {
     if (!drafts.count.value)
       draftTripId.value = props.tripId
 
-    drafts.remove(id)
+    await drafts.remove(id, sourceDayData.value)
     draftError.value = ''
   }
   catch (error) {
     draftError.value = error instanceof Error ? error.message : 'Не удалось отменить исправление'
+    throw error
   }
 }
 function discardDrafts() {
-  if (applying.value)
+  if (applying.value || drafts.processing.value)
     return
 
   clearDrafts()
@@ -336,7 +409,7 @@ function clearDrafts() {
   draftError.value = ''
 }
 async function applyDrafts(): Promise<boolean> {
-  if (applying.value)
+  if (applying.value || drafts.processing.value)
     return false
 
   applying.value = true
@@ -380,7 +453,7 @@ function resolveNavigation(result: boolean) {
   leaveResult = null
 }
 function requestLeave(): Promise<boolean> {
-  if (applying.value)
+  if (applying.value || drafts.processing.value)
     return Promise.resolve(false)
 
   if (committed.value) {
@@ -487,6 +560,10 @@ useEventListener(window, 'beforeunload', (event: BeforeUnloadEvent) => {
       <Icon icon="mdi:close" />
     </KitBtn>
 
+    <div v-if="dayData?.localPendingCount || dayData?.localError" class="local-track-status" role="status">
+      <Icon icon="mdi:cloud-upload-outline" />
+      <span>{{ dayData.localPendingCount ? `На устройстве: ${dayData.localPendingCount} точек · ожидают отправки` : '' }}{{ dayData.localError ? ` ${dayData.localError}` : '' }}</span>
+    </div>
     <!-- Контейнер карты OpenLayers -->
     <div ref="mapHost" class="memories-map" />
 
@@ -566,6 +643,8 @@ useEventListener(window, 'beforeunload', (event: BeforeUnloadEvent) => {
       :track-timezone="timezone.trackTimezone.value"
       :current-segment="playback.currentSegment.value"
       :current-activity="playback.currentActivity.value"
+      :confidence="playback.currentPoint.value?.activityConfidence"
+      :explanation="currentExplanation"
       :current-activity-color="playback.currentActivityColor.value"
       :current-activity-icon="playback.currentActivityIcon.value"
       :current-activity-label="playback.currentActivityLabel.value"
@@ -588,16 +667,40 @@ useEventListener(window, 'beforeunload', (event: BeforeUnloadEvent) => {
       @seek-end="playback.t.value = dayEnd"
       @seek-photo="(ts) => { playback.t.value = ts }"
     >
-      <template #quality>
-        <section class="recording-quality">
-          <h3>Качество записи</h3>
-          <dl>
-            <div><dt>Пропуски GPS более 30 с</dt><dd>{{ quality.gapCount }} · {{ Math.round(quality.gapDurationMs / 60000) }} мин</dd></div>
-            <div><dt>Неточные участки (погрешность &gt;35 м)</dt><dd>{{ quality.inaccurateSections }} · точек {{ quality.inaccuratePoints }}</dd></div>
-            <div><dt>Точки без данных о точности</dt><dd>{{ quality.unknownAccuracyPoints }}</dd></div>
-            <div><dt>Ручные исправления</dt><dd>{{ quality.manualCorrections }}</dd></div>
-          </dl>
-        </section>
+      <template #quality="{ close }">
+        <DayTrackQuality :quality="quality" :time-zone="dayData?.timeZone" @seek="seekQualityIssue($event, close)">
+          <KitBtn
+            size="sm"
+            variant="outlined"
+            :aria-pressed="showOriginal"
+            @click="showOriginal = !showOriginal"
+          >
+            {{ showOriginal ? 'Показать обработанный трек' : 'Показать исходные GPS-точки' }}
+          </KitBtn>
+          <KitBtn
+            size="sm"
+            variant="text"
+            :disabled="exporting"
+            @click="exportGpx"
+          >
+            Экспорт GPX · исходный и обработанный
+          </KitBtn>
+          <KitBtn
+            v-if="canEditTrack"
+            size="sm"
+            variant="text"
+            :disabled="drafts.processing.value || applying"
+            @click="resetCurrentCorrections"
+          >
+            Сбросить правки текущего участка
+          </KitBtn>
+          <p v-if="exportStatus" role="status">
+            {{ exportStatus }}
+          </p>
+          <p v-if="draftError" role="alert">
+            {{ draftError }}
+          </p>
+        </DayTrackQuality>
       </template>
       <template #draft-actions>
         <div v-if="drafts.count.value" class="draft-toolbar" :aria-busy="applying">
@@ -626,8 +729,8 @@ useEventListener(window, 'beforeunload', (event: BeforeUnloadEvent) => {
       :trip-id="tripId"
       :day-data="dayData"
       :initial-time="activityEditorTime"
-      @stage="stageCorrection"
-      @remove="removeCorrection"
+      :stage-correction="stageCorrection"
+      :remove-correction="removeCorrection"
     />
 
     <AlertDialogRoot :open="leaveOpen">
@@ -662,6 +765,24 @@ useEventListener(window, 'beforeunload', (event: BeforeUnloadEvent) => {
 </template>
 
 <style scoped lang="scss">
+.local-track-status {
+  position: absolute;
+  top: 130px;
+  left: 12px;
+  right: 12px;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: fit-content;
+  max-width: calc(100% - 24px);
+  padding: 6px 10px;
+  background: var(--bg-secondary-color);
+  border-radius: var(--r-s);
+  box-shadow: var(--s-s);
+  font-size: 0.75rem;
+  pointer-events: none;
+}
 .recording-quality {
   font-size: 0.75rem;
   color: var(--fg-secondary-color);

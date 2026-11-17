@@ -22,11 +22,23 @@ function resolveCurrentPoint(points: DayData['points'], index: number, time: num
   const point = points[index]
   const next = index < points.length - 1 ? points[index + 1] : undefined
 
+  // A measured fix keeps its known/manual label, even at the end of a recording.
+  if (time === point.tsUtc)
+    return point
+
   if (point.stop && time <= point.stop.endedAt)
     return point
 
-  if (!next || next.sessionId !== point.sessionId || next.tsUtc - point.tsUtc > 900_000)
-    return { ...point, stop: undefined, speed: null, activity: 'unknown' }
+  if (!next || next.sessionId !== point.sessionId || next.tsUtc - point.tsUtc > 900_000) {
+    return {
+      ...point,
+      stop: undefined,
+      speed: null,
+      activity: 'unknown',
+      activitySource: 'automatic',
+      activityConfidence: 0,
+    }
+  }
 
   const fraction = Math.max(0, Math.min(1, (time - point.tsUtc) / (next.tsUtc - point.tsUtc)))
 

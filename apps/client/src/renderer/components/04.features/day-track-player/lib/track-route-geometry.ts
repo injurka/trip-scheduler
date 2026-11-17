@@ -1,5 +1,5 @@
 import type { DayData, RenderSegment } from '../models/types'
-import { haversineM, splitTrackIntoLegs } from '~/shared/services/tracking/track-processing'
+import { haversineM, splitTrackIntoLegs } from '@limiteddissolve/track-processing'
 import { clipTrackLeg } from './track-time-window'
 
 /** Use detailed prepared fixes for display; server simplification remains classification/storage data. */

@@ -207,6 +207,7 @@ export const refreshTokens = pgTable('refresh_tokens', {
 })
 
 export const trips = pgTable('trips', {
+  timeZone: text('time_zone'),
   id: uuid('id').primaryKey(),
   shareSlug: text('share_slug').unique(),
   title: text('title').notNull(),
@@ -978,6 +979,7 @@ export const trackActivityTypeEnum = pgEnum('track_activity_type', ['still', 'wa
 
 /** Сырые GPS-точки, выгружаемые батчами с мобильного клиента. */
 export const trackPoints = pgTable('track_points', {
+  samplingIntervalMs: integer('sampling_interval_ms'),
   id: uuid('id').primaryKey().defaultRandom(),
   clientPointId: text('client_point_id').notNull().unique(),
   userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
@@ -1028,3 +1030,11 @@ export const trackActivityCorrections = pgTable('track_activity_corrections', {
 }, t => ({
   userTimeIndex: index('track_activity_corrections_user_time_idx').on(t.userId, t.startedAt, t.endedAt),
 }))
+
+/** Isolated revocable credential for the Android GPS journal, never a login session. */
+export const nativeTrackingKeys = pgTable('native_tracking_keys', {
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  deviceId: uuid('device_id').notNull(),
+  tokenHash: text('token_hash').notNull().unique(),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+}, t => ({ pk: primaryKey({ columns: [t.userId, t.deviceId] }) }))

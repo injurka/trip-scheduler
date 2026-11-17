@@ -1,7 +1,20 @@
 import type { DayData, DayPoint } from '../src/renderer/components/04.features/day-track-player/models/types'
 import { describe, expect, it } from 'vitest'
 import { useTrackCorrectionDrafts } from '../src/renderer/components/04.features/day-track-player/composables/use-track-correction-drafts'
+import { createTrackPreviewTask } from '../src/renderer/components/04.features/day-track-player/lib/track-preview-task'
 
+function createDrafts() {
+  const task = createTrackPreviewTask()
+
+  return useTrackCorrectionDrafts({
+    process: async (base, corrections) => {
+      task.initialize(base)
+
+      return task.calculate(corrections)
+    },
+    cancel: () => {},
+  })
+}
 const start = Date.parse('2026-11-12T10:00:00Z')
 const points: DayPoint[] = Array.from({ length: 100 }, (_, i) => ({
   clientPointId: `p-${i}`,
@@ -17,12 +30,12 @@ const points: DayPoint[] = Array.from({ length: 100 }, (_, i) => ({
 const data: DayData = { points, rawPoints: points, segments: [], corrections: [] }
 const choice = { sessionId: 'test-session', startedAt: start, endedAt: start + 400000, activity: 'vehicle' as const }
 
-describe('local correction queue', () => {
-  it('previews latest overlapping choices without mutating the loaded measurements', () => {
-    const drafts = useTrackCorrectionDrafts()
+describe('local correction queue', async () => {
+  it('previews latest overlapping choices without mutating the loaded measurements', async () => {
+    const drafts = createDrafts()
     const copy = structuredClone(data)
-    drafts.stage(choice, data)
-    drafts.stage({ ...choice, startedAt: start + 100000, endedAt: start + 200000, activity: 'bike' }, data)
+    await drafts.stage(choice, data)
+    await drafts.stage({ ...choice, startedAt: start + 100000, endedAt: start + 200000, activity: 'bike' }, data)
     const preview = drafts.preview(data)
     expect(preview.rawPoints?.[10].activity).toBe('vehicle')
     expect(preview.rawPoints?.[30].activity).toBe('bike')
@@ -31,48 +44,48 @@ describe('local correction queue', () => {
     drafts.clear()
     expect(drafts.preview(data)).toBe(data)
   })
-  it('replaces an exact interval, giving the replacement the latest priority', () => {
-    const drafts = useTrackCorrectionDrafts()
-    drafts.stage(choice, data)
-    drafts.stage({ ...choice, activity: 'rail' }, data)
+  it('replaces an exact interval, giving the replacement the latest priority', async () => {
+    const drafts = createDrafts()
+    await drafts.stage(choice, data)
+    await drafts.stage({ ...choice, activity: 'rail' }, data)
     expect(drafts.count.value).toBe(1)
     expect(drafts.preview(data).rawPoints?.[10].activity).toBe('rail')
-    drafts.remove(drafts.additions.value[0].id)
+    await drafts.remove(drafts.additions.value[0].id, data)
     expect(drafts.count.value).toBe(0)
   })
-  it('previews removal of a persisted correction and keeps it reversible', () => {
+  it('previews removal of a persisted correction and keeps it reversible', async () => {
     const existing = { ...choice, id: 'persisted', createdAt: 1 }
     const base = { ...data, corrections: [existing] }
-    const drafts = useTrackCorrectionDrafts()
-    drafts.remove(existing.id)
-    drafts.remove(existing.id)
+    const drafts = createDrafts()
+    await drafts.remove(existing.id, base)
+    await drafts.remove(existing.id, base)
     expect(drafts.count.value).toBe(1)
     expect(drafts.preview(base).corrections).toEqual([])
     expect(drafts.preview(base).rawPoints?.[10].activity).toBe('walk')
     drafts.clear()
     expect(drafts.preview(base).corrections).toEqual([existing])
   })
-  it('cleans up a replaced draft even if a timed-out request may have saved its previous ID', () => {
-    const drafts = useTrackCorrectionDrafts()
-    drafts.stage(choice, data)
+  it('cleans up a replaced draft even if a timed-out request may have saved its previous ID', async () => {
+    const drafts = createDrafts()
+    await drafts.stage(choice, data)
     const submittedId = drafts.additions.value[0].id
     drafts.markSubmitted()
-    drafts.stage({ ...choice, activity: 'bike' }, data)
+    await drafts.stage({ ...choice, activity: 'bike' }, data)
     expect(drafts.removals.value).toEqual([submittedId])
     expect(drafts.additions.value[0].id).not.toBe(submittedId)
     drafts.markSubmitted()
     const replacement = drafts.additions.value[0].id
-    drafts.remove(replacement)
+    await drafts.remove(replacement, data)
     expect(drafts.additions.value).toEqual([])
     expect(drafts.removals.value).toEqual([submittedId, replacement])
   })
 })
 
-it('reuses a loaded day without leaking earlier preview labels into subsequent edits', () => {
-  const drafts = useTrackCorrectionDrafts()
-  drafts.stage(choice, data)
+it('reuses a loaded day without leaking earlier preview labels into subsequent edits', async () => {
+  const drafts = createDrafts()
+  await drafts.stage(choice, data)
   const first = drafts.preview(data)
-  drafts.stage({ ...choice, activity: 'bike' }, data)
+  await drafts.stage({ ...choice, activity: 'bike' }, data)
   const second = drafts.preview(data)
   expect(first.rawPoints?.[10].activity).toBe('vehicle')
   expect(second.rawPoints?.[10].activity).toBe('bike')

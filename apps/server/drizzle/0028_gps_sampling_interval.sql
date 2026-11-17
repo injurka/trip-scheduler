@@ -1,0 +1,1 @@
+ALTER TABLE "track_points" ADD COLUMN "sampling_interval_ms" integer;

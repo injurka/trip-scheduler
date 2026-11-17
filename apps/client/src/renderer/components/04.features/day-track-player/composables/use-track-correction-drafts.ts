@@ -1,35 +1,49 @@
-import type { ActivityCorrection, TrackPoint } from '@limiteddissolve/track-processing'
+import type { ActivityCorrection } from '@limiteddissolve/track-processing'
+import type { TrackPreviewProcessor } from '../lib/track-preview-client'
 import type { DayData } from '../models/types'
-import { annotateTrackPoints, applyActivityCorrections, processDayTrack } from '@limiteddissolve/track-processing'
-import { computed, ref } from 'vue'
+import { computed, getCurrentScope, markRaw, onScopeDispose, ref, shallowRef } from 'vue'
+import { createTrackPreviewProcessor } from '../lib/track-preview-client'
 
 export type CorrectionChoice = Omit<ActivityCorrection, 'id' | 'createdAt'> & { point?: boolean }
 
-export function useTrackCorrectionDrafts() {
+export function useTrackCorrectionDrafts(processor: TrackPreviewProcessor = createTrackPreviewProcessor()) {
   const additions = ref<Array<ActivityCorrection & { point?: boolean }>>([])
   const removals = ref<string[]>([])
   const attempted = new Set<string>()
   const count = computed(() => additions.value.length + removals.value.length)
-  const prepared = new WeakMap<DayData, { raw: TrackPoint[], automatic: ReturnType<typeof processDayTrack> }>()
-  function prepareDay(base: DayData) {
-    const cached = prepared.get(base)
+  const processing = ref(false)
+  const result = shallowRef<DayData | null>(null)
+  let resultBase: DayData | null = null
+  let generation = 0
 
-    if (cached)
-      return cached
+  if (getCurrentScope())
+    onScopeDispose(() => clear())
 
-    const raw: TrackPoint[] = (base.rawPoints ?? base.points).map(p => ({
-      ...p,
-      activity: p.recordedActivity ?? p.activity,
-      altitude: p.altitude ?? null,
-      bearing: p.bearing ?? null,
-      activityConfidence: p.activityConfidence ?? 0,
-    }))
-    const result = { raw, automatic: processDayTrack(raw) }
-    prepared.set(base, result)
+  async function commit(base: DayData | null, nextAdditions: typeof additions.value, nextRemovals: string[]) {
+    if (processing.value)
+      throw new Error('Дождитесь завершения пересчёта')
 
-    return result
+    if (!base)
+      throw new Error('Дождитесь загрузки трека')
+
+    const version = generation
+    processing.value = true
+
+    try {
+      const corrections = [...(base.corrections ?? []).filter(c => !nextRemovals.includes(c.id)), ...nextAdditions]
+      const next = nextAdditions.length + nextRemovals.length ? await processor.process(base, corrections) : base
+
+      if (version !== generation)
+        throw new Error('Пересчёт отменён')
+
+      resultBase = base
+      result.value = markRaw(next)
+      additions.value = nextAdditions
+      removals.value = nextRemovals
+    }
+    finally { processing.value = false }
   }
-  function stage(choice: CorrectionChoice, data: DayData | null) {
+  async function stage(choice: CorrectionChoice, data: DayData | null) {
     const replaced = additions.value.filter(c => c.sessionId === choice.sessionId && c.startedAt === choice.startedAt && c.endedAt === choice.endedAt)
     const cleanup = replaced.filter(c => attempted.has(c.id) && !removals.value.includes(c.id)).map(c => c.id)
     const prior = additions.value.filter(c => !(c.sessionId === choice.sessionId && c.startedAt === choice.startedAt && c.endedAt === choice.endedAt))
@@ -38,59 +52,49 @@ export function useTrackCorrectionDrafts() {
       throw new Error('Примените текущий пакет: максимум 200 изменений.')
 
     const time = Math.max(Date.now(), ...[...(data?.corrections ?? []), ...additions.value].map(c => c.createdAt + 1))
-    removals.value.push(...cleanup)
-    additions.value = [...prior, { ...choice, id: crypto.randomUUID(), createdAt: time }]
+    await commit(data, [...prior, { ...choice, id: crypto.randomUUID(), createdAt: time }], [...removals.value, ...cleanup])
   }
-  function remove(id: string) {
-    if (additions.value.some(c => c.id === id)) {
-      additions.value = additions.value.filter(c => c.id !== id)
+  async function remove(id: string, base: DayData | null) {
+    const nextAdditions = additions.value.filter(c => c.id !== id)
+    const nextRemovals = [...removals.value]
+    const wasDraft = additions.value.some(c => c.id === id)
 
-      if (attempted.has(id) && !removals.value.includes(id))
-        removals.value.push(id)
-    }
-    else if (!removals.value.includes(id)) {
-      if (count.value >= 200)
-        throw new Error('Примените текущий пакет: максимум 200 изменений.')
+    if ((!wasDraft || attempted.has(id)) && !nextRemovals.includes(id))
+      nextRemovals.push(id)
 
-      removals.value.push(id)
-    }
+    if (nextAdditions.length + nextRemovals.length > 200)
+      throw new Error('Примените текущий пакет: максимум 200 изменений.')
+
+    await commit(base, nextAdditions, nextRemovals)
+  }
+  async function removeMany(ids: string[], base: DayData | null) {
+    const selected = new Set(ids)
+    const nextAdditions = additions.value.filter(c => !selected.has(c.id))
+    const nextRemovals = [...new Set([...removals.value, ...ids.filter(id => !additions.value.some(c => c.id === id) || attempted.has(id))])]
+
+    if (nextAdditions.length + nextRemovals.length > 200)
+      throw new Error('Примените текущий пакет: максимум 200 изменений.')
+
+    await commit(base, nextAdditions, nextRemovals)
   }
   function clear() {
+    generation++
+    processor.cancel()
+    result.value = null
+    resultBase = null
     additions.value = []
     removals.value = []
     attempted.clear()
   }
   function preview(base: DayData): DayData {
-    if (!count.value)
-      return base
+    const current = result.value
 
-    const { raw, automatic: auto } = prepareDay(base)
-
-    const corrections = [...(base.corrections ?? []).filter(c => !removals.value.includes(c.id)), ...additions.value]
-    const segments = applyActivityCorrections(auto, corrections, raw)
-
-    return {
-      ...base,
-      corrections,
-      points: annotateTrackPoints(base.points.map(p => ({ ...p, activity: p.recordedActivity ?? p.activity })), segments, corrections),
-      rawPoints: annotateTrackPoints(raw, segments, corrections),
-      segments: segments.map((s, i) => ({
-        id: `draft-${i}`,
-        sessionId: s.points[0].sessionId,
-        activity: s.activity,
-        activitySource: s.activitySource,
-        confidence: s.confidence,
-        startedAt: s.points[0].tsUtc,
-        endedAt: s.points.at(-1)!.tsUtc,
-        distanceM: s.features.distanceM,
-        pointCount: s.points.length,
-        simplifiedPoints: s.points,
-        geometry: s.points.map(p => [p.lng, p.lat]),
-      })),
-    }
+    return resultBase === base ? current ?? base : base
   }
 
   return {
+    removeMany,
+    processing,
     additions,
     removals,
     count,

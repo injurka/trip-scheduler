@@ -33,6 +33,7 @@ export const CityWeatherSchema = z.object({
 export const TripWeatherSchema = z.record(z.string(), CityWeatherSchema)
 
 export const TripSchema = z.object({
+  timeZone: z.string().nullable().optional(),
   id: z.string().uuid(),
   userId: z.string().uuid(),
   title: z.string(),

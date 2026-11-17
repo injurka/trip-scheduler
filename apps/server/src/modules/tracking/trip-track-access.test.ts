@@ -1,6 +1,7 @@
 import { beforeEach, expect, it, mock } from 'bun:test'
 
 let visibility = 'public'
+mock.module('./trip-calendar', () => ({ tripCalendarTimeZone: async () => 'UTC' }))
 mock.module('../../repositories/trip.repository', () => ({ tripRepository: { getById: async () => ({ id: 'trip', userId: 'owner', visibility, shareSlug: 'secret', startDate: '2026-11-10', endDate: '2026-11-12' }), hasAccess: async (_id: string, userId: string) => userId === 'member' } }))
 const { tripTrackAccess, editableTripTrack, assertTripTrackRange } = await import('./trip-track-access')
 beforeEach(() => {

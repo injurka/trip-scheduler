@@ -1,3 +1,4 @@
+import { calendarDayBounds } from '@limiteddissolve/track-processing'
 import { TRPCError } from '@trpc/server'
 import { db } from 'db'
 import { trackActivityCorrections, trackPoints } from 'db/schema'
@@ -5,6 +6,7 @@ import { and, eq } from 'drizzle-orm'
 import { z } from 'zod'
 import { protectedProcedure, publicProcedure } from '~/lib/trpc'
 import { CorrectionBatchSchema, saveCorrectionBatch } from './correction-batch'
+import { grantNativeTracking, revokeNativeTracking, syncNativeTracking } from './native-sync'
 import { DeleteTrackPointInputSchema, GetTrackDayInputSchema, IngestBatchInputSchema, TrackActivityTypeSchema, TrackingTimeZoneSchema } from './tracking.schemas'
 import { trackingService } from './tracking.service'
 import { assertTripTrackRange, editableTripTrack, tripTrackAccess } from './trip-track-access'
@@ -24,6 +26,7 @@ const SegmentOutputSchema = z.object({
 })
 
 const PointOutputSchema = z.object({
+  samplingIntervalMs: z.number().nullable().optional(),
   clientPointId: z.string(),
   tsUtc: z.number(),
   lat: z.number(),
@@ -68,13 +71,16 @@ const DaySummarySchema = z.object({
 })
 
 export const trackingProcedures = {
+  grantNativeSync: protectedProcedure.input(z.object({ deviceId: z.string().uuid() })).output(z.object({ syncToken: z.string(), expiresAt: z.number() })).mutation(({ ctx, input }) => grantNativeTracking(ctx.user.id, input.deviceId)),
+  revokeNativeSync: protectedProcedure.input(z.object({ deviceId: z.string().uuid() })).mutation(({ ctx, input }) => revokeNativeTracking(ctx.user.id, input.deviceId)),
+  syncNative: publicProcedure.input(IngestBatchInputSchema.extend({ ownerId: z.string().uuid(), syncToken: z.string().min(64).max(200) })).output(z.object({ accepted: z.array(z.string()), rejectedCount: z.number().int() })).mutation(({ input }) => syncNativeTracking(input)),
   correctActivities: protectedProcedure.input(CorrectionBatchSchema).output(z.object({ success: z.boolean() })).mutation(async ({ input, ctx }) => {
     if (!input.tripId)
       return saveCorrectionBatch(ctx.user.id, input)
     const access = await editableTripTrack(input.tripId, ctx.user)
-    const from = Date.parse(`${input.dayUtc}T00:00:00Z`)
-    assertTripTrackRange(access, from, from + 86399999)
-    return saveCorrectionBatch(access.ownerId, input)
+    const bounds = calendarDayBounds(input.dayUtc, access.timeZone)
+    assertTripTrackRange(access, bounds.from.getTime(), bounds.to.getTime() - 1)
+    return saveCorrectionBatch(access.ownerId, { ...input, timeZone: access.timeZone })
   }),
   ingestBatch: protectedProcedure
     .meta({
@@ -105,6 +111,7 @@ export const trackingProcedures = {
     })
     .input(GetTrackDayInputSchema)
     .output(z.object({
+      ownerId: z.string().optional(),
       timeZone: z.string().optional(),
       points: z.array(PointOutputSchema),
       corrections: z.array(CorrectionOutputSchema),
@@ -120,14 +127,15 @@ export const trackingProcedures = {
 
   getTripDay: publicProcedure
     .input(GetTrackDayInputSchema.extend({ tripId: z.string().uuid(), shareSlug: z.string().optional() }))
-    .output(z.object({ timeZone: z.string().optional(), points: z.array(PointOutputSchema), corrections: z.array(CorrectionOutputSchema), segments: z.array(SegmentOutputSchema), canEdit: z.boolean() }))
+    .output(z.object({ ownerId: z.string().optional(), timeZone: z.string().optional(), points: z.array(PointOutputSchema), corrections: z.array(CorrectionOutputSchema), segments: z.array(SegmentOutputSchema), canEdit: z.boolean() }))
     .query(async ({ input, ctx }) => {
       const access = await tripTrackAccess(input.tripId, ctx.user, input.shareSlug || ctx.c?.req.header('x-share-slug'))
       const start = Date.parse(`${input.dayUtc}T00:00:00Z`)
       if (!Number.isFinite(start) || new Date(start).toISOString().slice(0, 10) !== input.dayUtc)
         throw new TRPCError({ code: 'BAD_REQUEST', message: 'Некорректная дата' })
-      assertTripTrackRange(access, start, start + 86400000 - 1)
-      const data = await trackingService.getDay(access.ownerId, input)
+      const bounds = calendarDayBounds(input.dayUtc, access.timeZone)
+      assertTripTrackRange(access, bounds.from.getTime(), bounds.to.getTime() - 1)
+      const data = await trackingService.getDay(access.ownerId, { ...input, timeZone: access.timeZone })
       // History is editable metadata; public viewers only need effective points and segments.
       return { ...data, corrections: access.canEdit ? data.corrections : [], canEdit: access.canEdit }
     }),
@@ -198,7 +206,7 @@ export const trackingProcedures = {
       if (!input.tripId)
         return trackingService.correctActivity(ctx.user.id, input)
       const access = await editableTripTrack(input.tripId, ctx.user)
-      assertTripTrackRange(access, input.startedAt, input.endedAt, input.timeZone)
+      assertTripTrackRange(access, input.startedAt, input.endedAt, access.timeZone)
       return trackingService.correctActivity(access.ownerId, input)
     }),
 
@@ -212,7 +220,7 @@ export const trackingProcedures = {
       const [correction] = await db.select().from(trackActivityCorrections).where(and(eq(trackActivityCorrections.userId, access.ownerId), eq(trackActivityCorrections.id, input.id))).limit(1)
       if (!correction)
         throw new TRPCError({ code: 'NOT_FOUND' })
-      assertTripTrackRange(access, correction.startedAt.getTime(), correction.endedAt.getTime(), input.timeZone)
+      assertTripTrackRange(access, correction.startedAt.getTime(), correction.endedAt.getTime(), access.timeZone)
       return trackingService.removeActivityCorrection(access.ownerId, input.id)
     }),
 
@@ -238,7 +246,7 @@ export const trackingProcedures = {
       const [point] = await db.select().from(trackPoints).where(and(eq(trackPoints.userId, access.ownerId), eq(trackPoints.clientPointId, input.clientPointId))).limit(1)
       if (!point)
         throw new TRPCError({ code: 'NOT_FOUND' })
-      assertTripTrackRange(access, point.tsUtc.getTime(), point.tsUtc.getTime(), input.timeZone)
+      assertTripTrackRange(access, point.tsUtc.getTime(), point.tsUtc.getTime(), access.timeZone)
       return trackingService.deletePoint(access.ownerId, input.clientPointId)
     }),
 }

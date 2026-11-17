@@ -55,10 +55,11 @@ export const trackingService = {
    * Идемпотентный батч-ингест: дедуп по clientPointId (onConflictDoNothing).
    * Возвращает список clientPointId, реально записанных, — клиент помечает их synced.
    */
-  async ingestBatch(userId: string, input: IngestBatchInput) {
+  async ingestBatch(userId: string, input: IngestBatchInput, options: { materializeSegments?: boolean } = {}) {
     if (input.ownerId && input.ownerId !== userId)
       throw new TRPCError({ code: 'FORBIDDEN', message: 'GPS-очередь принадлежит другому аккаунту' })
     const rows = input.points.map(p => ({
+      samplingIntervalMs: p.samplingIntervalMs ?? null,
       clientPointId: p.clientPointId,
       userId,
       sessionId: p.sessionId,
@@ -90,6 +91,11 @@ export const trackingService = {
       }))
       accepted.push(...confirmed.map(row => row.clientPointId))
     }
+
+    // Reads process current raw data; native backlog batches need not reclassify an
+    // entire growing session after every 500 points.
+    if (options.materializeSegments === false)
+      return { accepted, rejectedCount: rows.length - accepted.length }
 
     // Автоматическая генерация сегментов для поступивших сессий
     try {
@@ -145,6 +151,7 @@ export const trackingService = {
     const corrections = await getCorrections(userId, from, to)
     const segments = applyActivityCorrections(processDayTrack(raw), corrections, raw)
     return {
+      ownerId: userId,
       timeZone,
       corrections,
       points: annotateTrackPoints(raw, segments, corrections),

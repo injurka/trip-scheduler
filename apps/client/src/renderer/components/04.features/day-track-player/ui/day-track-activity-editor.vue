@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { CorrectionChoice } from '../composables/use-track-correction-drafts'
-import type { DayData } from '../models/types'
+import type { DayData, DayPoint } from '../models/types'
 import type { ActivityType } from '~/shared/services/tracking/track-processing'
 import { Icon } from '@iconify/vue'
 import { parseDateTime } from '@internationalized/date'
@@ -15,13 +15,14 @@ import { ACTIVITY_ICONS, ACTIVITY_LABELS } from '../models/types'
 import TrackDateTimeField from './track-date-time-field.vue'
 
 interface Props {
+  stageCorrection: (choice: CorrectionChoice) => Promise<void>
+  removeCorrection: (id: string) => Promise<void>
   tripId?: string
   dayData: DayData | null
   initialTime: number
 }
 
 const props = defineProps<Props>()
-const emit = defineEmits<{ (e: 'stage', choice: CorrectionChoice): void, (e: 'remove', id: string): void }>()
 const visible = defineModel<boolean>('visible', { required: true })
 
 const historyId = useId()
@@ -38,8 +39,23 @@ const editorTimezone = ref('UTC')
 const pointMode = ref(false)
 const historyExpanded = ref(false)
 
+const dialogVisible = computed({
+  get: () => visible.value,
+  set: (value: boolean) => {
+    if (!pending.value)
+      visible.value = value
+  },
+})
 const sourcePoints = computed(() => props.dayData?.rawPoints ?? props.dayData?.points ?? [])
-const sessions = computed(() => [...new Set(sourcePoints.value.map(p => p.sessionId))].map((value, index) => ({ value, label: `Запись ${index + 1}` })))
+const sessions = computed(() => [...new Set(sourcePoints.value.map(p => p.sessionId))].map((value, index) => {
+  const points = sourcePoints.value.filter(p => p.sessionId === value)
+  const from = Math.min(...points.map(p => p.tsUtc))
+  const to = Math.max(...points.map(p => p.tsUtc))
+  const format = (time: number) => new Date(time).toLocaleTimeString('ru-RU', { timeZone: editorTimezone.value, hour: '2-digit', minute: '2-digit' })
+  const minutes = Math.round((to - from) / 60000)
+
+  return { value, label: `${format(from)}–${format(to)} · ${Math.floor(minutes / 60)} ч ${minutes % 60} мин · Запись ${index + 1}` }
+}))
 const corrections = computed(() => (props.dayData?.corrections ?? []).filter(c => c.sessionId === sessionId.value))
 const timezoneLabel = computed(() => {
   const offset = new Intl.DateTimeFormat('ru-RU', { timeZone: editorTimezone.value, timeZoneName: 'shortOffset' }).formatToParts(new Date(props.initialTime)).find(p => p.type === 'timeZoneName')?.value
@@ -70,7 +86,7 @@ watch(visible, (open) => {
   const point = points.find(p => p.sessionId === sessionId.value && p.tsUtc >= props.initialTime) ?? points[0]
 
   try {
-    editorTimezone.value = point ? tzLookup(point.lat, point.lng) : 'UTC'
+    editorTimezone.value = resolveEditorTimezone(point)
   }
   catch {
     editorTimezone.value = 'UTC'
@@ -79,6 +95,9 @@ watch(visible, (open) => {
   resetRange(props.initialTime)
 })
 
+function resolveEditorTimezone(point?: DayPoint) {
+  return props.dayData?.timeZone ?? (point ? tzLookup(point.lat, point.lng) : 'UTC')
+}
 function inputTime(time: number) {
   const parts = inputTimeFormatter.value.formatToParts(new Date(time))
   const part = (type: string) => parts.find(p => p.type === type)?.value
@@ -124,7 +143,7 @@ function changeSession(value: string) {
   const point = sourcePoints.value.find(p => p.sessionId === value)
 
   try {
-    editorTimezone.value = point ? tzLookup(point.lat, point.lng) : 'UTC'
+    editorTimezone.value = resolveEditorTimezone(point)
   }
   catch {
     editorTimezone.value = 'UTC'
@@ -167,7 +186,7 @@ async function save() {
       return
 
     const { startedAt, endedAt } = readRange()
-    emit('stage', {
+    await props.stageCorrection({
       sessionId: sessionId.value,
       startedAt,
       endedAt,
@@ -185,11 +204,18 @@ async function save() {
     pending.value = false
   }
 }
-function remove(id: string) {
+async function remove(id: string) {
   if (pending.value)
     return
 
-  emit('remove', id)
+  pending.value = true
+  error.value = ''
+
+  try {
+    await props.removeCorrection(id)
+  }
+  catch (err) { error.value = err instanceof Error ? err.message : 'Не удалось отменить правку' }
+  finally { pending.value = false }
 }
 
 onScopeDispose(() => {
@@ -198,7 +224,7 @@ onScopeDispose(() => {
 </script>
 
 <template>
-  <KitDialogWithClose v-model:visible="visible" title="Исправить движение" :persistent="pending">
+  <KitDialogWithClose v-model:visible="dialogVisible" title="Исправить движение" :persistent="pending">
     <form class="activity-editor" :aria-busy="pending" @submit.prevent="save">
       <KitDropdown
         v-if="sessions.length > 1"
@@ -247,12 +273,7 @@ onScopeDispose(() => {
         {{ error }}
       </p>
       <KitBtn type="submit" :disabled="pending">
-        <Icon
-          v-if="pending"
-          icon="mdi:loading"
-          class="pending-spinner"
-          aria-hidden="true"
-        />
+        <span v-if="pending" class="pending-spinner" aria-hidden="true" />
         <span role="status" aria-live="polite">{{ pending ? 'Добавляем…' : 'Добавить в пакет' }}</span>
       </KitBtn>
       <div v-if="corrections.length" class="saved-corrections">
@@ -298,6 +319,13 @@ onScopeDispose(() => {
 
 <style scoped lang="scss">
 .pending-spinner {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  flex-shrink: 0;
   animation: editor-spin 0.8s linear infinite;
   will-change: transform;
 }

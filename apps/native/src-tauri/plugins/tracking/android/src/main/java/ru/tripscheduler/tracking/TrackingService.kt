@@ -37,9 +37,7 @@ import com.google.android.gms.location.LocationResult
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import org.json.JSONObject
-import java.io.BufferedReader
 import java.io.File
-import java.io.FileReader
 
 class TrackingService : Service() {
 
@@ -50,6 +48,7 @@ class TrackingService : Service() {
     private var activityBroadcastReceiver: BroadcastReceiver? = null
     private var activityPendingIntent: PendingIntent? = null
     private var sessionStartedAt = 0L
+    private var appliedSamplingInterval = 3000L
     @Volatile private var recordingGeneration = 0L
     @Volatile private var lastFixElapsedMs: Long? = null
     @Volatile private var notificationAccuracy: Float? = null
@@ -58,6 +57,7 @@ class TrackingService : Service() {
         override fun run() {
             if (!isRunning && !isStarting) return
             locationHandlerThread?.looper?.let { looper -> Handler(looper).post { synchronized(fileLock) { writeQueue?.flush() } } }
+            refreshSampling()
             updateTrackingNotification()
             notificationHandler.postDelayed(this, 15_000L)
         }
@@ -78,12 +78,43 @@ class TrackingService : Service() {
         private val fileLock = Any()
         private var writeQueue: GpsWriteQueue? = null
         @Volatile private var contextError: String? = null
-        val storageError: String? get() = contextError ?: writeQueue?.error
+        private var journal: GpsJournal? = null
+        private var journalDirectory: File? = null
+        val damagedRecords: Int get() = journal?.damagedRecords ?: 0
+        private fun journal(context: Context): GpsJournal {
+            val directory = context.filesDir
+            if (journal == null || journalDirectory != directory) {
+                journal = GpsJournal(directory)
+                journalDirectory = directory
+            }
+            return journal!!
+        }
+        fun recordingMode(context: Context): String = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).getString("recordingMode", "standard") ?: "standard"
+        fun samplingInterval(context: Context): Long = GpsSamplingPolicy.interval(recordingMode(context) == "economy", currentDeviceActivity, currentDeviceActivityConfidence, (SystemClock.elapsedRealtimeNanos() - activitySinceNanos) / 1_000_000)
+        fun setRecordingMode(context: Context, mode: String) {
+            require(mode in listOf("standard", "economy"))
+            check(context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit().putString("recordingMode", mode).commit()) { "Cannot save GPS mode" }
+        }
+        fun batteryUsedMah(context: Context): Double? {
+            val manager = context.getSystemService(Context.BATTERY_SERVICE) as android.os.BatteryManager
+            val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            if (manager.isCharging) { prefs.edit().putBoolean("batterySampleInvalid", true).apply(); return null }
+            if (prefs.getBoolean("batterySampleInvalid", false)) return null
+            val current = manager.getIntProperty(android.os.BatteryManager.BATTERY_PROPERTY_CHARGE_COUNTER)
+            val start = prefs.getInt("batteryStartUah", -1)
+            return if (start > 0 && current > 0 && current <= start) (start - current) / 1000.0 else null
+        }
+        fun journalRows(context: Context, owner: String): List<JSONObject> = synchronized(fileLock) { journal(context).read(owner) }
+        fun unsentCount(context: Context, owner: String): Int = synchronized(fileLock) { journal(context).count(owner) }
+        val storageError: String? get() = contextError ?: writeQueue?.error ?: damagedRecords.takeIf { it > 0 }?.let {
+            "Повреждены записи GPS: $it. Исходные данные сохранены; исправные точки продолжают отправляться."
+        }
         @Volatile var legacyQueuePreserved: Boolean = false
             private set
         val pendingWrites: Int get() = writeQueue?.size ?: 0
         val lastSavedTsUtc: Long? get() = writeQueue?.lastSavedAt
         fun ownerId(context: Context): String? = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).getString("ownerId", null)
+        fun sessionStartedAt(context: Context): Long? = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).getLong(KEY_SESSION_STARTED_AT, 0L).takeIf { it > 0L }
         fun sessionId(context: Context): String? = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).getString("sessionId", null)
 
 
@@ -112,28 +143,7 @@ class TrackingService : Service() {
             }
         }
 
-        fun countBufferedPoints(context: Context): Int {
-            synchronized(fileLock) {
-                return try {
-                    val file = File(context.filesDir, BUFFER_FILENAME)
-                    if (!file.exists()) {
-                        0
-                    } else {
-                        BufferedReader(FileReader(file)).use { reader ->
-                            var count = 0
-                            var line: String? = reader.readLine()
-                            while (line != null) {
-                                if (line.isNotBlank()) count++
-                                line = reader.readLine()
-                            }
-                            count
-                        }
-                    }
-                } catch (_: Exception) {
-                    0
-                }
-            }
-        }
+        fun countBufferedPoints(context: Context): Int = ownerId(context)?.let { unsentCount(context, it) } ?: 0
 
         /** Ключи extras, которыми состояние Activity Recognition приклеивается к точке. */
         const val EXTRA_DEVICE_ACTIVITY = "ru.tripscheduler.tracking.DEVICE_ACTIVITY"
@@ -188,127 +198,29 @@ class TrackingService : Service() {
         var onStateChanged: ((Boolean) -> Unit)? = null
 
 
-        fun drainBuffer(context: Context, owner: String): List<Location> {
-            val list = mutableListOf<Location>()
-
+        fun drainBuffer(context: Context, owner: String, limit: Int = 500, from: Long = 0, until: Long = Long.MAX_VALUE): List<Location> {
             synchronized(fileLock) {
                 writeQueue?.flush()
-                readPersistedPoints(context, list, owner)
-            }
-
-            // Дедупликация и сортировка по времени
-            return list.distinctBy { it.extras?.getString("clientPointId") ?: "${it.extras?.getString("sessionId")}:${it.time}" }.sortedBy { it.time }.take(500)
-        }
-
-        /** Adopt only unowned pre-migration records; tagged records keep their original owner. */
-        private fun migrateLegacyBuffer(context: Context, owner: String) {
-            val file = File(context.filesDir, BUFFER_FILENAME)
-            if (!file.exists()) return
-            val lines = file.readLines()
-            val hasLegacy = lines.any { line ->
-                try { JSONObject(line).optString("ownerId").isEmpty() } catch (_: Exception) { false }
-            }
-            if (!hasLegacy) return
-            val marker = File(context.filesDir, "tracking_legacy_owner")
-            if (marker.exists() && marker.readText() != owner) return
-            if (!marker.exists()) {
-                val markerTemporary = File(context.filesDir, "tracking_legacy_owner.tmp")
-                java.io.FileOutputStream(markerTemporary).use { stream ->
-                    stream.write(owner.toByteArray(Charsets.UTF_8))
-                    stream.fd.sync()
-                }
-                check(markerTemporary.renameTo(marker)) { "Cannot bind legacy GPS owner" }
-            }
-            val migrated = lines.map { line ->
-                val json = try { JSONObject(line) } catch (_: Exception) { null }
-                if (json == null || json.optString("ownerId").isNotEmpty()) line
-                else {
-                    val timestamp = json.getLong("time")
-                    val session = json.optString("sessionId").ifEmpty {
-                        java.util.UUID.nameUUIDFromBytes("legacy:$owner:${timestamp / 86400000}".toByteArray()).toString()
+                val queue = journal(context)
+                val rows = queue.read(owner, limit, from, until)
+                legacyQueuePreserved = queue.legacyPreserved
+                return rows.map { json -> Location("fused").apply {
+                    latitude = json.getDouble("lat"); longitude = json.getDouble("lng"); time = json.getLong("time")
+                    if (json.has("acc")) accuracy = json.getDouble("acc").toFloat()
+                    if (json.has("alt")) altitude = json.getDouble("alt")
+                    if (json.has("spd")) speed = json.getDouble("spd").toFloat()
+                    if (json.has("brg")) bearing = json.getDouble("brg").toFloat()
+                    extras = Bundle().apply {
+                        putLong("samplingIntervalMs", json.optLong("samplingIntervalMs", 3000L))
+                        putString("ownerId", json.getString("ownerId")); putString("sessionId", json.getString("sessionId")); putString("clientPointId", json.getString("clientPointId"))
+                        if (json.has("act")) { putString(EXTRA_DEVICE_ACTIVITY, json.getString("act")); putInt(EXTRA_DEVICE_ACTIVITY_CONFIDENCE, json.optInt("actc", 0)) }
                     }
-                    val id = json.optString("clientPointId").ifEmpty {
-                        java.util.UUID.nameUUIDFromBytes("legacy:$owner:$line".toByteArray()).toString()
-                    }
-                    json.put("ownerId", owner).put("sessionId", session).put("clientPointId", id).toString()
-                }
-            }
-            val temporary = File(context.filesDir, "$BUFFER_FILENAME.migration")
-            java.io.FileOutputStream(temporary).use { stream ->
-                stream.write(migrated.joinToString("\n", postfix = "\n").toByteArray(Charsets.UTF_8))
-                stream.fd.sync()
-            }
-            check(temporary.renameTo(file)) { "Cannot migrate GPS buffer" }
-        }
-
-        private fun readPersistedPoints(context: Context, out: MutableList<Location>, owner: String) {
-            try {
-                migrateLegacyBuffer(context, owner)
-                legacyQueuePreserved = false
-                val file = File(context.filesDir, BUFFER_FILENAME)
-                if (file.exists()) {
-                    BufferedReader(FileReader(file)).use { reader ->
-                        var line: String? = reader.readLine()
-                        while (line != null) {
-                            if (line.isNotBlank()) {
-                                try {
-                                    val json = JSONObject(line)
-                                    if (json.optString("ownerId").isEmpty()) legacyQueuePreserved = true
-                                    if (json.optString("ownerId") != owner) {
-                                        line = reader.readLine()
-                                        continue
-                                    }
-                                    val loc = Location("fused").apply {
-                                        latitude = json.getDouble("lat")
-                                        longitude = json.getDouble("lng")
-                                        if (json.has("acc")) accuracy = json.getDouble("acc").toFloat()
-                                        if (json.has("alt")) altitude = json.getDouble("alt")
-                                        if (json.has("spd")) speed = json.getDouble("spd").toFloat()
-                                        if (json.has("brg")) bearing = json.getDouble("brg").toFloat()
-                                        time = json.getLong("time")
-                                        if (json.has("act")) {
-                                            extras = Bundle().apply {
-                                                putString(EXTRA_DEVICE_ACTIVITY, json.getString("act"))
-                                                putInt(
-                                                    EXTRA_DEVICE_ACTIVITY_CONFIDENCE,
-                                                    if (json.has("actc")) json.getInt("actc") else 0
-                                                )
-                                            }
-                                        }
-                                    }
-                                    loc.extras = (loc.extras ?: Bundle()).apply {
-                                        putString("ownerId", json.getString("ownerId"))
-                                        putString("sessionId", json.getString("sessionId"))
-                                        putString("clientPointId", json.getString("clientPointId"))
-                                    }
-                                    out.add(loc)
-                                } catch (_: Exception) {}
-                            }
-                            line = reader.readLine()
-                        }
-                    }
-
-                }
-            } catch (e: Exception) {
-                throw java.io.IOException("Не удалось прочитать GPS-очередь", e)
+                } }
             }
         }
 
         fun acknowledgeBuffer(context: Context, clientPointIds: Set<String>, owner: String) {
-            synchronized(fileLock) {
-                val file = File(context.filesDir, BUFFER_FILENAME)
-                if (!file.exists()) return
-                val remaining = file.readLines().filter { line ->
-                    try { val json = JSONObject(line); json.optString("ownerId") != owner || !clientPointIds.contains(json.optString("clientPointId")) }
-                    catch (_: Exception) { true }
-                }
-                val temporary = File(context.filesDir, "$BUFFER_FILENAME.tmp")
-                java.io.FileOutputStream(temporary).use { stream ->
-                    stream.write(remaining.joinToString("\n", postfix = if (remaining.isEmpty()) "" else "\n").toByteArray(Charsets.UTF_8))
-                    stream.fd.sync()
-                }
-                check(temporary.renameTo(file)) { "Could not acknowledge GPS buffer" }
-            }
+            synchronized(fileLock) { journal(context).acknowledge(owner, clientPointIds) }
         }
 
         private fun persistPoint(context: Context, location: Location) {
@@ -322,6 +234,7 @@ class TrackingService : Service() {
                         if (location.hasSpeed()) put("spd", location.speed)
                         if (location.hasBearing()) put("brg", location.bearing)
                         put("time", location.time)
+                        put("samplingIntervalMs", location.extras?.getLong("samplingIntervalMs", 3000L) ?: 3000L)
                         put("ownerId", location.extras?.getString("ownerId"))
                         put("sessionId", location.extras?.getString("sessionId"))
                         put("clientPointId", location.extras?.getString("clientPointId"))
@@ -337,15 +250,8 @@ class TrackingService : Service() {
                         }
                     }
                     if (writeQueue == null) {
-                        val file = File(context.filesDir, BUFFER_FILENAME)
                         writeQueue = GpsWriteQueue { record ->
-                            synchronized(fileLock) {
-                                java.io.FileOutputStream(file, true).use { stream ->
-                                    // A partial previous write cannot swallow the next valid record.
-                                    stream.write(("\n" + record + "\n").toByteArray(Charsets.UTF_8))
-                                    stream.fd.sync()
-                                }
-                            }
+                            synchronized(fileLock) { journal(context).append(record, JSONObject(record).getString("ownerId")) }
                         }
                     }
                     writeQueue!!.enqueue(json.toString(), location.time)
@@ -394,8 +300,18 @@ class TrackingService : Service() {
                 return START_NOT_STICKY
             }
             val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-            if ((isRunning || isStarting) && prefs.getString("ownerId", null) != owner) {
+            if (isRunning || isStarting) {
+                if (prefs.getString("ownerId", null) == owner) {
+                    // Existing callbacks captured this session. Repeated START must not
+                    // replace its identity while those callbacks are still recording.
+                    startTracking()
+                    return START_STICKY
+                }
                 stopTracking()
+                prefs.edit().remove(KEY_SESSION_STARTED_AT).remove("batteryStartUah").remove("batterySampleInvalid").apply()
+            }
+            if (prefs.getString("sessionId", null) != session) {
+                prefs.edit().remove(KEY_SESSION_STARTED_AT).remove("batteryStartUah").remove("batterySampleInvalid").apply()
             }
             if (!prefs.edit().putString("ownerId", owner).putString("sessionId", session).commit()) {
                 contextError = "Не удалось сохранить владельца GPS-записи. Освободите память устройства."
@@ -437,7 +353,7 @@ class TrackingService : Service() {
     }
 
     private fun buildNotification(): Notification {
-        val statusText = storageError?.let { "Ошибка сохранения · ${pendingWrites} точек ожидают записи" } ?: TrackingNotificationContent.status(SystemClock.elapsedRealtime(), lastFixElapsedMs, notificationAccuracy)
+        val statusText = if (damagedRecords > 0 && contextError == null && writeQueue?.error == null) "Повреждены записи GPS: $damagedRecords" else storageError?.let { "Ошибка сохранения · ${pendingWrites} точек ожидают записи" } ?: TrackingNotificationContent.status(SystemClock.elapsedRealtime(), lastFixElapsedMs, notificationAccuracy, if (samplingInterval(this) > 3000) 75_000L else 30_000L)
         val launchIntent = packageManager.getLaunchIntentForPackage(packageName)
         val pendingIntent = if (launchIntent != null) {
             PendingIntent.getActivity(
@@ -490,7 +406,10 @@ class TrackingService : Service() {
             val now = System.currentTimeMillis()
             val saved = prefs.getLong(KEY_SESSION_STARTED_AT, 0L)
             sessionStartedAt = saved.takeIf { it in 1..now } ?: now
-            prefs.edit().putLong(KEY_SESSION_STARTED_AT, sessionStartedAt).apply()
+            val charge = (getSystemService(Context.BATTERY_SERVICE) as android.os.BatteryManager).getIntProperty(android.os.BatteryManager.BATTERY_PROPERTY_CHARGE_COUNTER)
+            prefs.edit().putLong(KEY_SESSION_STARTED_AT, sessionStartedAt).apply {
+                if (!prefs.contains("batteryStartUah")) putInt("batteryStartUah", charge)
+            }.apply()
         }
 
         // Обязательно сразу вызываем startForeground, соблюдая 5-секундный контракт Android 8+
@@ -513,6 +432,7 @@ class TrackingService : Service() {
 
         if (isRunning || isStarting) return
         isStarting = true
+        GpsBackgroundSync.start(this)
         val generation = ++recordingGeneration
         val recordingOwner = ownerId(this)
         val recordingSession = sessionId(this)
@@ -541,12 +461,8 @@ class TrackingService : Service() {
 
             fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
 
-            val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 3000L)
-                .setMinUpdateIntervalMillis(1500L)
-                .setMaxUpdateDelayMillis(0L) // Немедленная доставка координат без накопления в Play Services
-                .setMinUpdateDistanceMeters(0f)
-                .setWaitForAccurateLocation(true)
-                .build()
+            appliedSamplingInterval = samplingInterval(this)
+            val locationRequest = samplingRequest(appliedSamplingInterval)
 
             locationCallback = object : LocationCallback() {
                 override fun onLocationResult(result: LocationResult) {
@@ -669,6 +585,7 @@ class TrackingService : Service() {
             currentDeviceActivity = "unknown"
             currentDeviceActivityConfidence = 0
         }
+        notificationHandler.post { refreshSampling() }
     }
 
     private fun stopActivityRecognition() {
@@ -697,8 +614,27 @@ class TrackingService : Service() {
         activitySinceNanos = 0
     }
 
+    private fun samplingRequest(interval: Long): LocationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, interval)
+        .setMinUpdateIntervalMillis(if (interval > 3000) interval else 1500L)
+        .setMaxUpdateDelayMillis(0L).setMinUpdateDistanceMeters(0f).setWaitForAccurateLocation(true).build()
+
+    @SuppressLint("MissingPermission")
+    private fun refreshSampling() {
+        val interval = samplingInterval(this)
+        val callback = locationCallback ?: return
+        val client = fusedLocationClient ?: return
+        if (interval == appliedSamplingInterval) return
+        appliedSamplingInterval = interval
+        val looper = locationHandlerThread?.looper ?: Looper.getMainLooper()
+        client.requestLocationUpdates(samplingRequest(interval), callback, looper).addOnFailureListener {
+            appliedSamplingInterval = 0
+            android.util.Log.w("TrackingService", "Cannot update GPS sampling", it)
+        }
+    }
+
     private fun handleLocation(location: Location, recordingOwner: String?, recordingSession: String?) {
         if (!isRunning && !isStarting) return
+        notificationHandler.post { refreshSampling() }
         val firstFix = lastFixElapsedMs == null
         lastFixElapsedMs = location.elapsedRealtimeNanos / 1_000_000L
         notificationAccuracy = if (location.hasAccuracy()) location.accuracy else null
@@ -709,6 +645,7 @@ class TrackingService : Service() {
             putString("ownerId", recordingOwner)
             putString("sessionId", recordingSession)
             putString("clientPointId", java.util.UUID.randomUUID().toString())
+            putLong("samplingIntervalMs", appliedSamplingInterval.coerceAtLeast(3000L))
             val applicable = location.elapsedRealtimeNanos >= activitySinceNanos
             putString(EXTRA_DEVICE_ACTIVITY, if (applicable) currentDeviceActivity else "unknown")
             putInt(EXTRA_DEVICE_ACTIVITY_CONFIDENCE, if (applicable) currentDeviceActivityConfidence else 0)
@@ -738,6 +675,7 @@ class TrackingService : Service() {
     }
 
     private fun stopTracking() {
+        GpsBackgroundSync.stop()
         notificationHandler.removeCallbacks(notificationRefresh)
         if (!isRunning && !isStarting) return
         ++recordingGeneration

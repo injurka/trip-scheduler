@@ -15,6 +15,12 @@ export interface ITrackingState {
   lastSavedTsUtc: number | null
   storageError: string | null
   pendingWrites: number
+  damagedRecords: number
+  recordingMode: 'standard' | 'economy'
+  samplingIntervalMs: number
+  batteryUsedMah: number | null
+  nativeSyncError: string | null
+  nativeSyncing: boolean
   legacyQueuePreserved: boolean
   statusCheckedAt: number
   isSupported: boolean
@@ -54,6 +60,12 @@ export const useTrackingStore = defineStore('tracking', {
     lastSavedTsUtc: null,
     storageError: null,
     pendingWrites: 0,
+    damagedRecords: 0,
+    recordingMode: 'standard',
+    samplingIntervalMs: 3000,
+    batteryUsedMah: null,
+    nativeSyncError: null,
+    nativeSyncing: false,
     legacyQueuePreserved: false,
     statusCheckedAt: Date.now(),
     isSupported: true,
@@ -73,7 +85,7 @@ export const useTrackingStore = defineStore('tracking', {
 
   getters: {
     canToggle: state => state.isSupported,
-    hasFreshGps: state => state.lastFixTsUtc !== null && state.statusCheckedAt - state.lastFixTsUtc >= -5000 && state.statusCheckedAt - state.lastFixTsUtc <= 30_000,
+    hasFreshGps: state => state.lastFixTsUtc !== null && state.statusCheckedAt - state.lastFixTsUtc >= -5000 && state.statusCheckedAt - state.lastFixTsUtc <= Math.max(30_000, state.samplingIntervalMs * 2 + 15000),
     recordingLabel(): string {
       if (this.isStarting)
         return 'Запуск записи…'
@@ -81,9 +93,12 @@ export const useTrackingStore = defineStore('tracking', {
       if (!this.isRunning)
         return 'Запись остановлена'
 
-      return this.hasFreshGps ? 'Записывается' : 'Нет свежего GPS'
+      return this.hasFreshGps ? this.samplingIntervalMs > 3000 ? 'Записывается · экономия в покое' : 'Записывается' : 'Нет свежего GPS'
     },
     storageLabel(): string {
+      if (this.damagedRecords > 0)
+        return `Повреждены записи GPS: ${this.damagedRecords}`
+
       if (this.storageError || this.pendingWrites > 0)
         return 'Есть несохранённые точки'
 
@@ -134,10 +149,23 @@ export const useTrackingStore = defineStore('tracking', {
   },
 
   actions: {
+    async setRecordingMode(mode: 'standard' | 'economy') {
+      await geotrack.setRecordingMode(mode)
+      await this.refreshStatus()
+    },
+    applyNativeStatus(status: TrackingStatus) {
+      this.recordingMode = status.recordingMode ?? 'standard'
+      this.samplingIntervalMs = status.samplingIntervalMs ?? 3000
+      this.batteryUsedMah = status.batteryUsedMah ?? null
+      this.nativeSyncError = status.nativeSyncError ?? null
+      this.nativeSyncing = status.nativeSyncing ?? false
+    },
     applyStorageStatus(status: TrackingStatus) {
       this.lastSavedTsUtc = status.lastSavedTsUtc ?? null
       this.storageError = status.storageError ?? null
       this.pendingWrites = status.pendingWrites ?? 0
+      this.damagedRecords = status.damagedRecords ?? 0
+      this.applyNativeStatus(status)
       this.legacyQueuePreserved = status.legacyQueuePreserved ?? false
       this.lastSyncAt = status.lastSyncAt ?? this.lastSyncAt
     },

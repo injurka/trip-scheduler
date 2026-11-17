@@ -6,6 +6,7 @@ export * from './calendar'
 export * from './corrections'
 
 export interface TrackPoint {
+  samplingIntervalMs?: number | null
   clientPointId: string
   tsUtc: number
   lat: number

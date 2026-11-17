@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { DayPoint, PointStatusBadge, SelectedPointInfo, TimezoneMode } from '../models/types'
 import { Icon } from '@iconify/vue'
+import { classificationExplanation } from '@limiteddissolve/track-processing'
 import { computed, ref, watch } from 'vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { MAX_PEDESTRIAN_SPEED_KMH } from '~/shared/services/tracking/track-processing'
@@ -88,6 +89,9 @@ watch(() => props.selectedPoint?.point.clientPointId, () => {
           <Icon icon="mdi:close" />
         </button>
       </header>
+      <p v-if="selectedPoint.point.localPending" class="classification-note">
+        Сохранено на устройстве · ожидает отправки
+      </p>
       <div class="popup-time-row">
         <span class="time-val"><Icon icon="mdi:clock-outline" />{{ formattedTime }}<template v-if="selectedPoint.point.stop"> – {{ formattedEndTime }}</template></span>
         <span :title="timezoneMode === 'track' ? 'Местное время записи' : 'Время устройства'" :aria-label="timezoneMode === 'track' ? 'Местное время записи' : 'Время устройства'"><Icon :icon="timezoneMode === 'track' ? 'mdi:earth' : 'mdi:cellphone'" /></span>
@@ -108,7 +112,7 @@ watch(() => props.selectedPoint?.point.clientPointId, () => {
       </dl>
       <div class="popup-toolbar">
         <KitBtn
-          v-if="!readonly"
+          v-if="!readonly && !selectedPoint.point.localPending"
           size="sm"
           variant="text"
           aria-label="Исправить движение"
@@ -138,10 +142,10 @@ watch(() => props.selectedPoint?.point.clientPointId, () => {
       <div v-if="expanded" class="popup-details">
         <div class="activity-details">
           <span>{{ selectedPoint.point.activitySource === 'manual' ? 'Исправлено вручную' : 'Автоматически по участку' }}</span>
-          <span v-if="pointActivity !== 'unknown' && selectedPoint.point.activitySource !== 'manual' && selectedPoint.point.activityConfidence != null" class="confidence" title="Эвристическая оценка классификации">Уверенность {{ Math.round(selectedPoint.point.activityConfidence * 100) }}%</span>
+          <span v-if="selectedPoint.point.activitySource !== 'manual' && selectedPoint.point.activityConfidence != null" class="confidence" title="Эвристическая оценка классификации">Уверенность {{ Math.round(selectedPoint.point.activityConfidence <= 1 ? selectedPoint.point.activityConfidence * 100 : selectedPoint.point.activityConfidence) }}%</span>
         </div>
         <p v-if="pointActivity === 'unknown'" class="classification-note">
-          Недостаточно согласованных данных. Одна скорость GPS не определяет тип движения.
+          {{ classificationExplanation(selectedPoint.point) }}
         </p>
         <p v-else-if="conflictingSpeed" class="classification-note">
           Скорость этой GPS-точки не согласуется с ходьбой. Возможен выброс скорости или переход между типами движения.
@@ -162,7 +166,7 @@ watch(() => props.selectedPoint?.point.clientPointId, () => {
           <Icon :icon="statusBadge.icon" />{{ statusBadge.label }}
         </p>
         <KitBtn
-          v-if="!readonly && !selectedPoint.point.stop"
+          v-if="!readonly && !selectedPoint.point.stop && !selectedPoint.point.localPending"
           class="delete-btn"
           size="sm"
           variant="text"

@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct LocationRecord {
+    pub sampling_interval_ms: Option<i64>,
     pub owner_id: Option<String>,
     pub session_id: Option<String>,
     pub client_point_id: Option<String>,
@@ -24,6 +25,20 @@ pub struct LocationRecord {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TrackingPermissionsStatus {
+    pub recording_mode: String,
+    pub sampling_interval_ms: i64,
+    pub battery_used_mah: Option<f64>,
+    #[serde(default)]
+    pub unsent_count: u32,
+    #[serde(default)]
+    pub native_sync_configured: bool,
+    #[serde(default)]
+    pub native_syncing: bool,
+    pub native_sync_error: Option<String>,
+    pub last_sync_at: Option<i64>,
+    pub session_started_at: Option<i64>,
+    #[serde(default)]
+    pub damaged_records: u32,
     pub owner_id: Option<String>,
     pub session_id: Option<String>,
     pub storage_error: Option<String>,

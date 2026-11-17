@@ -2,6 +2,8 @@ import type { ActivityCorrection } from '@limiteddissolve/track-processing'
 import type { ActivityType } from '~/shared/services/tracking/track-processing'
 
 export interface DayPoint {
+  samplingIntervalMs?: number | null
+  localPending?: boolean
   clientPointId: string
   tsUtc: number
   lat: number
@@ -35,6 +37,11 @@ export interface DaySegment {
 }
 
 export interface DayData {
+  ownerId?: string
+  localError?: string
+  localPendingCount?: number
+  /** Worker-prepared routes for a local preview; never part of a server mutation. */
+  preparedRenderSegments?: RenderSegment[]
   timeZone?: string
   canEdit?: boolean
   points: DayPoint[]

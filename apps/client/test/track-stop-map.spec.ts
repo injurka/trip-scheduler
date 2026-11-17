@@ -146,6 +146,7 @@ it('renders stops as individual unclustered points, preserves popup indices and 
   await nextTick()
   await nextTick()
 
+  await vi.waitFor(() => expect(layers.get('day-track-stop-labels')?.minzoom).toBe(16.5))
   const stops = sources.get('day-track-stops-source')!
   // Без кластеризации пауз
   expect((stops.config as Record<string, unknown>).cluster).toBeFalsy()
@@ -194,7 +195,7 @@ it('renders stops as individual unclustered points, preserves popup indices and 
   // Переключение в режим всех точек Безье убирает слой пауз и выводит все точки в points-source
   mode.value = 'points'
   await nextTick()
-  expect(stops.data.features).toHaveLength(0)
+  await vi.waitFor(() => expect(stops.data.features).toHaveLength(0))
   expect(sources.get('day-track-points-source')!.data.features).toHaveLength(3)
 
   // Timeline changes update geometry and raw points without refitting the camera.

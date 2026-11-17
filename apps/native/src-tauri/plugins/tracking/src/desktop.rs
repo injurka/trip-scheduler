@@ -13,6 +13,11 @@ impl<R: Runtime> Tracking<R> {
         Ok(true)
     }
 
+    pub fn set_tracking_mode(&self, _mode: String) -> Result<bool> { Ok(true) }
+    pub fn sync_tracking_now(&self) -> Result<u32> { Ok(0) }
+    pub fn configure_tracking(&self, _config: Option<serde_json::Value>) -> Result<bool> { Ok(true) }
+    pub fn get_local_tracking_points(&self, _owner_id: String, _from: i64, _until: i64) -> Result<Vec<LocationRecord>> { Ok(vec![]) }
+
     pub fn stop_tracking(&self) -> Result<bool> {
         Ok(true)
     }
@@ -35,7 +40,8 @@ impl<R: Runtime> Tracking<R> {
 
     pub fn check_permissions(&self) -> Result<TrackingPermissionsStatus> {
         Ok(TrackingPermissionsStatus {
-            owner_id: None, session_id: None, storage_error: None, pending_writes: 0, legacy_queue_preserved: false, last_saved_ts_utc: None,
+            recording_mode: "standard".into(), sampling_interval_ms: 3000, battery_used_mah: None, unsent_count: 0, native_sync_configured: false, native_syncing: false, native_sync_error: None, last_sync_at: None,
+            owner_id: None, session_id: None, session_started_at: None, damaged_records: 0, storage_error: None, pending_writes: 0, legacy_queue_preserved: false, last_saved_ts_utc: None,
             location: true,
             notifications: true,
             battery_optimizations_ignored: true,

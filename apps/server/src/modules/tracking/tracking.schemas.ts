@@ -4,6 +4,7 @@ import { z } from 'zod'
 export const TrackActivityTypeSchema = z.enum(['still', 'walk', 'bike', 'vehicle', 'rail', 'unknown'])
 
 export const TrackPointInputSchema = z.object({
+  samplingIntervalMs: z.number().int().min(1000).max(60000).optional(),
   clientPointId: z.string().min(8).max(64),
   sessionId: z.string().min(4).max(64),
   tsUtc: z.number().positive(),

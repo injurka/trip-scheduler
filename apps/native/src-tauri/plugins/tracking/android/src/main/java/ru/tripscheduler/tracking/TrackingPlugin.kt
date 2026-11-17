@@ -40,6 +40,7 @@ import java.io.File
 class TrackingPlugin(private val activity: Activity) : Plugin(activity) {
 
     private val ioExecutor = java.util.concurrent.Executors.newSingleThreadExecutor()
+    private val syncExecutor = java.util.concurrent.Executors.newSingleThreadExecutor()
 
     init {
         onPushTokenChanged = { token ->
@@ -148,6 +149,48 @@ class TrackingPlugin(private val activity: Activity) : Plugin(activity) {
     }
 
     @Command
+    fun setTrackingMode(invoke: Invoke) {
+        try { TrackingService.setRecordingMode(activity.applicationContext, invoke.getArgs().getString("mode")); invoke.resolveObject(true) }
+        catch (error: Exception) { invoke.reject("Не удалось изменить режим GPS: ${error.message}") }
+    }
+
+    @Command
+    fun syncTrackingNow(invoke: Invoke) {
+        val context = activity.applicationContext
+        syncExecutor.execute { invoke.resolveObject(GpsBackgroundSync.sync(context)) }
+    }
+
+    @Command
+    fun configureTracking(invoke: Invoke) {
+        val context = activity.applicationContext
+        val config = invoke.getArgs().optJSONObject("config")
+        ioExecutor.execute {
+            try {
+                if (config != null) {
+                    java.util.UUID.fromString(config.getString("ownerId"))
+                    require(config.getString("syncToken").length in 64..200)
+                    val activeOwner = TrackingService.ownerId(context)
+                    check(!TrackingService.isRunning || activeOwner == config.getString("ownerId")) { "Stop the previous owner's recording first" }
+                }
+                GpsBackgroundSync.configure(context, config)
+                invoke.resolveObject(true)
+            } catch (error: Exception) { invoke.reject("Не удалось настроить отправку GPS: ${error.message}") }
+        }
+    }
+
+    @Command
+    fun getLocalTrackingPoints(invoke: Invoke) {
+        val context = activity.applicationContext
+        val args = invoke.getArgs()
+        ioExecutor.execute {
+            try {
+                val points = TrackingService.drainBuffer(context, args.getString("ownerId"), 100_000, args.getLong("from"), args.getLong("until"))
+                invoke.resolveObject(points.map { locationToMap(it) })
+            } catch (error: Exception) { invoke.reject("Не удалось прочитать локальный GPS: ${error.message}") }
+        }
+    }
+
+    @Command
     fun getPushToken(invoke: Invoke) {
         try {
             FirebaseMessaging.getInstance().token
@@ -202,6 +245,8 @@ class TrackingPlugin(private val activity: Activity) : Plugin(activity) {
             true
         }
 
+        ioExecutor.execute {
+        try {
         val ret = JSObject()
         ret.put("location", hasLocation)
         ret.put("notifications", hasNotification)
@@ -209,11 +254,24 @@ class TrackingPlugin(private val activity: Activity) : Plugin(activity) {
         ret.put("activityRecognition", hasActivityRecognition)
         ret.put("ownerId", TrackingService.ownerId(context))
         ret.put("sessionId", TrackingService.sessionId(context))
+        ret.put("sessionStartedAt", TrackingService.sessionStartedAt(context))
+        val owner = TrackingService.ownerId(context)
+        ret.put("unsentCount", owner?.let { TrackingService.unsentCount(context, it) } ?: 0)
+        ret.put("nativeSyncConfigured", GpsBackgroundSync.configured(owner))
+        ret.put("nativeSyncError", GpsBackgroundSync.error)
+        ret.put("nativeSyncing", GpsBackgroundSync.syncing)
+        ret.put("recordingMode", TrackingService.recordingMode(context))
+        ret.put("samplingIntervalMs", TrackingService.samplingInterval(context))
+        ret.put("batteryUsedMah", TrackingService.batteryUsedMah(context))
+        ret.put("lastSyncAt", GpsBackgroundSync.lastSyncAt)
+        ret.put("damagedRecords", TrackingService.damagedRecords)
         ret.put("storageError", TrackingService.storageError)
         ret.put("pendingWrites", TrackingService.pendingWrites)
         ret.put("legacyQueuePreserved", TrackingService.legacyQueuePreserved)
         ret.put("lastSavedTsUtc", TrackingService.lastSavedTsUtc)
         invoke.resolve(ret)
+        } catch (error: Exception) { invoke.reject("Не удалось получить состояние GPS-хранилища: ${error.message}") }
+        }
     }
 
     @Command
@@ -447,6 +505,30 @@ class TrackingPlugin(private val activity: Activity) : Plugin(activity) {
     }
 
     @Command
+    fun exportTrackingGpx(invoke: Invoke) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q && ContextCompat.checkSelfPermission(activity, Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+            requestPermissionForAlias("exportStorage", invoke, "onGpxStoragePermissionResult")
+            return
+        }
+        val context = activity.applicationContext
+        ioExecutor.execute {
+            try {
+                val args = invoke.getArgs()
+                val name = args.getString("fileName")
+                require(name.length <= 160 && name.matches(Regex("[A-Za-z0-9_.-]+\\.gpx"))) { "Invalid GPX name" }
+                val contents = args.getString("contents")
+                val path = saveToDownloads(context, name, contents.toByteArray(Charsets.UTF_8), "application/gpx+xml") ?: error("Не удалось сохранить GPX в Загрузки")
+                invoke.resolveObject(path)
+            } catch (error: Exception) { invoke.reject("Не удалось сохранить GPX: ${error.message}") }
+        }
+    }
+    @PermissionCallback
+    private fun onGpxStoragePermissionResult(invoke: Invoke) {
+        if (ContextCompat.checkSelfPermission(activity, Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED) exportTrackingGpx(invoke)
+        else invoke.reject("Разрешите сохранение файлов и повторите экспорт GPX")
+    }
+
+    @Command
     fun openKmzInMapsMe(invoke: Invoke) {
         try {
             val args = invoke.getArgs()
@@ -534,12 +616,12 @@ class TrackingPlugin(private val activity: Activity) : Plugin(activity) {
         }
     }
 
-    private fun saveToDownloads(context: Context, fileName: String, bytes: ByteArray): String? {
+    private fun saveToDownloads(context: Context, fileName: String, bytes: ByteArray, mimeType: String = "application/vnd.google-earth.kmz"): String? {
         return try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 val contentValues = ContentValues().apply {
                     put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
-                    put(MediaStore.MediaColumns.MIME_TYPE, "application/vnd.google-earth.kmz")
+                    put(MediaStore.MediaColumns.MIME_TYPE, mimeType)
                     put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
                     put(MediaStore.MediaColumns.IS_PENDING, 1)
                 }
@@ -547,9 +629,12 @@ class TrackingPlugin(private val activity: Activity) : Plugin(activity) {
                 val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, contentValues)
                     ?: return null
 
-                resolver.openOutputStream(uri)?.use { stream ->
-                    stream.write(bytes)
-                    stream.flush()
+                try {
+                    val output = resolver.openOutputStream(uri) ?: error("Cannot open Downloads output")
+                    output.use { stream -> stream.write(bytes); stream.flush() }
+                } catch (failure: Exception) {
+                    resolver.delete(uri, null, null)
+                    throw failure
                 }
 
                 contentValues.clear()
@@ -675,6 +760,7 @@ class TrackingPlugin(private val activity: Activity) : Plugin(activity) {
         ret["ownerId"] = extras?.getString("ownerId")
         ret["sessionId"] = extras?.getString("sessionId")
         ret["clientPointId"] = extras?.getString("clientPointId")
+        ret["samplingIntervalMs"] = extras?.getLong("samplingIntervalMs", 3000L)
         val deviceActivity = extras?.getString(TrackingService.EXTRA_DEVICE_ACTIVITY)
         if (extras != null && !deviceActivity.isNullOrEmpty()) {
             ret["activity"] = deviceActivity

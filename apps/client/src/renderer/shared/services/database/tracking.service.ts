@@ -2,6 +2,7 @@ import type { ActivityType } from '~/shared/services/tracking/track-processing'
 import { trpc } from '~/shared/services/trpc/trpc.service'
 
 export const trackingService = {
+  grantNativeSync: (deviceId: string) => trpc.tracking.grantNativeSync.mutate({ deviceId }),
   correctActivities: (input: import('~/shared/types/trpc').RouterInput['tracking']['correctActivities']) => trpc.tracking.correctActivities.mutate(input),
   getTripDay: (
     tripId: string,

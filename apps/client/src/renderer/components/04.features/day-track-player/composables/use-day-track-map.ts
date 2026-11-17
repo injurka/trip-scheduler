@@ -972,7 +972,33 @@ export function useDayTrackMap(options: UseDayTrackMapOptions) {
 
   let fittedDay: string | undefined
 
+  let rebuildVersion = 0
+  let rebuildFrame = 0
+  let resumeRebuild: ((valid: boolean) => void) | undefined
+  function cancelRebuild() {
+    if (rebuildFrame)
+      cancelAnimationFrame(rebuildFrame)
+
+    rebuildFrame = 0
+    resumeRebuild?.(false)
+    resumeRebuild = undefined
+  }
+  function nextRebuildFrame(version: number) {
+    return new Promise<boolean>((resolve) => {
+      resumeRebuild = resolve
+      rebuildFrame = requestAnimationFrame(() => {
+        rebuildFrame = 0
+        resumeRebuild = undefined
+        resolve(version === rebuildVersion)
+      })
+    })
+  }
   function rebuildFeatures() {
+    cancelRebuild()
+    const version = ++rebuildVersion
+    void rebuildLayers(version)
+  }
+  async function rebuildLayers(version: number) {
     const map = mapInstance.value
 
     if (!map || !isMapReady.value)
@@ -994,7 +1020,14 @@ export function useDayTrackMap(options: UseDayTrackMapOptions) {
         closePointPopup()
     }
 
+    if (!await nextRebuildFrame(version))
+      return
+
     updatePointLayer(map, points.pointsList, points.isPointsMode)
+
+    if (!await nextRebuildFrame(version))
+      return
+
     updateStopAreaLayer(map, visiblePoints(points.pointsList), points.isPointsMode)
     updatePhotoLayers(map, points.allPoints)
   }
@@ -1356,6 +1389,8 @@ export function useDayTrackMap(options: UseDayTrackMapOptions) {
   }
 
   onBeforeUnmount(() => {
+    rebuildVersion++
+    cancelRebuild()
     popupResize?.disconnect()
     stopPopupLayout?.()
 

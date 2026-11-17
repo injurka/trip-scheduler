@@ -23,6 +23,18 @@ impl<R: Runtime> Tracking<R> {
         self.0.run_mobile_plugin("startTracking", serde_json::json!({ "ownerId": owner_id, "sessionId": session_id })).map_err(Into::into)
     }
 
+    pub fn set_tracking_mode(&self, mode: String) -> Result<bool> { self.0.run_mobile_plugin("setTrackingMode", serde_json::json!({ "mode": mode })).map_err(Into::into) }
+    pub fn sync_tracking_now(&self) -> Result<u32> { self.0.run_mobile_plugin("syncTrackingNow", ()).map_err(Into::into) }
+    pub fn export_tracking_gpx(&self, file_name: String, contents: String) -> Result<String> {
+        self.0.run_mobile_plugin("exportTrackingGpx", serde_json::json!({ "fileName": file_name, "contents": contents })).map_err(Into::into)
+    }
+    pub fn configure_tracking(&self, config: Option<serde_json::Value>) -> Result<bool> {
+        self.0.run_mobile_plugin("configureTracking", serde_json::json!({ "config": config })).map_err(Into::into)
+    }
+    pub fn get_local_tracking_points(&self, owner_id: String, from: i64, until: i64) -> Result<Vec<LocationRecord>> {
+        self.0.run_mobile_plugin("getLocalTrackingPoints", serde_json::json!({ "ownerId": owner_id, "from": from, "until": until })).map_err(Into::into)
+    }
+
     pub fn stop_tracking(&self) -> Result<bool> {
         self.0.run_mobile_plugin("stopTracking", ()).map_err(Into::into)
     }

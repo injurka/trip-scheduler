@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import type { ActivityType } from '../models/types'
 import { Icon } from '@iconify/vue'
+import { ref } from 'vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
+import { KitSwitch } from '~/components/01.kit/kit-switch'
 import { useToast } from '~/shared/composables/use-toast'
 import { isMobileApp } from '~/shared/lib/env'
 import { useTrackingStore } from '~/shared/store/tracking.store'
@@ -13,6 +15,16 @@ const emit = defineEmits<{
 
 const tracking = useTrackingStore()
 const toast = useToast()
+const modePending = ref(false)
+async function changeEconomy(enabled: boolean) {
+  modePending.value = true
+
+  try {
+    await tracking.setRecordingMode(enabled ? 'economy' : 'standard')
+  }
+  catch (error) { toast.error(error instanceof Error ? error.message : 'Не удалось изменить режим записи') }
+  finally { modePending.value = false }
+}
 
 async function handleIgnoreBattery() {
   await tracking.requestIgnoreBatteryOptimizations()
@@ -62,8 +74,11 @@ async function handleManualSync() {
     toast.success(`Синхронизировано ${count} ${formatPointsCount(count)} с сервером!`)
     emit('changed', tracking.isRunning)
   }
-  else if (tracking.syncError) {
-    toast.error(tracking.syncError)
+  else if (tracking.syncError || tracking.nativeSyncError) {
+    toast.error(tracking.syncError || tracking.nativeSyncError || 'Не удалось отправить GPS')
+  }
+  else if (tracking.nativeSyncing) {
+    toast.info('Фоновая отправка GPS уже выполняется.')
   }
   else if (tracking.unsentCount > 0) {
     toast.warn('Не удалось синхронизировать точки. Попробуйте позже.')
@@ -135,12 +150,31 @@ onMounted(() => {
       </div>
     </div>
 
+    <details v-if="isMobileApp" class="recording-options">
+      <summary>Настройки записи</summary>
+      <div class="economy-switch">
+        <span>Экономия в покое</span><KitSwitch
+          aria-label="Экономия в покое"
+          :model-value="tracking.recordingMode === 'economy'"
+          :disabled="modePending"
+          @update:model-value="changeEconomy"
+        />
+      </div>
+      <p>После двух минут подтверждённого покоя — замер раз в 30 секунд. Во время движения и при неопределённости — обычная частота.</p>
+      <p v-if="tracking.batteryUsedMah != null">
+        По датчику батареи: {{ tracking.batteryUsedMah.toFixed(1) }} мА·ч с начала записи. Это расход всего телефона, не только GPS.
+      </p>
+    </details>
+    <p v-if="tracking.nativeSyncError" class="error-banner" role="status">
+      {{ tracking.nativeSyncError }}
+    </p>
+
     <!-- Предупреждение об ошибке или отсутствии разрешений -->
     <div v-if="tracking.lastError || tracking.hasPermissionDenied" class="error-banner">
       <Icon icon="mdi:alert-circle" class="error-icon" />
       <div class="error-text">
         <div class="error-title">
-          {{ tracking.hasPermissionDenied ? 'Геолокация заблокирована' : tracking.storageError ? 'Ошибка сохранения GPS' : 'Ошибка GPS' }}
+          {{ tracking.damagedRecords > 0 ? 'Повреждена GPS-очередь' : tracking.hasPermissionDenied ? 'Геолокация заблокирована' : tracking.storageError ? 'Ошибка сохранения GPS' : 'Ошибка GPS' }}
         </div>
         <div class="error-desc">
           {{ tracking.lastError || 'Разрешите доступ к геопозиции в настройках браузера или операционной системы.' }}
@@ -301,6 +335,25 @@ onMounted(() => {
 </template>
 
 <style scoped lang="scss">
+.economy-switch {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.recording-options {
+  margin-top: 12px;
+  font-size: 0.8rem;
+  color: var(--fg-secondary-color);
+  summary {
+    min-height: 44px;
+    align-content: center;
+    cursor: pointer;
+  }
+  p {
+    line-height: 1.5;
+  }
+}
 .tracking-control-card {
   background-color: var(--bg-secondary-color);
   border: 1px solid var(--border-secondary-color);

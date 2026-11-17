@@ -103,3 +103,18 @@ it('does not call a failed native write saved or sent', () => {
   store.applyStatus({ ...status, unsentCount: 0 })
   expect(store.storageLabel).toBe('Отправлено')
 })
+it('reports unreadable GPS records even when every readable point has been sent', () => {
+  const store = useTrackingStore()
+  store.applyStatus({
+    ...status,
+    unsentCount: 0,
+    lastSyncAt: Date.now(),
+    damagedRecords: 2,
+    storageError: 'Повреждены записи GPS: 2',
+  })
+  expect(store.storageLabel).toBe('Повреждены записи GPS: 2')
+  expect(store.damagedRecords).toBe(2)
+  store.applyStatus({ ...status, unsentCount: 0 })
+  expect(store.damagedRecords).toBe(0)
+  expect(store.storageLabel).toBe('Отправлено')
+})

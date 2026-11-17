@@ -1,6 +1,6 @@
 import type { DaySummary } from '../models/types'
-import { calendarDay } from '@limiteddissolve/track-processing'
 import { computed, onMounted, ref } from 'vue'
+import { useCalendarDay } from '~/shared/composables/use-calendar-day'
 import { trpc } from '~/shared/services/trpc/trpc.service'
 
 export function useActivityTracking() {
@@ -11,7 +11,7 @@ export function useActivityTracking() {
   const summaries = ref<DaySummary[]>([])
 
   const timeZone = new Intl.DateTimeFormat().resolvedOptions().timeZone
-  const todayUtc = computed(() => calendarDay(Date.now(), timeZone))
+  const todayUtc = useCalendarDay(timeZone)
 
   const overallDistanceM = computed(() =>
     summaries.value.reduce((sum, s) => sum + s.totalDistanceM, 0))

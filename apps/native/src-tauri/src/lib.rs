@@ -513,6 +513,45 @@ async fn tracking_start(app: tauri::AppHandle, owner_id: String, session_id: Str
 }
 
 #[tauri::command]
+async fn tracking_set_mode(app: tauri::AppHandle, mode: String) -> Result<bool, String> {
+    use tauri_plugin_tracking::TrackingExt;
+    app.tracking().set_tracking_mode(mode).map_err(|e| e.to_string())
+}
+#[tauri::command]
+async fn tracking_sync_now(app: tauri::AppHandle) -> Result<u32, String> {
+    use tauri_plugin_tracking::TrackingExt;
+    app.tracking().sync_tracking_now().map_err(|e| e.to_string())
+}
+#[tauri::command]
+async fn tracking_export_gpx(app: tauri::AppHandle, file_name: String, contents: String) -> Result<String, String> {
+    if !file_name.ends_with(".gpx") || file_name.contains('/') || file_name.contains('\\') || file_name.len() > 160 {
+        return Err("Invalid GPX name".into());
+    }
+    #[cfg(mobile)] {
+        use tauri_plugin_tracking::TrackingExt;
+        app.tracking().export_tracking_gpx(file_name, contents).map_err(|e| e.to_string())
+    }
+    #[cfg(desktop)] {
+        use std::io::Write;
+        let path = app.path().download_dir().map_err(|e| e.to_string())?.join(file_name);
+        let mut output = std::fs::OpenOptions::new().write(true).create_new(true).open(&path).map_err(|e| e.to_string())?;
+        output.write_all(contents.as_bytes()).map_err(|e| e.to_string())?;
+        output.sync_all().map_err(|e| e.to_string())?;
+        Ok(path.display().to_string())
+    }
+}
+#[tauri::command]
+async fn tracking_configure(app: tauri::AppHandle, config: Option<serde_json::Value>) -> Result<bool, String> {
+    use tauri_plugin_tracking::TrackingExt;
+    app.tracking().configure_tracking(config).map_err(|e| e.to_string())
+}
+#[tauri::command]
+async fn tracking_get_local_points(app: tauri::AppHandle, owner_id: String, from: i64, until: i64) -> Result<Vec<tauri_plugin_tracking::LocationRecord>, String> {
+    use tauri_plugin_tracking::TrackingExt;
+    app.tracking().get_local_tracking_points(owner_id, from, until).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
 async fn tracking_stop(app: tauri::AppHandle) -> Result<bool, String> {
     use tauri_plugin_tracking::TrackingExt;
     app.tracking().stop_tracking().map_err(|e| e.to_string())
@@ -665,6 +704,11 @@ pub fn run() {
             install_app_update,
             get_platform_info,
             tracking_start,
+            tracking_configure,
+            tracking_export_gpx,
+            tracking_sync_now,
+            tracking_set_mode,
+            tracking_get_local_points,
             tracking_stop,
             tracking_is_running,
             tracking_get_buffered,

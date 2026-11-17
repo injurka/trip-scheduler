@@ -3,6 +3,7 @@ import type { RenderSegment, RouteVisibility, TimezoneMode, TrackPhoto } from '.
 import type { KitDropdownItem } from '~/components/01.kit/kit-dropdown'
 import type { ActivityType } from '~/shared/services/tracking/track-processing'
 import { Icon } from '@iconify/vue'
+import { classificationExplanation } from '@limiteddissolve/track-processing'
 import { useEventListener } from '@vueuse/core'
 import { PopoverContent, PopoverPortal, PopoverRoot, PopoverTrigger } from 'reka-ui'
 import { computed, ref } from 'vue'
@@ -23,6 +24,8 @@ interface Props {
   deviceTimezone: string
   trackTimezone?: string
   currentSegment?: RenderSegment
+  explanation?: string
+  confidence?: number
   currentActivity: ActivityType
   currentActivityColor: string
   currentActivityIcon: string
@@ -81,6 +84,7 @@ const emit = defineEmits<{
 }>()
 
 const qualityOpen = ref(false)
+const activityOpen = ref(false)
 const routeVisibilityItems: KitDropdownItem<RouteVisibility>[] = [
   { value: 'full', label: 'Весь маршрут', icon: 'mdi:routes' },
   { value: 'elapsed', label: 'До текущего времени', icon: 'mdi:timeline-clock-outline' },
@@ -367,20 +371,42 @@ useEventListener(typeof window !== 'undefined' ? window : null, 'keydown', (e: K
       <!-- Единый аккуратный чип телеметрии по центру -->
       <div class="readout-actions">
         <div class="readout-telemetry">
-          <div
-            class="telemetry-pill"
-            role="img"
-            :aria-label="telemetryLabel"
-            :title="telemetryLabel"
-            :style="{ '--act-color': currentActivityColor }"
-          >
-            <Icon :icon="currentActivityIcon" class="pill-icon" />
-            <span class="pill-label">{{ currentActivityLabel }}</span>
-            <template v-if="speedKmh !== null && speedKmh > 0.5">
-              <span class="pill-sep">•</span>
-              <span class="pill-speed">{{ speedKmh.toFixed(0) }} км/ч</span>
-            </template>
-          </div>
+          <PopoverRoot v-model:open="activityOpen">
+            <PopoverTrigger as-child>
+              <button
+                type="button"
+                class="telemetry-pill"
+                :aria-label="telemetryLabel"
+                :title="telemetryLabel"
+                :style="{ '--act-color': currentActivityColor }"
+              >
+                <Icon :icon="currentActivityIcon" class="pill-icon" />
+                <span class="pill-label">{{ currentActivityLabel }}</span>
+                <template v-if="speedKmh !== null && speedKmh > 0.5">
+                  <span class="pill-sep">•</span>
+                  <span class="pill-speed">{{ speedKmh.toFixed(0) }} км/ч</span>
+                </template>
+              </button>
+            </PopoverTrigger>
+            <PopoverPortal>
+              <PopoverContent
+                class="recording-quality-popover"
+                side="top"
+                align="end"
+                :side-offset="8"
+                :collision-padding="12"
+              >
+                <strong>{{ currentActivityLabel }}</strong>
+                <p>{{ explanation || classificationExplanation({ tsUtc: t, sessionId: '', activity: currentActivity }) }}</p>
+                <p v-if="confidence != null">
+                  Эвристическая уверенность: {{ Math.round(confidence <= 1 ? confidence * 100 : confidence) }}%
+                </p>
+                <KitBtn variant="text" size="sm" @click="activityOpen = false">
+                  Закрыть
+                </KitBtn>
+              </PopoverContent>
+            </PopoverPortal>
+          </PopoverRoot>
         </div>
         <PopoverRoot v-if="$slots.quality" v-model:open="qualityOpen">
           <PopoverTrigger as-child>
@@ -414,7 +440,7 @@ useEventListener(typeof window !== 'undefined' ? window : null, 'keydown', (e: K
               >
                 <Icon icon="mdi:close" />
               </KitBtn>
-              <slot name="quality" />
+              <slot name="quality" :close="() => { qualityOpen = false }" />
             </PopoverContent>
           </PopoverPortal>
         </PopoverRoot>

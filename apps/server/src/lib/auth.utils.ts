@@ -175,6 +175,8 @@ async function getUserFromToken(token: string | undefined) {
  */
 async function invalidateUserTokens(userId: string) {
   await db.delete(refreshTokens).where(eq(refreshTokens.userId, userId))
+  const { revokeNativeTracking } = await import('~/modules/tracking/native-sync')
+  await revokeNativeTracking(userId)
 }
 
 export const authUtils = {

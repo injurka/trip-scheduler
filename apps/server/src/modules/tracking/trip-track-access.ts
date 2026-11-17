@@ -1,6 +1,7 @@
 import { calendarDayBounds } from '@limiteddissolve/track-processing'
 import { TRPCError } from '@trpc/server'
 import { tripRepository } from '~/repositories/trip.repository'
+import { tripCalendarTimeZone } from './trip-calendar'
 
 export async function tripTrackAccess(tripId: string, user?: { id: string, role: string } | null, shareSlug?: string) {
   const trip = await tripRepository.getById(tripId)
@@ -9,10 +10,10 @@ export async function tripTrackAccess(tripId: string, user?: { id: string, role:
   const canEdit = !!user && (trip.userId === user.id || user.role === 'admin' || await tripRepository.hasAccess(tripId, user.id))
   if (!canEdit && trip.visibility !== 'public' && (!shareSlug || shareSlug !== trip.shareSlug))
     throw new TRPCError({ code: 'FORBIDDEN', message: 'Нет доступа к путешествию' })
-  return { ownerId: trip.userId, canEdit, startDate: trip.startDate, endDate: trip.endDate }
+  return { ownerId: trip.userId, canEdit, startDate: trip.startDate, endDate: trip.endDate, timeZone: await tripCalendarTimeZone(trip) }
 }
 
-export function assertTripTrackRange(access: { startDate: string, endDate: string }, start: number, end = start, timeZone = 'UTC') {
+export function assertTripTrackRange(access: { startDate: string, endDate: string, timeZone?: string }, start: number, end = start, timeZone = access.timeZone ?? 'UTC') {
   const from = calendarDayBounds(access.startDate, timeZone).from.getTime()
   const until = calendarDayBounds(access.endDate, timeZone).to.getTime()
   if (!Number.isFinite(start) || !Number.isFinite(end) || start < from || end >= until || end < start)

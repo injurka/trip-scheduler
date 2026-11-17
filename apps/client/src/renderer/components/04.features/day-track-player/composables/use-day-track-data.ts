@@ -1,9 +1,9 @@
 import type { Ref } from 'vue'
 import type { DayData, DayPoint, RenderSegment } from '../models/types'
-import { calendarDay } from '@limiteddissolve/track-processing'
 import { useEventListener } from '@vueuse/core'
 import { computed, onScopeDispose, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useCalendarDay } from '~/shared/composables/use-calendar-day'
 import { AppRouteNames } from '~/shared/constants/routes'
 import { trackingService } from '~/shared/services/database/tracking.service'
 import { deleteStoredPoint } from '~/shared/services/tracking/geotrack-client'
@@ -11,10 +11,13 @@ import {
   prepareTrack,
 } from '~/shared/services/tracking/track-processing'
 import { trackingOwner } from '~/shared/services/tracking/tracking-owner'
+import { loadTrackDay } from '../lib/load-track-day'
+import { createTrackPreviewProcessor } from '../lib/track-preview-client'
 import { detailedRouteSegments } from '../lib/track-route-geometry'
 
 export interface UseDayTrackDataOptions {
   preview?: (data: DayData) => DayData
+  canRefresh?: () => boolean
   beforeChange?: () => Promise<boolean>
   onRejectedChange?: () => void
   timeZone?: Ref<string | undefined>
@@ -38,14 +41,16 @@ export function useDayTrackData(options: UseDayTrackDataOptions = {}) {
     return typeof value === 'string' && DAY_REGEX.test(value)
   }
 
-  const todayUtc = calendarDay(Date.now(), new Intl.DateTimeFormat().resolvedOptions().timeZone)
-  const initialDay = options.dayUtcProp?.value || (route.query.day as string) || todayUtc
+  const loadedDayData = ref<DayData | null>(null)
+  const deviceTimeZone = new Intl.DateTimeFormat().resolvedOptions().timeZone
+  const calendarTimeZone = () => options.tripId?.value ? loadedDayData.value?.timeZone ?? options.timeZone?.value ?? deviceTimeZone : options.timeZone?.value ?? deviceTimeZone
+  const todayUtc = useCalendarDay(calendarTimeZone)
+  const initialDay = options.dayUtcProp?.value || (route.query.day as string) || todayUtc.value
   // Защита от битой даты в данных («Invalid Date» и т.п.): в loadDay уходит только
   // валидный YYYY-MM-DD, иначе сервер режет по zod `/^\d{4}-\d{2}-\d{2}$/`.
-  const selectedDay = ref(isValidDay(initialDay) ? initialDay : todayUtc)
+  const selectedDay = ref(isValidDay(initialDay) ? initialDay : todayUtc.value)
 
   const isLoading = ref(true)
-  const loadedDayData = ref<DayData | null>(null)
   const dayData = computed({
     get: () => loadedDayData.value && (options.preview?.(loadedDayData.value) ?? loadedDayData.value),
     set: (value: DayData | null) => {
@@ -56,8 +61,11 @@ export function useDayTrackData(options: UseDayTrackDataOptions = {}) {
   const isDeletingPoint = ref(false)
   let loadSequence = 0
   let loadedKey: string | null = null
+  let knownTripOwner: string | undefined
+  const localProcessor = createTrackPreviewProcessor()
   onScopeDispose(() => {
     loadSequence++
+    localProcessor.cancel()
   })
 
   const activeTripId = ref(options.tripId?.value)
@@ -72,13 +80,29 @@ export function useDayTrackData(options: UseDayTrackDataOptions = {}) {
           shareSlug,
           options.timeZone?.value,
         )
-      : options.timeZone?.value ? trackingService.getDay(day, options.timeZone.value) : trackingService.getDay(day)
+      : trackingService.getDay(day, options.timeZone?.value ?? deviceTimeZone)
   }
 
   function requestKey(targetDay: string) {
     return JSON.stringify([trackingOwner(), activeTripId.value, options.timeZone?.value, targetDay])
   }
 
+  function acceptResponse(owner: string | null, data: DayData) {
+    if (owner !== trackingOwner())
+      return false
+
+    if (data.ownerId)
+      knownTripOwner = data.ownerId
+
+    return true
+  }
+  function prepareResponse(res: DayData) {
+    if (Array.isArray(res.points) && !res.preparedRenderSegments) {
+      res.rawPoints = res.points
+      const source = res.points.map((p: DayPoint) => ({ ...p, altitude: p.altitude ?? null, bearing: p.bearing ?? null, activityConfidence: p.activityConfidence ?? 0 }))
+      res.points = prepareTrack(source)
+    }
+  }
   async function loadDay(targetDay: string) {
     if (!isValidDay(targetDay))
       return
@@ -93,17 +117,25 @@ export function useDayTrackData(options: UseDayTrackDataOptions = {}) {
       loadedDayData.value = null
 
     try {
-      const response = await requestDay(targetDay)
-      const res: DayData = { ...response }
+      const owner = trackingOwner()
+      const res = await loadTrackDay({
+        request: () => requestDay(targetDay),
+        day: targetDay,
+        owner,
+        tripId: activeTripId.value,
+        knownTripOwner,
+        timeZone: options.timeZone?.value,
+        processor: localProcessor,
+        isCurrent: () => owner === trackingOwner() && sequence === loadSequence,
+      })
 
       if (sequence !== loadSequence)
         return
 
-      if (res && Array.isArray(res.points)) {
-        res.rawPoints = res.points
-        const source = res.points.map((p: DayPoint) => ({ ...p, altitude: p.altitude ?? null, bearing: p.bearing ?? null, activityConfidence: p.activityConfidence ?? 0 }))
-        res.points = prepareTrack(source)
-      }
+      if (!acceptResponse(owner, res))
+        return
+
+      prepareResponse(res)
 
       loadedKey = key
       dayData.value = res
@@ -121,6 +153,31 @@ export function useDayTrackData(options: UseDayTrackDataOptions = {}) {
         isLoading.value = false
     }
   }
+
+  let refreshTimer: ReturnType<typeof setTimeout> | undefined
+  let refreshQueued = false
+  function scheduleRefresh() {
+    refreshQueued = true
+
+    if (refreshTimer || isLoading.value || options.canRefresh?.() === false)
+      return
+
+    refreshTimer = setTimeout(() => {
+      refreshTimer = undefined
+
+      if (isLoading.value || options.canRefresh?.() === false)
+        return
+
+      refreshQueued = false
+      void loadDay(selectedDay.value)
+    }, 5000)
+  }
+  useEventListener(window, 'tracking-queue-changed', scheduleRefresh)
+  watch(() => [isLoading.value, options.canRefresh?.()], () => {
+    if (refreshQueued)
+      scheduleRefresh()
+  })
+  onScopeDispose(() => clearTimeout(refreshTimer))
 
   useEventListener(window, 'tracking-owner-changed', () => {
     void loadDay(selectedDay.value)
@@ -154,6 +211,7 @@ export function useDayTrackData(options: UseDayTrackDataOptions = {}) {
       if (options.beforeChange && !await options.beforeChange())
         return
 
+      knownTripOwner = undefined
       activeTripId.value = options.tripId?.value
       dayData.value = null
       void loadDay(selectedDay.value)
@@ -217,7 +275,7 @@ export function useDayTrackData(options: UseDayTrackDataOptions = {}) {
     cur.setUTCDate(cur.getUTCDate() + offset)
     const nextStr = cur.toISOString().slice(0, 10)
 
-    if (nextStr > todayUtc)
+    if (nextStr > todayUtc.value)
       return
 
     applyDay(nextStr)
@@ -228,13 +286,13 @@ export function useDayTrackData(options: UseDayTrackDataOptions = {}) {
 
     if (list.length > 0) {
       // «Сегодня» вне списка дней поездки — берём последний прошедший день поездки
-      const past = list.filter(day => day <= todayUtc)
+      const past = list.filter(day => day <= todayUtc.value)
       applyDay(past.length > 0 ? past[past.length - 1] : list[0])
 
       return
     }
 
-    applyDay(todayUtc)
+    applyDay(todayUtc.value)
   }
 
   function selectDay(targetDay: string) {
@@ -247,7 +305,7 @@ export function useDayTrackData(options: UseDayTrackDataOptions = {}) {
       return
     }
 
-    if (targetDay > todayUtc)
+    if (targetDay > todayUtc.value)
       return
 
     applyDay(targetDay)
@@ -267,6 +325,9 @@ export function useDayTrackData(options: UseDayTrackDataOptions = {}) {
 
     if (!d)
       return []
+
+    if (d.preparedRenderSegments)
+      return d.preparedRenderSegments
 
     if (d.segments.length > 0) {
       return detailedRouteSegments(d)
@@ -339,7 +400,7 @@ export function useDayTrackData(options: UseDayTrackDataOptions = {}) {
 
       // 2. Удаляем из локальной очереди клиента (если еще не отправлена)
       if (!tripId)
-        deleteStoredPoint(pt.clientPointId)
+        await deleteStoredPoint(pt.clientPointId)
 
       onDeleted?.()
       await loadDay(selectedDay.value)
@@ -353,6 +414,7 @@ export function useDayTrackData(options: UseDayTrackDataOptions = {}) {
   }
 
   return {
+    sourceDayData: loadedDayData,
     todayUtc,
     selectedDay,
     isLoading,

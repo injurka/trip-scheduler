@@ -15,6 +15,8 @@ const api = vi.hoisted(() => ({
   deletePoint: vi.fn(),
   correctActivity: vi.fn(),
   removeCorrection: vi.fn(),
+  stage: vi.fn(),
+  remove: vi.fn(),
 }))
 vi.mock('~/shared/services/database/tracking.service', () => ({ trackingService: api }))
 vi.mock('~/shared/services/tracking/geotrack-client', () => ({ deleteStoredPoint: vi.fn() }))
@@ -53,7 +55,13 @@ const data: DayData = {
   }],
 }
 const wrapperOptions = {
-  props: { visible: false, initialTime: time + 60_000, dayData: data },
+  props: {
+    stageCorrection: api.stage,
+    removeCorrection: api.remove,
+    visible: false,
+    initialTime: time + 60_000,
+    dayData: data,
+  },
   global: {
     stubs: {
       KitDialogWithClose: defineComponent({ setup: (_, { slots }) => () => h('div', slots.default?.()) }),
@@ -65,6 +73,8 @@ const wrapperOptions = {
 }
 
 beforeEach(() => {
+  api.stage.mockReset().mockResolvedValue(undefined)
+  api.remove.mockReset().mockResolvedValue(undefined)
   api.getDay.mockClear()
   api.getTripDay.mockReset()
   api.deletePoint.mockReset().mockResolvedValue({ success: true })
@@ -83,9 +93,9 @@ it('converts local Samara time to UTC for the correct session', async () => {
   await wrapper.findAll('[role=radio]').find(button => button.text() === 'Авто')!.trigger('click')
   await wrapper.get('form').trigger('submit')
   await vi.waitFor(() => expect(wrapper.get('form').attributes('aria-busy')).toBe('false'))
-  expect(wrapper.emitted('stage')?.[0]).toEqual([{ sessionId: 'session-a', startedAt: time + 10_000, endedAt: time + 90_000, activity: 'vehicle' }])
+  expect(api.stage.mock.calls[0]).toEqual([{ sessionId: 'session-a', startedAt: time + 10_000, endedAt: time + 90_000, activity: 'vehicle' }])
   expect(api.correctActivity).not.toHaveBeenCalled()
-  expect(wrapper.emitted('stage')).toHaveLength(1)
+  expect(api.stage).toHaveBeenCalledOnce()
   expect(wrapper.emitted('update:visible')?.at(-1)).toEqual([false])
   wrapper.unmount()
 })
@@ -97,7 +107,7 @@ it('stages cancellation of a saved correction without a server request', async (
   await wrapper.get('[aria-expanded]').trigger('click')
   expect(wrapper.get('[aria-expanded]').attributes('aria-expanded')).toBe('true')
   await wrapper.findAll('button').find(button => button.text() === 'Отменить')!.trigger('click')
-  expect(wrapper.emitted('remove')?.[0]).toEqual(['correction'])
+  expect(api.remove.mock.calls[0]).toEqual(['correction'])
   expect(api.removeCorrection).not.toHaveBeenCalled()
   await wrapper.setProps({ visible: false })
   await wrapper.setProps({ visible: true })
@@ -140,7 +150,7 @@ it('corrects a single final GPS fix without inventing an end time, including mil
   await wrapper.setProps({ visible: true })
   await wrapper.get('form').trigger('submit')
   await vi.waitFor(() => expect(wrapper.get('form').attributes('aria-busy')).toBe('false'))
-  expect(wrapper.emitted('stage')?.[0]).toEqual([expect.objectContaining({ startedAt: fix.tsUtc, endedAt: fix.tsUtc, point: true })])
+  expect(api.stage.mock.calls[0]).toEqual([expect.objectContaining({ startedAt: fix.tsUtc, endedAt: fix.tsUtc, point: true })])
   expect(wrapper.find('[role=alert]').exists()).toBe(false)
   wrapper.unmount()
 })
@@ -206,11 +216,11 @@ it('paints busy feedback before staging and ignores duplicate submissions', asyn
     expect(wrapper.get('form').attributes('aria-busy')).toBe('true')
     expect(wrapper.get('button[type="submit"]').attributes('disabled')).toBeDefined()
     expect(wrapper.get('[role="status"]').text()).toBe('Добавляем…')
-    expect(wrapper.emitted('stage')).toBeUndefined()
+    expect(api.stage).not.toHaveBeenCalled()
     await wrapper.get('form').trigger('submit')
     expect(frame).toHaveBeenCalledOnce()
     paint(performance.now())
-    await vi.waitFor(() => expect(wrapper.emitted('stage')).toHaveLength(1))
+    await vi.waitFor(() => expect(api.stage).toHaveBeenCalledOnce())
     await vi.waitFor(() => expect(wrapper.get('form').attributes('aria-busy')).toBe('false'))
     expect(wrapper.emitted('update:visible')?.at(-1)).toEqual([false])
   }
@@ -227,11 +237,11 @@ it('restores the form after validation fails and allows retrying', async () => {
   await wrapper.get('form').trigger('submit')
   await vi.waitFor(() => expect(wrapper.get('[role="alert"]').text()).toContain('позже начала'))
   expect(wrapper.get('form').attributes('aria-busy')).toBe('false')
-  expect(wrapper.emitted('stage')).toBeUndefined()
+  expect(api.stage).not.toHaveBeenCalled()
   expect(wrapper.emitted('update:visible')).toBeUndefined()
   await inputs[1].setValue('10.11.2026 17:02:00')
   await wrapper.get('form').trigger('submit')
-  await vi.waitFor(() => expect(wrapper.emitted('stage')).toHaveLength(1))
+  await vi.waitFor(() => expect(api.stage).toHaveBeenCalledOnce())
   wrapper.unmount()
 })
 
@@ -251,7 +261,37 @@ it('does not stage a correction after the editor is unmounted before processing'
     paint(performance.now())
     await new Promise(resolve => setTimeout(resolve, 0))
     await flushPromises()
-    expect(wrapper.emitted('stage')).toBeUndefined()
+    expect(api.stage).not.toHaveBeenCalled()
   }
   finally { frame.mockRestore() }
+})
+
+it('keeps the editor busy until the parent worker result is ready', async () => {
+  let resolve!: () => void
+  api.stage.mockReturnValue(new Promise<void>((r) => {
+    resolve = r
+  }))
+  const wrapper = mount(ActivityEditor, wrapperOptions)
+  await wrapper.setProps({ visible: true })
+  await wrapper.get('form').trigger('submit')
+  await vi.waitFor(() => expect(api.stage).toHaveBeenCalledOnce())
+  expect(wrapper.get('form').attributes('aria-busy')).toBe('true')
+  expect(wrapper.find('.pending-spinner').element.tagName).toBe('SPAN')
+  expect(wrapper.emitted('update:visible')).toBeUndefined()
+  resolve()
+  await vi.waitFor(() => expect(wrapper.emitted('update:visible')?.at(-1)).toEqual([false]))
+  wrapper.unmount()
+})
+it('keeps the form open and restores retry after background processing fails', async () => {
+  api.stage.mockRejectedValueOnce(new Error('Не удалось пересчитать трек'))
+  const wrapper = mount(ActivityEditor, wrapperOptions)
+  await wrapper.setProps({ visible: true })
+  await wrapper.get('form').trigger('submit')
+  await vi.waitFor(() => expect(wrapper.get('[role="alert"]').text()).toContain('пересчитать'))
+  expect(wrapper.get('form').attributes('aria-busy')).toBe('false')
+  expect(wrapper.emitted('update:visible')).toBeUndefined()
+  api.stage.mockResolvedValue(undefined)
+  await wrapper.get('form').trigger('submit')
+  await vi.waitFor(() => expect(wrapper.emitted('update:visible')?.at(-1)).toEqual([false]))
+  wrapper.unmount()
 })

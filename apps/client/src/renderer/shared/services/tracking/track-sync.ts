@@ -4,6 +4,7 @@ import { trpc } from '~/shared/services/trpc/trpc.service'
 import { useAuthStore } from '~/shared/store/auth.store'
 import { useTrackingStore } from '~/shared/store/tracking.store'
 import { geotrack, parseTrackPoint } from './geotrack-client'
+import { ensureNativeTrackingSync } from './native-sync'
 import { trackingOwner } from './tracking-owner'
 
 /**
@@ -40,6 +41,7 @@ function toTrackingInput(point: TrackPoint) {
   const deviceConfidence = point.deviceActivityConfidence
 
   return {
+    samplingIntervalMs: point.samplingIntervalMs ?? undefined,
     clientPointId: point.clientPointId,
     sessionId: point.sessionId,
     tsUtc: Math.round(point.tsUtc),
@@ -81,7 +83,11 @@ async function syncOnce(): Promise<number> {
   if (!ownerId)
     return 0
 
-  let total = 0
+  // JS may still send its older durable queue; Android owns subsequent service points.
+  await ensureNativeTrackingSync().catch((error) => {
+    console.warn('[Tracking] Native sync setup:', error instanceof Error ? error.message : 'unavailable')
+  })
+  let total = await geotrack.syncNative?.() ?? 0
 
   for (let i = 0; i < MAX_BATCHES_PER_RUN; i++) {
     const raw = await geotrack.getUnsent(BATCH_SIZE)

@@ -28,6 +28,19 @@ it('reports gaps from raw fixes without counting restarts or inventing missing a
     { sessionId: 'a', tsUtc: 69000, accuracy: null },
     { sessionId: 'b', tsUtc: 9999999, accuracy: 5 },
   ]
-  expect(recordingQuality([...points].reverse(), [{ id: '1' }, { id: '1' }, { id: '2' }])).toEqual({ gapCount: 1, gapDurationMs: 60000, inaccurateSections: 2, inaccuratePoints: 3, unknownAccuracyPoints: 1, manualCorrections: 2 })
+  expect(recordingQuality([...points].reverse(), [{ id: '1' }, { id: '1' }, { id: '2' }])).toMatchObject({ gapCount: 1, gapDurationMs: 60000, inaccurateSections: 2, inaccuratePoints: 3, unknownAccuracyPoints: 1, manualCorrections: 2 })
   expect(recordingQuality([]).gapCount).toBe(0)
+})
+it('reports measured durations and does not confuse economy sampling with missing GPS', () => {
+  const quality = recordingQuality([
+    { sessionId: 'A', tsUtc: 1000, accuracy: 50 },
+    { sessionId: 'A', tsUtc: 4000, accuracy: 50 },
+    { sessionId: 'A', tsUtc: 7000, accuracy: 5 },
+    { sessionId: 'A', tsUtc: 67000, accuracy: 5 },
+  ])
+  expect(quality.inaccurateDurationMs).toBe(6000)
+  expect(quality.durationMs).toBe(66000)
+  expect(quality.issues[0]).toMatchObject({ kind: 'accuracy', startedAt: 1000, endedAt: 7000 })
+  expect(quality.gapPercent).toBeCloseTo(60000 / 66000 * 100)
+  expect(recordingQuality([{ sessionId: 'A', tsUtc: 1000, samplingIntervalMs: 30000 }, { sessionId: 'A', tsUtc: 35000, samplingIntervalMs: 30000 }]).gapCount).toBe(0)
 })
