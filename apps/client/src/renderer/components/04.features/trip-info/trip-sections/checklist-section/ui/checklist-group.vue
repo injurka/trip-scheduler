@@ -110,7 +110,9 @@ function onAddItem() {
           @click.stop
           @update:model-value="(icon: string) => handleUpdateGroup('icon', icon)"
         />
-        <Icon v-else :icon="group.icon" class="group-icon" />
+        <span v-else class="group-icon" aria-hidden="true">
+          <Icon :icon="group.icon" width="20" height="20" />
+        </span>
         <span
           v-if="readonly"
           class="group-name"
@@ -239,6 +241,14 @@ function onAddItem() {
   min-width: 0;
 }
 
+.group-icon {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 36px;
+  flex: 0 0 32px;
+}
+
 .drag-handle-group {
   grid-area: drag;
   width: 28px;
@@ -355,13 +365,29 @@ function onAddItem() {
     background-color: var(--bg-secondary-color);
 
     &.is-readonly {
-      grid-template-columns: minmax(0, 1fr) 36px;
+      grid-template-columns: 32px minmax(0, 1fr) 36px;
       grid-template-areas:
-        'title collapse'
-        'progress progress';
+        'title title collapse'
+        '. progress .';
+      row-gap: 2px;
+
+      .title-container {
+        gap: 8px;
+      }
+
+      .group-name {
+        display: block;
+        // Align the first text line with the 36px icon and collapse button.
+        padding-block: calc((36px - 1.4em) / 2);
+      }
+
+      .group-progress-container {
+        padding: 0;
+        background: transparent;
+      }
 
       &:not(.has-items) {
-        grid-template-areas: 'title collapse';
+        grid-template-areas: 'title title collapse';
       }
     }
   }

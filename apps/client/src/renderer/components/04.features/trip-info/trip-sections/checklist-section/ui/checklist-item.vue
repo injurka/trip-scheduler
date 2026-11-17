@@ -184,7 +184,7 @@ onClickOutside(priorityPickerMenuRef, () => {
 </script>
 
 <template>
-  <div class="checklist-item-wrapper" :data-checklist-item-id="item.id">
+  <div class="checklist-item-wrapper" :class="{ 'is-readonly': readonly }" :data-checklist-item-id="item.id">
     <div
       class="checklist-item"
       :class="[
@@ -764,6 +764,15 @@ onClickOutside(priorityPickerMenuRef, () => {
   display: flex;
   gap: 8px;
   align-items: center;
+}
+
+.is-readonly .detail-block {
+  align-items: flex-start;
+
+  &:has(.detail-text) .icon-wrapper {
+    font-size: 0.82rem;
+    height: 1.5em;
+  }
 }
 
 .location-map-btn {
