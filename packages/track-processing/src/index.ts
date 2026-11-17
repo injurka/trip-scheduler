@@ -2,8 +2,8 @@ import type { DisplayTrackPoint } from './stays'
 import { collapseStayPoints, smoothMovingPoints } from './stays'
 
 export * from './activity-state'
+export * from './calendar'
 export * from './corrections'
-export * from './stays'
 
 export interface TrackPoint {
   clientPointId: string
@@ -1489,3 +1489,6 @@ export function deviceReco(points: TrackPoint[]): RecoHint {
 function dominantReco(points: TrackPoint[]): RecoHint {
   return deviceReco(points)
 }
+
+export * from './quality'
+export * from './stays'

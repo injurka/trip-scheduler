@@ -76,9 +76,15 @@ class TrackingPlugin(private val activity: Activity) : Plugin(activity) {
     @Command
     fun startTracking(invoke: Invoke) {
         try {
+            val ownerId = invoke.getArgs().getString("ownerId") ?: error("Missing GPS owner")
+            val sessionId = invoke.getArgs().getString("sessionId") ?: error("Missing GPS session")
+            java.util.UUID.fromString(ownerId)
+            java.util.UUID.fromString(sessionId)
             TrackingService.markExplicitlyStopped(activity.applicationContext, false)
             val intent = Intent(activity, TrackingService::class.java).apply {
                 action = TrackingService.ACTION_START
+                putExtra("ownerId", ownerId)
+                putExtra("sessionId", sessionId)
             }
             ContextCompat.startForegroundService(activity, intent)
             invoke.resolveObject(true)
@@ -113,7 +119,7 @@ class TrackingPlugin(private val activity: Activity) : Plugin(activity) {
         val appContext = activity.applicationContext
         ioExecutor.execute {
             try {
-                val locations = TrackingService.drainBuffer(appContext)
+                val locations = TrackingService.drainBuffer(appContext, invoke.getArgs().getString("ownerId") ?: error("Missing GPS owner"))
                 invoke.resolveObject(locations.map { locationToMap(it) })
             } catch (e: Exception) {
                 invoke.reject("Failed to read GPS buffer: ${e.message}")
@@ -123,9 +129,9 @@ class TrackingPlugin(private val activity: Activity) : Plugin(activity) {
 
     @Command
     fun acknowledgeBufferedLocations(invoke: Invoke) {
-        val timestamps = try {
-            val values = invoke.getArgs().getJSONArray("timestamps")
-            (0 until values.length()).map { values.getLong(it) }.toSet()
+        val clientPointIds = try {
+            val values = invoke.getArgs().getJSONArray("clientPointIds")
+            (0 until values.length()).map { values.getString(it) }.toSet()
         } catch (e: Exception) {
             invoke.reject("Failed to acknowledge GPS buffer: ${e.message}")
             return
@@ -133,7 +139,7 @@ class TrackingPlugin(private val activity: Activity) : Plugin(activity) {
         val appContext = activity.applicationContext
         ioExecutor.execute {
             try {
-                TrackingService.acknowledgeBuffer(appContext, timestamps)
+                TrackingService.acknowledgeBuffer(appContext, clientPointIds, invoke.getArgs().getString("ownerId") ?: error("Missing GPS owner"))
                 invoke.resolveObject(true)
             } catch (e: Exception) {
                 invoke.reject("Failed to acknowledge GPS buffer: ${e.message}")
@@ -201,6 +207,12 @@ class TrackingPlugin(private val activity: Activity) : Plugin(activity) {
         ret.put("notifications", hasNotification)
         ret.put("batteryOptimizationsIgnored", isBatteryIgnored)
         ret.put("activityRecognition", hasActivityRecognition)
+        ret.put("ownerId", TrackingService.ownerId(context))
+        ret.put("sessionId", TrackingService.sessionId(context))
+        ret.put("storageError", TrackingService.storageError)
+        ret.put("pendingWrites", TrackingService.pendingWrites)
+        ret.put("legacyQueuePreserved", TrackingService.legacyQueuePreserved)
+        ret.put("lastSavedTsUtc", TrackingService.lastSavedTsUtc)
         invoke.resolve(ret)
     }
 
@@ -660,6 +672,9 @@ class TrackingPlugin(private val activity: Activity) : Plugin(activity) {
         // Активность по акселерометру (Activity Recognition) — независимое от GPS свидетельство
         // о способе передвижения. Нет данных — полей нет, потребитель обязан это учитывать.
         val extras = loc.extras
+        ret["ownerId"] = extras?.getString("ownerId")
+        ret["sessionId"] = extras?.getString("sessionId")
+        ret["clientPointId"] = extras?.getString("clientPointId")
         val deviceActivity = extras?.getString(TrackingService.EXTRA_DEVICE_ACTIVITY)
         if (extras != null && !deviceActivity.isNullOrEmpty()) {
             ret["activity"] = deviceActivity

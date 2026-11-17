@@ -1,8 +1,10 @@
 import type { GetTrackDayInput, IngestBatchInput } from './tracking.schemas'
-import { annotateTrackPoints, applyActivityCorrections, processDayTrack } from '@limiteddissolve/track-processing'
+import { annotateTrackPoints, applyActivityCorrections, calendarDay, calendarDayBounds, processDayTrack } from '@limiteddissolve/track-processing'
+import { TRPCError } from '@trpc/server'
 import { db } from 'db'
 import { trackActivityCorrections, trackPoints, trackSegments } from 'db/schema'
-import { and, eq, gt, gte, inArray, lt, lte } from 'drizzle-orm'
+import { and, eq, gte, inArray, lt, sql } from 'drizzle-orm'
+import tzLookup from 'tz-lookup'
 import { measureDbQuery } from '~/lib/db-monitoring'
 import { saveCorrectionBatch } from './correction-batch'
 
@@ -43,7 +45,7 @@ function toReprocessPoint(p: ReprocessSourceRow) {
 async function getCorrections(userId: string, from: Date, to: Date) {
   const rows = await measureDbQuery('track_activity_corrections', 'select', () => db.select()
     .from(trackActivityCorrections)
-    .where(and(eq(trackActivityCorrections.userId, userId), lt(trackActivityCorrections.startedAt, to), gt(trackActivityCorrections.endedAt, from)))
+    .where(and(eq(trackActivityCorrections.userId, userId), lt(trackActivityCorrections.startedAt, to), gte(trackActivityCorrections.endedAt, from)))
     .orderBy(trackActivityCorrections.createdAt, trackActivityCorrections.id))
   return rows.map(row => ({ id: row.id, sessionId: row.sessionId, startedAt: row.startedAt.getTime(), endedAt: row.endedAt.getTime(), activity: row.activity, createdAt: row.createdAt.getTime() }))
 }
@@ -54,6 +56,8 @@ export const trackingService = {
    * Возвращает список clientPointId, реально записанных, — клиент помечает их synced.
    */
   async ingestBatch(userId: string, input: IngestBatchInput) {
+    if (input.ownerId && input.ownerId !== userId)
+      throw new TRPCError({ code: 'FORBIDDEN', message: 'GPS-очередь принадлежит другому аккаунту' })
     const rows = input.points.map(p => ({
       clientPointId: p.clientPointId,
       userId,
@@ -121,10 +125,16 @@ export const trackingService = {
     return { accepted, rejectedCount: rows.length - accepted.length }
   },
 
-  /** Точки дня (UTC) для «Воспоминаний дня». */
+  /** Точки календарного дня для «Воспоминаний дня». */
   async getDay(userId: string, input: GetTrackDayInput) {
-    const from = new Date(`${input.dayUtc}T00:00:00Z`)
-    const to = new Date(from.getTime() + 24 * 3600_000)
+    let timeZone = input.timeZone
+    if (!timeZone) {
+      // Inspect nearby measurements, including the UTC evening before an eastern local day.
+      const noon = Date.parse(`${input.dayUtc}T12:00:00Z`)
+      const nearby = await measureDbQuery('track_points', 'select', () => db.select({ lat: trackPoints.lat, lng: trackPoints.lng }).from(trackPoints).where(and(eq(trackPoints.userId, userId), gte(trackPoints.tsUtc, new Date(noon - 36 * 3600_000)), lt(trackPoints.tsUtc, new Date(noon + 36 * 3600_000)))).orderBy(sql`abs(extract(epoch from ${trackPoints.tsUtc}) * 1000 - ${noon})`).limit(1))
+      timeZone = nearby[0] ? tzLookup(nearby[0].lat, nearby[0].lng) : 'UTC'
+    }
+    const { from, to } = calendarDayBounds(input.dayUtc, timeZone)
 
     const points = await measureDbQuery('track_points', 'select', async () => db.select()
       .from(trackPoints)
@@ -135,6 +145,7 @@ export const trackingService = {
     const corrections = await getCorrections(userId, from, to)
     const segments = applyActivityCorrections(processDayTrack(raw), corrections, raw)
     return {
+      timeZone,
       corrections,
       points: annotateTrackPoints(raw, segments, corrections),
       segments: segments.map((s, i) => ({
@@ -215,17 +226,19 @@ export const trackingService = {
   },
 
   /**
-   * Сводки подвижности по дням (последние N дней, UTC) для страницы «Активность».
+   * Сводки подвижности по дням (последние N календарных дней) для страницы «Активность».
    * Считается по сегментам (пост-обработка), fallback — по сырым точкам.
    */
-  async getSummaries(userId: string, days: number) {
-    const now = new Date()
-    const from = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - (days - 1), 0, 0, 0, 0))
-    const to = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 23, 59, 59, 999))
+  async getSummaries(userId: string, days: number, timeZone = 'UTC') {
+    const today = calendarDay(Date.now(), timeZone)
+    const start = new Date(`${today}T12:00:00Z`)
+    start.setUTCDate(start.getUTCDate() - days + 1)
+    const from = calendarDayBounds(start.toISOString().slice(0, 10), timeZone).from
+    const to = calendarDayBounds(today, timeZone).to
 
     const rawPoints = await measureDbQuery('track_points', 'select', async () => db.select()
       .from(trackPoints)
-      .where(and(eq(trackPoints.userId, userId), gte(trackPoints.tsUtc, from), lte(trackPoints.tsUtc, to)))
+      .where(and(eq(trackPoints.userId, userId), gte(trackPoints.tsUtc, from), lt(trackPoints.tsUtc, to)))
       .orderBy(trackPoints.tsUtc))
     const corrections = await getCorrections(userId, from, to)
     const byDay = new Map<string, {
@@ -235,7 +248,7 @@ export const trackingService = {
     }>()
     const daysOfPoints = new Map<string, typeof rawPoints>()
     for (const p of rawPoints) {
-      const day = p.tsUtc.toISOString().slice(0, 10)
+      const day = calendarDay(p.tsUtc.getTime(), timeZone)
       const list = daysOfPoints.get(day) ?? []
       list.push(p)
       daysOfPoints.set(day, list)

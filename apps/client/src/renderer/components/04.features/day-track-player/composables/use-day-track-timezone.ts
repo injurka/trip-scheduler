@@ -28,6 +28,9 @@ export function useDayTrackTimezone(options: UseDayTrackTimezoneOptions) {
   const deviceTimezone = new Intl.DateTimeFormat().resolvedOptions().timeZone
 
   const trackTimezone = computed<string | undefined>(() => {
+    if (dayData.value?.timeZone)
+      return dayData.value.timeZone
+
     const pointTimezone = lookupTimezone(currentPoint.value?.lat, currentPoint.value?.lng)
 
     if (pointTimezone)
@@ -46,6 +49,9 @@ export function useDayTrackTimezone(options: UseDayTrackTimezoneOptions) {
     if (timezoneMode.value === 'device') {
       return undefined
     }
+
+    if (dayData.value?.timeZone)
+      return dayData.value.timeZone
 
     if (pt?.lat != null && pt?.lng != null) {
       const pointTimezone = lookupTimezone(pt.lat, pt.lng)

@@ -30,3 +30,11 @@ it('rejects days and mutations outside the trip including a boundary-spanning in
     expect(() => assertTripTrackRange(trip, time)).toThrow()
   expect(() => assertTripTrackRange(trip, Date.parse('2026-11-12T23:59:59Z'), Date.parse('2026-11-13T00:00:00Z'))).toThrow()
 })
+
+it('checks trip boundaries in the same calendar zone used by the player', () => {
+  const trip = { startDate: '2026-11-17', endDate: '2026-11-17' }
+  const midnight = Date.parse('2026-11-17T00:00:00+08:00')
+  expect(() => assertTripTrackRange(trip, midnight, midnight + 86400000 - 1, 'Asia/Taipei')).not.toThrow()
+  expect(() => assertTripTrackRange(trip, midnight - 1, midnight, 'Asia/Taipei')).toThrow()
+  expect(() => assertTripTrackRange(trip, midnight + 86400000, midnight + 86400000, 'Asia/Taipei')).toThrow()
+})

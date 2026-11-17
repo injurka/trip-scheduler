@@ -35,6 +35,7 @@ export interface DaySegment {
 }
 
 export interface DayData {
+  timeZone?: string
   canEdit?: boolean
   points: DayPoint[]
   rawPoints?: DayPoint[]

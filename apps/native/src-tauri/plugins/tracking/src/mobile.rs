@@ -19,8 +19,8 @@ pub fn init<R: Runtime>(
 pub struct Tracking<R: Runtime>(PluginHandle<R>);
 
 impl<R: Runtime> Tracking<R> {
-    pub fn start_tracking(&self) -> Result<bool> {
-        self.0.run_mobile_plugin("startTracking", ()).map_err(Into::into)
+    pub fn start_tracking(&self, owner_id: String, session_id: String) -> Result<bool> {
+        self.0.run_mobile_plugin("startTracking", serde_json::json!({ "ownerId": owner_id, "sessionId": session_id })).map_err(Into::into)
     }
 
     pub fn stop_tracking(&self) -> Result<bool> {
@@ -31,12 +31,12 @@ impl<R: Runtime> Tracking<R> {
         self.0.run_mobile_plugin("isTrackingRunning", ()).map_err(Into::into)
     }
 
-    pub fn get_buffered_locations(&self) -> Result<Vec<LocationRecord>> {
-        self.0.run_mobile_plugin("getBufferedLocations", ()).map_err(Into::into)
+    pub fn get_buffered_locations(&self, owner_id: String) -> Result<Vec<LocationRecord>> {
+        self.0.run_mobile_plugin("getBufferedLocations", serde_json::json!({ "ownerId": owner_id })).map_err(Into::into)
     }
 
-    pub fn acknowledge_buffered_locations(&self, timestamps: Vec<i64>) -> Result<bool> {
-        self.0.run_mobile_plugin("acknowledgeBufferedLocations", serde_json::json!({ "timestamps": timestamps })).map_err(Into::into)
+    pub fn acknowledge_buffered_locations(&self, client_point_ids: Vec<String>, owner_id: String) -> Result<bool> {
+        self.0.run_mobile_plugin("acknowledgeBufferedLocations", serde_json::json!({ "clientPointIds": client_point_ids, "ownerId": owner_id })).map_err(Into::into)
     }
 
     pub fn get_push_token(&self) -> Result<String> {

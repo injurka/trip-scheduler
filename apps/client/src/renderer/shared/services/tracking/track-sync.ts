@@ -4,6 +4,7 @@ import { trpc } from '~/shared/services/trpc/trpc.service'
 import { useAuthStore } from '~/shared/store/auth.store'
 import { useTrackingStore } from '~/shared/store/tracking.store'
 import { geotrack, parseTrackPoint } from './geotrack-client'
+import { trackingOwner } from './tracking-owner'
 
 /**
  * Синк-воркер: выгружает несинхронизированные точки из локального/нативного буфера
@@ -58,10 +59,26 @@ function toTrackingInput(point: TrackPoint) {
   }
 }
 
-async function syncOnce(): Promise<number> {
-  const auth = useAuthStore()
+function validatedPoints(raw: unknown[]): TrackPoint[] {
+  const points = raw.map(parseTrackPoint)
 
-  if (!auth.isAuthenticated)
+  if (points.includes(null))
+    throw new Error('В очереди есть некорректные GPS-точки. Они сохранены и не удалены.')
+
+  return points as TrackPoint[]
+}
+
+function authenticatedOwner(): string | null {
+  const auth = useAuthStore()
+  const ownerId = trackingOwner()
+
+  return auth.isAuthenticated && ownerId === auth.user?.id ? ownerId : null
+}
+
+async function syncOnce(): Promise<number> {
+  const ownerId = authenticatedOwner()
+
+  if (!ownerId)
     return 0
 
   let total = 0
@@ -69,22 +86,13 @@ async function syncOnce(): Promise<number> {
   for (let i = 0; i < MAX_BATCHES_PER_RUN; i++) {
     const raw = await geotrack.getUnsent(BATCH_SIZE)
 
-    if (raw.length === 0)
+    if (trackingOwner() !== ownerId || raw.length === 0)
       break
 
-    const points: TrackPoint[] = []
-
-    for (const r of raw) {
-      const p = parseTrackPoint(r)
-
-      if (p)
-        points.push(p)
-    }
-
-    if (points.length !== raw.length)
-      throw new Error('В очереди есть некорректные GPS-точки. Они сохранены и не удалены.')
+    const points = validatedPoints(raw)
 
     const result = await (trpc).tracking.ingestBatch.mutate({
+      ownerId,
       points: points.map(toTrackingInput),
     }) as { accepted: string[], rejectedCount: number }
 
@@ -92,7 +100,7 @@ async function syncOnce(): Promise<number> {
     const syncedIds = points.filter(p => acceptedSet.has(p.clientPointId)).map(p => p.clientPointId)
 
     if (syncedIds.length > 0)
-      await useTrackingStore().markSynced(syncedIds)
+      await geotrack.markSynced(syncedIds, ownerId)
 
     total += syncedIds.length
 
@@ -115,15 +123,20 @@ export function runSync(): Promise<number> {
     return activeSync
 
   const store = useTrackingStore()
+  const ownerId = trackingOwner()
   store.isSyncing = true
   store.syncError = null
   activeSync = syncOnce().then((count) => {
-    if (count > 0)
+    if (count > 0 && trackingOwner() === ownerId)
       store.lastSyncAt = Date.now()
 
     return count
   }).catch((error: unknown) => {
     const raw = error instanceof Error ? error.message : String(error)
+
+    if (trackingOwner() !== ownerId)
+      throw error
+
     store.syncError = /Failed to fetch|NetworkError|Load failed/.test(raw)
       ? 'Сервер недоступен. GPS-точки сохранены на устройстве и будут отправлены повторно.'
       : `${raw} Не подтверждённые сервером точки остаются на устройстве.`

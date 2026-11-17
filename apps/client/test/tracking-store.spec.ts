@@ -69,3 +69,37 @@ it('reports tracker errors without clearing sync failures on polling', async () 
   expect(store.lastError).toBe('Нет сигнала GPS')
   expect(store.syncError).toBe('Сервер недоступен')
 })
+
+it('expires GPS accuracy and speed state without another location callback', () => {
+  const store = useTrackingStore()
+  store.applyStatus({
+    ...status,
+    running: true,
+    lastFixTsUtc: Date.now() - 31000,
+    telemetry: {
+      speedKmh: 10,
+      accuracyM: 5,
+      distanceM: 100,
+      durationMs: 31000,
+      activity: 'walk',
+      lat: 25,
+      lng: 121,
+    },
+  })
+  expect(store.hasFreshGps).toBe(false)
+  expect(store.accuracyQuality).toBe('unknown')
+  expect(store.recordingLabel).toBe('Нет свежего GPS')
+  store.applyStatus({ ...status, running: true, lastFixTsUtc: Date.now() })
+  expect(store.hasFreshGps).toBe(true)
+  expect(store.recordingLabel).toBe('Записывается')
+})
+it('does not call a failed native write saved or sent', () => {
+  const store = useTrackingStore()
+  store.lastSyncAt = Date.now()
+  store.applyStatus({ ...status, unsentCount: 0, storageError: 'Disk full', pendingWrites: 1 })
+  expect(store.storageLabel).toBe('Есть несохранённые точки')
+  store.applyStatus({ ...status, unsentCount: 2, lastSavedTsUtc: Date.now() })
+  expect(store.storageLabel).toBe('Сохранено на устройстве: 2')
+  store.applyStatus({ ...status, unsentCount: 0 })
+  expect(store.storageLabel).toBe('Отправлено')
+})

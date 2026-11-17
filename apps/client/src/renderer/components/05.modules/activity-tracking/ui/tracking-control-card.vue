@@ -30,7 +30,7 @@ async function onToggle(e: Event) {
       toast.success('Фоновый трекинг запущен: координаты и активность записываются.')
     }
     else {
-      toast.info('Трекинг приостановлен: точки сохранены и синхронизируются.')
+      toast.info(`Трекинг приостановлен. ${tracking.storageLabel}`)
     }
 
     emit('changed', enable)
@@ -69,7 +69,7 @@ async function handleManualSync() {
     toast.warn('Не удалось синхронизировать точки. Попробуйте позже.')
   }
   else {
-    toast.info('Буфер пуст — все точки уже на сервере.')
+    toast.info(tracking.storageLabel)
   }
 }
 async function handleRequestPermission() {
@@ -93,16 +93,13 @@ function formatSyncTime(ts: number | null): string {
 onMounted(() => {
   void tracking.startPolling()
 })
-onBeforeUnmount(() => {
-  tracking.stopPolling()
-})
 </script>
 
 <template>
   <div v-if="tracking.canToggle" class="tracking-control-card">
     <div class="tracking-header">
       <div class="header-left">
-        <div class="icon-avatar" :class="{ 'is-active': tracking.isRunning }">
+        <div class="icon-avatar" :class="{ 'is-active': tracking.isRunning && tracking.hasFreshGps }">
           <Icon icon="mdi:crosshairs-gps" class="gps-icon" />
           <span v-if="tracking.isRunning" class="live-dot" />
         </div>
@@ -115,7 +112,7 @@ onBeforeUnmount(() => {
               Ожидание подтверждения GPS-сервиса…
             </template>
             <template v-else-if="tracking.isRunning">
-              Запись перемещений в фоновом режиме с автоопределением активности
+              {{ tracking.recordingLabel }}<template v-if="!tracking.hasFreshGps && tracking.lastFixTsUtc"> · последняя координата в {{ formatSyncTime(tracking.lastFixTsUtc) }}</template>
             </template>
             <template v-else>
               Маршруты дня автоматически сохраняются в «Воспоминания»
@@ -143,7 +140,7 @@ onBeforeUnmount(() => {
       <Icon icon="mdi:alert-circle" class="error-icon" />
       <div class="error-text">
         <div class="error-title">
-          {{ tracking.hasPermissionDenied ? 'Геолокация заблокирована' : 'Ошибка геолокации' }}
+          {{ tracking.hasPermissionDenied ? 'Геолокация заблокирована' : tracking.storageError ? 'Ошибка сохранения GPS' : 'Ошибка GPS' }}
         </div>
         <div class="error-desc">
           {{ tracking.lastError || 'Разрешите доступ к геопозиции в настройках браузера или операционной системы.' }}
@@ -198,7 +195,7 @@ onBeforeUnmount(() => {
             Скорость
           </span>
           <span class="telemetry-value">
-            {{ tracking.telemetry.speedKmh !== null ? `${tracking.telemetry.speedKmh} км/ч` : '0 км/ч' }}
+            {{ tracking.hasFreshGps && tracking.telemetry.speedKmh !== null ? `${tracking.telemetry.speedKmh} км/ч` : '—' }}
           </span>
         </div>
 
@@ -235,7 +232,7 @@ onBeforeUnmount(() => {
             class="telemetry-value activity-tag"
             :style="{ color: ACTIVITY_COLORS[tracking.telemetry.activity as ActivityType] }"
           >
-            {{ ACTIVITY_LABELS[tracking.telemetry.activity as ActivityType] || 'Определение...' }}
+            {{ tracking.hasFreshGps ? ACTIVITY_LABELS[tracking.telemetry.activity as ActivityType] || 'Определение...' : 'Нет свежего GPS' }}
           </span>
         </div>
 
@@ -248,7 +245,7 @@ onBeforeUnmount(() => {
             class="telemetry-value accuracy-badge"
             :class="tracking.accuracyQuality"
           >
-            {{ tracking.telemetry.accuracyM !== null ? `±${tracking.telemetry.accuracyM} м` : 'Поиск...' }}
+            {{ tracking.hasFreshGps && tracking.telemetry.accuracyM !== null ? `±${tracking.telemetry.accuracyM} м` : 'Нет свежего GPS' }}
           </span>
         </div>
       </div>
@@ -269,24 +266,20 @@ onBeforeUnmount(() => {
       </div>
     </div>
 
+    <p v-if="tracking.legacyQueuePreserved" class="legacy-notice" role="status">
+      Старая GPS-очередь сохранена отдельно. В ней нет владельца, поэтому автоматическая отправка отключена.
+    </p>
+
     <!-- Футер синхронизации буфера с сервером -->
     <div class="sync-bar">
       <div class="sync-status">
         <div class="sync-status-main">
-          <span class="sync-dot" :class="tracking.unsentCount > 0 ? 'unsent' : 'synced'" />
+          <span class="sync-dot" :class="tracking.unsentCount > 0 || tracking.storageError || tracking.pendingWrites ? 'unsent' : 'synced'" />
           <span class="sync-text">
             <template v-if="tracking.isSyncing">
               Отправка точек на сервер...
             </template>
-            <template v-else-if="tracking.unsentCount > 0">
-              В буфере: <strong>{{ tracking.unsentCount }}</strong> {{ formatPointsCount(tracking.unsentCount) }} — ещё не на сервере
-            </template>
-            <template v-else-if="tracking.lastSyncAt">
-              Буфер отправки пуст (синхр. в {{ formatSyncTime(tracking.lastSyncAt) }})
-            </template>
-            <template v-else>
-              Буфер отправки пуст
-            </template>
+            <template v-else>{{ tracking.storageLabel }}</template>
           </span>
         </div>
 
@@ -312,6 +305,11 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped lang="scss">
+.legacy-notice {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--fg-secondary-color);
+}
 .tracking-control-card {
   background-color: var(--bg-secondary-color);
   border: 1px solid var(--border-secondary-color);

@@ -1,6 +1,6 @@
 import { beforeEach, expect, it, mock } from 'bun:test'
 import { PgDialect } from 'drizzle-orm/pg-core'
-import { trackActivityCorrections } from '../../../db/schema'
+import { trackActivityCorrections, trackPoints } from '../../../db/schema'
 
 let rawRows: unknown[] = []
 let correctionRows: unknown[] = []
@@ -11,11 +11,20 @@ let confirmed: { clientPointId: string }[] = []
 let failWrite = false
 let failCommit = false
 const transaction = {
-  insert: () => ({ values: () => ({ onConflictDoNothing: async () => {
-    if (failWrite)
-      throw new Error('write failed')
+  execute: async () => {},
+  insert: (table: unknown) => ({ values: (values: unknown) => {
+    if (table === trackActivityCorrections)
+      correctionInsert = values
+    return { onConflictDoNothing: async () => {
+      if (failWrite)
+        throw new Error('write failed')
+    } }
+  } }),
+  select: (selection?: Record<string, unknown>) => ({ from: (table: unknown) => ({ where: (filter: Parameters<PgDialect['sqlToQuery']>[0]) => {
+    queriedParams = new PgDialect().sqlToQuery(filter).params
+    const rows = selection?.time ? [{ time: null }] : table === trackPoints && selection?.id ? rawRows : table === trackActivityCorrections ? [] : confirmed
+    return Object.assign(Promise.resolve(rows), { limit: async () => rows.slice(0, 1) })
   } }) }),
-  select: () => ({ from: () => ({ where: async () => confirmed }) }),
 }
 mock.module('../../../db', () => ({ db: {
   transaction: async (fn: (tx: typeof transaction) => Promise<unknown>) => {
@@ -111,9 +120,9 @@ it('stores corrections separately and overlays effective labels when reading an 
   }))
   const input = { sessionId: 'session', startedAt: time + 20_000, endedAt: time + 80_000, activity: 'bike' as const }
   await trackingService.correctActivity('owner', input)
-  expect(correctionInsert).toEqual({ ...input, userId: 'owner', startedAt: new Date(input.startedAt), endedAt: new Date(input.endedAt) })
+  expect(correctionInsert).toEqual(expect.objectContaining({ ...input, userId: 'owner', startedAt: new Date(input.startedAt), endedAt: new Date(input.endedAt) }))
   correctionRows = [{ ...correctionInsert as object, id: 'correction-id', createdAt: new Date(time) }]
-  const day = await trackingService.getDay('owner', { dayUtc: '2026-11-10' })
+  const day = await trackingService.getDay('owner', { dayUtc: '2026-11-10', timeZone: 'UTC' })
   expect(day.points[10].activity).toBe('bike')
   expect(day.points[10].activitySource).toBe('manual')
   expect(day.points[10].recordedActivity).toBe('walk')
@@ -121,5 +130,5 @@ it('stores corrections separately and overlays effective labels when reading an 
   expect(day.points[20].deviceActivity).toBe('walk')
   expect((rawRows[10] as { activity: string }).activity).toBe('walk')
   correctionRows = []
-  expect((await trackingService.getDay('owner', { dayUtc: '2026-11-10' })).points[10].activity).toBe('vehicle')
+  expect((await trackingService.getDay('owner', { dayUtc: '2026-11-10', timeZone: 'UTC' })).points[10].activity).toBe('vehicle')
 })

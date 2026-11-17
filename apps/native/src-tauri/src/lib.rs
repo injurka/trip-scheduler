@@ -507,9 +507,9 @@ async fn open_downloaded_apk(app: tauri::AppHandle, path: String) -> Result<(), 
 }
 
 #[tauri::command]
-async fn tracking_start(app: tauri::AppHandle) -> Result<bool, String> {
+async fn tracking_start(app: tauri::AppHandle, owner_id: String, session_id: String) -> Result<bool, String> {
     use tauri_plugin_tracking::TrackingExt;
-    app.tracking().start_tracking().map_err(|e| e.to_string())
+    app.tracking().start_tracking(owner_id, session_id).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -526,16 +526,16 @@ async fn tracking_is_running(app: tauri::AppHandle) -> Result<bool, String> {
 
 #[tauri::command]
 async fn tracking_get_buffered(
-    app: tauri::AppHandle,
+    app: tauri::AppHandle, owner_id: String,
 ) -> Result<Vec<tauri_plugin_tracking::LocationRecord>, String> {
     use tauri_plugin_tracking::TrackingExt;
-    app.tracking().get_buffered_locations().map_err(|e| e.to_string())
+    app.tracking().get_buffered_locations(owner_id).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-async fn tracking_ack_buffered(app: tauri::AppHandle, timestamps: Vec<i64>) -> Result<bool, String> {
+async fn tracking_ack_buffered(app: tauri::AppHandle, client_point_ids: Vec<String>, owner_id: String) -> Result<bool, String> {
     use tauri_plugin_tracking::TrackingExt;
-    app.tracking().acknowledge_buffered_locations(timestamps).map_err(|e| e.to_string())
+    app.tracking().acknowledge_buffered_locations(client_point_ids, owner_id).map_err(|e| e.to_string())
 }
 
 #[tauri::command]

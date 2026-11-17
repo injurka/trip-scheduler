@@ -3,6 +3,9 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct LocationRecord {
+    pub owner_id: Option<String>,
+    pub session_id: Option<String>,
+    pub client_point_id: Option<String>,
     pub latitude: f64,
     pub longitude: f64,
     pub accuracy: Option<f32>,
@@ -21,6 +24,14 @@ pub struct LocationRecord {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TrackingPermissionsStatus {
+    pub owner_id: Option<String>,
+    pub session_id: Option<String>,
+    pub storage_error: Option<String>,
+    #[serde(default)]
+    pub pending_writes: u32,
+    #[serde(default)]
+    pub legacy_queue_preserved: bool,
+    pub last_saved_ts_utc: Option<i64>,
     pub location: bool,
     pub notifications: bool,
     pub battery_optimizations_ignored: bool,

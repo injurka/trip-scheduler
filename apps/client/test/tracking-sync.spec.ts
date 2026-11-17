@@ -6,10 +6,10 @@ const mocks = vi.hoisted(() => ({
   ingest: vi.fn(),
   store: { isSyncing: false, syncError: null as string | null, lastSyncAt: null as number | null, refreshStatus: vi.fn() },
 }))
-vi.mock('~/shared/store/auth.store', () => ({ useAuthStore: () => ({ isAuthenticated: true }) }))
+vi.mock('~/shared/store/auth.store', () => ({ useAuthStore: () => ({ isAuthenticated: true, user: { id: '11111111-1111-4111-8111-111111111111' } }) }))
 vi.mock('~/shared/store/tracking.store', () => ({ useTrackingStore: () => Object.assign(mocks.store, { markSynced: mocks.markSynced }) }))
 vi.mock('~/shared/services/trpc/trpc.service', () => ({ trpc: { tracking: { ingestBatch: { mutate: mocks.ingest } } } }))
-vi.mock('~/shared/services/tracking/geotrack-client', () => ({ geotrack: { getUnsent: mocks.getUnsent }, parseTrackPoint: (point: unknown) => point }))
+vi.mock('~/shared/services/tracking/geotrack-client', () => ({ geotrack: { getUnsent: mocks.getUnsent, markSynced: mocks.markSynced }, parseTrackPoint: (point: unknown) => point }))
 const { runSync } = await import('../src/renderer/shared/services/tracking/track-sync')
 const points = ['a', 'b'].map(clientPointId => ({
   clientPointId,
@@ -25,6 +25,7 @@ const points = ['a', 'b'].map(clientPointId => ({
   sessionId: 'session',
 }))
 beforeEach(() => {
+  localStorage.setItem('auth_user', JSON.stringify({ id: '11111111-1111-4111-8111-111111111111' }))
   vi.resetAllMocks()
   mocks.store.isSyncing = false
   mocks.store.syncError = null
@@ -39,13 +40,13 @@ it('retains points on a lost response and acknowledges the retry', async () => {
   expect(mocks.store.syncError).toContain('сохранены')
   mocks.ingest.mockResolvedValueOnce({ accepted: ['a', 'b'], rejectedCount: 0 })
   await expect(runSync()).resolves.toBe(2)
-  expect(mocks.markSynced).toHaveBeenCalledWith(['a', 'b'])
+  expect(mocks.markSynced).toHaveBeenCalledWith(['a', 'b'], '11111111-1111-4111-8111-111111111111')
   expect(mocks.store.syncError).toBeNull()
 })
 it('retains rejected points and ignores unrelated acknowledgements', async () => {
   mocks.ingest.mockResolvedValue({ accepted: ['a', 'foreign'], rejectedCount: 1 })
   await expect(runSync()).rejects.toThrow('часть')
-  expect(mocks.markSynced).toHaveBeenCalledWith(['a'])
+  expect(mocks.markSynced).toHaveBeenCalledWith(['a'], '11111111-1111-4111-8111-111111111111')
 })
 it('shares one in-flight upload with concurrent callers', async () => {
   let resolve!: (result: { accepted: string[], rejectedCount: number }) => void

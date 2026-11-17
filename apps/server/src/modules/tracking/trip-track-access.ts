@@ -1,3 +1,4 @@
+import { calendarDayBounds } from '@limiteddissolve/track-processing'
 import { TRPCError } from '@trpc/server'
 import { tripRepository } from '~/repositories/trip.repository'
 
@@ -11,9 +12,9 @@ export async function tripTrackAccess(tripId: string, user?: { id: string, role:
   return { ownerId: trip.userId, canEdit, startDate: trip.startDate, endDate: trip.endDate }
 }
 
-export function assertTripTrackRange(access: { startDate: string, endDate: string }, start: number, end = start) {
-  const from = Date.parse(`${access.startDate}T00:00:00Z`)
-  const until = Date.parse(`${access.endDate}T00:00:00Z`) + 86400000
+export function assertTripTrackRange(access: { startDate: string, endDate: string }, start: number, end = start, timeZone = 'UTC') {
+  const from = calendarDayBounds(access.startDate, timeZone).from.getTime()
+  const until = calendarDayBounds(access.endDate, timeZone).to.getTime()
   if (!Number.isFinite(start) || !Number.isFinite(end) || start < from || end >= until || end < start)
     throw new TRPCError({ code: 'BAD_REQUEST', message: 'Трек должен находиться в пределах дат путешествия' })
 }

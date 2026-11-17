@@ -306,6 +306,7 @@ useEventListener(typeof window !== 'undefined' ? window : null, 'keydown', (e: K
 <template>
   <div class="memories-panel" :data-route-visibility="routeVisibility">
     <slot name="draft-actions" />
+    <slot name="quality" />
     <!-- Верхняя строка: Телеметрия, Часовой пояс и Слежение камерой -->
     <div class="memories-readout">
       <div class="readout-time-group">

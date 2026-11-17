@@ -10,6 +10,13 @@ import { runSync } from '../services/tracking/track-sync'
 import { useAuthStore } from './auth.store'
 
 export interface ITrackingState {
+  ownerId: string | null
+  lastFixTsUtc: number | null
+  lastSavedTsUtc: number | null
+  storageError: string | null
+  pendingWrites: number
+  legacyQueuePreserved: boolean
+  statusCheckedAt: number
   isSupported: boolean
   isRunning: boolean
   isStarting: boolean
@@ -42,6 +49,13 @@ const defaultTelemetry: TrackingTelemetry = {
  */
 export const useTrackingStore = defineStore('tracking', {
   state: (): ITrackingState => ({
+    ownerId: null,
+    lastFixTsUtc: null,
+    lastSavedTsUtc: null,
+    storageError: null,
+    pendingWrites: 0,
+    legacyQueuePreserved: false,
+    statusCheckedAt: Date.now(),
     isSupported: true,
     isRunning: false,
     isStarting: false,
@@ -59,6 +73,28 @@ export const useTrackingStore = defineStore('tracking', {
 
   getters: {
     canToggle: state => state.isSupported,
+    hasFreshGps: state => state.lastFixTsUtc !== null && state.statusCheckedAt - state.lastFixTsUtc >= -5000 && state.statusCheckedAt - state.lastFixTsUtc <= 30_000,
+    recordingLabel(): string {
+      if (this.isStarting)
+        return 'Запуск записи…'
+
+      if (!this.isRunning)
+        return 'Запись остановлена'
+
+      return this.hasFreshGps ? 'Записывается' : 'Нет свежего GPS'
+    },
+    storageLabel(): string {
+      if (this.storageError || this.pendingWrites > 0)
+        return 'Есть несохранённые точки'
+
+      if (this.unsentCount > 0)
+        return `Сохранено на устройстве: ${this.unsentCount}`
+
+      if (this.lastSyncAt)
+        return 'Отправлено'
+
+      return 'Нет точек для отправки'
+    },
     hasTelemetry: state => state.isRunning || state.telemetry.distanceM > 0 || state.telemetry.speedKmh !== null,
     formattedDuration: (state) => {
       const ms = state.telemetry.durationMs
@@ -84,7 +120,7 @@ export const useTrackingStore = defineStore('tracking', {
     accuracyQuality: (state): 'good' | 'medium' | 'poor' | 'unknown' => {
       const acc = state.telemetry.accuracyM
 
-      if (acc === null)
+      if (acc === null || !state.lastFixTsUtc || state.statusCheckedAt - state.lastFixTsUtc > 30_000)
         return 'unknown'
 
       if (acc <= 15)
@@ -98,7 +134,24 @@ export const useTrackingStore = defineStore('tracking', {
   },
 
   actions: {
+    applyStorageStatus(status: TrackingStatus) {
+      this.lastSavedTsUtc = status.lastSavedTsUtc ?? null
+      this.storageError = status.storageError ?? null
+      this.pendingWrites = status.pendingWrites ?? 0
+      this.legacyQueuePreserved = status.legacyQueuePreserved ?? false
+      this.lastSyncAt = status.lastSyncAt ?? this.lastSyncAt
+    },
     applyStatus(status: TrackingStatus) {
+      if (this.ownerId !== (status.ownerId ?? null)) {
+        this.syncError = null
+        this.lastSyncAt = null
+        this.telemetry = { ...defaultTelemetry }
+      }
+
+      this.ownerId = status.ownerId ?? null
+      this.statusCheckedAt = Date.now()
+      this.lastFixTsUtc = status.lastFixTsUtc
+      this.applyStorageStatus(status)
       this.isRunning = status.running
       this.unsentCount = status.unsentCount
       this.network = status.network
@@ -129,6 +182,7 @@ export const useTrackingStore = defineStore('tracking', {
       if (this.isStarting)
         return
 
+      this.statusCheckedAt = Date.now()
       const revision = ++this.statusRevision
 
       try {

@@ -201,11 +201,16 @@ export const useAuthStore = defineStore('auth', {
     },
 
     saveUser(user: User) {
+      const accountChanged = this.user?.id !== user.id
+
       if (typeof window !== 'undefined') {
         localStorage.setItem(USER_KEY, JSON.stringify(user))
       }
 
       this.user = user
+
+      if (accountChanged)
+        window.dispatchEvent(new Event('tracking-owner-changed'))
     },
 
     saveTokens(tokens: TokenPair) {
@@ -234,6 +239,7 @@ export const useAuthStore = defineStore('auth', {
       }
 
       this.user = null
+      window.dispatchEvent(new Event('tracking-owner-changed'))
     },
 
     incrementTripCount() {

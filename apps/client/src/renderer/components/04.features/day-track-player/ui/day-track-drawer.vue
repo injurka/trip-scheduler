@@ -8,6 +8,7 @@ import { isTopModal, useDialogHistory } from '~/components/01.kit/kit-dialog-wit
 import DayTrackPlayer from './day-track-player.vue'
 
 interface Props {
+  timeZone?: string
   tripId?: string
   open?: boolean
   dayUtc?: string
@@ -94,6 +95,7 @@ useEventListener(typeof window !== 'undefined' ? window : null, 'keydown', (e: K
             class="track-player-embedded"
             :day-utc="dayUtc"
             :trip-id="tripId"
+            :time-zone="timeZone"
             :mode="mode"
             :day-dates="dayDates"
             :show-back-button="false"

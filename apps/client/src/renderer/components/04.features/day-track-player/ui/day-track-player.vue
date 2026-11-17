@@ -4,6 +4,7 @@ import type { DayPoint, RouteVisibility, TrackPhoto, ViewMode } from '../models/
 import type { ImageViewerImage } from '~/components/01.kit/kit-image-viewer'
 import type { Memory } from '~/shared/types/models/memory'
 import { Icon } from '@iconify/vue'
+import { recordingQuality } from '@limiteddissolve/track-processing'
 import { useEventListener } from '@vueuse/core'
 import { AlertDialogContent, AlertDialogDescription, AlertDialogOverlay, AlertDialogPortal, AlertDialogRoot, AlertDialogTitle } from 'reka-ui'
 import { computed, getCurrentInstance, ref, toRef, useId } from 'vue'
@@ -29,6 +30,7 @@ import DayTrackPointPopup from './day-track-point-popup.vue'
 import DayTrackTopNav from './day-track-top-nav.vue'
 
 interface Props {
+  timeZone?: string
   tripId?: string
   dayUtc?: string
   /**
@@ -90,6 +92,7 @@ const {
   beforeChange: requestLeave,
   onRejectedChange: () => emit('dayChange', selectedDay.value),
   tripId: toRef(props, 'tripId'),
+  timeZone: toRef(props, 'timeZone'),
   dayUtcProp: toRef(props, 'dayUtc'),
   availableDays: toRef(props, 'dayDates'),
 })
@@ -126,7 +129,6 @@ const timezone = useDayTrackTimezone({
   dayData,
   t: playback.t,
 })
-// ─── 6. Полноэкранный просмотр фотографий ─────────────────────────────────────
 const imageViewer = useImageViewer()
 const playbackPanelId = useId()
 
@@ -178,6 +180,8 @@ const map = useDayTrackMap({
 const isActivityEditorOpen = ref(false)
 const activityEditorTime = ref(0)
 
+// ─── 6. Полноэкранный просмотр фотографий ─────────────────────────────────────
+const quality = computed(() => recordingQuality(dayData.value?.rawPoints ?? [], dayData.value?.corrections ?? []))
 const canEditTrack = computed(() => !props.tripId || (authStore.isAuthenticated && dayData.value?.canEdit === true))
 // Маячок воспроизведения — маркер «я здесь сейчас». В режиме воспоминаний
 // (просмотр прожитого дня) он читается как текущая геопозиция, поэтому скрыт.
@@ -342,7 +346,13 @@ async function applyDrafts(): Promise<boolean> {
   try {
     if (!committed.value) {
       drafts.markSubmitted()
-      await trackingService.correctActivities({ tripId: draftTripId.value, dayUtc: selectedDay.value, additions: drafts.additions.value, removals: drafts.removals.value })
+      await trackingService.correctActivities({
+        tripId: draftTripId.value,
+        dayUtc: selectedDay.value,
+        timeZone: dayData.value?.timeZone,
+        additions: drafts.additions.value,
+        removals: drafts.removals.value,
+      })
       committed.value = true
     }
 
@@ -578,6 +588,17 @@ useEventListener(window, 'beforeunload', (event: BeforeUnloadEvent) => {
       @seek-end="playback.t.value = dayEnd"
       @seek-photo="(ts) => { playback.t.value = ts }"
     >
+      <template #quality>
+        <details class="recording-quality">
+          <summary>Качество записи · пропуски {{ quality.gapCount }} · неточные участки {{ quality.inaccurateSections }} · правки {{ quality.manualCorrections }}</summary>
+          <dl>
+            <div><dt>Пропуски GPS более 30 с</dt><dd>{{ quality.gapCount }} · {{ Math.round(quality.gapDurationMs / 60000) }} мин</dd></div>
+            <div><dt>Неточные участки (погрешность &gt;35 м)</dt><dd>{{ quality.inaccurateSections }} · точек {{ quality.inaccuratePoints }}</dd></div>
+            <div><dt>Точки без данных о точности</dt><dd>{{ quality.unknownAccuracyPoints }}</dd></div>
+            <div><dt>Ручные исправления</dt><dd>{{ quality.manualCorrections }}</dd></div>
+          </dl>
+        </details>
+      </template>
       <template #draft-actions>
         <div v-if="drafts.count.value" class="draft-toolbar" :aria-busy="applying">
           <span role="status">{{ committed ? 'Сохранено' : `Изменений: ${drafts.count.value}` }}</span>
@@ -641,6 +662,30 @@ useEventListener(window, 'beforeunload', (event: BeforeUnloadEvent) => {
 </template>
 
 <style scoped lang="scss">
+.recording-quality {
+  font-size: 0.75rem;
+  color: var(--fg-secondary-color);
+  summary {
+    cursor: pointer;
+    padding-block: var(--p-xs);
+  }
+  dl {
+    margin: var(--p-xs) 0;
+    display: grid;
+    gap: var(--p-xs);
+  }
+  dl > div {
+    display: flex;
+    justify-content: space-between;
+    gap: var(--p-s);
+  }
+  dd {
+    margin: 0;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+  }
+}
+
 .draft-toolbar {
   display: flex;
   align-items: center;

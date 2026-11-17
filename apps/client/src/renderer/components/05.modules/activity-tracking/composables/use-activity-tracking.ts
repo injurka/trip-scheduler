@@ -1,4 +1,5 @@
 import type { DaySummary } from '../models/types'
+import { calendarDay } from '@limiteddissolve/track-processing'
 import { computed, onMounted, ref } from 'vue'
 import { trpc } from '~/shared/services/trpc/trpc.service'
 
@@ -9,7 +10,8 @@ export function useActivityTracking() {
   const loadError = ref<string | null>(null)
   const summaries = ref<DaySummary[]>([])
 
-  const todayUtc = computed(() => new Date().toISOString().slice(0, 10))
+  const timeZone = new Intl.DateTimeFormat().resolvedOptions().timeZone
+  const todayUtc = computed(() => calendarDay(Date.now(), timeZone))
 
   const overallDistanceM = computed(() =>
     summaries.value.reduce((sum, s) => sum + s.totalDistanceM, 0))
@@ -42,7 +44,7 @@ export function useActivityTracking() {
     const reqId = ++activeRequestId
 
     try {
-      const res = await (trpc).tracking.getSummaries.query({ days: selectedDays.value })
+      const res = await (trpc).tracking.getSummaries.query({ days: selectedDays.value, timeZone })
 
       if (reqId !== activeRequestId)
         return
@@ -85,7 +87,7 @@ export function useActivityTracking() {
 
     const d = new Date(`${dayUtc}T12:00:00Z`)
 
-    return d.toLocaleDateString('ru-RU', { weekday: 'short', day: 'numeric', month: 'long' })
+    return d.toLocaleDateString('ru-RU', { weekday: 'short', day: 'numeric', month: 'long', timeZone: 'UTC' })
   }
 
   function formatDistance(m: number): string {
@@ -110,7 +112,7 @@ export function useActivityTracking() {
     if (!ts)
       return '--:--'
 
-    return new Date(ts).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' })
+    return new Date(ts).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit', timeZone })
   }
 
   const isPlayerOpen = ref(false)
@@ -136,6 +138,7 @@ export function useActivityTracking() {
   })
 
   return {
+    timeZone,
     selectedDays,
     isLoading,
     isRefreshing,

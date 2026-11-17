@@ -1,3 +1,4 @@
+import { isTimeZone } from '@limiteddissolve/track-processing'
 import { z } from 'zod'
 
 export const TrackActivityTypeSchema = z.enum(['still', 'walk', 'bike', 'vehicle', 'rail', 'unknown'])
@@ -20,11 +21,15 @@ export const TrackPointInputSchema = z.object({
 })
 
 export const IngestBatchInputSchema = z.object({
+  ownerId: z.string().uuid().optional(),
   points: z.array(TrackPointInputSchema).min(1).max(2000),
 })
 
+export const TrackingTimeZoneSchema = z.string().max(100).refine(isTimeZone, 'Некорректный часовой пояс')
+
 export const GetTrackDayInputSchema = z.object({
   dayUtc: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  timeZone: TrackingTimeZoneSchema.optional(),
 })
 
 export const DeleteTrackPointInputSchema = z.object({

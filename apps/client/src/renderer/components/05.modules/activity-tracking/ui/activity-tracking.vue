@@ -13,6 +13,7 @@ import TrackingControlCard from './tracking-control-card.vue'
 const trackingStore = useTrackingStore()
 
 const {
+  timeZone,
   selectedDays,
   isLoading,
   isRefreshing,
@@ -106,6 +107,7 @@ async function handleSync() {
     <!-- Drawer просмотра GPS-трекинга на карте -->
     <DayTrackDrawer
       :open="isPlayerOpen"
+      :time-zone="timeZone"
       :day-utc="playerDayUtc"
       @close="closePlayer"
     />

@@ -5,12 +5,12 @@ import { ActivityState, bearingDeg, evaluatePointValidity, haversineM, MAX_ACCUR
 import { addPluginListener, invoke } from '@tauri-apps/api/core'
 import {
   checkPermissions as tauriCheckPermissions,
-  getCurrentPosition as tauriGetCurrentPosition,
   requestPermissions as tauriRequestPermissions,
 } from '@tauri-apps/plugin-geolocation'
-import { v4 as uuidv4, v5 as uuidv5 } from 'uuid'
+import { v4 as uuidv4 } from 'uuid'
 import { isAppOnline } from '~/shared/lib/connectivity'
 import { isMobileApp } from '~/shared/lib/env'
+import { trackingOwner, trackingStorageKey } from './tracking-owner'
 
 export type ActivityType = TrackActivityType
 
@@ -43,6 +43,12 @@ export interface TrackingTelemetry {
 }
 
 export interface TrackingStatus {
+  ownerId?: string | null
+  storageError?: string | null
+  pendingWrites?: number
+  lastSavedTsUtc?: number | null
+  lastSyncAt?: number | null
+  legacyQueuePreserved?: boolean
   running: boolean
   transitioning?: boolean
   unsentCount: number
@@ -67,8 +73,8 @@ export class GeotrackUnavailableError extends Error {
   }
 }
 
-function readStoredPoints(): TrackPoint[] {
-  const raw = localStorage.getItem(STORAGE_POINTS_KEY)
+function readStoredPoints(owner = trackingOwner()): TrackPoint[] {
+  const raw = localStorage.getItem(trackingStorageKey(STORAGE_POINTS_KEY, owner))
 
   if (!raw)
     return []
@@ -86,9 +92,9 @@ function readStoredPoints(): TrackPoint[] {
   return points as TrackPoint[]
 }
 
-function writeStoredPoints(points: TrackPoint[]): void {
+function writeStoredPoints(points: TrackPoint[], owner = trackingOwner()): void {
   // Never evict unacknowledged points, including when storage is full.
-  localStorage.setItem(STORAGE_POINTS_KEY, JSON.stringify(points))
+  localStorage.setItem(trackingStorageKey(STORAGE_POINTS_KEY, owner), JSON.stringify(points))
 }
 
 export function deleteStoredPoint(clientPointId: string): void {
@@ -104,9 +110,9 @@ export interface StoredSession {
   isRunning: boolean
 }
 
-export function readStoredSession(): StoredSession | null {
+export function readStoredSession(owner = trackingOwner()): StoredSession | null {
   try {
-    const raw = localStorage.getItem(STORAGE_SESSION_KEY)
+    const raw = localStorage.getItem(trackingStorageKey(STORAGE_SESSION_KEY, owner))
 
     if (!raw)
       return null
@@ -130,13 +136,13 @@ export function readStoredSession(): StoredSession | null {
   }
 }
 
-export function writeStoredSession(session: StoredSession | null): void {
+export function writeStoredSession(session: StoredSession | null, owner = trackingOwner()): void {
   try {
     if (session) {
-      localStorage.setItem(STORAGE_SESSION_KEY, JSON.stringify(session))
+      localStorage.setItem(trackingStorageKey(STORAGE_SESSION_KEY, owner), JSON.stringify(session))
     }
     else {
-      localStorage.removeItem(STORAGE_SESSION_KEY)
+      localStorage.removeItem(trackingStorageKey(STORAGE_SESSION_KEY, owner))
     }
   }
   catch {
@@ -205,6 +211,9 @@ function isMatchingDeviceActivity(sample: DeviceActivitySample | null, activity:
 }
 
 interface NativeTrackingPosition {
+  ownerId: string
+  sessionId: string
+  clientPointId: string
   latitude: number
   longitude: number
   accuracy?: number | null
@@ -678,6 +687,51 @@ class BackgroundAudioKeepalive {
 // ─── Трекер на базе Web Geolocation API и Tauri Geolocation ──────────────────
 
 class WebGeolocationTracker {
+  private ownerId = trackingOwner()
+  private ownerChange: Promise<void> | null = null
+  private storageError: string | null = null
+  private pendingWrites = 0
+  private nativeLegacyQueuePreserved = false
+  private lastSavedTsUtc: number | null = null
+  private locationError: string | null = null
+
+  public async ensureOwner(): Promise<void> {
+    if (this.ownerChange) {
+      await this.ownerChange
+
+      return this.ensureOwner()
+    }
+
+    if (this.ownerId === trackingOwner())
+      return
+
+    // Invalidate callbacks synchronously, before waiting for a start/stop transition.
+    ++this.sessionGeneration
+    this.ownerChange = (async () => {
+      await this.transition?.catch(() => {})
+
+      if (this.isRunning)
+        await this.stop()
+
+      this.ownerId = trackingOwner()
+      this.currentSessionId = null
+      this.lastFixPoint = null
+      this.displayFix = null
+      this.sessionDistanceM = 0
+      this.sessionStartedAt = 0
+      this.lastError = null
+      this.locationError = null
+      this.storageError = null
+      this.pendingWrites = 0
+      this.lastSavedTsUtc = null
+    })().finally(() => { this.ownerChange = null })
+    await this.ownerChange
+  }
+
+  private readPoints() { return readStoredPoints(this.ownerId) }
+  private writePoints(points: TrackPoint[]) { writeStoredPoints(points, this.ownerId) }
+  private saveSession(session: StoredSession | null) { writeStoredSession(session, this.ownerId) }
+
   private watchId: number | null = null
   private trackingPluginListener: PluginListener | null = null
   private trackingStateListener: PluginListener | null = null
@@ -719,8 +773,18 @@ class WebGeolocationTracker {
 
   constructor() {
     this.setupLifecycleListeners()
+    const ownerChanged = () => {
+      void this.ensureOwner().catch((error) => {
+        this.lastError = getErrorMessage(error)
+      })
+    }
+    window.addEventListener('tracking-owner-changed', ownerChanged)
+    window.addEventListener('storage', (event) => {
+      if (event.key === 'auth_user')
+        ownerChanged()
+    })
 
-    const saved = readStoredSession()
+    const saved = readStoredSession(this.ownerId)
 
     if (saved) {
       this.currentSessionId = saved.sessionId
@@ -777,9 +841,15 @@ class WebGeolocationTracker {
   }
 
   public getStatus(): TrackingStatus {
-    const unsent = readStoredPoints()
+    const unsent = this.readPoints()
 
     return {
+      lastSyncAt: Number(localStorage.getItem(trackingStorageKey('tripscheduler_tracking_synced', this.ownerId))) || null,
+      ownerId: this.ownerId,
+      storageError: this.storageError ?? (this.lastError?.startsWith('Не удалось сохранить') ? this.lastError : null),
+      pendingWrites: this.pendingWrites,
+      lastSavedTsUtc: this.lastSavedTsUtc,
+      legacyQueuePreserved: this.nativeLegacyQueuePreserved || Boolean(localStorage.getItem(STORAGE_POINTS_KEY)),
       running: this.isRunning,
       transitioning: this.transition !== null,
       unsentCount: unsent.length,
@@ -787,7 +857,7 @@ class WebGeolocationTracker {
       lastFixTsUtc: this.lastFixPoint?.tsUtc ?? null,
       batteryIgnored: this.batteryOptimizationsIgnored,
       telemetry: this.getTelemetry(Date.now()),
-      error: this.lastError,
+      error: this.storageError ?? this.lastError ?? this.locationError,
     }
   }
 
@@ -805,7 +875,14 @@ class WebGeolocationTracker {
     if (!isMobileApp || this.transition)
       return
 
-    await this.checkPermissions()
+    const health = await this.checkPermissions()
+
+    if (health?.ownerId !== this.ownerId && await invoke<boolean>('tracking_is_running')) {
+      await invoke('tracking_stop')
+      await this.waitForNativeState(false)
+      this.isRunning = false
+    }
+
     const running = await invoke<boolean>('tracking_is_running')
 
     if (running && !this.isRunning)
@@ -839,7 +916,11 @@ class WebGeolocationTracker {
       return this.getStatus()
     }
 
+    if (!this.ownerId)
+      throw new Error('Для записи GPS войдите в аккаунт')
+
     this.lastError = null
+    this.locationError = null
     const generation = ++this.sessionGeneration
 
     // Начинаем новую сессию
@@ -857,7 +938,7 @@ class WebGeolocationTracker {
     this.deviceActivitySamples = []
     this.isRunning = true
 
-    writeStoredSession({
+    this.saveSession({
       sessionId: this.currentSessionId,
       startedAt: this.sessionStartedAt,
       distanceM: 0,
@@ -896,7 +977,7 @@ class WebGeolocationTracker {
       if (isMobileApp && !await invoke<boolean>('tracking_is_running')) {
         await this.transferNativeBufferedPoints()
         this.isRunning = false
-        writeStoredSession(null)
+        this.saveSession(null)
         void import('./track-sync').then(m => m.runSync()).catch(() => {})
 
         return
@@ -1090,7 +1171,7 @@ class WebGeolocationTracker {
       return null
 
     const update = toPositionUpdate(pos)
-    const chronologicalPrev = previousPoint && previousPoint.tsUtc < pos.timestamp ? previousPoint : null
+    const chronologicalPrev = previousPoint?.sessionId === pos.sessionId && previousPoint.tsUtc < pos.timestamp ? previousPoint : null
     const fix = update && normalizePositionUpdate(update, chronologicalPrev)
 
     if (!fix || !update || this.shouldRejectPosition(fix, chronologicalPrev))
@@ -1098,16 +1179,16 @@ class WebGeolocationTracker {
 
     const activity = this.resolvePositionActivity(fix, update)
     const point = this.createTrackPoint(fix, activity)
-    const sessionId = this.currentSessionId ?? uuidv5(`native:${new Date(pos.timestamp).toISOString().slice(0, 10)}`, uuidv5.URL)
-    point.sessionId = sessionId
-    point.clientPointId = uuidv5(`${sessionId}:${pos.timestamp}:${pos.latitude}:${pos.longitude}`, uuidv5.URL)
+
+    point.sessionId = pos.sessionId
+    point.clientPointId = pos.clientPointId
 
     return point
   }
 
   // eslint-disable-next-line complexity
   private replayBufferedTelemetry(buffered: NativeTrackingPosition[]): void {
-    const sorted = [...buffered].sort((a, b) => (a.timestamp ?? 0) - (b.timestamp ?? 0))
+    const sorted = buffered.filter(position => position.sessionId === this.currentSessionId).sort((a, b) => (a.timestamp ?? 0) - (b.timestamp ?? 0))
     const firstTs = sorted[0]?.timestamp ?? 0
     let previousPoint: TrackPoint | null = (this.lastFixPoint && firstTs > 0 && this.lastFixPoint.tsUtc < firstTs)
       ? this.lastFixPoint
@@ -1159,29 +1240,36 @@ class WebGeolocationTracker {
 
   // eslint-disable-next-line complexity
   private async transferNativeBufferedPoints(): Promise<void> {
+    if (!this.ownerId)
+      return
+
     const NATIVE_BUFFER_BATCH_LIMIT = 500
     const MAX_DRAIN_ITERATIONS = 50
 
     try {
       for (let iteration = 0; iteration < MAX_DRAIN_ITERATIONS; iteration++) {
-        const buffered = await invoke<NativeTrackingPosition[]>('tracking_get_buffered')
+        const buffered: NativeTrackingPosition[] = await invoke<NativeTrackingPosition[]>('tracking_get_buffered', { ownerId: this.ownerId })
 
         if (!Array.isArray(buffered) || buffered.length === 0)
           break
 
-        const sorted = [...buffered].sort((a, b) => (a.timestamp ?? 0) - (b.timestamp ?? 0))
-        const queue = readStoredPoints()
+        const sorted: NativeTrackingPosition[] = [...buffered].sort((a, b) => (a.timestamp ?? 0) - (b.timestamp ?? 0))
+        const queue = this.readPoints()
         const ids = new Set(queue.map(point => point.clientPointId))
-        const timestamps: number[] = []
+        const clientPointIds: string[] = []
         const newPositionsForReplay: NativeTrackingPosition[] = []
         let previousPoint: TrackPoint | null = (this.lastFixPoint && sorted[0]?.timestamp && this.lastFixPoint.tsUtc < sorted[0].timestamp)
           ? this.lastFixPoint
           : null
 
         for (const pos of sorted) {
-          if (typeof pos.timestamp === 'number' && Number.isFinite(pos.timestamp) && pos.timestamp > 0) {
-            timestamps.push(pos.timestamp)
-          }
+          if (pos.ownerId !== this.ownerId)
+            throw new Error('Владелец нативной GPS-точки не совпадает с аккаунтом')
+
+          if (!pos.clientPointId || !pos.sessionId)
+            throw new Error('У GPS-точки нет идентификатора записи')
+
+          clientPointIds.push(pos.clientPointId)
 
           const point = this.createBufferedPoint(pos, previousPoint)
 
@@ -1197,9 +1285,9 @@ class WebGeolocationTracker {
           }
         }
 
-        writeStoredPoints(queue)
+        this.writePoints(queue)
         // Acknowledge native storage only after the durable browser write succeeded.
-        await invoke('tracking_ack_buffered', { timestamps })
+        await invoke('tracking_ack_buffered', { clientPointIds, ownerId: this.ownerId })
 
         if (newPositionsForReplay.length > 0) {
           this.replayBufferedTelemetry(newPositionsForReplay)
@@ -1275,6 +1363,12 @@ class WebGeolocationTracker {
         notifications: boolean
         batteryOptimizationsIgnored: boolean
         activityRecognition: boolean
+        ownerId?: string | null
+        sessionId?: string | null
+        storageError?: string | null
+        pendingWrites?: number
+        legacyQueuePreserved?: boolean
+        lastSavedTsUtc?: number | null
       }>('tracking_check_permissions')
 
       if (!isCurrent())
@@ -1306,7 +1400,7 @@ class WebGeolocationTracker {
 
   private async listenNativeLocations(isCurrent: () => boolean): Promise<boolean> {
     const listener = await addPluginListener<NativeTrackingPosition>('tracking', 'locationUpdate', (position) => {
-      if (!isCurrent())
+      if (!isCurrent() || position.ownerId !== this.ownerId)
         return
 
       const update = toPositionUpdate(position)
@@ -1329,7 +1423,7 @@ class WebGeolocationTracker {
   }
 
   private async startNativeForegroundService(isCurrent: () => boolean): Promise<void> {
-    await invoke('tracking_start')
+    await invoke('tracking_start', { ownerId: this.ownerId, sessionId: this.currentSessionId })
     await this.waitForNativeState(true)
 
     if (!isCurrent()) {
@@ -1434,7 +1528,7 @@ class WebGeolocationTracker {
       const now = Date.now()
       const timeSinceLastFix = this.lastFixPoint ? (now - this.lastFixPoint.tsUtc) : (now - this.sessionStartedAt)
 
-      // Если координаты не поступали более 20 секунд, принудительно запрашиваем фикс через оба канала
+      // Если координаты не поступали более 20 секунд, запрашиваем свежую координату в браузере
       if (timeSinceLastFix > 20000) {
         this.requestImmediateFix()
       }
@@ -1449,32 +1543,14 @@ class WebGeolocationTracker {
   }
 
   private requestImmediateFix(): void {
+    // On Android only service callbacks correspond to journaled fixes. An ad-hoc
+    // WebView/plugin fix has no durable copy and must not appear as recorded GPS.
+    if (isMobileApp)
+      return
+
     // 1. Web Geolocation fix
     if (typeof navigator !== 'undefined' && 'geolocation' in navigator) {
       navigator.geolocation.getCurrentPosition(pos => this.handlePositionUpdate(pos), err => console.warn('[Tracking] Ошибка web immediate fix:', err?.message || err), { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 })
-    }
-
-    // 2. Tauri native FusedLocationProviderClient fix
-    if (isMobileApp) {
-      tauriGetCurrentPosition({ enableHighAccuracy: true, timeout: 8000, maximumAge: 0 })
-        .then((pos) => {
-          if (pos) {
-            this.handlePositionUpdate({
-              coords: {
-                latitude: pos.coords.latitude,
-                longitude: pos.coords.longitude,
-                accuracy: pos.coords.accuracy,
-                altitude: pos.coords.altitude,
-                speed: pos.coords.speed,
-                heading: pos.coords.heading,
-              },
-              timestamp: pos.timestamp,
-            })
-          }
-        })
-        .catch((err) => {
-          console.warn('[Tracking] Ошибка tauri immediate fix:', err)
-        })
     }
   }
 
@@ -1500,7 +1576,7 @@ class WebGeolocationTracker {
       this.sessionEndedAt = Date.now()
     }
 
-    writeStoredSession(null)
+    this.saveSession(null)
 
     return this.getStatus()
   }
@@ -1554,6 +1630,12 @@ class WebGeolocationTracker {
     notifications: boolean
     batteryOptimizationsIgnored: boolean
     activityRecognition: boolean
+    ownerId?: string | null
+    sessionId?: string | null
+    storageError?: string | null
+    pendingWrites?: number
+    legacyQueuePreserved?: boolean
+    lastSavedTsUtc?: number | null
   } | null> {
     if (!isMobileApp)
       return null
@@ -1564,10 +1646,23 @@ class WebGeolocationTracker {
         notifications: boolean
         batteryOptimizationsIgnored: boolean
         activityRecognition: boolean
+        ownerId?: string | null
+        sessionId?: string | null
+        storageError?: string | null
+        pendingWrites?: number
+        legacyQueuePreserved?: boolean
+        lastSavedTsUtc?: number | null
       }>('tracking_check_permissions')
 
       if (perm) {
         this.batteryOptimizationsIgnored = perm.batteryOptimizationsIgnored
+        this.nativeLegacyQueuePreserved = perm.legacyQueuePreserved ?? false
+
+        if (perm.ownerId === this.ownerId) {
+          this.storageError = perm.storageError ?? null
+          this.pendingWrites = perm.pendingWrites ?? 0
+          this.lastSavedTsUtc = perm.lastSavedTsUtc ?? null
+        }
       }
 
       return perm
@@ -1794,7 +1889,7 @@ class WebGeolocationTracker {
     for (let index = 1; index < prepared.length; index++) {
       const previous = prepared[index - 1]!
       const current = prepared[index]!
-      const representsMovement = !current.stop && current.activity !== 'still' && current.tsUtc - previous.tsUtc <= 15_000
+      const representsMovement = current.sessionId === previous.sessionId && !current.stop && current.activity !== 'still' && current.tsUtc - previous.tsUtc <= 15_000
       const distance = representsMovement
         ? haversineM(
             previous.lat,
@@ -1831,14 +1926,14 @@ class WebGeolocationTracker {
   }
 
   private persistTrackPoint(point: TrackPoint) {
-    const queue = readStoredPoints()
+    const queue = this.readPoints()
     queue.push(point)
-    writeStoredPoints(queue)
+    this.writePoints(queue)
     this.persistSessionPoint(point)
   }
 
   private persistSessionPoint(point: TrackPoint): void {
-    writeStoredSession({
+    this.saveSession({
       sessionId: this.currentSessionId || point.sessionId,
       startedAt: this.sessionStartedAt,
       distanceM: this.sessionDistanceM,
@@ -1859,9 +1954,10 @@ class WebGeolocationTracker {
   private handlePositionUpdate(position: PositionUpdate): void {
     const fix = normalizePositionUpdate(position, this.lastFixPoint)
 
-    if (!this.isRunning || !fix || this.shouldRejectPosition(fix))
+    if (!this.isRunning || this.ownerId !== trackingOwner() || !fix || this.shouldRejectPosition(fix))
       return
 
+    this.locationError = null
     const activity = this.resolvePositionActivity(fix, position)
     const point = this.createTrackPoint(fix, activity)
 
@@ -1871,10 +1967,16 @@ class WebGeolocationTracker {
 
     try {
       // Android keeps its own durable copy until transfer succeeds.
-      if (isMobileApp)
+      if (isMobileApp) {
         this.persistSessionPoint(point)
-      else
+      }
+      else {
         this.persistTrackPoint(point)
+        this.lastSavedTsUtc = point.tsUtc
+
+        if (this.lastError?.startsWith('Не удалось сохранить GPS-точку:'))
+          this.lastError = null
+      }
     }
     catch (error) {
       this.lastError = `Не удалось сохранить GPS-точку: ${getErrorMessage(error)}`
@@ -1886,21 +1988,21 @@ class WebGeolocationTracker {
   private handlePositionError(err: GeolocationPositionError): void {
     switch (err.code) {
       case err.PERMISSION_DENIED:
-        this.lastError = 'Доступ к геолокации запрещён пользователем или браузером'
+        this.locationError = 'Доступ к геолокации запрещён пользователем или браузером'
         break
       case err.POSITION_UNAVAILABLE:
-        this.lastError = 'Сигнал GPS недоступен (попробуйте на открытом пространстве)'
+        this.locationError = 'Сигнал GPS недоступен (попробуйте на открытом пространстве)'
         break
       case err.TIMEOUT:
-        this.lastError = 'Таймаут ожидания координат GPS'
+        this.locationError = 'Таймаут ожидания координат GPS'
         break
       default:
-        this.lastError = err.message || 'Ошибка геолокации'
+        this.locationError = err.message || 'Ошибка геолокации'
     }
   }
 
   public getUnsent(limit = 500): TrackPoint[] {
-    const queue = readStoredPoints()
+    const queue = this.readPoints()
 
     return queue.slice(0, limit)
   }
@@ -1910,9 +2012,9 @@ class WebGeolocationTracker {
       return
 
     const idSet = new Set(clientPointIds)
-    const queue = readStoredPoints()
+    const queue = this.readPoints()
     const remaining = queue.filter(p => !idSet.has(p.clientPointId))
-    writeStoredPoints(remaining)
+    this.writePoints(remaining)
   }
 }
 
@@ -1931,6 +2033,8 @@ export const geotrack = {
   },
 
   async start(): Promise<TrackingStatus> {
+    await trackerInstance.ensureOwner()
+
     return trackerInstance.start()
   },
 
@@ -1939,12 +2043,14 @@ export const geotrack = {
   },
 
   async status(): Promise<TrackingStatus> {
+    await trackerInstance.ensureOwner()
     await trackerInstance.refreshNativeStatus()
 
     return trackerInstance.getStatus()
   },
 
   async getUnsent(limit = 500): Promise<TrackPoint[]> {
+    await trackerInstance.ensureOwner()
     await trackerInstance.refreshNativeStatus()
     const error = trackerInstance.getLastError()
 
@@ -1954,8 +2060,12 @@ export const geotrack = {
     return trackerInstance.getUnsent(limit)
   },
 
-  async markSynced(clientPointIds: string[]): Promise<void> {
-    trackerInstance.markSynced(clientPointIds)
+  async markSynced(clientPointIds: string[], ownerId = trackingOwner()): Promise<void> {
+    const ids = new Set(clientPointIds)
+    writeStoredPoints(readStoredPoints(ownerId).filter(point => !ids.has(point.clientPointId)), ownerId)
+
+    if (clientPointIds.length)
+      localStorage.setItem(trackingStorageKey('tripscheduler_tracking_synced', ownerId), String(Date.now()))
   },
 
   async checkPermissions() {

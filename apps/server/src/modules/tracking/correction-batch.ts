@@ -1,9 +1,10 @@
+import { calendarDayBounds } from '@limiteddissolve/track-processing'
 import { TRPCError } from '@trpc/server'
 import { db } from 'db'
 import { trackActivityCorrections, trackPoints } from 'db/schema'
 import { and, eq, gte, inArray, lte, sql } from 'drizzle-orm'
 import { z } from 'zod'
-import { TrackActivityTypeSchema } from './tracking.schemas'
+import { TrackActivityTypeSchema, TrackingTimeZoneSchema } from './tracking.schemas'
 
 export const CorrectionDraftSchema = z.object({
   id: z.string().uuid(),
@@ -12,19 +13,19 @@ export const CorrectionDraftSchema = z.object({
   endedAt: z.number().int().positive().max(8_640_000_000_000_000),
   activity: TrackActivityTypeSchema,
   point: z.boolean().optional(),
-}).refine(c => (c.endedAt > c.startedAt || (c.point && c.endedAt === c.startedAt)) && c.endedAt - c.startedAt <= 86400000, 'Некорректный интервал')
+}).refine(c => (c.endedAt > c.startedAt || (c.point && c.endedAt === c.startedAt)) && c.endedAt - c.startedAt <= 26 * 3600_000, 'Некорректный интервал')
 export const CorrectionBatchSchema = z.object({
   tripId: z.string().uuid().optional(),
   dayUtc: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  timeZone: TrackingTimeZoneSchema.optional(),
   additions: z.array(CorrectionDraftSchema).max(200),
   removals: z.array(z.string().uuid()).max(200),
 }).refine(b => b.additions.length + b.removals.length > 0 && b.additions.length + b.removals.length <= 200, 'В пакете должно быть от 1 до 200 изменений')
 
 export async function saveCorrectionBatch(userId: string, input: z.infer<typeof CorrectionBatchSchema>, enforceDay = true) {
-  const from = Date.parse(`${input.dayUtc}T00:00:00Z`)
-  const until = from + 86400000
-  if (!Number.isFinite(from) || new Date(from).toISOString().slice(0, 10) !== input.dayUtc)
-    throw new TRPCError({ code: 'BAD_REQUEST', message: 'Некорректный день' })
+  const bounds = calendarDayBounds(input.dayUtc, input.timeZone)
+  const from = bounds.from.getTime()
+  const until = bounds.to.getTime()
   const ids = input.additions.map(c => c.id)
   if (new Set(ids).size !== ids.length || input.removals.some(id => ids.includes(id)))
     throw new TRPCError({ code: 'BAD_REQUEST', message: 'Повторяющиеся идентификаторы правок' })

@@ -5,7 +5,7 @@ import { and, eq } from 'drizzle-orm'
 import { z } from 'zod'
 import { protectedProcedure, publicProcedure } from '~/lib/trpc'
 import { CorrectionBatchSchema, saveCorrectionBatch } from './correction-batch'
-import { DeleteTrackPointInputSchema, GetTrackDayInputSchema, IngestBatchInputSchema, TrackActivityTypeSchema } from './tracking.schemas'
+import { DeleteTrackPointInputSchema, GetTrackDayInputSchema, IngestBatchInputSchema, TrackActivityTypeSchema, TrackingTimeZoneSchema } from './tracking.schemas'
 import { trackingService } from './tracking.service'
 import { assertTripTrackRange, editableTripTrack, tripTrackAccess } from './trip-track-access'
 
@@ -100,11 +100,12 @@ export const trackingProcedures = {
         method: 'GET',
         path: '/tracking/day/{dayUtc}',
         tags: ['Tracking'],
-        summary: 'Точки и сегменты дня (UTC) для «Воспоминаний дня»',
+        summary: 'Точки и сегменты календарного дня для «Воспоминаний дня»',
       },
     })
     .input(GetTrackDayInputSchema)
     .output(z.object({
+      timeZone: z.string().optional(),
       points: z.array(PointOutputSchema),
       corrections: z.array(CorrectionOutputSchema),
       segments: z.array(SegmentOutputSchema),
@@ -119,7 +120,7 @@ export const trackingProcedures = {
 
   getTripDay: publicProcedure
     .input(GetTrackDayInputSchema.extend({ tripId: z.string().uuid(), shareSlug: z.string().optional() }))
-    .output(z.object({ points: z.array(PointOutputSchema), corrections: z.array(CorrectionOutputSchema), segments: z.array(SegmentOutputSchema), canEdit: z.boolean() }))
+    .output(z.object({ timeZone: z.string().optional(), points: z.array(PointOutputSchema), corrections: z.array(CorrectionOutputSchema), segments: z.array(SegmentOutputSchema), canEdit: z.boolean() }))
     .query(async ({ input, ctx }) => {
       const access = await tripTrackAccess(input.tripId, ctx.user, input.shareSlug || ctx.c?.req.header('x-share-slug'))
       const start = Date.parse(`${input.dayUtc}T00:00:00Z`)
@@ -142,13 +143,14 @@ export const trackingProcedures = {
       },
     })
     .input(z.object({
+      timeZone: TrackingTimeZoneSchema.optional(),
       days: z.number().int().min(1).max(90).default(14),
     }))
     .output(z.object({
       summaries: z.array(DaySummarySchema),
     }))
     .query(async ({ input, ctx }) => {
-      const summaries = await trackingService.getSummaries(ctx.user.id, input.days)
+      const summaries = await trackingService.getSummaries(ctx.user.id, input.days, input.timeZone)
       return { summaries }
     }),
 
@@ -189,18 +191,19 @@ export const trackingProcedures = {
       activity: TrackActivityTypeSchema,
       point: z.boolean().optional(),
       tripId: z.string().uuid().optional(),
+      timeZone: TrackingTimeZoneSchema.optional(),
     }).refine(input => (input.endedAt > input.startedAt || (input.point === true && input.endedAt === input.startedAt)) && input.endedAt - input.startedAt <= 24 * 3600_000, { message: 'Выберите интервал длительностью до 24 часов' }))
     .output(z.object({ success: z.boolean() }))
     .mutation(async ({ input, ctx }) => {
       if (!input.tripId)
         return trackingService.correctActivity(ctx.user.id, input)
       const access = await editableTripTrack(input.tripId, ctx.user)
-      assertTripTrackRange(access, input.startedAt, input.endedAt)
+      assertTripTrackRange(access, input.startedAt, input.endedAt, input.timeZone)
       return trackingService.correctActivity(access.ownerId, input)
     }),
 
   removeActivityCorrection: protectedProcedure
-    .input(z.object({ id: z.string().uuid(), tripId: z.string().uuid().optional() }))
+    .input(z.object({ id: z.string().uuid(), tripId: z.string().uuid().optional(), timeZone: TrackingTimeZoneSchema.optional() }))
     .output(z.object({ success: z.boolean() }))
     .mutation(async ({ input, ctx }) => {
       if (!input.tripId)
@@ -209,7 +212,7 @@ export const trackingProcedures = {
       const [correction] = await db.select().from(trackActivityCorrections).where(and(eq(trackActivityCorrections.userId, access.ownerId), eq(trackActivityCorrections.id, input.id))).limit(1)
       if (!correction)
         throw new TRPCError({ code: 'NOT_FOUND' })
-      assertTripTrackRange(access, correction.startedAt.getTime(), correction.endedAt.getTime())
+      assertTripTrackRange(access, correction.startedAt.getTime(), correction.endedAt.getTime(), input.timeZone)
       return trackingService.removeActivityCorrection(access.ownerId, input.id)
     }),
 
@@ -222,7 +225,7 @@ export const trackingProcedures = {
         summary: 'Удаление ошибочной GPS-точки и нормализация маршрута',
       },
     })
-    .input(DeleteTrackPointInputSchema.extend({ tripId: z.string().uuid().optional() }))
+    .input(DeleteTrackPointInputSchema.extend({ tripId: z.string().uuid().optional(), timeZone: TrackingTimeZoneSchema.optional() }))
     .output(z.object({
       success: z.boolean(),
       clientPointId: z.string(),
@@ -235,7 +238,7 @@ export const trackingProcedures = {
       const [point] = await db.select().from(trackPoints).where(and(eq(trackPoints.userId, access.ownerId), eq(trackPoints.clientPointId, input.clientPointId))).limit(1)
       if (!point)
         throw new TRPCError({ code: 'NOT_FOUND' })
-      assertTripTrackRange(access, point.tsUtc.getTime())
+      assertTripTrackRange(access, point.tsUtc.getTime(), point.tsUtc.getTime(), input.timeZone)
       return trackingService.deletePoint(access.ownerId, input.clientPointId)
     }),
 }

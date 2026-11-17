@@ -159,7 +159,12 @@ it('loads shared trip data instead of a guest personal endpoint and blocks delet
     },
   }), { global: { plugins: [router] } })
   await flushPromises()
-  expect(api.getTripDay).toHaveBeenCalledWith('trip', '2026-11-10', undefined)
+  expect(api.getTripDay).toHaveBeenCalledWith(
+    'trip',
+    '2026-11-10',
+    undefined,
+    undefined,
+  )
   expect(api.getDay).not.toHaveBeenCalled()
   expect(result.dayData.value?.points.length).toBeGreaterThan(0)
   await result.handleDeletePoint(points[0])

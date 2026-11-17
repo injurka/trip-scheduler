@@ -2,8 +2,8 @@ use tauri::{command, AppHandle, Runtime};
 use crate::{models::*, Result, TrackingExt};
 
 #[command]
-pub(crate) async fn start_tracking<R: Runtime>(app: AppHandle<R>) -> Result<bool> {
-    app.tracking().start_tracking()
+pub(crate) async fn start_tracking<R: Runtime>(app: AppHandle<R>, owner_id: String, session_id: String) -> Result<bool> {
+    app.tracking().start_tracking(owner_id, session_id)
 }
 
 #[command]
@@ -17,8 +17,8 @@ pub(crate) async fn is_tracking_running<R: Runtime>(app: AppHandle<R>) -> Result
 }
 
 #[command]
-pub(crate) async fn get_buffered_locations<R: Runtime>(app: AppHandle<R>) -> Result<Vec<LocationRecord>> {
-    app.tracking().get_buffered_locations()
+pub(crate) async fn get_buffered_locations<R: Runtime>(app: AppHandle<R>, owner_id: String) -> Result<Vec<LocationRecord>> {
+    app.tracking().get_buffered_locations(owner_id)
 }
 
 #[command]

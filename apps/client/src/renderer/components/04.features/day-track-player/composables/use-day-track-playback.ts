@@ -56,7 +56,7 @@ function estimateSpeedFromPoints(points: DayData['points'] | undefined, index: n
   const current = points[index]
   const elapsedHours = (current.tsUtc - previous.tsUtc) / 3_600_000
 
-  if (elapsedHours <= 0 || elapsedHours > 0.25)
+  if (current.sessionId !== previous.sessionId || elapsedHours <= 0 || elapsedHours > 0.25)
     return null
 
   const distanceMeters = haversineM(
@@ -189,8 +189,19 @@ export function useDayTrackPlayback(options: UseDayTrackPlaybackOptions) {
   const currentActivityIcon = computed(() => ACTIVITY_ICONS[currentActivity.value] || 'mdi:crosshairs-question')
   const currentActivityLabel = computed(() => ACTIVITY_LABELS[currentActivity.value] || 'Движение')
 
-  const speedKmhFromPoints = computed(() => getRecordedSpeed(currentPoint.value)
-    ?? estimateSpeedFromPoints(dayData.value?.points, currentPointIndex.value))
+  const speedKmhFromPoints = computed(() => {
+    const point = currentPoint.value
+    const recorded = getRecordedSpeed(point)
+
+    if (recorded !== null)
+      return recorded
+
+    // No inferred speed in a gap or across separate recordings.
+    if (point?.activity === 'unknown' && t.value !== point.tsUtc)
+      return null
+
+    return estimateSpeedFromPoints(dayData.value?.points, currentPointIndex.value)
+  })
 
   function skipToPrevMovement() {
     const pts = dayData.value?.points

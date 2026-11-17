@@ -9,7 +9,7 @@ pub fn init<R: Runtime>(_app: &AppHandle<R>, _api: tauri::plugin::PluginApi<R, (
 }
 
 impl<R: Runtime> Tracking<R> {
-    pub fn start_tracking(&self) -> Result<bool> {
+    pub fn start_tracking(&self, _owner_id: String, _session_id: String) -> Result<bool> {
         Ok(true)
     }
 
@@ -21,11 +21,11 @@ impl<R: Runtime> Tracking<R> {
         Ok(false)
     }
 
-    pub fn get_buffered_locations(&self) -> Result<Vec<LocationRecord>> {
+    pub fn get_buffered_locations(&self, _owner_id: String) -> Result<Vec<LocationRecord>> {
         Ok(vec![])
     }
 
-    pub fn acknowledge_buffered_locations(&self, _timestamps: Vec<i64>) -> Result<bool> {
+    pub fn acknowledge_buffered_locations(&self, _client_point_ids: Vec<String>, _owner_id: String) -> Result<bool> {
         Ok(true)
     }
 
@@ -35,6 +35,7 @@ impl<R: Runtime> Tracking<R> {
 
     pub fn check_permissions(&self) -> Result<TrackingPermissionsStatus> {
         Ok(TrackingPermissionsStatus {
+            owner_id: None, session_id: None, storage_error: None, pending_writes: 0, legacy_queue_preserved: false, last_saved_ts_utc: None,
             location: true,
             notifications: true,
             battery_optimizations_ignored: true,
