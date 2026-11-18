@@ -1479,4 +1479,40 @@ useEventListener(typeof window !== 'undefined' ? window : null, 'keydown', (e: K
     }
   }
 }
+// Mobile player is part of the layout: the map ends above its controls.
+@media (max-width: 640px) {
+  .memories-panel {
+    position: relative;
+    inset: auto;
+    flex: 0 0 auto;
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    box-sizing: border-box;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    backdrop-filter: none;
+    padding: 10px 14px calc(12px + var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)));
+
+    // Inverse corners join the map edges to the flat top of the dock.
+    &::before,
+    &::after {
+      content: '';
+      position: absolute;
+      top: -20px;
+      width: 20px;
+      height: 20px;
+      pointer-events: none;
+    }
+    &::before {
+      left: 0;
+      background: radial-gradient(circle at 100% 0, transparent 19.5px, var(--bg-secondary-color) 20px);
+    }
+    &::after {
+      right: 0;
+      background: radial-gradient(circle at 0 0, transparent 19.5px, var(--bg-secondary-color) 20px);
+    }
+  }
+}
 </style>
