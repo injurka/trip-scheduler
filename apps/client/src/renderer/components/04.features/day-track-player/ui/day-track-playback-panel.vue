@@ -83,6 +83,7 @@ const emit = defineEmits<{
   (e: 'seekPhoto', tsUtc: number): void
 }>()
 
+const panelHost = ref<HTMLElement | null>(null)
 const qualityOpen = ref(false)
 const activityOpen = ref(false)
 const routeVisibilityItems: KitDropdownItem<RouteVisibility>[] = [
@@ -311,7 +312,7 @@ useEventListener(typeof window !== 'undefined' ? window : null, 'keydown', (e: K
 </script>
 
 <template>
-  <div class="memories-panel" :data-route-visibility="routeVisibility">
+  <div ref="panelHost" class="memories-panel" :data-route-visibility="routeVisibility">
     <slot name="draft-actions" />
     <!-- Верхняя строка: Телеметрия, Часовой пояс и Слежение камерой -->
     <div class="memories-readout">
@@ -388,9 +389,10 @@ useEventListener(typeof window !== 'undefined' ? window : null, 'keydown', (e: K
                 </template>
               </button>
             </PopoverTrigger>
-            <PopoverPortal>
+            <PopoverPortal :to="panelHost ?? undefined">
               <PopoverContent
                 class="recording-quality-popover"
+                position-strategy="absolute"
                 side="top"
                 align="end"
                 :side-offset="8"
@@ -421,9 +423,10 @@ useEventListener(typeof window !== 'undefined' ? window : null, 'keydown', (e: K
               <Icon icon="mdi:chart-box-outline" />
             </KitBtn>
           </PopoverTrigger>
-          <PopoverPortal>
+          <PopoverPortal :to="panelHost ?? undefined">
             <PopoverContent
               class="recording-quality-popover"
+              position-strategy="absolute"
               side="top"
               align="end"
               :side-offset="8"

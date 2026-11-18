@@ -18,6 +18,7 @@ interface Props {
   hasTrack?: boolean
   /** Даты дней поездки: навигация и календарь ограничиваются ими, если список задан */
   days?: string[]
+  showDayPicker?: boolean
   showTodayButton?: boolean
   totalPhotosCount?: number
   locatedPhotosCount?: number
@@ -29,6 +30,7 @@ const props = withDefaults(defineProps<Props>(), {
   hasTrack: true,
   days: () => [],
   showTodayButton: true,
+  showDayPicker: true,
   totalPhotosCount: 0,
   locatedPhotosCount: 0,
   unlocatedPhotosCount: 0,
@@ -94,7 +96,7 @@ function parseDay(day?: string): CalendarDate | undefined {
 <template>
   <!-- Верхняя плавающая панель навигации по дням -->
   <div class="top-nav-bar">
-    <div class="day-picker-group">
+    <div v-if="showDayPicker" class="day-picker-group">
       <button
         class="day-arrow-btn"
         aria-label="Предыдущий день"
