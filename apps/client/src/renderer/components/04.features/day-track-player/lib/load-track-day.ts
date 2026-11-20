@@ -13,6 +13,7 @@ interface LoadTrackDayOptions {
   timeZone?: string
   processor: TrackPreviewProcessor
   isCurrent: () => boolean
+  allowLocalFallback?: boolean
 }
 async function fetchDay(options: LoadTrackDayOptions) {
   try {
@@ -63,6 +64,10 @@ function canReadLocal(options: LoadTrackDayOptions, data: DayData) {
 }
 export async function loadTrackDay(options: LoadTrackDayOptions): Promise<DayData> {
   const response = await fetchDay(options)
+
+  if (response.error && options.allowLocalFallback === false)
+    throw response.error
+
   const data = { ...response.data }
 
   if (canReadLocal(options, data)) {

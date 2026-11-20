@@ -51,6 +51,7 @@ export function useDayTrackData(options: UseDayTrackDataOptions = {}) {
   const selectedDay = ref(isValidDay(initialDay) ? initialDay : todayUtc.value)
 
   const isLoading = ref(true)
+  const isFetching = ref(false)
   const dayData = computed({
     get: () => loadedDayData.value && (options.preview?.(loadedDayData.value) ?? loadedDayData.value),
     set: (value: DayData | null) => {
@@ -61,6 +62,7 @@ export function useDayTrackData(options: UseDayTrackDataOptions = {}) {
   const isDeletingPoint = ref(false)
   let loadSequence = 0
   let loadedKey: string | null = null
+  let refreshQueued = false
   let knownTripOwner: string | undefined
   const localProcessor = createTrackPreviewProcessor()
   onScopeDispose(() => {
@@ -103,18 +105,52 @@ export function useDayTrackData(options: UseDayTrackDataOptions = {}) {
       res.points = prepareTrack(source)
     }
   }
-  async function loadDay(targetDay: string) {
+  function beginLoad(key: string, background: boolean) {
+    const silent = background && loadedKey === key && loadedDayData.value !== null
+    isFetching.value = true
+    isLoading.value = !silent
+
+    if (!silent)
+      loadError.value = null
+
+    // Never leave another date or account visible while a request is in flight.
+    if (loadedKey !== key)
+      loadedDayData.value = null
+
+    return silent
+  }
+
+  function publishDay(
+    res: DayData,
+    owner: string | null,
+    key: string,
+    background: boolean,
+  ) {
+    // The editor or a draft may have opened while the request was pending.
+    if (background && options.canRefresh?.() === false) {
+      refreshQueued = true
+
+      return
+    }
+
+    if (!acceptResponse(owner, res))
+      return
+
+    prepareResponse(res)
+    loadedKey = key
+    loadError.value = null
+    dayData.value = res
+
+    return true
+  }
+
+  async function loadDay(targetDay: string, background = false) {
     if (!isValidDay(targetDay))
       return
 
     const key = requestKey(targetDay)
     const sequence = ++loadSequence
-    isLoading.value = true
-    loadError.value = null
-
-    // Never leave another date or account visible while a request is in flight.
-    if (loadedKey !== key)
-      loadedDayData.value = null
+    const silent = beginLoad(key, background)
 
     try {
       const owner = trackingOwner()
@@ -126,54 +162,53 @@ export function useDayTrackData(options: UseDayTrackDataOptions = {}) {
         knownTripOwner,
         timeZone: options.timeZone?.value,
         processor: localProcessor,
+        allowLocalFallback: !silent,
         isCurrent: () => owner === trackingOwner() && sequence === loadSequence,
       })
 
       if (sequence !== loadSequence)
         return
 
-      if (!acceptResponse(owner, res))
-        return
-
-      prepareResponse(res)
-
-      loadedKey = key
-      dayData.value = res
-
-      return true
+      return publishDay(
+        res,
+        owner,
+        key,
+        background,
+      )
     }
     catch (e) {
-      if (sequence === loadSequence)
+      if (sequence === loadSequence && !silent)
         loadError.value = e instanceof Error ? e.message : String(e)
 
       return false
     }
     finally {
-      if (sequence === loadSequence)
+      if (sequence === loadSequence) {
         isLoading.value = false
+        isFetching.value = false
+      }
     }
   }
 
   let refreshTimer: ReturnType<typeof setTimeout> | undefined
-  let refreshQueued = false
   function scheduleRefresh() {
     refreshQueued = true
 
-    if (refreshTimer || isLoading.value || options.canRefresh?.() === false)
+    if (refreshTimer || isFetching.value || options.canRefresh?.() === false)
       return
 
     refreshTimer = setTimeout(() => {
       refreshTimer = undefined
 
-      if (isLoading.value || options.canRefresh?.() === false)
+      if (isFetching.value || options.canRefresh?.() === false)
         return
 
       refreshQueued = false
-      void loadDay(selectedDay.value)
+      void loadDay(selectedDay.value, true)
     }, 5000)
   }
   useEventListener(window, 'tracking-queue-changed', scheduleRefresh)
-  watch(() => [isLoading.value, options.canRefresh?.()], () => {
+  watch(() => [isFetching.value, options.canRefresh?.()], () => {
     if (refreshQueued)
       scheduleRefresh()
   })

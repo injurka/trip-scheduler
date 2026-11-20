@@ -6,7 +6,7 @@ import type { Memory } from '~/shared/types/models/memory'
 import { Icon } from '@iconify/vue'
 import { classificationExplanation, recordingQuality } from '@limiteddissolve/track-processing'
 import { useEventListener } from '@vueuse/core'
-import { AlertDialogContent, AlertDialogDescription, AlertDialogOverlay, AlertDialogPortal, AlertDialogRoot, AlertDialogTitle } from 'reka-ui'
+import { AlertDialogContent, AlertDialogDescription, AlertDialogOverlay, AlertDialogPortal, AlertDialogRoot, AlertDialogTitle, PopoverContent, PopoverRoot, PopoverTrigger } from 'reka-ui'
 import { computed, getCurrentInstance, ref, toRef, useId, watch } from 'vue'
 import { onBeforeRouteLeave, onBeforeRouteUpdate, useRouter } from 'vue-router'
 import { KitBtn } from '~/components/01.kit/kit-btn'
@@ -74,6 +74,8 @@ const imageViewer = useImageViewer()
 const playbackPanelId = useId()
 
 const showOriginal = ref(false)
+const isActivityEditorOpen = ref(false)
+const applying = ref(false)
 
 // ─── 1. Данные дня ─────────────────────────────────────────────────────────────
 const {
@@ -97,7 +99,7 @@ const {
   formatHeaderDay,
   handleDeletePoint,
 } = useDayTrackData({
-  canRefresh: () => !drafts.count.value && !drafts.processing.value,
+  canRefresh: () => !isActivityEditorOpen.value && !applying.value && !drafts.count.value && !drafts.processing.value,
   preview: data => showOriginal.value ? originalTrackView(data) : drafts.preview(data),
   beforeChange: requestLeave,
   onRejectedChange: () => emit('dayChange', selectedDay.value),
@@ -143,7 +145,6 @@ const timezone = useDayTrackTimezone({
 const exporting = ref(false)
 const exportStatus = ref('')
 const draftTripId = ref(props.tripId)
-const applying = ref(false)
 const committed = ref(false)
 const draftError = ref('')
 const leaveOpen = ref(false)
@@ -187,7 +188,6 @@ const map = useDayTrackMap({
   },
 })
 
-const isActivityEditorOpen = ref(false)
 const activityEditorTime = ref(0)
 
 // ─── 6. Полноэкранный просмотр фотографий ─────────────────────────────────────
@@ -542,6 +542,30 @@ useEventListener(window, 'beforeunload', (event: BeforeUnloadEvent) => {
         >
           <Icon :icon="isPlaybackPanelVisible ? 'mdi:eye-outline' : 'mdi:eye-off-outline'" />
         </button>
+        <PopoverRoot v-if="dayData?.localPendingCount || dayData?.localError">
+          <PopoverTrigger as-child>
+            <button type="button" class="track-follow-btn queue-status-btn" aria-label="Синхронизация GPS">
+              <Icon :icon="dayData.localError ? 'mdi:cloud-alert-outline' : 'mdi:cloud-upload-outline'" />
+            </button>
+          </PopoverTrigger>
+          <PopoverContent
+            as-child
+            position-strategy="absolute"
+            align="end"
+            :side-offset="8"
+            :collision-padding="12"
+          >
+            <div class="queue-status-popover" aria-label="Синхронизация GPS">
+              <strong>Синхронизация GPS</strong>
+              <div v-if="dayData.localPendingCount">
+                Точек к отправке: {{ dayData.localPendingCount }}
+              </div>
+              <div v-if="dayData.localError" role="status">
+                {{ dayData.localError }}
+              </div>
+            </div>
+          </PopoverContent>
+        </PopoverRoot>
       </template>
       <template #top-actions>
         <slot name="top-actions" />
@@ -561,10 +585,6 @@ useEventListener(window, 'beforeunload', (event: BeforeUnloadEvent) => {
       <Icon icon="mdi:close" />
     </KitBtn>
 
-    <div v-if="dayData?.localPendingCount || dayData?.localError" class="local-track-status" role="status">
-      <Icon icon="mdi:cloud-upload-outline" />
-      <span>{{ dayData.localPendingCount ? `На устройстве: ${dayData.localPendingCount} точек · ожидают отправки` : '' }}{{ dayData.localError ? ` ${dayData.localError}` : '' }}</span>
-    </div>
     <!-- Контейнер карты OpenLayers -->
     <div ref="mapHost" class="memories-map" />
 
@@ -766,23 +786,22 @@ useEventListener(window, 'beforeunload', (event: BeforeUnloadEvent) => {
 </template>
 
 <style scoped lang="scss">
-.local-track-status {
-  position: absolute;
-  top: 130px;
-  left: 12px;
-  right: 12px;
-  z-index: 4;
-  display: flex;
-  align-items: center;
+.queue-status-btn {
+  flex-shrink: 0;
+}
+.queue-status-popover {
+  display: grid;
   gap: 6px;
-  width: fit-content;
-  max-width: calc(100% - 24px);
-  padding: 6px 10px;
+  width: min(260px, calc(100vw - 24px));
+  box-sizing: border-box;
+  padding: var(--p-m);
+  border: 1px solid var(--border-secondary-color);
+  border-radius: var(--r-m);
   background: var(--bg-secondary-color);
-  border-radius: var(--r-s);
-  box-shadow: var(--s-s);
-  font-size: 0.75rem;
-  pointer-events: none;
+  color: var(--fg-primary-color);
+  box-shadow: var(--s-l);
+  font-size: 0.875rem;
+  overflow-wrap: anywhere;
 }
 .recording-quality {
   font-size: 0.75rem;

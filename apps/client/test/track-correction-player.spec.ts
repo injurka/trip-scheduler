@@ -96,7 +96,7 @@ async function setup(history = createMemoryHistory()) {
         DayTrackBeacon: true,
         DayTrackPointPopup: true,
         DayTrackPhotoPopup: true,
-        DayTrackOverlayState: true,
+        DayTrackOverlayState: defineComponent({ name: 'DayTrackOverlayState', props: ['isLoading'], render: () => null }),
         DayTrackEmpty: true,
         DayTrackActivityEditor: defineComponent({ name: 'Editor', props: ['visible', 'stageCorrection', 'removeCorrection'], emits: ['update:visible'], render: () => null }),
         DayTrackPlaybackPanel: defineComponent({ name: 'DayTrackPlaybackPanel', props: { t: Number, speedMultiplier: Number }, setup: (_, { slots }) => () => h('div', { 'data-testid': 'playback-panel' }, slots['draft-actions']?.()) }),
@@ -117,6 +117,44 @@ beforeEach(() => {
   api.correctActivities.mockReset().mockResolvedValue({ success: true })
 })
 describe('batch correction player', () => {
+  it('refreshes silently and defers queue results while the correction editor is open', async () => {
+    const wrapper = await setup()
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+
+    try {
+      const update = Promise.withResolvers<DayData>()
+      api.getDay.mockReturnValueOnce(update.promise)
+      window.dispatchEvent(new Event('tracking-queue-changed'))
+      await vi.advanceTimersByTimeAsync(5000)
+      expect(api.getDay).toHaveBeenCalledTimes(2)
+      expect(wrapper.findComponent({ name: 'DayTrackOverlayState' }).props('isLoading')).toBe(false)
+
+      const editor = wrapper.findComponent({ name: 'Editor' })
+      editor.vm.$emit('update:visible', true)
+      await nextTick()
+      update.resolve({ points: [], segments: [] })
+      await flushPromises()
+      window.dispatchEvent(new Event('tracking-queue-changed'))
+      await vi.advanceTimersByTimeAsync(10000)
+      expect(api.getDay).toHaveBeenCalledTimes(2)
+
+      await editor.props('stageCorrection')(choice)
+      editor.vm.$emit('update:visible', false)
+      await nextTick()
+      await vi.advanceTimersByTimeAsync(5000)
+      expect(api.getDay).toHaveBeenCalledTimes(2)
+      expect(wrapper.text()).toContain('Изменений: 1')
+
+      await button(wrapper, 'Отменить').trigger('click')
+      await vi.advanceTimersByTimeAsync(5000)
+      expect(api.getDay).toHaveBeenCalledTimes(3)
+    }
+    finally {
+      wrapper.unmount()
+      vi.useRealTimers()
+    }
+  })
+
   it('hides and restores the player without losing position, speed or correction drafts', async () => {
     const wrapper = await setup()
     const panel = wrapper.findComponent({ name: 'DayTrackPlaybackPanel' })
