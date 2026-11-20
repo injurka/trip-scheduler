@@ -391,21 +391,23 @@ useEventListener(typeof window !== 'undefined' ? window : null, 'keydown', (e: K
             </PopoverTrigger>
             <PopoverPortal :to="panelHost ?? undefined">
               <PopoverContent
-                class="recording-quality-popover"
+                as-child
                 position-strategy="absolute"
                 side="top"
                 align="end"
                 :side-offset="8"
                 :collision-padding="12"
               >
-                <strong>{{ currentActivityLabel }}</strong>
-                <p>{{ explanation || classificationExplanation({ tsUtc: t, sessionId: '', activity: currentActivity }) }}</p>
-                <p v-if="confidence != null">
-                  Эвристическая уверенность: {{ Math.round(confidence <= 1 ? confidence * 100 : confidence) }}%
-                </p>
-                <KitBtn variant="text" size="sm" @click="activityOpen = false">
-                  Закрыть
-                </KitBtn>
+                <div class="recording-quality-popover">
+                  <strong>{{ currentActivityLabel }}</strong>
+                  <p>{{ explanation || classificationExplanation({ tsUtc: t, sessionId: '', activity: currentActivity }) }}</p>
+                  <p v-if="confidence != null">
+                    Эвристическая уверенность: {{ Math.round(confidence <= 1 ? confidence * 100 : confidence) }}%
+                  </p>
+                  <KitBtn variant="text" size="sm" @click="activityOpen = false">
+                    Закрыть
+                  </KitBtn>
+                </div>
               </PopoverContent>
             </PopoverPortal>
           </PopoverRoot>
@@ -425,7 +427,7 @@ useEventListener(typeof window !== 'undefined' ? window : null, 'keydown', (e: K
           </PopoverTrigger>
           <PopoverPortal :to="panelHost ?? undefined">
             <PopoverContent
-              class="recording-quality-popover"
+              as-child
               position-strategy="absolute"
               side="top"
               align="end"
@@ -433,17 +435,19 @@ useEventListener(typeof window !== 'undefined' ? window : null, 'keydown', (e: K
               :collision-padding="12"
               aria-label="Качество записи"
             >
-              <KitBtn
-                class="quality-close"
-                variant="text"
-                color="secondary"
-                size="xs"
-                aria-label="Закрыть качество записи"
-                @click="qualityOpen = false"
-              >
-                <Icon icon="mdi:close" />
-              </KitBtn>
-              <slot name="quality" :close="() => { qualityOpen = false }" />
+              <div class="recording-quality-popover" aria-label="Качество записи">
+                <KitBtn
+                  class="quality-close"
+                  variant="text"
+                  color="secondary"
+                  size="xs"
+                  aria-label="Закрыть качество записи"
+                  @click="qualityOpen = false"
+                >
+                  <Icon icon="mdi:close" />
+                </KitBtn>
+                <slot name="quality" :close="() => { qualityOpen = false }" />
+              </div>
             </PopoverContent>
           </PopoverPortal>
         </PopoverRoot>

@@ -138,14 +138,6 @@ function parseDay(day?: string): CalendarDate | undefined {
         </template>
       </CalendarPopover>
 
-      <button
-        class="day-arrow-btn"
-        aria-label="Следующий день"
-        :disabled="!canGoNext"
-        @click="emit('changeDay', 1)"
-      >
-        <Icon icon="mdi:chevron-right" />
-      </button>
       <KitBtn
         v-if="showTodayButton && selectedDay !== todayUtc"
         variant="subtle"
@@ -154,6 +146,14 @@ function parseDay(day?: string): CalendarDate | undefined {
       >
         Сегодня
       </KitBtn>
+      <button
+        class="day-arrow-btn"
+        aria-label="Следующий день"
+        :disabled="!canGoNext"
+        @click="emit('changeDay', 1)"
+      >
+        <Icon icon="mdi:chevron-right" />
+      </button>
     </div>
 
     <div class="map-toolbar">
