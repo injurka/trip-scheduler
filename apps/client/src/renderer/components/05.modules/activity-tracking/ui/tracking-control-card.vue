@@ -3,6 +3,7 @@ import type { ActivityType } from '../models/types'
 import { Icon } from '@iconify/vue'
 import { ref } from 'vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
+import { KitDisclosure } from '~/components/01.kit/kit-disclosure'
 import { KitSwitch } from '~/components/01.kit/kit-switch'
 import { useToast } from '~/shared/composables/use-toast'
 import { isMobileApp } from '~/shared/lib/env'
@@ -150,8 +151,12 @@ onMounted(() => {
       </div>
     </div>
 
-    <details v-if="isMobileApp" class="recording-options">
-      <summary>Настройки записи</summary>
+    <KitDisclosure
+      v-if="isMobileApp"
+      class="recording-options"
+      label="Настройки записи"
+      icon="mdi:tune-variant"
+    >
       <div class="economy-switch">
         <span>Экономия в покое</span><KitSwitch
           aria-label="Экономия в покое"
@@ -164,7 +169,7 @@ onMounted(() => {
       <p v-if="tracking.batteryUsedMah != null">
         По датчику батареи: {{ tracking.batteryUsedMah.toFixed(1) }} мА·ч с начала записи. Это расход всего телефона, не только GPS.
       </p>
-    </details>
+    </KitDisclosure>
     <p v-if="tracking.nativeSyncError" class="error-banner" role="status">
       {{ tracking.nativeSyncError }}
     </p>
@@ -336,6 +341,7 @@ onMounted(() => {
 
 <style scoped lang="scss">
 .economy-switch {
+  padding: 0 12px 8px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -345,12 +351,9 @@ onMounted(() => {
   margin-top: 12px;
   font-size: 0.8rem;
   color: var(--fg-secondary-color);
-  summary {
-    min-height: 44px;
-    align-content: center;
-    cursor: pointer;
-  }
   p {
+    margin: 0;
+    padding: 0 12px 12px;
     line-height: 1.5;
   }
 }

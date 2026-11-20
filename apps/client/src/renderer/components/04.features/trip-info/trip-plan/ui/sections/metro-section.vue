@@ -5,6 +5,7 @@ import type { ActivitySectionMetro, MetroRide } from '~/shared/types/models/acti
 import { Icon } from '@iconify/vue'
 import { v4 as uuidv4 } from 'uuid'
 import { KitBtn } from '~/components/01.kit/kit-btn'
+import { KitDisclosure } from '~/components/01.kit/kit-disclosure'
 import { KitInput } from '~/components/01.kit/kit-input'
 import { KitSelectWithSearch } from '~/components/01.kit/kit-select-with-search'
 import { KitViewSwitcher } from '~/components/01.kit/kit-view-switcher'
@@ -481,20 +482,18 @@ onMounted(fetchMetroSystems)
                 <div class="path-details">
                   <span>{{ getDirectionText(ride) }}</span>
                   <div class="stops-row">
-                    <details
+                    <KitDisclosure
                       v-if="sectionData.mode === 'city' && intermediateStations(ride).length"
                       class="station-list"
+                      :label="formatStationsSummary(ride)"
+                      compact
                     >
-                      <summary>
-                        {{ formatStationsSummary(ride) }}
-                        <Icon icon="mdi:chevron-down" class="expand-icon" />
-                      </summary>
                       <ol aria-label="Промежуточные станции">
                         <li v-for="station in intermediateStations(ride)" :key="station.id">
                           {{ station.name }}
                         </li>
                       </ol>
-                    </details>
+                    </KitDisclosure>
                     <span
                       v-else-if="getStops(ride) > 0"
                       class="stops-count"
@@ -548,38 +547,6 @@ onMounted(fetchMetroSystems)
 }
 .station-list {
   margin: 0;
-
-  summary {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    width: fit-content;
-    cursor: pointer;
-    color: var(--fg-secondary-color);
-    list-style: none;
-
-    &:hover {
-      color: var(--fg-primary-color);
-    }
-
-    &::-webkit-details-marker {
-      display: none;
-    }
-
-    &:focus-visible {
-      outline: 2px solid var(--fg-accent-color);
-      outline-offset: 4px;
-      border-radius: var(--r-s);
-    }
-  }
-
-  .expand-icon {
-    transition: transform 0.2s;
-  }
-
-  &[open] .expand-icon {
-    transform: rotate(180deg);
-  }
 
   ol {
     display: flex;

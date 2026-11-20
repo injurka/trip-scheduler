@@ -5,6 +5,7 @@ import type {
 } from '@limiteddissolve/track-processing'
 import { computed, ref, watch } from 'vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
+import { KitDisclosure } from '~/components/01.kit/kit-disclosure'
 
 interface Props {
   quality: ReturnType<typeof recordingQuality>
@@ -13,7 +14,6 @@ interface Props {
 const props = defineProps<Props>()
 const emit = defineEmits<{ seek: [issue: TrackQualityIssue] }>()
 
-const expanded = ref(false)
 const issueLimit = ref(30)
 
 const visibleIssues = computed(() =>
@@ -23,9 +23,6 @@ watch(() => props.quality, () => {
   issueLimit.value = 30
 })
 
-function toggleIssues(event: Event) {
-  expanded.value = (event.target as HTMLDetailsElement).open
-}
 function duration(ms: number) {
   return `${Math.round(ms / 60000)} мин`
 }
@@ -71,9 +68,13 @@ function time(ts: number, timeZone?: string) {
       экономии в покое — более 75 с. Причина неизвестна; потеря GPS не
       подтверждена. Время после последней точки не оценивается.
     </p>
-    <details v-if="quality.issues.length" @toggle="toggleIssues">
-      <summary>Показать участки ({{ quality.issues.length }})</summary>
-      <div v-if="expanded" class="quality-issues">
+    <KitDisclosure
+      v-if="quality.issues.length"
+      v-slot="{ open }"
+      label="Показать участки"
+      :count="quality.issues.length"
+    >
+      <div v-if="open" class="quality-issues">
         <KitBtn
           v-for="issue in visibleIssues"
           :key="`${issue.sessionId}:${issue.kind}:${issue.startedAt}`"
@@ -95,7 +96,7 @@ function time(ts: number, timeZone?: string) {
           Ещё 30 участков
         </KitBtn>
       </div>
-    </details>
+    </KitDisclosure>
     <slot />
   </section>
 </template>
@@ -132,14 +133,10 @@ dd {
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
-summary {
-  cursor: pointer;
-  min-height: 44px;
-  align-content: center;
-}
 .quality-issues {
   display: grid;
   max-height: 180px;
+  padding: 0 6px 6px;
   overflow: auto;
 }
 </style>

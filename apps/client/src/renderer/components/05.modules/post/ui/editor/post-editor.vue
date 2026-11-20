@@ -11,6 +11,7 @@ import { KitAvatar } from '~/components/01.kit/kit-avatar'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitCalendar } from '~/components/01.kit/kit-calendar'
 import { KitDialogWithClose } from '~/components/01.kit/kit-dialog-with-close'
+import { KitDisclosure } from '~/components/01.kit/kit-disclosure'
 import { KitDropdown } from '~/components/01.kit/kit-dropdown'
 import { KitImage } from '~/components/01.kit/kit-image'
 import { KitInput } from '~/components/01.kit/kit-input'
@@ -652,8 +653,11 @@ onMounted(async () => {
             </KitDropdown>
           </div>
         </section>
-        <details class="optional-section">
-          <summary><span class="disclosure-icon"><Icon icon="mdi:tune-variant" /></span><span class="disclosure-copy"><span class="disclosure-title">Дополнительно</span><span class="summary-hint">Совет читателям, длительность и теги</span></span><Icon icon="mdi:chevron-down" /></summary>
+        <KitDisclosure
+          label="Дополнительно"
+          icon="mdi:tune-variant"
+          description="Совет читателям, длительность и теги"
+        >
           <div class="optional-content">
             <KitInput
               v-model="post.insight"
@@ -714,7 +718,7 @@ onMounted(async () => {
               </div>
             </div>
           </div>
-        </details>
+        </KitDisclosure>
       </div>
       <div v-show="activeSection === 'story'" class="editor-panel">
         <div class="panel-heading">
@@ -804,8 +808,11 @@ onMounted(async () => {
             <span>{{ issue }}</span><span class="checklist-action">Добавить <Icon icon="mdi:arrow-right" /></span>
           </KitBtn>
         </div>
-        <details class="optional-section">
-          <summary><span class="disclosure-icon"><Icon icon="mdi:shield-account-outline" /></span><span class="disclosure-copy"><span class="disclosure-title">Доступ к приватным медиа</span><span class="summary-hint">{{ post.whitelist?.length ? `Пользователей в списке: ${post.whitelist.length}` : 'Сейчас видны только вам' }}</span></span><Icon icon="mdi:chevron-down" /></summary>
+        <KitDisclosure
+          label="Доступ к приватным медиа"
+          icon="mdi:shield-account-outline"
+          :description="post.whitelist?.length ? `Пользователей в списке: ${post.whitelist.length}` : 'Сейчас видны только вам'"
+        >
           <div class="optional-content">
             <p class="field-hint">
               Добавьте тех, кому можно видеть медиа с замком. Остальные фото и видео доступны читателям поста.
@@ -860,7 +867,7 @@ onMounted(async () => {
               </div>
             </div>
           </div>
-        </details>
+        </KitDisclosure>
         <div class="danger-action">
           <KitBtn
             variant="text"
@@ -987,7 +994,6 @@ onMounted(async () => {
 .post-status,
 .footer-status,
 .field-hint,
-.summary-hint,
 .summary-label {
   font-size: 13px;
   color: var(--fg-secondary-color);
@@ -1223,60 +1229,6 @@ onMounted(async () => {
   width: 100%;
   color: var(--fg-primary-color);
   text-align: left;
-}
-.optional-section {
-  border: 1px solid var(--border-secondary-color);
-  border-radius: var(--r-m);
-  background: var(--bg-primary-color);
-  overflow: visible;
-  > summary {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 16px;
-    cursor: pointer;
-    list-style: none;
-    &::-webkit-details-marker {
-      display: none;
-    }
-    > svg:last-child {
-      margin-left: auto;
-      flex-shrink: 0;
-      color: var(--fg-secondary-color);
-      transition: transform 150ms;
-    }
-  }
-  &[open] > summary > svg:last-child {
-    transform: rotate(180deg);
-  }
-}
-.disclosure-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  flex-shrink: 0;
-  border: 1px solid var(--border-secondary-color);
-  border-radius: var(--r-s);
-  background: var(--bg-secondary-color);
-  color: var(--fg-secondary-color);
-  font-size: 18px;
-}
-.disclosure-copy {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 0;
-}
-.disclosure-title {
-  font-size: 14px;
-  font-weight: 600;
-  line-height: 1.4;
-}
-.summary-hint {
-  font-size: 12px;
-  font-weight: 400;
 }
 .optional-content {
   display: flex;
@@ -1685,9 +1637,6 @@ onMounted(async () => {
     grid-template-columns: minmax(0, 1fr);
     gap: 16px;
   }
-  .summary-hint {
-    font-size: 11px;
-  }
   .panel-heading h2 {
     font-size: 19px;
   }
@@ -1734,10 +1683,6 @@ onMounted(async () => {
   }
   .publication-copy h3 {
     font-size: 17px;
-  }
-  .optional-section > summary {
-    padding: 14px;
-    gap: 10px;
   }
   .optional-content {
     padding: 0 14px 16px;

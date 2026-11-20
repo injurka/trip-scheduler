@@ -6,6 +6,7 @@ import { Icon } from '@iconify/vue'
 import { v4 as uuid } from 'uuid'
 import { computed, ref } from 'vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
+import { KitDisclosure } from '~/components/01.kit/kit-disclosure'
 import { KitImage } from '~/components/01.kit/kit-image'
 import { KitImageViewer } from '~/components/01.kit/kit-image-viewer'
 import { KitInput } from '~/components/01.kit/kit-input'
@@ -425,15 +426,11 @@ async function apply() {
         Даты видео показаны по часовому поясу устройства. Если снимали в другом поясе, проверьте время.
       </p>
 
-      <details class="ai-options">
-        <summary>
-          <Icon icon="mdi:creation" class="ai-icon" />
-          <span class="ai-summary-copy">
-            <strong>Подобрать названия с ИИ</strong>
-            <small>Необязательно · расходует ИИ-кредиты</small>
-          </span>
-          <Icon icon="mdi:chevron-down" class="ai-chevron" />
-        </summary>
+      <KitDisclosure
+        label="Подобрать названия с ИИ"
+        description="Необязательно · расходует ИИ-кредиты"
+        icon="mdi:creation"
+      >
         <div class="ai-options-content">
           <p>ИИ анализирует по одному кадру до 384 px из каждой группы: максимум 12 групп и 900 выходных токенов за запуск. Остальные названия можно задать вручную.</p>
           <KitBtn
@@ -447,7 +444,7 @@ async function apply() {
             Подобрать названия
           </KitBtn>
         </div>
-      </details>
+      </KitDisclosure>
 
       <ol class="group-preview" aria-label="Проверьте активности перед добавлением">
         <li v-for="(group, index) in groups" :key="index" class="group-card">
@@ -727,55 +724,6 @@ async function apply() {
     margin-top: 2px;
     font-size: 16px;
   }
-}
-.ai-options {
-  border: 1px solid var(--border-secondary-color);
-  border-radius: var(--r-m);
-  background: var(--bg-primary-color);
-
-  summary {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 12px 14px;
-    cursor: pointer;
-    list-style: none;
-
-    &::-webkit-details-marker {
-      display: none;
-    }
-  }
-
-  &[open] .ai-chevron {
-    transform: rotate(180deg);
-  }
-}
-.ai-icon {
-  flex: 0 0 auto;
-  color: var(--fg-accent-color);
-  font-size: 18px;
-}
-.ai-summary-copy {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-
-  strong {
-    color: var(--fg-primary-color);
-    font-size: 13px;
-  }
-
-  small {
-    color: var(--fg-secondary-color);
-    font-size: 11px;
-  }
-}
-.ai-chevron {
-  flex: 0 0 auto;
-  color: var(--fg-secondary-color);
-  transition: transform 0.2s ease;
 }
 .ai-options-content {
   display: flex;
