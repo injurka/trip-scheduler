@@ -64,10 +64,14 @@ export function useDocumentSelection(
     const idsToDelete = Array.from(selectedDocIds.value)
 
     for (const id of idsToDelete) {
-      await useRequest({
+      const result = await useRequest({
         key: `documents:delete:${id}`,
         fn: api => api.files.deleteFile(id),
       })
+
+      if (!result)
+        return
+
       documents.value = documents.value.filter(d => d.id !== id)
     }
 
@@ -88,6 +92,9 @@ export function useDocumentSelection(
 
       if (doc) {
         await updateDocument({ ...doc, folderId: targetFolderId })
+
+        if (documents.value.find(item => item.id === id)?.folderId !== targetFolderId)
+          return
       }
     }
 

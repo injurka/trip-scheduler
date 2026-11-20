@@ -54,14 +54,17 @@ export function useDocumentUpload(
     }) as TripDocumentResponse | null
 
     if (!res)
-      return
+      throw new Error('Не удалось загрузить файл')
 
     const newDoc = toDocumentFile(res, access, folderId)
 
     documents.value.unshift(newDoc)
 
     if (folderId && res.metadata?.folderId !== folderId)
-      await updateDocument(newDoc)
+      await updateDocument({ ...newDoc, folderId })
+
+    if (folderId && documents.value.find(d => d.id === newDoc.id)?.folderId !== folderId)
+      throw new Error('Файл загружен, но не перемещён в папку')
   }
 
   async function uploadFiles(files: File[], folderId: string | null = null, access: 'public' | 'private' = 'private') {

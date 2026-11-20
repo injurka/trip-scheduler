@@ -4,8 +4,10 @@ import { FinancesSectionContentSchema } from '@injurka/finance-contract'
 import { createTRPCError } from '~/lib/trpc'
 import { CityIdsInputSchema } from '~/modules/geo/geo.schemas'
 import { geoRepository } from '~/repositories/geo.repository'
+import { imageRepository } from '~/repositories/image.repository'
 import { tripSectionRepository } from '~/repositories/trip-section.repository'
 import { tripRepository } from '~/repositories/trip.repository'
+import { parseDocumentFolders } from './document-folders'
 
 interface TripSectionResult {
   id: string
@@ -130,6 +132,15 @@ export const tripSectionService = {
     if (!canEdit)
       throw createTRPCError('FORBIDDEN', 'У вас нет прав на добавление раздела в это путешествие.')
 
+    if (data.type === 'documents') {
+      try {
+        data.content = parseDocumentFolders(data.content)
+      }
+      catch (error) {
+        throw createTRPCError('BAD_REQUEST', error instanceof Error ? error.message : 'Некорректная структура папок.')
+      }
+    }
+
     const result = await tripSectionRepository.create({
       ...data,
       ...(data.content !== undefined && { content: await canonicalizeFlightCities(data.content) }),
@@ -152,11 +163,28 @@ export const tripSectionService = {
     if (expectedUpdatedAt && section.updatedAt.getTime() !== expectedUpdatedAt.getTime())
       throw createTRPCError('CONFLICT', 'Раздел изменён в другой вкладке. Обновите страницу и повторите действие.')
 
+    if (section.type === 'documents' && updateData.content !== undefined) {
+      try {
+        const content = parseDocumentFolders(updateData.content, section.content)
+        const ids = new Set(content.folders.map(f => f.id))
+        const previous = parseDocumentFolders(section.content)
+        const removed = new Set(previous.folders.filter(f => !ids.has(f.id)).map(f => f.id))
+        const documents = await imageRepository.listDocuments(section.tripId)
+        if (documents.some(d => d.metadata.folderId && removed.has(d.metadata.folderId)))
+          throw new Error('Сначала переместите документы из удаляемой папки. Обновите список и повторите действие.')
+        updateData.content = content
+      }
+      catch (error) {
+        throw createTRPCError('BAD_REQUEST', error instanceof Error ? error.message : 'Некорректная структура папок.')
+      }
+    }
     if (section.type === 'finances' && updateData.content !== undefined)
       updateData.content = FinancesSectionContentSchema.parse(updateData.content)
     if (section.type === 'bookings' && updateData.content !== undefined)
       updateData.content = await canonicalizeFlightCities(updateData.content, section.content)
-    const updatedSection = await tripSectionRepository.update(id, updateData)
+    const updatedSection = section.type === 'documents'
+      ? await tripSectionRepository.updateDocumentSection(id, section.tripId, updateData, section.updatedAt)
+      : await tripSectionRepository.update(id, updateData)
     if (!updatedSection)
       throw createTRPCError('NOT_FOUND', `Раздел с ID ${id} не найден.`)
 
