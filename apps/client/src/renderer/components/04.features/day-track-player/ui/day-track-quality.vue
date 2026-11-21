@@ -14,7 +14,6 @@ interface QualityAnalysis {
   reason: string
   affectedFixes: number
 }
-
 interface Props {
   quality: ReturnType<typeof recordingQuality>
   timeZone?: string
@@ -22,15 +21,21 @@ interface Props {
   analyze?: (issue: TrackQualityIssue) => Promise<QualityAnalysis>
   preview?: (issue: TrackQualityIssue, action: TrackGeometryAction) => Promise<void>
 }
+
 const props = defineProps<Props>()
 const emit = defineEmits<{ seek: [issue: TrackQualityIssue] }>()
 
+const actionLabels: Record<TrackGeometryAction, string> = {
+  'exclude-spike': 'Убрать скачок GPS',
+  'collapse-drift': 'Сгладить дрейф на остановке',
+  'smooth-drift': 'Сгладить отклонение GPS на маршруте',
+}
 const issueLimit = ref(30)
-
 const selectedIssue = shallowRef<TrackQualityIssue>()
 const suggestion = shallowRef<QualityAnalysis>()
 const busy = ref(false)
 const analysisError = ref('')
+
 const groupedIssues = computed(() => {
   const groups: TrackQualityIssue[] = []
   const lastBySession = new Map<string, TrackQualityIssue>()
@@ -66,7 +71,6 @@ function correctionFor(issue: TrackQualityIssue) {
   return props.corrections?.find(c => c.geometryAction && c.sessionId === issue.sessionId
     && c.startedAt <= issue.endedAt && c.endedAt >= issue.startedAt)
 }
-
 async function analyzeIssue(issue: TrackQualityIssue) {
   if (!props.analyze || busy.value)
     return
@@ -90,7 +94,6 @@ async function analyzeIssue(issue: TrackQualityIssue) {
     busy.value = false
   }
 }
-
 async function previewSuggestion(issue: TrackQualityIssue, action: TrackGeometryAction) {
   if (!props.preview || busy.value)
     return
@@ -108,7 +111,6 @@ async function previewSuggestion(issue: TrackQualityIssue, action: TrackGeometry
     busy.value = false
   }
 }
-
 function duration(ms: number) {
   return `${Math.round(ms / 60000)} мин`
 }
@@ -196,7 +198,7 @@ function time(ts: number, timeZone?: string) {
             </p>
             <template v-if="suggestion">
               <strong v-if="suggestion.action">
-                {{ suggestion.action === 'exclude-spike' ? 'Убрать скачок GPS' : 'Сгладить дрейф на остановке' }}
+                {{ actionLabels[suggestion.action] }}
               </strong>
               <p role="status">
                 {{ suggestion.reason }}
@@ -209,6 +211,15 @@ function time(ts: number, timeZone?: string) {
                 @click="previewSuggestion(issue, suggestion.action)"
               >
                 Предпросмотр на карте
+              </KitBtn>
+              <KitBtn
+                v-else-if="!suggestion.action"
+                variant="text"
+                color="secondary"
+                size="sm"
+                @click="emit('seek', issue)"
+              >
+                Посмотреть участок на карте
               </KitBtn>
             </template>
           </div>

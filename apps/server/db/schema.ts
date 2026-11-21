@@ -1026,7 +1026,7 @@ export const trackActivityCorrections = pgTable('track_activity_corrections', {
   startedAt: timestamp('started_at', { withTimezone: true }).notNull(),
   endedAt: timestamp('ended_at', { withTimezone: true }).notNull(),
   activity: trackActivityTypeEnum('activity').notNull(),
-  geometryAction: text('geometry_action', { enum: ['exclude-spike', 'collapse-drift'] }),
+  geometryAction: text('geometry_action', { enum: ['exclude-spike', 'collapse-drift', 'smooth-drift'] }),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 }, t => ({
   userTimeIndex: index('track_activity_corrections_user_time_idx').on(t.userId, t.startedAt, t.endedAt),

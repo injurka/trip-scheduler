@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { applyTrackGeometryCorrections, inspectTrackGeometry } from '../src'
+import { applyTrackGeometryCorrections, explainTrackGeometry, inspectTrackGeometry } from '../src'
 
 function point(second: number, meters: number, accuracy: number, still = false) {
   return {
@@ -42,6 +42,37 @@ describe('geometry corrections', () => {
     expect(effective.map(p => p.tsUtc)).toEqual(raw.map(p => p.tsUtc))
     expect(effective.map(p => p.lng)).toEqual([0, 0, raw[2].lng, 0, raw[4].lng])
     expect(raw[3].lng).toBeGreaterThan(0)
+  })
+
+  it('smooths several noisy fixes while moving, even when the anchor accuracy is between 25 and 35 metres', () => {
+    const noisy = (second: number, meters: number, lateral: number) => ({ ...point(second, meters, 85), lat: lateral / 111_195 })
+    const raw = [point(5, 0, 29), noisy(12, 25, 65), noisy(27, 100, -60), noisy(42, 170, 64), point(55, 230, 32)]
+    const correction = {
+      geometryAction: 'smooth-drift' as const,
+      sessionId: 'session-1',
+      startedAt: 12_000,
+      endedAt: 55_000,
+    }
+    const candidate = inspectTrackGeometry(raw, correction.startedAt, correction.endedAt)
+
+    expect(candidate?.action).toBe('smooth-drift')
+    expect(candidate?.affected).toEqual(raw.slice(1, 4))
+    const effective = applyTrackGeometryCorrections(raw, [correction])
+
+    expect(effective.map(p => p.tsUtc)).toEqual(raw.map(p => p.tsUtc))
+    expect(effective.map(p => p.lat)).toEqual([0, 0, 0, 0, 0])
+    expect(effective[0]).toBe(raw[0])
+    expect(effective[4]).toBe(raw[4])
+    expect(raw[1].lat).not.toBe(0)
+  })
+
+  it('distinguishes a missing anchor from a gap and a low-accuracy fix on the route', () => {
+    expect(explainTrackGeometry([point(5, 0, 10), point(10, 20, 60)], 10_000, 10_000)).toContain('нет достаточно точных GPS-точек')
+    expect(explainTrackGeometry([point(5, 0, 10), point(10, 20, 60), point(45, 50, 10)], 10_000, 10_000)).toContain('слишком большой интервал')
+    const straight = [point(5, 0, 10), point(10, 20, 60), point(15, 50, 10)]
+
+    expect(inspectTrackGeometry(straight, 10_000, 10_000)).toBeNull()
+    expect(explainTrackGeometry(straight, 10_000, 10_000)).toContain('не удалось выделить короткое отклонение')
   })
 
   it('leaves missing data and plausible movement alone', () => {

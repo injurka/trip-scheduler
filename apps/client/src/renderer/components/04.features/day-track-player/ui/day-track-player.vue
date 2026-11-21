@@ -6,7 +6,7 @@ import type { ImageViewerImage } from '~/components/01.kit/kit-image-viewer'
 import type { DaySummary } from '~/components/03.domain/activity-day-summary/types'
 import type { Memory } from '~/shared/types/models/memory'
 import { Icon } from '@iconify/vue'
-import { calendarDay, classificationExplanation, inspectTrackGeometry, recordingQuality } from '@limiteddissolve/track-processing'
+import { calendarDay, classificationExplanation, inspectTrackGeometry, recordingQuality, trackGeometryContextMs } from '@limiteddissolve/track-processing'
 import { useEventListener } from '@vueuse/core'
 import { AlertDialogContent, AlertDialogDescription, AlertDialogOverlay, AlertDialogPortal, AlertDialogRoot, AlertDialogTitle, PopoverContent, PopoverRoot, PopoverTrigger } from 'reka-ui'
 import { computed, getCurrentInstance, nextTick, ref, toRef, useId, watch } from 'vue'
@@ -311,7 +311,7 @@ async function previewQualityCorrection(issue: TrackQualityIssue, action: TrackG
 
   const points = (sourceDayData.value?.rawPoints ?? []).filter(p => p.sessionId === issue.sessionId)
 
-  if (points.some(p => p.localPending && p.tsUtc >= issue.startedAt - 30_000 && p.tsUtc <= issue.endedAt + 30_000))
+  if (points.some(p => p.localPending && p.tsUtc >= issue.startedAt - trackGeometryContextMs && p.tsUtc <= issue.endedAt + trackGeometryContextMs))
     throw new Error('Дождитесь синхронизации соседних GPS-точек.')
 
   const candidate = inspectTrackGeometry(points, issue.startedAt, issue.endedAt)

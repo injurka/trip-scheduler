@@ -48,3 +48,27 @@ it('groups nearby noisy fixes and previews only an explicitly selected AI sugges
   expect(preview).toHaveBeenCalledWith(expect.objectContaining({ startedAt: 6000 }), 'collapse-drift')
   wrapper.unmount()
 })
+
+it('offers a map shortcut when the measurements cannot support a correction', async () => {
+  const quality = recordingQuality([8, 65, 8].map((accuracy, i) => ({
+    sessionId: 'test-session',
+    tsUtc: 1000 + i * 5000,
+    accuracy,
+  })))
+  const analyze = vi.fn().mockResolvedValue({ action: null, reason: 'Рядом нет достаточно точных точек.', affectedFixes: 0 })
+  const wrapper = mount(Quality, {
+    props: { quality, analyze, timeZone: 'UTC' },
+    global: { stubs: { KitBtn: { template: '<button><slot /></button>' } } },
+  })
+  const details = wrapper.get('details')
+  ;(details.element as HTMLDetailsElement).open = true
+  await details.trigger('toggle')
+  await wrapper.findAll('button').find(button => button.text() === 'Проверить с ИИ')!.trigger('click')
+  await flushPromises()
+
+  expect(wrapper.text()).toContain('Рядом нет достаточно точных точек.')
+  expect(wrapper.text()).not.toContain('Предпросмотр на карте')
+  await wrapper.findAll('button').find(button => button.text() === 'Посмотреть участок на карте')!.trigger('click')
+  expect(wrapper.emitted('seek')?.[0][0]).toEqual(quality.issues[0])
+  wrapper.unmount()
+})

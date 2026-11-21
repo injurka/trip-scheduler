@@ -75,6 +75,30 @@ describe.skipIf(!process.env.CORRECTION_BATCH_TEST_DATABASE_URL)('AI track geome
 
       await saveCorrectionBatch(owner.id, { ...input, additions: [], removals: [correction.id] })
       expect((await getDay()).points.map(p => p.lng)).toEqual(fixes.map(p => p.lng))
+
+      const movingSession = crypto.randomUUID()
+      const movingTrack = [[5, 0, 0, 29], [12, 25, 65, 85], [27, 100, -60, 85], [42, 170, 64, 85], [55, 230, 0, 32]]
+        .map(([second, along, across, accuracy]) => ({
+          userId: owner.id,
+          sessionId: movingSession,
+          clientPointId: crypto.randomUUID(),
+          tsUtc: new Date(from + second * 1000),
+          lat: across / 111_195,
+          lng: 30 + along / 111_195,
+          accuracy,
+        }))
+      await db.insert(trackPoints).values(movingTrack)
+      const movement = { ...input, sessionId: movingSession, startedAt: from + 12_000, endedAt: from + 55_000 }
+      decision = '{"decision":"suggest","reason":"Неточные точки отклоняются в обе стороны от короткого участка."}'
+      expect(await analyzeTrackQuality(owner.id, owner.id, movement)).toMatchObject({ action: 'smooth-drift', affectedFixes: 3 })
+      expect(requests).toBe(4)
+      expect(payload).not.toContain(movingSession)
+      expect(payload).toContain('anchorDistanceM')
+      const smoothing = { ...correction, id: crypto.randomUUID(), sessionId: movingSession, startedAt: movement.startedAt, endedAt: movement.endedAt, geometryAction: 'smooth-drift' as const }
+      await saveCorrectionBatch(owner.id, { ...movement, additions: [smoothing], removals: [] })
+      const smoothed = await getDay()
+      expect(smoothed.points.filter(p => p.sessionId === movingSession).map(p => p.lat)).toEqual([0, 0, 0, 0, 0])
+      expect(smoothed.rawPoints?.filter(p => p.sessionId === movingSession).map(p => p.lat)).toEqual(movingTrack.map(p => p.lat))
     }
     finally {
       await provider.stop(true)

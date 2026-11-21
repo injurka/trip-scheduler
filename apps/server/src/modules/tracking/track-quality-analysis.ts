@@ -1,4 +1,4 @@
-import { calendarDayBounds, inspectTrackGeometry, trackGeometryActions } from '@limiteddissolve/track-processing'
+import { calendarDayBounds, explainTrackGeometry, inspectTrackGeometry, trackGeometryActions, trackGeometryContextMs } from '@limiteddissolve/track-processing'
 import { TRPCError } from '@trpc/server'
 import { db } from 'db'
 import { trackActivityCorrections, trackPoints } from 'db/schema'
@@ -34,8 +34,8 @@ export async function analyzeTrackQuality(userId: string, ownerId: string, input
     db.select().from(trackPoints).where(and(
       eq(trackPoints.userId, ownerId),
       eq(trackPoints.sessionId, input.sessionId),
-      gte(trackPoints.tsUtc, new Date(Math.max(from.getTime(), startedAt - 30_000))),
-      lte(trackPoints.tsUtc, new Date(Math.min(to.getTime() - 1, endedAt + 30_000))),
+      gte(trackPoints.tsUtc, new Date(Math.max(from.getTime(), startedAt - trackGeometryContextMs))),
+      lte(trackPoints.tsUtc, new Date(Math.min(to.getTime() - 1, endedAt + trackGeometryContextMs))),
     )).orderBy(trackPoints.tsUtc),
     db.select({ id: trackActivityCorrections.id }).from(trackActivityCorrections).where(and(
       eq(trackActivityCorrections.userId, ownerId),
@@ -45,18 +45,28 @@ export async function analyzeTrackQuality(userId: string, ownerId: string, input
       gte(trackActivityCorrections.endedAt, new Date(startedAt)),
     )).limit(1),
   ])
-  const candidate = inspectTrackGeometry(context.map(p => ({ ...p, tsUtc: p.tsUtc.getTime() })), startedAt, endedAt)
+  const fixes = context.map(p => ({ ...p, tsUtc: p.tsUtc.getTime() }))
+  const candidate = inspectTrackGeometry(fixes, startedAt, endedAt)
   if (!candidate || saved.length) {
     return {
       action: null,
-      reason: saved.length ? 'Для этого участка уже сохранена правка GPS.' : 'По соседним замерам нельзя предложить надёжную правку.',
+      reason: saved.length ? 'Для этого участка уже сохранена правка GPS.' : explainTrackGeometry(fixes, startedAt, endedAt),
       affectedFixes: 0,
     }
   }
 
   await quotaService.checkLlmCreditQuota(userId)
   const completion = await createAiChatRequest({
-    system: 'Проверь предложенную правку GPS-трека. exclude-spike исключает одиночный выброс между двумя надёжными точками. collapse-drift переносит неточные точки остановки к надёжной точке перед ней. Оцени, подтверждают ли замеры правку и нет ли признаков реального движения. При противоречивых или недостаточных данных воздержись. Верни JSON с полями decision (suggest, keep или insufficient) и reason (краткое объяснение по-русски, до 400 символов). Не выдумывай места, события и измерения.',
+    system: `
+Проверь предложенную правку GPS-трека по переданным замерам.
+exclude-spike исключает одиночный выброс между двумя надёжными точками.
+collapse-drift переносит неточные точки остановки к надёжной точке перед ней.
+smooth-drift сглаживает боковое отклонение неточных точек по короткому отрезку между более точными замерами.
+Для smooth-drift движение ожидаемо. Знак lateralM показывает, с какой стороны от направления между опорными точками был замер.
+Воздержись, если наблюдения указывают на реальный поворот, остановку при smooth-drift или если данных недостаточно.
+Верни JSON с полями decision (suggest, keep или insufficient) и reason (объяснение по-русски, до 400 символов).
+Не выдумывай места, события и измерения.
+    `.trim(),
     user: JSON.stringify({ action: candidate.action, ...candidate.evidence }),
   }, {
     model: DEFAULT_AI_MODEL,

@@ -1,4 +1,4 @@
-import { calendarDayBounds, inspectTrackGeometry, trackGeometryActions } from '@limiteddissolve/track-processing'
+import { calendarDayBounds, inspectTrackGeometry, trackGeometryActions, trackGeometryContextMs } from '@limiteddissolve/track-processing'
 import { TRPCError } from '@trpc/server'
 import { db } from 'db'
 import { trackActivityCorrections, trackPoints } from 'db/schema'
@@ -53,8 +53,8 @@ export async function saveCorrectionBatch(userId: string, input: z.infer<typeof 
         const context = await tx.select().from(trackPoints).where(and(
           eq(trackPoints.userId, userId),
           eq(trackPoints.sessionId, correction.sessionId),
-          gte(trackPoints.tsUtc, new Date(Math.max(from, correction.startedAt - 30_000))),
-          lte(trackPoints.tsUtc, new Date(Math.min(until - 1, correction.endedAt + 30_000))),
+          gte(trackPoints.tsUtc, new Date(Math.max(from, correction.startedAt - trackGeometryContextMs))),
+          lte(trackPoints.tsUtc, new Date(Math.min(until - 1, correction.endedAt + trackGeometryContextMs))),
         )).orderBy(trackPoints.tsUtc)
         const result = inspectTrackGeometry(context.map(p => ({ ...p, tsUtc: p.tsUtc.getTime() })), correction.startedAt, correction.endedAt)
         if (result?.action !== correction.geometryAction)
