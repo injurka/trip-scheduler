@@ -769,6 +769,7 @@ useEventListener(window, 'beforeunload', (event: BeforeUnloadEvent) => {
         <DayTrackQuality
           :key="selectedDay"
           :quality="quality"
+          :raw-points="sourceDayData?.rawPoints"
           :time-zone="dayData?.timeZone"
           :corrections="qualityCorrections"
           :analyze="canEditTrack && authStore.isAuthenticated ? analyzeQualityIssue : undefined"

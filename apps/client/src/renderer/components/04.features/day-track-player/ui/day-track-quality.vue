@@ -5,9 +5,12 @@ import type {
   TrackGeometryAction,
   TrackQualityIssue,
 } from '@limiteddissolve/track-processing'
-import { computed, ref, shallowRef, watch } from 'vue'
+import type { DayPoint } from '../models/types'
+import { explainTrackGeometry, inspectTrackGeometry, trackGeometryContextMs } from '@limiteddissolve/track-processing'
+import { computed, ref, shallowReactive, shallowRef, watch } from 'vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitDisclosure } from '~/components/01.kit/kit-disclosure'
+import { upperTimeIndex } from '../lib/track-time-window'
 
 interface QualityAnalysis {
   action: TrackGeometryAction | null
@@ -16,6 +19,7 @@ interface QualityAnalysis {
 }
 interface Props {
   quality: ReturnType<typeof recordingQuality>
+  rawPoints?: DayPoint[]
   timeZone?: string
   corrections?: ActivityCorrection[]
   analyze?: (issue: TrackQualityIssue) => Promise<QualityAnalysis>
@@ -30,9 +34,10 @@ const actionLabels: Record<TrackGeometryAction, string> = {
   'collapse-drift': 'Сгладить дрейф на остановке',
   'smooth-drift': 'Сгладить отклонение GPS на маршруте',
 }
+const maxReviewDurationMs = 120_000
 const issueLimit = ref(30)
 const selectedIssue = shallowRef<TrackQualityIssue>()
-const suggestion = shallowRef<QualityAnalysis>()
+const results = shallowReactive(new Map<TrackQualityIssue, QualityAnalysis>())
 const busy = ref(false)
 const analysisError = ref('')
 
@@ -44,7 +49,7 @@ const groupedIssues = computed(() => {
     const previous = lastBySession.get(issue.sessionId)
 
     if (issue.kind === 'accuracy' && previous?.kind === 'accuracy'
-      && issue.startedAt - previous.endedAt <= 15_000 && issue.endedAt - previous.startedAt <= 120_000) {
+      && issue.startedAt - previous.endedAt <= 15_000 && issue.endedAt - previous.startedAt <= maxReviewDurationMs) {
       previous.endedAt = Math.max(previous.endedAt, issue.endedAt)
       previous.points += issue.points
     }
@@ -58,25 +63,80 @@ const groupedIssues = computed(() => {
   return groups.sort((a, b) => (b.endedAt - b.startedAt) - (a.endedAt - a.startedAt) || a.startedAt - b.startedAt)
 })
 const inaccurateGroups = computed(() => groupedIssues.value.filter(issue => issue.kind === 'accuracy').length)
-const visibleIssues = computed(() => groupedIssues.value.slice(0, issueLimit.value))
+const pointsBySession = computed(() => {
+  const sessions = new Map<string, DayPoint[]>()
+
+  for (const point of props.rawPoints ?? []) {
+    const points = sessions.get(point.sessionId) ?? []
+    points.push(point)
+    sessions.set(point.sessionId, points)
+  }
+
+  for (const points of sessions.values())
+    points.sort((a, b) => a.tsUtc - b.tsUtc)
+
+  return sessions
+})
+const issueRows = computed(() => groupedIssues.value.map((issue) => {
+  const correction = correctionFor(issue)
+  const review = props.analyze && !correction && issue.kind === 'accuracy'
+    ? reviewAvailability(issue)
+    : undefined
+
+  return { issue, correction, review }
+}))
+const reviewSummary = computed(() => {
+  const eligible = issueRows.value.filter(row => row.review?.action)
+  const remaining = eligible.filter(row => !results.has(row.issue)).length
+
+  if (remaining)
+    return `Можно проверить с ИИ: ${remaining}`
+
+  return eligible.length ? `Проверено ИИ: ${eligible.length}` : 'Подходящих участков для проверки с ИИ нет.'
+})
+const visibleIssues = computed(() => {
+  const rows = issueRows.value
+  const ready = rows.filter(row => row.review?.action)
+
+  return [...ready, ...rows.filter(row => !row.review?.action)]
+    .slice(0, issueLimit.value)
+    .map(row => ({ ...row, suggestion: results.get(row.issue) }))
+})
 
 watch(groupedIssues, () => {
   issueLimit.value = 30
   selectedIssue.value = undefined
-  suggestion.value = undefined
+  results.clear()
   analysisError.value = ''
 })
 
+function reviewAvailability(issue: TrackQualityIssue) {
+  if (issue.endedAt - issue.startedAt > maxReviewDurationMs)
+    return { reason: 'Участок слишком длинный для автоматической правки.' }
+
+  const points = pointsBySession.value.get(issue.sessionId) ?? []
+  const start = upperTimeIndex(points, issue.startedAt - trackGeometryContextMs - 1)
+  const end = upperTimeIndex(points, issue.endedAt + trackGeometryContextMs)
+  const context = points.slice(start, end)
+
+  if (context.some(point => point.localPending))
+    return { reason: 'Дождитесь синхронизации GPS-точек.' }
+
+  const candidate = inspectTrackGeometry(context, issue.startedAt, issue.endedAt)
+
+  return candidate
+    ? { action: candidate.action }
+    : { reason: explainTrackGeometry(context, issue.startedAt, issue.endedAt) }
+}
 function correctionFor(issue: TrackQualityIssue) {
   return props.corrections?.find(c => c.geometryAction && c.sessionId === issue.sessionId
     && c.startedAt <= issue.endedAt && c.endedAt >= issue.startedAt)
 }
 async function analyzeIssue(issue: TrackQualityIssue) {
-  if (!props.analyze || busy.value)
+  if (!props.analyze || busy.value || results.has(issue) || !issueRows.value.some(row => row.issue === issue && row.review?.action))
     return
 
   selectedIssue.value = issue
-  suggestion.value = undefined
   analysisError.value = ''
   busy.value = true
 
@@ -84,7 +144,7 @@ async function analyzeIssue(issue: TrackQualityIssue) {
     const result = await props.analyze(issue)
 
     if (selectedIssue.value === issue)
-      suggestion.value = result
+      results.set(issue, result)
   }
   catch (error) {
     if (selectedIssue.value === issue)
@@ -98,6 +158,7 @@ async function previewSuggestion(issue: TrackQualityIssue, action: TrackGeometry
   if (!props.preview || busy.value)
     return
 
+  selectedIssue.value = issue
   busy.value = true
   analysisError.value = ''
 
@@ -162,22 +223,31 @@ function time(ts: number, timeZone?: string) {
       label="Проблемные участки"
       :count="groupedIssues.length"
     >
+      <p v-if="open && analyze" class="quality-review-count">
+        {{ reviewSummary }}
+      </p>
       <div v-if="open" class="quality-issues">
         <div
-          v-for="issue in visibleIssues"
+          v-for="{ issue, correction, review, suggestion } in visibleIssues"
           :key="`${issue.sessionId}:${issue.kind}:${issue.startedAt}`"
           class="quality-issue"
         >
           <div class="quality-issue-header">
-            <button class="quality-issue-link" type="button" @click="emit('seek', issue)">
+            <button
+              class="quality-issue-link"
+              type="button"
+              title="Посмотреть участок на карте"
+              @click="emit('seek', issue)"
+            >
               <span>{{ issue.kind === 'pause' ? 'Пауза' : 'Неточные координаты' }}</span>
               <span class="quality-issue-time">{{ time(issue.startedAt, timeZone) }}–{{ time(issue.endedAt, timeZone) }}</span>
             </button>
-            <span v-if="correctionFor(issue)" class="quality-issue-time">Есть правка GPS</span>
+            <span v-if="correction" class="quality-issue-time">Есть правка GPS</span>
+            <span v-else-if="suggestion" class="quality-issue-time">Проверено ИИ</span>
             <KitBtn
-              v-else-if="analyze && issue.kind === 'accuracy' && issue.endedAt - issue.startedAt <= 120_000"
+              v-else-if="review?.action"
               variant="text"
-              color="secondary"
+              color="primary"
               size="sm"
               :disabled="busy"
               :aria-label="`Проверить с ИИ участок с ${time(issue.startedAt, timeZone)}`"
@@ -185,15 +255,15 @@ function time(ts: number, timeZone?: string) {
             >
               Проверить с ИИ
             </KitBtn>
-            <span v-else-if="analyze && issue.kind === 'accuracy'" class="quality-issue-time">
-              Нужна ручная проверка
-            </span>
           </div>
-          <div v-if="selectedIssue === issue" class="quality-suggestion">
-            <p v-if="busy && !suggestion" role="status">
+          <p v-if="review?.reason" class="quality-review-reason">
+            {{ review.reason }}
+          </p>
+          <div v-if="!correction && (selectedIssue === issue || suggestion)" class="quality-suggestion">
+            <p v-if="selectedIssue === issue && busy && !suggestion" role="status">
               Анализируем замеры…
             </p>
-            <p v-if="analysisError" role="alert">
+            <p v-if="selectedIssue === issue && analysisError" role="alert">
               {{ analysisError }}
             </p>
             <template v-if="suggestion">
@@ -267,6 +337,14 @@ dd {
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
+.quality-review-count {
+  padding: 2px 10px 6px;
+}
+
+.quality-review-reason {
+  padding: 0 4px 6px;
+}
+
 .quality-issues {
   display: grid;
   max-height: 230px;

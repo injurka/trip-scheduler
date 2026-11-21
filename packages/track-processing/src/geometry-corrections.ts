@@ -176,7 +176,7 @@ export function explainTrackGeometry<T extends Fix>(points: readonly T[], starte
   if (isRecordingGap(local.slice(before, after + 1)))
     return 'Между соседними замерами слишком большой интервал для сглаживания. Маршрут в этом промежутке может быть другим.'
 
-  return 'По замерам не удалось выделить короткое отклонение, которое можно уверенно сгладить. Можно посмотреть участок на карте.'
+  return 'По замерам не удалось выделить короткое отклонение, которое можно уверенно сгладить.'
 }
 
 export function applyTrackGeometryCorrections<T extends Fix & Pick<TrackPoint, 'sessionId'>>(raw: T[], corrections: readonly (Interval & { geometryAction?: TrackGeometryAction | null })[]): T[] {
