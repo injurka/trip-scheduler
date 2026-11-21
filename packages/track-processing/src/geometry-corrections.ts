@@ -2,7 +2,7 @@ import type { ActivityCorrection } from './corrections'
 import type { TrackPoint } from './index'
 import { haversineM } from './index'
 
-export const trackGeometryActions = ['exclude-spike', 'collapse-drift', 'smooth-drift'] as const
+export const trackGeometryActions = ['exclude-spike', 'collapse-drift', 'smooth-drift', 'exclude-manual'] as const
 export type TrackGeometryAction = typeof trackGeometryActions[number]
 export const trackGeometryContextMs = 60_000
 
@@ -160,6 +160,38 @@ export function inspectTrackGeometry<T extends Fix>(points: readonly T[], starte
   }
 }
 
+/** A low-accuracy fix can still agree with the recorded route. */
+export function hasCoherentTrackGeometry(points: readonly Fix[], startedAt: number, endedAt: number): boolean {
+  const local = nearbyFixes(points, startedAt, endedAt)
+  const affected = local.filter(p => p.tsUtc >= startedAt && p.tsUtc <= endedAt && inaccurate(p))
+  if (!affected.length)
+    return false
+
+  const before = local.findLastIndex(p => p.tsUtc < affected[0].tsUtc && usable(p))
+  const after = local.findIndex(p => p.tsUtc > affected.at(-1)!.tsUtc && usable(p))
+  if (before < 0 || after < 0 || isRecordingGap(local.slice(before, after + 1)))
+    return false
+
+  const start = local[before]
+  const end = local[after]
+  const span = distance(start, end)
+  let progress = 0
+  return local.slice(before + 1, after).every((point) => {
+    const from = distance(start, point)
+    if (span < 5)
+      return from <= 5
+
+    const to = distance(end, point)
+    const along = (from * from - to * to + span * span) / (2 * span)
+    const lateral = Math.sqrt(Math.max(0, from * from - along * along))
+    if (lateral > 8 || along < progress - 8 || along > span + 8)
+      return false
+
+    progress = Math.max(progress, along)
+    return true
+  })
+}
+
 export function explainTrackGeometry<T extends Fix>(points: readonly T[], startedAt: number, endedAt: number): string {
   const local = nearbyFixes(points, startedAt, endedAt)
   const affected = local.filter(p => p.tsUtc >= startedAt && p.tsUtc <= endedAt && inaccurate(p))
@@ -195,6 +227,16 @@ export function applyTrackGeometryCorrections<T extends Fix & Pick<TrackPoint, '
 
   const edits = new Map<T, T | null>()
   for (const correction of geometry) {
+    if (correction.geometryAction === 'exclude-manual') {
+      const points = bySession.get(correction.sessionId) ?? []
+      // An individual timestamp is selectable only when it identifies one fix.
+      const matching = points.filter(p => p.tsUtc === correction.startedAt)
+      if (correction.startedAt === correction.endedAt && matching.length === 1)
+        edits.set(matching[0], null)
+
+      continue
+    }
+
     const result = inspectTrackGeometry(bySession.get(correction.sessionId) ?? [], correction.startedAt, correction.endedAt)
     if (!result || result.action !== correction.geometryAction)
       continue

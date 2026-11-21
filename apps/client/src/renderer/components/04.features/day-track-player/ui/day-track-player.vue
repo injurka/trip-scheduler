@@ -12,6 +12,7 @@ import { AlertDialogContent, AlertDialogDescription, AlertDialogOverlay, AlertDi
 import { computed, getCurrentInstance, nextTick, ref, toRef, useId, watch } from 'vue'
 import { onBeforeRouteLeave, onBeforeRouteUpdate, useRouter } from 'vue-router'
 import { KitBtn } from '~/components/01.kit/kit-btn'
+import { KitDialogWithClose } from '~/components/01.kit/kit-dialog-with-close'
 import { KitImageViewer, useImageViewer } from '~/components/01.kit/kit-image-viewer'
 import { KitSwitch } from '~/components/01.kit/kit-switch'
 import { AppRouteNames } from '~/shared/constants/routes'
@@ -81,6 +82,9 @@ const originalGpsSwitchId = useId()
 const showOriginal = ref(false)
 const showBeforeGpsDraft = ref(false)
 const isActivityEditorOpen = ref(false)
+const isQualityReviewOpen = ref(false)
+const qualityReviewResults = ref<Record<string, Awaited<ReturnType<typeof trackingService.analyzeQualityIssue>>>>({})
+const gapConnection = ref<[[number, number], [number, number]]>()
 const applying = ref(false)
 const exporting = ref(false)
 const exportStatus = ref('')
@@ -126,7 +130,7 @@ const {
   formatHeaderDay,
   handleDeletePoint,
 } = useDayTrackData({
-  canRefresh: () => !isActivityEditorOpen.value && !applying.value && !drafts.count.value && !drafts.processing.value,
+  canRefresh: () => !isQualityReviewOpen.value && !isActivityEditorOpen.value && !applying.value && !drafts.count.value && !drafts.processing.value,
   preview: (data) => {
     if (showOriginal.value)
       return originalTrackView(data)
@@ -175,6 +179,7 @@ const timezone = useDayTrackTimezone({
 })
 // ─── 5. Карта и интерактивные слои ─────────────────────────────────────────────
 const map = useDayTrackMap({
+  gapConnection,
   selectedDay,
   mapHost,
   popupHost,
@@ -250,7 +255,16 @@ const viewerImages = computed<ImageViewerImage[]>(() => {
   }))
 })
 
-watch(sourceDayData, () => drafts.clear(), { flush: 'sync' })
+watch(sourceDayData, () => {
+  drafts.clear()
+  qualityReviewResults.value = {}
+  gapConnection.value = undefined
+}, { flush: 'sync' })
+watch(playback.isPlaying, (playing) => {
+  if (playing)
+    gapConnection.value = undefined
+})
+watch(selectedDay, closeQualityReview)
 watch(latestGpsDraft, () => {
   showBeforeGpsDraft.value = false
 }, { flush: 'sync' })
@@ -289,10 +303,32 @@ async function resetCurrentCorrections() {
   }
   catch (error) { draftError.value = error instanceof Error ? error.message : 'Не удалось сбросить правки' }
 }
+async function openQualityReview(close: () => void) {
+  close()
+  await nextTick()
+  isQualityReviewOpen.value = true
+}
+function closeQualityReview() {
+  isQualityReviewOpen.value = false
+}
 function seekQualityIssue(issue: TrackQualityIssue, close: () => void) {
+  gapConnection.value = undefined
+
+  if (issue.kind === 'pause') {
+    const points = sourceDayData.value?.rawPoints ?? []
+    const from = points.find(p => p.sessionId === issue.sessionId && p.tsUtc === issue.startedAt)
+    const to = points.find(p => p.sessionId === issue.sessionId && p.tsUtc === issue.endedAt)
+
+    if (from && to)
+      gapConnection.value = [[from.lng, from.lat], [to.lng, to.lat]]
+  }
+
   playback.isPlaying.value = false
   playback.t.value = issue.startedAt
-  map.centerCurrentPoint()
+
+  if (!gapConnection.value)
+    map.centerCurrentPoint()
+
   close()
 }
 async function analyzeQualityIssue(issue: TrackQualityIssue) {
@@ -305,12 +341,34 @@ async function analyzeQualityIssue(issue: TrackQualityIssue) {
     endedAt: issue.endedAt,
   })
 }
-async function previewQualityCorrection(issue: TrackQualityIssue, action: TrackGeometryAction, close: () => void) {
-  if (!canEditTrack.value || !authStore.isAuthenticated)
-    throw new Error('Редактирование трека недоступно.')
-
+function qualityChoice(issue: TrackQualityIssue, action: TrackGeometryAction): CorrectionChoice {
   const points = (sourceDayData.value?.rawPoints ?? []).filter(p => p.sessionId === issue.sessionId)
 
+  if (qualityCorrections.value?.some(c => c.geometryAction && c.sessionId === issue.sessionId
+    && c.startedAt <= issue.endedAt && c.endedAt >= issue.startedAt)) {
+    throw new Error('Для этого участка уже есть правка GPS.')
+  }
+
+  if (action === 'exclude-manual') {
+    const matches = points.filter(p => p.tsUtc === issue.startedAt)
+
+    if (issue.startedAt !== issue.endedAt || matches.length !== 1 || matches[0].localPending)
+      throw new Error('Эту GPS-точку сейчас нельзя исключить.')
+  }
+  else {
+    validateAutomaticQualityChoice(points, issue, action)
+  }
+
+  return {
+    sessionId: issue.sessionId,
+    startedAt: issue.startedAt,
+    endedAt: issue.endedAt,
+    point: issue.startedAt === issue.endedAt,
+    activity: 'unknown',
+    geometryAction: action,
+  }
+}
+function validateAutomaticQualityChoice(points: DayPoint[], issue: TrackQualityIssue, action: TrackGeometryAction) {
   if (points.some(p => p.localPending && p.tsUtc >= issue.startedAt - trackGeometryContextMs && p.tsUtc <= issue.endedAt + trackGeometryContextMs))
     throw new Error('Дождитесь синхронизации соседних GPS-точек.')
 
@@ -318,24 +376,21 @@ async function previewQualityCorrection(issue: TrackQualityIssue, action: TrackG
 
   if (candidate?.action !== action)
     throw new Error('Замеры изменились. Проверьте участок ещё раз.')
+}
+async function previewQualityCorrections(proposals: { issue: TrackQualityIssue, action: TrackGeometryAction }[]) {
+  if (!canEditTrack.value || !authStore.isAuthenticated)
+    throw new Error('Редактирование трека недоступно.')
 
-  if (qualityCorrections.value?.some(c => c.geometryAction && c.sessionId === issue.sessionId
-    && c.startedAt <= issue.endedAt && c.endedAt >= issue.startedAt)) {
-    throw new Error('Для этого участка уже есть правка GPS.')
-  }
+  const [first] = proposals
 
-  await stageCorrection({
-    sessionId: issue.sessionId,
-    startedAt: issue.startedAt,
-    endedAt: issue.endedAt,
-    point: issue.startedAt === issue.endedAt,
-    activity: 'unknown',
-    geometryAction: action,
-  })
+  if (!first)
+    return
+
+  await stageCorrections(proposals.map(({ issue, action }) => qualityChoice(issue, action)))
   viewMode.value = 'route'
   routeVisibility.value = 'full'
   await nextTick()
-  seekQualityIssue(issue, close)
+  seekQualityIssue(first.issue, closeQualityReview)
 }
 async function discardGpsDraft() {
   if (!latestGpsDraft.value)
@@ -433,12 +488,15 @@ async function onDeletePoint(pt: DayPoint) {
     map.rebuildFeatures()
   })
 }
-async function stageCorrection(choice: CorrectionChoice) {
+function stageCorrection(choice: CorrectionChoice) {
+  return stageCorrections([choice])
+}
+async function stageCorrections(choices: CorrectionChoice[]) {
   if (applying.value || committed.value || drafts.processing.value)
     throw new Error('Дождитесь завершения текущей операции')
 
   try {
-    const pending = sourceDayData.value?.rawPoints?.some(p => p.localPending && p.sessionId === choice.sessionId && p.tsUtc >= choice.startedAt && p.tsUtc <= choice.endedAt)
+    const pending = sourceDayData.value?.rawPoints?.some(p => p.localPending && choices.some(choice => p.sessionId === choice.sessionId && p.tsUtc >= choice.startedAt && p.tsUtc <= choice.endedAt))
 
     if (pending)
       throw new Error('Сначала отправьте GPS-точки выбранного участка на сервер.')
@@ -446,7 +504,7 @@ async function stageCorrection(choice: CorrectionChoice) {
     if (!drafts.count.value)
       draftTripId.value = props.tripId
 
-    await drafts.stage(choice, sourceDayData.value)
+    await drafts.stageMany(choices, sourceDayData.value)
     map.closePointPopup()
     draftError.value = ''
   }
@@ -661,6 +719,16 @@ useEventListener(window, 'beforeunload', (event: BeforeUnloadEvent) => {
 
     <!-- Контейнер карты OpenLayers -->
     <div ref="mapHost" class="memories-map" />
+    <div v-if="gapConnection" class="quality-gap-legend">
+      <span>Пунктир · путь между замерами неизвестен</span>
+      <KitBtn
+        size="xs"
+        icon="mdi:close"
+        variant="text"
+        aria-label="Скрыть пунктир"
+        @click="gapConnection = undefined"
+      />
+    </div>
 
     <!-- Анимированный маркер воспроизведения на карте -->
     <div v-if="isBeaconVisible" ref="playbackMarkerHost" class="playback-marker-host">
@@ -767,14 +835,9 @@ useEventListener(window, 'beforeunload', (event: BeforeUnloadEvent) => {
     >
       <template #quality="{ close }">
         <DayTrackQuality
-          :key="selectedDay"
           :quality="quality"
-          :raw-points="sourceDayData?.rawPoints"
-          :time-zone="dayData?.timeZone"
-          :corrections="qualityCorrections"
-          :analyze="canEditTrack && authStore.isAuthenticated ? analyzeQualityIssue : undefined"
-          :preview="(issue, action) => previewQualityCorrection(issue, action, close)"
-          @seek="seekQualityIssue($event, close)"
+          summary-only
+          @review="openQualityReview(close)"
         >
           <label class="quality-gps-toggle" :for="originalGpsSwitchId">
             Исходные GPS-точки
@@ -854,6 +917,28 @@ useEventListener(window, 'beforeunload', (event: BeforeUnloadEvent) => {
       </template>
     </DayTrackPlaybackPanel>
 
+    <KitDialogWithClose
+      v-model:visible="isQualityReviewOpen"
+      title="Проблемные участки"
+      :persistent="drafts.processing.value"
+      fullscreenable
+    >
+      <DayTrackQuality
+        v-if="isQualityReviewOpen"
+        :key="selectedDay"
+        v-model:results="qualityReviewResults"
+        :quality="quality"
+        :raw-points="sourceDayData?.rawPoints"
+        :time-zone="dayData?.timeZone"
+        :corrections="qualityCorrections"
+        :analyze="canEditTrack && authStore.isAuthenticated ? analyzeQualityIssue : undefined"
+        :preview="canEditTrack && authStore.isAuthenticated ? (issue, action) => previewQualityCorrections([{ issue, action }]) : undefined"
+        :preview-batch="canEditTrack && authStore.isAuthenticated ? previewQualityCorrections : undefined"
+        :batch-capacity="200 - drafts.count.value"
+        @seek="seekQualityIssue($event, closeQualityReview)"
+      />
+    </KitDialogWithClose>
+
     <DayTrackActivityEditor
       v-if="canEditTrack"
       v-model:visible="isActivityEditorOpen"
@@ -913,6 +998,21 @@ useEventListener(window, 'beforeunload', (event: BeforeUnloadEvent) => {
   font-size: 0.875rem;
   overflow-wrap: anywhere;
 }
+.quality-gap-legend {
+  position: absolute;
+  z-index: 8;
+  top: 112px;
+  left: 12px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  max-width: calc(100% - 24px);
+  padding: 4px 8px;
+  border-radius: var(--r-s);
+  background: var(--bg-secondary-color);
+  font-size: 0.75rem;
+}
+
 .quality-gps-toggle {
   display: flex;
   align-items: center;

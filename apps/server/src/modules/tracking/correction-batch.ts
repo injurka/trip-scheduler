@@ -14,7 +14,7 @@ export const CorrectionDraftSchema = z.object({
   activity: TrackActivityTypeSchema,
   point: z.boolean().optional(),
   geometryAction: z.enum(trackGeometryActions).nullable().optional(),
-}).refine(c => (c.endedAt > c.startedAt || (c.point && c.endedAt === c.startedAt)) && c.endedAt - c.startedAt <= (c.geometryAction ? 120_000 : 26 * 3600_000), 'Некорректный интервал')
+}).refine(c => (c.endedAt > c.startedAt || (c.point && c.endedAt === c.startedAt)) && c.endedAt - c.startedAt <= (c.geometryAction ? 120_000 : 26 * 3600_000), 'Некорректный интервал').refine(c => c.geometryAction !== 'exclude-manual' || c.startedAt === c.endedAt, 'Исключить можно только одну точку')
 export const CorrectionBatchSchema = z.object({
   tripId: z.string().uuid().optional(),
   dayUtc: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
@@ -50,15 +50,26 @@ export async function saveCorrectionBatch(userId: string, input: z.infer<typeof 
       if (!point)
         throw new TRPCError({ code: 'BAD_REQUEST', message: 'В интервале нет GPS-точек этой записи' })
       if (correction.geometryAction) {
-        const context = await tx.select().from(trackPoints).where(and(
-          eq(trackPoints.userId, userId),
-          eq(trackPoints.sessionId, correction.sessionId),
-          gte(trackPoints.tsUtc, new Date(Math.max(from, correction.startedAt - trackGeometryContextMs))),
-          lte(trackPoints.tsUtc, new Date(Math.min(until - 1, correction.endedAt + trackGeometryContextMs))),
-        )).orderBy(trackPoints.tsUtc)
-        const result = inspectTrackGeometry(context.map(p => ({ ...p, tsUtc: p.tsUtc.getTime() })), correction.startedAt, correction.endedAt)
-        if (result?.action !== correction.geometryAction)
-          throw new TRPCError({ code: 'CONFLICT', message: 'Точки участка изменились. Проверьте участок ещё раз.' })
+        if (correction.geometryAction === 'exclude-manual') {
+          const matches = await tx.select({ id: trackPoints.id }).from(trackPoints).where(and(
+            eq(trackPoints.userId, userId),
+            eq(trackPoints.sessionId, correction.sessionId),
+            eq(trackPoints.tsUtc, new Date(correction.startedAt)),
+          )).limit(2)
+          if (matches.length !== 1)
+            throw new TRPCError({ code: 'CONFLICT', message: 'В это время записано несколько точек GPS.' })
+        }
+        else {
+          const context = await tx.select().from(trackPoints).where(and(
+            eq(trackPoints.userId, userId),
+            eq(trackPoints.sessionId, correction.sessionId),
+            gte(trackPoints.tsUtc, new Date(Math.max(from, correction.startedAt - trackGeometryContextMs))),
+            lte(trackPoints.tsUtc, new Date(Math.min(until - 1, correction.endedAt + trackGeometryContextMs))),
+          )).orderBy(trackPoints.tsUtc)
+          const result = inspectTrackGeometry(context.map(p => ({ ...p, tsUtc: p.tsUtc.getTime() })), correction.startedAt, correction.endedAt)
+          if (result?.action !== correction.geometryAction)
+            throw new TRPCError({ code: 'CONFLICT', message: 'Точки участка изменились. Проверьте участок ещё раз.' })
+        }
         const overlapping = await tx.select({ id: trackActivityCorrections.id }).from(trackActivityCorrections).where(and(
           eq(trackActivityCorrections.userId, userId),
           eq(trackActivityCorrections.sessionId, correction.sessionId),

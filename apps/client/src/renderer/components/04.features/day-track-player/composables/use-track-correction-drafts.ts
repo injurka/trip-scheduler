@@ -43,18 +43,33 @@ export function useTrackCorrectionDrafts(processor: TrackPreviewProcessor = crea
     }
     finally { processing.value = false }
   }
-  async function stage(choice: CorrectionChoice, data: DayData | null) {
-    const replaced = additions.value.filter(c => c.sessionId === choice.sessionId
-      && c.startedAt === choice.startedAt && c.endedAt === choice.endedAt
-      && (c.geometryAction ?? null) === (choice.geometryAction ?? null))
-    const cleanup = replaced.filter(c => attempted.has(c.id) && !removals.value.includes(c.id)).map(c => c.id)
-    const prior = additions.value.filter(c => !replaced.includes(c))
+  async function stageMany(choices: CorrectionChoice[], data: DayData | null) {
+    const nextAdditions = [...additions.value]
+    const nextRemovals = new Set(removals.value)
+    let time = Math.max(Date.now(), ...[...(data?.corrections ?? []), ...additions.value].map(c => c.createdAt + 1))
 
-    if (prior.length + removals.value.length + cleanup.length >= 200)
+    for (const choice of choices) {
+      const index = nextAdditions.findIndex(c => c.sessionId === choice.sessionId
+        && c.startedAt === choice.startedAt && c.endedAt === choice.endedAt
+        && (c.geometryAction ?? null) === (choice.geometryAction ?? null))
+
+      if (index >= 0) {
+        const [replaced] = nextAdditions.splice(index, 1)
+
+        if (attempted.has(replaced.id))
+          nextRemovals.add(replaced.id)
+      }
+
+      nextAdditions.push({ ...choice, id: crypto.randomUUID(), createdAt: time++ })
+    }
+
+    if (nextAdditions.length + nextRemovals.size > 200)
       throw new Error('Примените текущий пакет: максимум 200 изменений.')
 
-    const time = Math.max(Date.now(), ...[...(data?.corrections ?? []), ...additions.value].map(c => c.createdAt + 1))
-    await commit(data, [...prior, { ...choice, id: crypto.randomUUID(), createdAt: time }], [...removals.value, ...cleanup])
+    await commit(data, nextAdditions, [...nextRemovals])
+  }
+  function stage(choice: CorrectionChoice, data: DayData | null) {
+    return stageMany([choice], data)
   }
   async function remove(id: string, base: DayData | null) {
     const nextAdditions = additions.value.filter(c => c.id !== id)
@@ -101,6 +116,7 @@ export function useTrackCorrectionDrafts(processor: TrackPreviewProcessor = crea
     removals,
     count,
     stage,
+    stageMany,
     remove,
     clear,
     preview,

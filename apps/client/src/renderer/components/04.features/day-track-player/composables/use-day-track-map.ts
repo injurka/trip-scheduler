@@ -29,6 +29,7 @@ function createEmptyFeatureCollection(): GeoJSON.FeatureCollection {
 
 export interface UseDayTrackMapOptions {
   selectedDay?: Ref<string>
+  gapConnection?: Ref<[[number, number], [number, number]] | undefined>
   mapHost: Ref<HTMLElement | null>
   popupHost: Ref<HTMLElement | null>
   photoPopupHost?: Ref<HTMLElement | null>
@@ -71,6 +72,7 @@ export function useDayTrackMap(options: UseDayTrackMapOptions) {
     onSelectCluster,
   } = options
 
+  const followCurrentPoint = computed(() => isFollowCamera.value && !options.gapConnection?.value)
   const routeVisibility = options.routeVisibility ?? ref<RouteVisibility>('full')
   const trailMinutes = options.trailMinutes ?? ref(15)
   // Split once per dataset, before clipping: gaps and session boundaries stay intact.
@@ -182,6 +184,7 @@ export function useDayTrackMap(options: UseDayTrackMapOptions) {
   const PROGRESS_SOURCE_ID = 'day-track-progress-source'
   const POINTS_SOURCE_ID = 'day-track-points-source'
   const PHOTO_ROUTE_SOURCE_ID = 'day-track-photo-route-source'
+  const GAP_SOURCE_ID = 'day-track-review-gap'
   const SELECTION_SOURCE_ID = 'day-track-selection-source'
 
   const ROUTE_LAYER_ID = 'day-track-route-layer'
@@ -341,7 +344,42 @@ export function useDayTrackMap(options: UseDayTrackMapOptions) {
 
     ensureRouteAndProgressLayers(map)
     ensurePointAndPhotoLayers(map)
+    ensureGapLayer(map)
   }
+
+  function gapGeojson(): GeoJSON.FeatureCollection {
+    const coordinates = options.gapConnection?.value
+
+    return coordinates
+      ? { type: 'FeatureCollection', features: [{ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates } }] }
+      : createEmptyFeatureCollection()
+  }
+
+  function ensureGapLayer(map: maplibregl.Map) {
+    if (!options.gapConnection)
+      return
+
+    if (!map.getSource(GAP_SOURCE_ID))
+      map.addSource(GAP_SOURCE_ID, { type: 'geojson', data: gapGeojson() })
+
+    if (!map.getLayer(GAP_SOURCE_ID)) {
+      map.addLayer({
+        id: GAP_SOURCE_ID,
+        type: 'line',
+        source: GAP_SOURCE_ID,
+        paint: { 'line-color': '#c2410c', 'line-width': 3, 'line-dasharray': [2, 2] },
+      })
+    }
+  }
+
+  watch(() => options.gapConnection?.value, (connection) => {
+    const map = mapInstance.value
+    const source = map?.getSource(GAP_SOURCE_ID) as maplibregl.GeoJSONSource | undefined
+    source?.setData(gapGeojson())
+
+    if (connection)
+      map?.fitBounds(new maplibregl.LngLatBounds(connection[0], connection[1]).adjustAntiMeridian(), { padding: 64, maxZoom: 16 })
+  })
 
   function ensureRouteAndProgressLayers(map: maplibregl.Map) {
     if (!map.getSource(ROUTE_SOURCE_ID)) {
@@ -1334,7 +1372,7 @@ export function useDayTrackMap(options: UseDayTrackMapOptions) {
         playbackMarker.setLngLat([p.lng, p.lat])
       }
 
-      if (isFollowCamera.value && (p.tsUtc !== previous?.tsUtc || p.sessionId !== previous?.sessionId)) {
+      if (followCurrentPoint.value && (p.tsUtc !== previous?.tsUtc || p.sessionId !== previous?.sessionId)) {
         if (isPlaying.value) {
           mapInstance.value.jumpTo({
             center: [p.lng, p.lat],

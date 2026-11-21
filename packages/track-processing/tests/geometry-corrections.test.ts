@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { applyTrackGeometryCorrections, explainTrackGeometry, inspectTrackGeometry } from '../src'
+import { applyTrackGeometryCorrections, explainTrackGeometry, hasCoherentTrackGeometry, inspectTrackGeometry } from '../src'
 
 function point(second: number, meters: number, accuracy: number, still = false) {
   return {
@@ -73,6 +73,17 @@ describe('geometry corrections', () => {
 
     expect(inspectTrackGeometry(straight, 10_000, 10_000)).toBeNull()
     expect(explainTrackGeometry(straight, 10_000, 10_000)).toContain('не удалось выделить короткое отклонение')
+  })
+
+  it('separates coherent inaccurate fixes and excludes a single fix without changing the raw track', () => {
+    const raw = [point(5, 0, 8), point(10, 7, 65), point(15, 15, 8)]
+    expect(hasCoherentTrackGeometry(raw, 10_000, 15_000)).toBe(true)
+    expect(hasCoherentTrackGeometry([raw[0], point(10, 45, 65), raw[2]], 10_000, 15_000)).toBe(false)
+    const exclusion = { geometryAction: 'exclude-manual' as const, sessionId: 'session-1', startedAt: 10_000, endedAt: 10_000 }
+
+    expect(applyTrackGeometryCorrections(raw, [exclusion])).toEqual([raw[0], raw[2]])
+    expect(raw).toHaveLength(3)
+    expect(applyTrackGeometryCorrections([...raw, { ...raw[1] }], [exclusion])).toHaveLength(4)
   })
 
   it('leaves missing data and plausible movement alone', () => {

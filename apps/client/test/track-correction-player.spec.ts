@@ -106,6 +106,7 @@ async function setup(history = createMemoryHistory(), props: Partial<InstanceTyp
         DayTrackPhotoPopup: true,
         DayTrackOverlayState: defineComponent({ name: 'DayTrackOverlayState', props: ['isLoading', 'summary', 'summaryTimeZone'], render: () => null }),
         DayTrackEmpty: true,
+        KitDialogWithClose: defineComponent({ props: { visible: Boolean }, setup: (props, { slots }) => () => props.visible ? h('div', slots.default?.()) : null }),
         DayTrackActivityEditor: defineComponent({ name: 'Editor', props: ['visible', 'stageCorrection', 'removeCorrection'], emits: ['update:visible'], render: () => null }),
         DayTrackPlaybackPanel: defineComponent({ name: 'DayTrackPlaybackPanel', props: { t: Number, speedMultiplier: Number }, setup: (_, { slots }) => () => h('div', { 'data-testid': 'playback-panel' }, [slots.quality?.({ close: () => {} }), slots['draft-actions']?.()]) }),
         KitBtn: defineComponent({ setup: (_, { slots, attrs }) => () => h('button', attrs, slots.default?.()) }),
@@ -182,7 +183,8 @@ describe('batch correction player', () => {
     const wrapper = await setup()
 
     try {
-      const quality = wrapper.getComponent({ name: 'DayTrackQuality' })
+      await wrapper.findAll('button').find(b => b.text().startsWith('Разобрать участки'))!.trigger('click')
+      const quality = wrapper.findAllComponents({ name: 'DayTrackQuality' }).find(view => !view.props('summaryOnly'))!
       const issue = quality.props('quality').issues[0]
 
       await quality.props('analyze')(issue)
@@ -210,6 +212,51 @@ describe('batch correction player', () => {
           endedAt: issue.endedAt,
         })],
       }))
+    }
+    finally {
+      wrapper.unmount()
+    }
+  })
+
+  it('opens the quality review independently and stages all day proposals before saving', async () => {
+    const gpsPoints = points.map((point, index) => index === 10 || index === 25
+      ? { ...point, lng: point.lng + 0.0015, accuracy: 60 }
+      : point)
+    api.getDay.mockImplementation(async () => structuredClone({ ...data, points: gpsPoints }))
+    const wrapper = await setup()
+
+    try {
+      await wrapper.findAll('button').find(b => b.text().startsWith('Разобрать участки'))!.trigger('click')
+      expect(wrapper.findAllComponents({ name: 'DayTrackQuality' })).toHaveLength(2)
+      await wrapper.findAll('button').find(b => b.text().startsWith('Предпросмотр правок за день'))!.trigger('click')
+      await flushPromises()
+      expect(wrapper.findAllComponents({ name: 'DayTrackQuality' })).toHaveLength(1)
+      expect(api.correctActivities).not.toHaveBeenCalled()
+      expect(api.mapOptions.dayData.value?.corrections).toHaveLength(2)
+      expect(api.mapOptions.dayData.value?.rawPoints).toHaveLength(gpsPoints.length)
+      await button(wrapper, 'Применить').trigger('click')
+      await flushPromises()
+      expect(api.correctActivities).toHaveBeenCalledWith(expect.objectContaining({
+        additions: [expect.objectContaining({ geometryAction: 'exclude-spike' }), expect.objectContaining({ geometryAction: 'exclude-spike' })],
+      }))
+    }
+    finally {
+      wrapper.unmount()
+    }
+  })
+
+  it('previews a recording gap separately from the recorded route', async () => {
+    const last = points.at(-1)!
+    const after = { ...last, tsUtc: last.tsUtc + 100_000, lng: last.lng + 0.002, clientPointId: 'after-gap' }
+    api.getDay.mockImplementation(async () => structuredClone({ ...data, points: [...points, after] }))
+    const wrapper = await setup()
+
+    try {
+      await wrapper.findAll('button').find(b => b.text().startsWith('Разобрать участки'))!.trigger('click')
+      await wrapper.get('.quality-issue-link').trigger('click')
+      expect(api.mapOptions.gapConnection?.value).toEqual([[last.lng, last.lat], [after.lng, after.lat]])
+      expect(wrapper.text()).toContain('путь между замерами неизвестен')
+      expect(api.correctActivities).not.toHaveBeenCalled()
     }
     finally {
       wrapper.unmount()

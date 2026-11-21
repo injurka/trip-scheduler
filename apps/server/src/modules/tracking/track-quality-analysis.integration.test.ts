@@ -76,6 +76,14 @@ describe.skipIf(!process.env.CORRECTION_BATCH_TEST_DATABASE_URL)('AI track geome
       await saveCorrectionBatch(owner.id, { ...input, additions: [], removals: [correction.id] })
       expect((await getDay()).points.map(p => p.lng)).toEqual(fixes.map(p => p.lng))
 
+      const manual = { ...correction, id: crypto.randomUUID(), endedAt: correction.startedAt, point: true, geometryAction: 'exclude-manual' as const }
+      await saveCorrectionBatch(owner.id, { ...input, additions: [manual], removals: [] })
+      const excluded = await getDay()
+      expect(excluded.points.map(p => p.clientPointId)).toEqual([fixes[0].clientPointId, fixes[2].clientPointId])
+      expect(excluded.rawPoints?.map(p => p.lng)).toEqual(fixes.map(p => p.lng))
+      await saveCorrectionBatch(owner.id, { ...input, additions: [], removals: [manual.id] })
+      expect((await getDay()).points).toHaveLength(3)
+
       const movingSession = crypto.randomUUID()
       const movingTrack = [[5, 0, 0, 29], [12, 25, 65, 85], [27, 100, -60, 85], [42, 170, 64, 85], [55, 230, 0, 32]]
         .map(([second, along, across, accuracy]) => ({
