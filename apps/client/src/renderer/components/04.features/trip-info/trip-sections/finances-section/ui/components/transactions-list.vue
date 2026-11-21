@@ -319,6 +319,14 @@ function handleTransactionAction(action: string, tx: Transaction) {
             </div>
 
             <div class="item-amount">
+              <div class="amount-group">
+                <span class="original-amount" :class="{ 'is-planned': tx.status === 'planned' }">
+                  -{{ formatCurrency(tx.amount, tx.currency) }}
+                </span>
+                <span v-if="getConvertedAmountInMainCurrency(tx)" class="converted-amount">
+                  ~{{ getConvertedAmountInMainCurrency(tx) }}
+                </span>
+              </div>
               <div v-if="tx.photos?.length" class="item-photos" @click.stop>
                 <button
                   v-for="(photoUrl, photoIdx) in getVisibleTransactionPhotos(tx)"
@@ -343,14 +351,6 @@ function handleTransactionAction(action: string, tx: Transaction) {
                     +{{ getRemainingTransactionPhotosCount(tx) }}
                   </span>
                 </button>
-              </div>
-              <div class="amount-group">
-                <span class="original-amount" :class="{ 'is-planned': tx.status === 'planned' }">
-                  -{{ formatCurrency(tx.amount, tx.currency) }}
-                </span>
-                <span v-if="getConvertedAmountInMainCurrency(tx)" class="converted-amount">
-                  ~{{ getConvertedAmountInMainCurrency(tx) }}
-                </span>
               </div>
               <div v-if="!props.readonly" class="item-actions" @click.stop>
                 <KitDropdown
@@ -873,7 +873,7 @@ function handleTransactionAction(action: string, tx: Transaction) {
     gap: 0.75rem;
     padding-left: calc(36px + 0.85rem);
 
-    .item-photos + .amount-group {
+    .amount-group:has(+ .item-photos) {
       margin-left: auto;
     }
   }

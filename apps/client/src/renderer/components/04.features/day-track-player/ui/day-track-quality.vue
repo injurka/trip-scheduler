@@ -37,7 +37,6 @@ function time(ts: number, timeZone?: string) {
 
 <template>
   <section class="track-quality">
-    <h3>Качество записи</h3>
     <dl>
       <div>
         <dt>Паузы в записи</dt>
@@ -71,7 +70,7 @@ function time(ts: number, timeZone?: string) {
     <KitDisclosure
       v-if="quality.issues.length"
       v-slot="{ open }"
-      label="Показать участки"
+      label="Проблемные участки"
       :count="quality.issues.length"
     >
       <div v-if="open" class="quality-issues">
@@ -107,11 +106,8 @@ function time(ts: number, timeZone?: string) {
   gap: 10px;
   font-size: 0.8rem;
 }
-h3,
 p {
   margin: 0;
-}
-p {
   color: var(--fg-secondary-color);
   line-height: 1.5;
 }

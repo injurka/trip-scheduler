@@ -436,16 +436,18 @@ useEventListener(typeof window !== 'undefined' ? window : null, 'keydown', (e: K
               aria-label="Качество записи"
             >
               <div class="recording-quality-popover" aria-label="Качество записи">
-                <KitBtn
-                  class="quality-close"
-                  variant="text"
-                  color="secondary"
-                  size="xs"
-                  aria-label="Закрыть качество записи"
-                  @click="qualityOpen = false"
-                >
-                  <Icon icon="mdi:close" />
-                </KitBtn>
+                <header class="quality-header">
+                  <h3>Качество записи</h3>
+                  <KitBtn
+                    variant="text"
+                    color="secondary"
+                    size="xs"
+                    aria-label="Закрыть качество записи"
+                    @click="qualityOpen = false"
+                  >
+                    <Icon icon="mdi:close" />
+                  </KitBtn>
+                </header>
                 <slot name="quality" :close="() => { qualityOpen = false }" />
               </div>
             </PopoverContent>
@@ -675,9 +677,17 @@ useEventListener(typeof window !== 'undefined' ? window : null, 'keydown', (e: K
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.quality-close {
-  float: right;
-  margin-left: var(--p-xs);
+.quality-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--p-xs);
+  margin-bottom: 10px;
+
+  h3 {
+    margin: 0;
+    font-size: 0.95rem;
+  }
 }
 .quality-trigger {
   flex-shrink: 0;

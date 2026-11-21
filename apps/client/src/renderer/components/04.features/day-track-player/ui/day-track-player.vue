@@ -11,6 +11,7 @@ import { computed, getCurrentInstance, ref, toRef, useId, watch } from 'vue'
 import { onBeforeRouteLeave, onBeforeRouteUpdate, useRouter } from 'vue-router'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitImageViewer, useImageViewer } from '~/components/01.kit/kit-image-viewer'
+import { KitSwitch } from '~/components/01.kit/kit-switch'
 import { AppRouteNames } from '~/shared/constants/routes'
 import { trackingService } from '~/shared/services/database/tracking.service'
 import { useAuthStore } from '~/shared/store/auth.store'
@@ -74,6 +75,7 @@ const imageViewer = useImageViewer()
 const playbackPanelId = useId()
 
 const showOriginal = ref(false)
+const originalGpsSwitchId = useId()
 const isActivityEditorOpen = ref(false)
 const applying = ref(false)
 
@@ -690,31 +692,34 @@ useEventListener(window, 'beforeunload', (event: BeforeUnloadEvent) => {
     >
       <template #quality="{ close }">
         <DayTrackQuality :quality="quality" :time-zone="dayData?.timeZone" @seek="seekQualityIssue($event, close)">
-          <KitBtn
-            size="sm"
-            variant="outlined"
-            :aria-pressed="showOriginal"
-            @click="showOriginal = !showOriginal"
-          >
-            {{ showOriginal ? 'Показать обработанный трек' : 'Показать исходные GPS-точки' }}
-          </KitBtn>
-          <KitBtn
-            size="sm"
-            variant="text"
-            :disabled="exporting"
-            @click="exportGpx"
-          >
-            Экспорт GPX · исходный и обработанный
-          </KitBtn>
-          <KitBtn
-            v-if="canEditTrack"
-            size="sm"
-            variant="text"
-            :disabled="drafts.processing.value || applying"
-            @click="resetCurrentCorrections"
-          >
-            Сбросить правки текущего участка
-          </KitBtn>
+          <label class="quality-gps-toggle" :for="originalGpsSwitchId">
+            Исходные GPS-точки
+            <KitSwitch :id="originalGpsSwitchId" v-model="showOriginal" size="sm" />
+          </label>
+          <div class="quality-actions">
+            <KitBtn
+              size="sm"
+              variant="text"
+              color="secondary"
+              :disabled="exporting"
+              title="Экспорт исходного и обработанного треков"
+              @click="exportGpx"
+            >
+              <Icon icon="mdi:download-outline" />
+              Экспорт GPX
+            </KitBtn>
+            <KitBtn
+              v-if="canEditTrack"
+              size="sm"
+              variant="text"
+              color="secondary"
+              :disabled="drafts.processing.value || applying"
+              title="Сбросить правки текущего участка"
+              @click="resetCurrentCorrections"
+            >
+              Сбросить правки
+            </KitBtn>
+          </div>
           <p v-if="exportStatus" role="status">
             {{ exportStatus }}
           </p>
@@ -803,33 +808,22 @@ useEventListener(window, 'beforeunload', (event: BeforeUnloadEvent) => {
   font-size: 0.875rem;
   overflow-wrap: anywhere;
 }
-.recording-quality {
-  font-size: 0.75rem;
-  color: var(--fg-secondary-color);
-  h3 {
-    margin: 0 0 var(--p-s);
-    font-size: 0.95rem;
-    color: var(--fg-primary-color);
-  }
-  dl {
-    margin: var(--p-xs) 0;
-    display: grid;
-    gap: var(--p-xs);
-  }
-  dl > div {
-    display: flex;
-    justify-content: space-between;
-    gap: var(--p-s);
-    align-items: baseline;
-  }
-  dt {
-    min-width: 0;
-  }
-  dd {
-    margin: 0;
-    white-space: nowrap;
-    font-variant-numeric: tabular-nums;
-  }
+.quality-gps-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--p-xs);
+  min-height: 36px;
+  padding-top: 4px;
+  border-top: 1px solid var(--border-secondary-color);
+  cursor: pointer;
+}
+
+.quality-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
 }
 
 .draft-toolbar {
