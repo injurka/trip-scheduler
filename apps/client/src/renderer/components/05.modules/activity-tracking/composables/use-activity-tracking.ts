@@ -1,5 +1,6 @@
 import type { DaySummary } from '../models/types'
 import { computed, onMounted, ref } from 'vue'
+import { formatActivityDay, formatActivityDistance, formatActivityDuration, formatActivityTime } from '~/components/03.domain/activity-day-summary/format'
 import { useCalendarDay } from '~/shared/composables/use-calendar-day'
 import { trpc } from '~/shared/services/trpc/trpc.service'
 
@@ -81,40 +82,6 @@ export function useActivityTracking() {
     return dayUtc === todayUtc.value
   }
 
-  function formatDay(dayUtc: string): string {
-    if (isToday(dayUtc))
-      return 'Сегодня'
-
-    const d = new Date(`${dayUtc}T12:00:00Z`)
-
-    return d.toLocaleDateString('ru-RU', { weekday: 'short', day: 'numeric', month: 'long', timeZone: 'UTC' })
-  }
-
-  function formatDistance(m: number): string {
-    if (m < 1000)
-      return `${Math.round(m)} м`
-
-    return `${(m / 1000).toFixed(1)} км`
-  }
-
-  function formatDuration(ms: number): string {
-    const min = Math.round(ms / 60_000)
-
-    if (min < 60)
-      return `${min} мин`
-
-    const h = Math.floor(min / 60)
-
-    return `${h} ч ${min % 60} мин`
-  }
-
-  function formatTime(ts: number | null): string {
-    if (!ts)
-      return '--:--'
-
-    return new Date(ts).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit', timeZone })
-  }
-
   const isPlayerOpen = ref(false)
   const playerDayUtc = ref<string>(todayUtc.value)
 
@@ -156,10 +123,10 @@ export function useActivityTracking() {
     refresh,
     setDaysRange,
     isToday,
-    formatDay,
-    formatDistance,
-    formatDuration,
-    formatTime,
+    formatDay: (dayUtc: string) => formatActivityDay(dayUtc, isToday(dayUtc)),
+    formatDistance: formatActivityDistance,
+    formatDuration: formatActivityDuration,
+    formatTime: (ts: number | null) => formatActivityTime(ts, timeZone),
     openDayOnMap,
     openMemories,
     closePlayer,

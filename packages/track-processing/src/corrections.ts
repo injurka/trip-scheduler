@@ -1,3 +1,4 @@
+import type { TrackGeometryAction } from './geometry-corrections'
 import type { TrackActivityType, TrackPoint, TrackSegment } from './index'
 import { windowFeatures } from './index'
 
@@ -7,6 +8,7 @@ export interface ActivityCorrection {
   startedAt: number
   endedAt: number
   activity: TrackActivityType
+  geometryAction?: TrackGeometryAction | null
   createdAt: number
 }
 
@@ -22,7 +24,7 @@ function pointAt(points: TrackPoint[], time: number): TrackPoint {
 
 /** Overlay choices in creation order after automatic processing; the last overlapping choice wins. */
 export function applyActivityCorrections(segments: TrackSegment[], corrections: ActivityCorrection[], rawPoints: TrackPoint[] = []): TrackSegment[] {
-  const ordered = [...corrections].sort((a, b) => a.createdAt - b.createdAt || a.id.localeCompare(b.id))
+  const ordered = corrections.filter(c => !c.geometryAction).sort((a, b) => a.createdAt - b.createdAt || a.id.localeCompare(b.id))
   const corrected = segments.flatMap((segment) => {
     const points = segment.points
     const start = points[0].tsUtc
@@ -74,7 +76,7 @@ export function annotateTrackPoints<T extends Pick<TrackPoint, 'sessionId' | 'ts
     list.push(segment)
     bySession.set(sessionId, list)
   }
-  const ordered = [...corrections].sort((a, b) => a.createdAt - b.createdAt || a.id.localeCompare(b.id))
+  const ordered = corrections.filter(c => !c.geometryAction).sort((a, b) => a.createdAt - b.createdAt || a.id.localeCompare(b.id))
   return points.map((point) => {
     const list = bySession.get(point.sessionId) ?? []
     let low = 0

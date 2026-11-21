@@ -39,14 +39,15 @@ async function appendLocalPoints(data: DayData, options: LoadTrackDayOptions) {
   if (!options.isCurrent())
     return
 
-  const serverIds = new Set(data.points.map(point => point.clientPointId))
+  const raw = data.rawPoints ?? data.points
+  const serverIds = new Set(raw.map(point => point.clientPointId))
   const pending = local.filter(point => !serverIds.has(point.clientPointId))
   data.localPendingCount = pending.length
 
   if (!pending.length)
     return
 
-  const merged: DayPoint[] = [...data.points, ...pending].sort((a, b) => a.tsUtc - b.tsUtc)
+  const merged: DayPoint[] = [...raw, ...pending].sort((a, b) => a.tsUtc - b.tsUtc)
 
   try {
     const processed = await options.processor.process({ ...data, points: merged, rawPoints: merged }, data.corrections ?? [])

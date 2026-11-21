@@ -109,6 +109,7 @@ async function handleSync() {
       :open="isPlayerOpen"
       :time-zone="timeZone"
       :day-utc="playerDayUtc"
+      :day-summaries="recordedDays"
       @close="closePlayer"
     />
   </div>

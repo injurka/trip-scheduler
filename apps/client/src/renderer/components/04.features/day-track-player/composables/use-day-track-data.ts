@@ -1,5 +1,6 @@
 import type { Ref } from 'vue'
 import type { DayData, DayPoint, RenderSegment } from '../models/types'
+import type { DaySummary } from '~/components/03.domain/activity-day-summary/types'
 import { useEventListener } from '@vueuse/core'
 import { computed, onScopeDispose, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
@@ -50,6 +51,7 @@ export function useDayTrackData(options: UseDayTrackDataOptions = {}) {
   // валидный YYYY-MM-DD, иначе сервер режет по zod `/^\d{4}-\d{2}-\d{2}$/`.
   const selectedDay = ref(isValidDay(initialDay) ? initialDay : todayUtc.value)
 
+  const loadingSummary = ref<{ summary: DaySummary, timeZone: string }>()
   const isLoading = ref(true)
   const isFetching = ref(false)
   const dayData = computed({
@@ -71,9 +73,13 @@ export function useDayTrackData(options: UseDayTrackDataOptions = {}) {
   })
 
   const activeTripId = ref(options.tripId?.value)
+  function trackShareSlug() {
+    return String(route.query.shareSlug ?? route.params.slug ?? route.params.id ?? '') || undefined
+  }
+
   function requestDay(day: string) {
     const tripId = activeTripId.value
-    const shareSlug = String(route.query.shareSlug ?? route.params.slug ?? route.params.id ?? '') || undefined
+    const shareSlug = trackShareSlug()
 
     return tripId
       ? trackingService.getTripDay(
@@ -100,7 +106,7 @@ export function useDayTrackData(options: UseDayTrackDataOptions = {}) {
   }
   function prepareResponse(res: DayData) {
     if (Array.isArray(res.points) && !res.preparedRenderSegments) {
-      res.rawPoints = res.points
+      res.rawPoints ??= res.points
       const source = res.points.map((p: DayPoint) => ({ ...p, altitude: p.altitude ?? null, bearing: p.bearing ?? null, activityConfidence: p.activityConfidence ?? 0 }))
       res.points = prepareTrack(source)
     }
@@ -144,6 +150,27 @@ export function useDayTrackData(options: UseDayTrackDataOptions = {}) {
     return true
   }
 
+  async function loadDaySummary(day: string, silent: boolean, isCurrent: () => boolean) {
+    if (silent)
+      return
+
+    loadingSummary.value = undefined
+    const tripId = activeTripId.value
+
+    if (!tripId)
+      return
+
+    try {
+      const summary = await trackingService.getTripDaySummary(tripId, day, trackShareSlug())
+
+      if (isCurrent() && isLoading.value)
+        loadingSummary.value = summary
+    }
+    catch {
+      // The map request owns the loading error and retry.
+    }
+  }
+
   async function loadDay(targetDay: string, background = false) {
     if (!isValidDay(targetDay))
       return
@@ -154,6 +181,9 @@ export function useDayTrackData(options: UseDayTrackDataOptions = {}) {
 
     try {
       const owner = trackingOwner()
+      const isCurrent = () => owner === trackingOwner() && sequence === loadSequence
+
+      void loadDaySummary(targetDay, silent, isCurrent)
       const res = await loadTrackDay({
         request: () => requestDay(targetDay),
         day: targetDay,
@@ -163,7 +193,7 @@ export function useDayTrackData(options: UseDayTrackDataOptions = {}) {
         timeZone: options.timeZone?.value,
         processor: localProcessor,
         allowLocalFallback: !silent,
-        isCurrent: () => owner === trackingOwner() && sequence === loadSequence,
+        isCurrent,
       })
 
       if (sequence !== loadSequence)
@@ -453,6 +483,7 @@ export function useDayTrackData(options: UseDayTrackDataOptions = {}) {
     todayUtc,
     selectedDay,
     isLoading,
+    loadingSummary,
     dayData,
     loadError,
     isDeletingPoint,

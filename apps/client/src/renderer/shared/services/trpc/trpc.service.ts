@@ -1,9 +1,26 @@
 import type { AppRouter } from '~/shared/types/trpc'
-import { createTRPCProxyClient, httpBatchLink, loggerLink } from '@trpc/client'
+import { createTRPCProxyClient, httpBatchLink, httpLink, loggerLink, splitLink } from '@trpc/client'
 import { onlineFetch } from '~/shared/lib/connectivity'
 import { SERVER_URL } from '~/shared/lib/env'
 import { useAuthStore } from '~/shared/store/auth.store'
 import { authRefreshLink } from './auth-refresh.link'
+
+const httpOptions = {
+  fetch: onlineFetch,
+  url: `${SERVER_URL}/trpc`,
+  async headers() {
+    const authStore = useAuthStore()
+    const token = authStore.tokenPair?.accessToken
+
+    if (token) {
+      return {
+        Authorization: `Bearer ${token}`,
+      }
+    }
+
+    return {}
+  },
+}
 
 export const trpc = createTRPCProxyClient<AppRouter>({
   links: [
@@ -13,21 +30,10 @@ export const trpc = createTRPCProxyClient<AppRouter>({
         (import.meta.env.NODE_ENV === 'development')
         || (op.direction === 'down' && op.result instanceof Error),
     }),
-    httpBatchLink({
-      fetch: onlineFetch,
-      url: `${SERVER_URL}/trpc`,
-      async headers() {
-        const authStore = useAuthStore()
-        const token = authStore.tokenPair?.accessToken
-
-        if (token) {
-          return {
-            Authorization: `Bearer ${token}`,
-          }
-        }
-
-        return {}
-      },
+    splitLink({
+      condition: op => op.path === 'tracking.getTripDaySummary',
+      true: httpLink(httpOptions),
+      false: httpBatchLink(httpOptions),
     }),
   ],
 })

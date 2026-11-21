@@ -44,9 +44,11 @@ export function useTrackCorrectionDrafts(processor: TrackPreviewProcessor = crea
     finally { processing.value = false }
   }
   async function stage(choice: CorrectionChoice, data: DayData | null) {
-    const replaced = additions.value.filter(c => c.sessionId === choice.sessionId && c.startedAt === choice.startedAt && c.endedAt === choice.endedAt)
+    const replaced = additions.value.filter(c => c.sessionId === choice.sessionId
+      && c.startedAt === choice.startedAt && c.endedAt === choice.endedAt
+      && (c.geometryAction ?? null) === (choice.geometryAction ?? null))
     const cleanup = replaced.filter(c => attempted.has(c.id) && !removals.value.includes(c.id)).map(c => c.id)
-    const prior = additions.value.filter(c => !(c.sessionId === choice.sessionId && c.startedAt === choice.startedAt && c.endedAt === choice.endedAt))
+    const prior = additions.value.filter(c => !replaced.includes(c))
 
     if (prior.length + removals.value.length + cleanup.length >= 200)
       throw new Error('Примените текущий пакет: максимум 200 изменений.')

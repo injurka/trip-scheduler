@@ -1,5 +1,5 @@
 import type { GetTrackDayInput, IngestBatchInput } from './tracking.schemas'
-import { annotateTrackPoints, applyActivityCorrections, calendarDay, calendarDayBounds, processDayTrack } from '@limiteddissolve/track-processing'
+import { annotateTrackPoints, applyActivityCorrections, applyTrackGeometryCorrections, calendarDay, calendarDayBounds, processDayTrack } from '@limiteddissolve/track-processing'
 import { TRPCError } from '@trpc/server'
 import { db } from 'db'
 import { trackActivityCorrections, trackPoints, trackSegments } from 'db/schema'
@@ -47,7 +47,65 @@ async function getCorrections(userId: string, from: Date, to: Date) {
     .from(trackActivityCorrections)
     .where(and(eq(trackActivityCorrections.userId, userId), lt(trackActivityCorrections.startedAt, to), gte(trackActivityCorrections.endedAt, from)))
     .orderBy(trackActivityCorrections.createdAt, trackActivityCorrections.id))
-  return rows.map(row => ({ id: row.id, sessionId: row.sessionId, startedAt: row.startedAt.getTime(), endedAt: row.endedAt.getTime(), activity: row.activity, createdAt: row.createdAt.getTime() }))
+  return rows.map(row => ({ id: row.id, sessionId: row.sessionId, startedAt: row.startedAt.getTime(), endedAt: row.endedAt.getTime(), activity: row.activity, geometryAction: row.geometryAction, createdAt: row.createdAt.getTime() }))
+}
+
+async function processRecordedDay(userId: string, input: GetTrackDayInput) {
+  let timeZone = input.timeZone
+  if (!timeZone) {
+    // Inspect nearby measurements, including the UTC evening before an eastern local day.
+    const noon = Date.parse(`${input.dayUtc}T12:00:00Z`)
+    const nearby = await measureDbQuery('track_points', 'select', () => db.select({ lat: trackPoints.lat, lng: trackPoints.lng }).from(trackPoints).where(and(eq(trackPoints.userId, userId), gte(trackPoints.tsUtc, new Date(noon - 36 * 3600_000)), lt(trackPoints.tsUtc, new Date(noon + 36 * 3600_000)))).orderBy(sql`abs(extract(epoch from ${trackPoints.tsUtc}) * 1000 - ${noon})`).limit(1))
+    timeZone = nearby[0] ? tzLookup(nearby[0].lat, nearby[0].lng) : 'UTC'
+  }
+  const { from, to } = calendarDayBounds(input.dayUtc, timeZone)
+
+  const points = await measureDbQuery('track_points', 'select', async () => db.select()
+    .from(trackPoints)
+    .where(and(eq(trackPoints.userId, userId), gte(trackPoints.tsUtc, from), lt(trackPoints.tsUtc, to)))
+    .orderBy(trackPoints.tsUtc))
+  const raw = points.map(p => ({ ...p, tsUtc: p.tsUtc.getTime() }))
+  // Compute from original measurements on read: historical days immediately use the current algorithm.
+  const corrections = await getCorrections(userId, from, to)
+  const effective = applyTrackGeometryCorrections(raw, corrections)
+  const segments = applyActivityCorrections(processDayTrack(effective), corrections, effective)
+  return { timeZone, raw, effective, corrections, segments }
+}
+
+const pendingTrackDays = new Map<string, ReturnType<typeof processRecordedDay>>()
+
+function processedDay(userId: string, input: GetTrackDayInput) {
+  const key = JSON.stringify([userId, input.dayUtc, input.timeZone])
+  const existing = pendingTrackDays.get(key)
+  if (existing)
+    return existing
+
+  const pending = processRecordedDay(userId, input).finally(() => pendingTrackDays.delete(key))
+  pendingTrackDays.set(key, pending)
+  return pending
+}
+
+function summarizeTrackDay(dayUtc: string, raw: { tsUtc: number }[], segments: ReturnType<typeof processDayTrack>) {
+  const activityMap = new Map<TrackActivity, { distanceM: number, durationMs: number, segmentCount: number }>()
+  for (const segment of segments) {
+    const totals = activityMap.get(segment.activity) ?? { distanceM: 0, durationMs: 0, segmentCount: 0 }
+    totals.distanceM += segment.features.distanceM
+    totals.durationMs += segment.features.durationMs
+    totals.segmentCount++
+    activityMap.set(segment.activity, totals)
+  }
+
+  const byActivity = Array.from(activityMap, ([activity, totals]) => ({ activity, ...totals }))
+    .sort((a, b) => b.distanceM - a.distanceM)
+  return {
+    dayUtc,
+    totalDistanceM: byActivity.reduce((sum, activity) => sum + activity.distanceM, 0),
+    totalDurationMs: byActivity.reduce((sum, activity) => sum + activity.durationMs, 0),
+    byActivity,
+    firstPointTs: raw[0]?.tsUtc ?? null,
+    lastPointTs: raw.at(-1)?.tsUtc ?? null,
+    hasData: raw.length > 0,
+  }
 }
 
 export const trackingService = {
@@ -133,28 +191,13 @@ export const trackingService = {
 
   /** Точки календарного дня для «Воспоминаний дня». */
   async getDay(userId: string, input: GetTrackDayInput) {
-    let timeZone = input.timeZone
-    if (!timeZone) {
-      // Inspect nearby measurements, including the UTC evening before an eastern local day.
-      const noon = Date.parse(`${input.dayUtc}T12:00:00Z`)
-      const nearby = await measureDbQuery('track_points', 'select', () => db.select({ lat: trackPoints.lat, lng: trackPoints.lng }).from(trackPoints).where(and(eq(trackPoints.userId, userId), gte(trackPoints.tsUtc, new Date(noon - 36 * 3600_000)), lt(trackPoints.tsUtc, new Date(noon + 36 * 3600_000)))).orderBy(sql`abs(extract(epoch from ${trackPoints.tsUtc}) * 1000 - ${noon})`).limit(1))
-      timeZone = nearby[0] ? tzLookup(nearby[0].lat, nearby[0].lng) : 'UTC'
-    }
-    const { from, to } = calendarDayBounds(input.dayUtc, timeZone)
-
-    const points = await measureDbQuery('track_points', 'select', async () => db.select()
-      .from(trackPoints)
-      .where(and(eq(trackPoints.userId, userId), gte(trackPoints.tsUtc, from), lt(trackPoints.tsUtc, to)))
-      .orderBy(trackPoints.tsUtc))
-    const raw = points.map(p => ({ ...p, tsUtc: p.tsUtc.getTime() }))
-    // Compute from original measurements on read: historical days immediately use the current algorithm.
-    const corrections = await getCorrections(userId, from, to)
-    const segments = applyActivityCorrections(processDayTrack(raw), corrections, raw)
+    const { timeZone, raw, effective, corrections, segments } = await processedDay(userId, input)
     return {
       ownerId: userId,
       timeZone,
       corrections,
-      points: annotateTrackPoints(raw, segments, corrections),
+      points: annotateTrackPoints(effective, segments, corrections),
+      rawPoints: effective === raw ? undefined : annotateTrackPoints(raw, segments, corrections),
       segments: segments.map((s, i) => ({
         id: `processed-${i}`,
         sessionId: s.points[0].sessionId,
@@ -169,6 +212,11 @@ export const trackingService = {
         geometry: s.points.map(p => [p.lng, p.lat] as [number, number]),
       })),
     }
+  },
+
+  async getDaySummary(userId: string, input: GetTrackDayInput) {
+    const { raw, segments, timeZone } = await processedDay(userId, input)
+    return { summary: summarizeTrackDay(input.dayUtc, raw, segments), timeZone }
   },
 
   /**
@@ -248,11 +296,6 @@ export const trackingService = {
       .where(and(eq(trackPoints.userId, userId), gte(trackPoints.tsUtc, from), lt(trackPoints.tsUtc, to)))
       .orderBy(trackPoints.tsUtc))
     const corrections = await getCorrections(userId, from, to)
-    const byDay = new Map<string, {
-      activityMap: Map<string, { distanceM: number, durationMs: number, segmentCount: number }>
-      firstPointTs: number | null
-      lastPointTs: number | null
-    }>()
     const daysOfPoints = new Map<string, typeof rawPoints>()
     for (const p of rawPoints) {
       const day = calendarDay(p.tsUtc.getTime(), timeZone)
@@ -260,35 +303,12 @@ export const trackingService = {
       list.push(p)
       daysOfPoints.set(day, list)
     }
-    for (const [day, points] of daysOfPoints) {
-      const activityMap = new Map<string, { distanceM: number, durationMs: number, segmentCount: number }>()
+    return Array.from(daysOfPoints, ([day, points]) => {
       const raw = points.map(p => ({ ...p, tsUtc: p.tsUtc.getTime() }))
-      for (const s of applyActivityCorrections(processDayTrack(raw), corrections, raw)) {
-        const agg = activityMap.get(s.activity) ?? { distanceM: 0, durationMs: 0, segmentCount: 0 }
-        agg.distanceM += s.features.distanceM
-        agg.durationMs += s.features.durationMs
-        agg.segmentCount++
-        activityMap.set(s.activity, agg)
-      }
-      byDay.set(day, { activityMap, firstPointTs: points[0].tsUtc.getTime(), lastPointTs: points[points.length - 1].tsUtc.getTime() })
-    }
-
-    return Array.from(byDay.entries())
-      .map(([dayUtc, entry]) => {
-        const byActivity = Array.from(entry.activityMap.entries())
-          .map(([activity, agg]) => ({ activity: activity as 'still' | 'walk' | 'bike' | 'vehicle' | 'rail' | 'unknown', ...agg }))
-          .sort((a, b) => b.distanceM - a.distanceM)
-        return {
-          dayUtc,
-          totalDistanceM: byActivity.reduce((s, a) => s + a.distanceM, 0),
-          totalDurationMs: byActivity.reduce((s, a) => s + a.durationMs, 0),
-          byActivity,
-          firstPointTs: entry.firstPointTs,
-          lastPointTs: entry.lastPointTs,
-          hasData: true,
-        }
-      })
-      .sort((a, b) => b.dayUtc.localeCompare(a.dayUtc))
+      const effective = applyTrackGeometryCorrections(raw, corrections)
+      const segments = applyActivityCorrections(processDayTrack(effective), corrections, effective)
+      return summarizeTrackDay(day, raw, segments)
+    }).sort((a, b) => b.dayUtc.localeCompare(a.dayUtc))
   },
 
   async correctActivity(userId: string, input: { sessionId: string, startedAt: number, endedAt: number, activity: TrackActivity }) {

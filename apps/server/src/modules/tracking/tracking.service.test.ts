@@ -124,6 +124,9 @@ it('stores corrections separately and overlays effective labels when reading an 
   correctionRows = [{ ...correctionInsert as object, id: 'correction-id', createdAt: new Date(time) }]
   const day = await trackingService.getDay('owner', { dayUtc: '2026-11-10', timeZone: 'UTC' })
   expect(day.points[10].activity).toBe('bike')
+  const { summary } = await trackingService.getDaySummary('owner', { dayUtc: '2026-11-10', timeZone: 'UTC' })
+  expect(summary.byActivity.some(activity => activity.activity === 'bike')).toBe(true)
+  expect(summary.totalDistanceM).toBeCloseTo(day.segments.reduce((distance, segment) => distance + segment.distanceM, 0))
   expect(day.points[10].activitySource).toBe('manual')
   expect(day.points[10].recordedActivity).toBe('walk')
   expect(day.points[20].activity).toBe('vehicle')

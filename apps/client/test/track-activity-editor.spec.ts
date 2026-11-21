@@ -12,6 +12,7 @@ vi.mock('@iconify/vue', () => ({ Icon: { render: () => null } }))
 const api = vi.hoisted(() => ({
   getDay: vi.fn(),
   getTripDay: vi.fn(),
+  getTripDaySummary: vi.fn(),
   deletePoint: vi.fn(),
   correctActivity: vi.fn(),
   removeCorrection: vi.fn(),
@@ -158,7 +159,7 @@ it('corrects a single final GPS fix without inventing an end time, including mil
 it('loads shared trip data instead of a guest personal endpoint and blocks deletion in view-only mode', async () => {
   api.getTripDay.mockResolvedValue({ ...data, canEdit: false })
   const router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/', component: { render: () => null } }] })
-  await router.push('/')
+  await router.push('/?shareSlug=shared-day')
   await router.isReady()
   let result!: ReturnType<typeof useDayTrackData>
   const wrapper = mount(defineComponent({
@@ -172,9 +173,10 @@ it('loads shared trip data instead of a guest personal endpoint and blocks delet
   expect(api.getTripDay).toHaveBeenCalledWith(
     'trip',
     '2026-11-10',
-    undefined,
+    'shared-day',
     undefined,
   )
+  expect(api.getTripDaySummary).toHaveBeenCalledWith('trip', '2026-11-10', 'shared-day')
   expect(api.getDay).not.toHaveBeenCalled()
   expect(result.dayData.value?.points.length).toBeGreaterThan(0)
   await result.handleDeletePoint(points[0])

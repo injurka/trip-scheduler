@@ -1,13 +1,15 @@
 <script setup lang="ts">
+import type { TrackGeometryAction, TrackQualityIssue } from '@limiteddissolve/track-processing'
 import type { CorrectionChoice } from '../composables/use-track-correction-drafts'
 import type { DayPoint, RouteVisibility, TrackPhoto, ViewMode } from '../models/types'
 import type { ImageViewerImage } from '~/components/01.kit/kit-image-viewer'
+import type { DaySummary } from '~/components/03.domain/activity-day-summary/types'
 import type { Memory } from '~/shared/types/models/memory'
 import { Icon } from '@iconify/vue'
-import { classificationExplanation, recordingQuality } from '@limiteddissolve/track-processing'
+import { calendarDay, classificationExplanation, inspectTrackGeometry, recordingQuality } from '@limiteddissolve/track-processing'
 import { useEventListener } from '@vueuse/core'
 import { AlertDialogContent, AlertDialogDescription, AlertDialogOverlay, AlertDialogPortal, AlertDialogRoot, AlertDialogTitle, PopoverContent, PopoverRoot, PopoverTrigger } from 'reka-ui'
-import { computed, getCurrentInstance, ref, toRef, useId, watch } from 'vue'
+import { computed, getCurrentInstance, nextTick, ref, toRef, useId, watch } from 'vue'
 import { onBeforeRouteLeave, onBeforeRouteUpdate, useRouter } from 'vue-router'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { KitImageViewer, useImageViewer } from '~/components/01.kit/kit-image-viewer'
@@ -34,6 +36,7 @@ import DayTrackQuality from './day-track-quality.vue'
 import DayTrackTopNav from './day-track-top-nav.vue'
 
 interface Props {
+  daySummaries?: DaySummary[]
   timeZone?: string
   tripId?: string
   dayUtc?: string
@@ -73,11 +76,32 @@ const authStore = useAuthStore()
 const drafts = useTrackCorrectionDrafts()
 const imageViewer = useImageViewer()
 const playbackPanelId = useId()
+const originalGpsSwitchId = useId()
 
 const showOriginal = ref(false)
-const originalGpsSwitchId = useId()
+const showBeforeGpsDraft = ref(false)
 const isActivityEditorOpen = ref(false)
 const applying = ref(false)
+const exporting = ref(false)
+const exportStatus = ref('')
+const draftTripId = ref(props.tripId)
+const committed = ref(false)
+const draftError = ref('')
+const leaveOpen = ref(false)
+let leaveResult: Promise<boolean> | null = null
+let resolveLeave: ((value: boolean) => void) | null = null
+const instance = getCurrentInstance()
+const mapHost = ref<HTMLElement | null>(null)
+const popupHost = ref<HTMLElement | null>(null)
+const photoPopupHost = ref<HTMLElement | null>(null)
+const playbackMarkerHost = ref<HTMLElement | null>(null)
+const viewMode = ref<ViewMode>('route')
+const isPlaybackPanelVisible = ref(true)
+const routeVisibility = ref<RouteVisibility>('full')
+const trailMinutes = ref(15)
+const activityEditorTime = ref(0)
+
+const latestGpsDraft = computed(() => drafts.additions.value.findLast(c => c.geometryAction))
 
 // ─── 1. Данные дня ─────────────────────────────────────────────────────────────
 const {
@@ -85,6 +109,7 @@ const {
   todayUtc,
   selectedDay,
   isLoading,
+  loadingSummary,
   dayData,
   loadError,
   isDeletingPoint,
@@ -102,7 +127,12 @@ const {
   handleDeletePoint,
 } = useDayTrackData({
   canRefresh: () => !isActivityEditorOpen.value && !applying.value && !drafts.count.value && !drafts.processing.value,
-  preview: data => showOriginal.value ? originalTrackView(data) : drafts.preview(data),
+  preview: (data) => {
+    if (showOriginal.value)
+      return originalTrackView(data)
+
+    return showBeforeGpsDraft.value && latestGpsDraft.value ? data : drafts.preview(data)
+  },
   beforeChange: requestLeave,
   onRejectedChange: () => emit('dayChange', selectedDay.value),
   tripId: toRef(props, 'tripId'),
@@ -143,25 +173,6 @@ const timezone = useDayTrackTimezone({
   dayData,
   t: playback.t,
 })
-
-const exporting = ref(false)
-const exportStatus = ref('')
-const draftTripId = ref(props.tripId)
-const committed = ref(false)
-const draftError = ref('')
-const leaveOpen = ref(false)
-let leaveResult: Promise<boolean> | null = null
-let resolveLeave: ((value: boolean) => void) | null = null
-const instance = getCurrentInstance()
-const mapHost = ref<HTMLElement | null>(null)
-const popupHost = ref<HTMLElement | null>(null)
-const photoPopupHost = ref<HTMLElement | null>(null)
-const playbackMarkerHost = ref<HTMLElement | null>(null)
-const viewMode = ref<ViewMode>('route')
-const isPlaybackPanelVisible = ref(true)
-const routeVisibility = ref<RouteVisibility>('full')
-const trailMinutes = ref(15)
-
 // ─── 5. Карта и интерактивные слои ─────────────────────────────────────────────
 const map = useDayTrackMap({
   selectedDay,
@@ -190,10 +201,15 @@ const map = useDayTrackMap({
   },
 })
 
-const activityEditorTime = ref(0)
-
 // ─── 6. Полноэкранный просмотр фотографий ─────────────────────────────────────
-const quality = computed(() => recordingQuality(sourceDayData.value?.rawPoints ?? [], drafts.preview(sourceDayData.value ?? { points: [], segments: [] }).corrections ?? []))
+const selectedSummary = computed(() => loadingSummary.value?.summary.dayUtc === selectedDay.value
+  ? loadingSummary.value.summary
+  : props.daySummaries?.find(summary => summary.dayUtc === selectedDay.value))
+const summaryTimeZone = computed(() => loadingSummary.value?.summary.dayUtc === selectedDay.value
+  ? loadingSummary.value.timeZone
+  : props.timeZone)
+const quality = computed(() => recordingQuality(sourceDayData.value?.rawPoints ?? [], sourceDayData.value?.corrections))
+const qualityCorrections = computed(() => sourceDayData.value ? drafts.preview(sourceDayData.value).corrections : undefined)
 const currentExplanation = computed(() => {
   const point = playback.currentPoint.value
 
@@ -235,6 +251,9 @@ const viewerImages = computed<ImageViewerImage[]>(() => {
 })
 
 watch(sourceDayData, () => drafts.clear(), { flush: 'sync' })
+watch(latestGpsDraft, () => {
+  showBeforeGpsDraft.value = false
+}, { flush: 'sync' })
 
 async function exportGpx() {
   const data = sourceDayData.value
@@ -270,11 +289,64 @@ async function resetCurrentCorrections() {
   }
   catch (error) { draftError.value = error instanceof Error ? error.message : 'Не удалось сбросить правки' }
 }
-function seekQualityIssue(issue: { startedAt: number, endedAt: number }, close: () => void) {
+function seekQualityIssue(issue: TrackQualityIssue, close: () => void) {
   playback.isPlaying.value = false
   playback.t.value = issue.startedAt
   map.centerCurrentPoint()
   close()
+}
+async function analyzeQualityIssue(issue: TrackQualityIssue) {
+  return trackingService.analyzeQualityIssue({
+    tripId: props.tripId,
+    dayUtc: selectedDay.value,
+    timeZone: sourceDayData.value?.timeZone,
+    sessionId: issue.sessionId,
+    startedAt: issue.startedAt,
+    endedAt: issue.endedAt,
+  })
+}
+async function previewQualityCorrection(issue: TrackQualityIssue, action: TrackGeometryAction, close: () => void) {
+  if (!canEditTrack.value || !authStore.isAuthenticated)
+    throw new Error('Редактирование трека недоступно.')
+
+  const points = (sourceDayData.value?.rawPoints ?? []).filter(p => p.sessionId === issue.sessionId)
+
+  if (points.some(p => p.localPending && p.tsUtc >= issue.startedAt - 30_000 && p.tsUtc <= issue.endedAt + 30_000))
+    throw new Error('Дождитесь синхронизации соседних GPS-точек.')
+
+  const candidate = inspectTrackGeometry(points, issue.startedAt, issue.endedAt)
+
+  if (candidate?.action !== action)
+    throw new Error('Замеры изменились. Проверьте участок ещё раз.')
+
+  if (qualityCorrections.value?.some(c => c.geometryAction && c.sessionId === issue.sessionId
+    && c.startedAt <= issue.endedAt && c.endedAt >= issue.startedAt)) {
+    throw new Error('Для этого участка уже есть правка GPS.')
+  }
+
+  await stageCorrection({
+    sessionId: issue.sessionId,
+    startedAt: issue.startedAt,
+    endedAt: issue.endedAt,
+    point: issue.startedAt === issue.endedAt,
+    activity: 'unknown',
+    geometryAction: action,
+  })
+  viewMode.value = 'route'
+  routeVisibility.value = 'full'
+  await nextTick()
+  seekQualityIssue(issue, close)
+}
+async function discardGpsDraft() {
+  if (!latestGpsDraft.value)
+    return
+
+  try {
+    await removeCorrection(latestGpsDraft.value.id)
+  }
+  catch {
+    // The draft toolbar already displays the error.
+  }
 }
 function handleOpenViewer(photo: TrackPhoto) {
   const list = viewerImages.value
@@ -633,6 +705,9 @@ useEventListener(window, 'beforeunload', (event: BeforeUnloadEvent) => {
     <!-- Оверлей загрузки / ошибки -->
     <DayTrackOverlayState
       :is-loading="isLoading"
+      :summary="selectedSummary"
+      :summary-time-zone="summaryTimeZone"
+      :summary-is-today="summaryTimeZone ? selectedDay === calendarDay(Date.now(), summaryTimeZone) : selectedDay === todayUtc"
       :load-error="loadError"
       :selected-day="selectedDay"
       @retry="loadDay"
@@ -691,7 +766,15 @@ useEventListener(window, 'beforeunload', (event: BeforeUnloadEvent) => {
       @seek-photo="(ts) => { playback.t.value = ts }"
     >
       <template #quality="{ close }">
-        <DayTrackQuality :quality="quality" :time-zone="dayData?.timeZone" @seek="seekQualityIssue($event, close)">
+        <DayTrackQuality
+          :key="selectedDay"
+          :quality="quality"
+          :time-zone="dayData?.timeZone"
+          :corrections="qualityCorrections"
+          :analyze="canEditTrack && authStore.isAuthenticated ? analyzeQualityIssue : undefined"
+          :preview="(issue, action) => previewQualityCorrection(issue, action, close)"
+          @seek="seekQualityIssue($event, close)"
+        >
           <label class="quality-gps-toggle" :for="originalGpsSwitchId">
             Исходные GPS-точки
             <KitSwitch :id="originalGpsSwitchId" v-model="showOriginal" size="sm" />
@@ -731,6 +814,27 @@ useEventListener(window, 'beforeunload', (event: BeforeUnloadEvent) => {
       <template #draft-actions>
         <div v-if="drafts.count.value" class="draft-toolbar" :aria-busy="applying">
           <span role="status">{{ committed ? 'Сохранено' : `Изменений: ${drafts.count.value}` }}</span>
+          <template v-if="latestGpsDraft && !committed">
+            <KitBtn
+              size="sm"
+              variant="text"
+              color="secondary"
+              :disabled="applying || drafts.processing.value || showOriginal"
+              @click="showBeforeGpsDraft = !showBeforeGpsDraft"
+            >
+              {{ showBeforeGpsDraft ? 'После правок' : 'До правок' }}
+            </KitBtn>
+            <KitBtn
+              v-if="drafts.count.value > 1"
+              size="sm"
+              variant="text"
+              color="secondary"
+              :disabled="applying || drafts.processing.value"
+              @click="discardGpsDraft"
+            >
+              Отменить правку GPS
+            </KitBtn>
+          </template>
           <KitBtn
             size="sm"
             variant="text"

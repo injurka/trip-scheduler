@@ -286,7 +286,7 @@ onScopeDispose(() => {
           :aria-controls="historyId"
           @click="historyExpanded = !historyExpanded"
         >
-          <span class="history-heading">Исправления движения <span class="history-count">{{ corrections.length }}</span></span>
+          <span class="history-heading">Правки трека <span class="history-count">{{ corrections.length }}</span></span>
           <Icon :icon="historyExpanded ? 'mdi:chevron-up' : 'mdi:chevron-down'" />
         </KitBtn>
         <div v-if="historyExpanded" :id="historyId">
@@ -295,10 +295,10 @@ onScopeDispose(() => {
           </p>
           <div v-for="correction in corrections" :key="correction.id" class="correction-row">
             <div class="correction-summary">
-              <Icon :icon="ACTIVITY_ICONS[correction.activity]" aria-hidden="true" />
+              <Icon :icon="correction.geometryAction ? 'mdi:crosshairs-gps' : ACTIVITY_ICONS[correction.activity]" aria-hidden="true" />
               <div class="correction-description">
                 <span class="correction-time">{{ formatTime(correction.startedAt) }}<template v-if="correction.endedAt !== correction.startedAt"> – {{ formatTime(correction.endedAt) }}</template></span>
-                <span class="correction-activity">{{ ACTIVITY_LABELS[correction.activity] }}</span>
+                <span class="correction-activity">{{ correction.geometryAction ? 'Правка GPS' : ACTIVITY_LABELS[correction.activity] }}</span>
               </div>
             </div>
             <KitBtn

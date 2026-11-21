@@ -1,4 +1,4 @@
-import { calendarDayBounds } from '@limiteddissolve/track-processing'
+import { calendarDayBounds, trackGeometryActions } from '@limiteddissolve/track-processing'
 import { TRPCError } from '@trpc/server'
 import { db } from 'db'
 import { trackActivityCorrections, trackPoints } from 'db/schema'
@@ -7,6 +7,7 @@ import { z } from 'zod'
 import { protectedProcedure, publicProcedure } from '~/lib/trpc'
 import { CorrectionBatchSchema, saveCorrectionBatch } from './correction-batch'
 import { grantNativeTracking, revokeNativeTracking, syncNativeTracking } from './native-sync'
+import { analyzeTrackQuality, TrackQualityAnalysisInput, TrackQualityAnalysisOutput } from './track-quality-analysis'
 import { DeleteTrackPointInputSchema, GetTrackDayInputSchema, IngestBatchInputSchema, TrackActivityTypeSchema, TrackingTimeZoneSchema } from './tracking.schemas'
 import { trackingService } from './tracking.service'
 import { assertTripTrackRange, editableTripTrack, tripTrackAccess } from './trip-track-access'
@@ -51,6 +52,7 @@ const CorrectionOutputSchema = z.object({
   endedAt: z.number(),
   activity: TrackActivityTypeSchema,
   createdAt: z.number(),
+  geometryAction: z.enum(trackGeometryActions).nullable().optional(),
 })
 
 const ActivitySummarySchema = z.object({
@@ -70,10 +72,40 @@ const DaySummarySchema = z.object({
   hasData: z.boolean(),
 })
 
+const GetTripTrackDayInput = GetTrackDayInputSchema.extend({ tripId: z.string().uuid(), shareSlug: z.string().optional() })
+
+async function getTripDayAccess(
+  input: z.infer<typeof GetTripTrackDayInput>,
+  user: Parameters<typeof tripTrackAccess>[1],
+  shareSlug?: string,
+) {
+  const access = await tripTrackAccess(input.tripId, user, input.shareSlug || shareSlug)
+  const start = Date.parse(`${input.dayUtc}T00:00:00Z`)
+  if (!Number.isFinite(start) || new Date(start).toISOString().slice(0, 10) !== input.dayUtc)
+    throw new TRPCError({ code: 'BAD_REQUEST', message: 'Некорректная дата' })
+
+  const bounds = calendarDayBounds(input.dayUtc, access.timeZone)
+  assertTripTrackRange(access, bounds.from.getTime(), bounds.to.getTime() - 1)
+  return access
+}
+
 export const trackingProcedures = {
   grantNativeSync: protectedProcedure.input(z.object({ deviceId: z.string().uuid() })).output(z.object({ syncToken: z.string(), expiresAt: z.number() })).mutation(({ ctx, input }) => grantNativeTracking(ctx.user.id, input.deviceId)),
   revokeNativeSync: protectedProcedure.input(z.object({ deviceId: z.string().uuid() })).mutation(({ ctx, input }) => revokeNativeTracking(ctx.user.id, input.deviceId)),
   syncNative: publicProcedure.input(IngestBatchInputSchema.extend({ ownerId: z.string().uuid(), syncToken: z.string().min(64).max(200) })).output(z.object({ accepted: z.array(z.string()), rejectedCount: z.number().int() })).mutation(({ input }) => syncNativeTracking(input)),
+  analyzeQualityIssue: protectedProcedure
+    .input(TrackQualityAnalysisInput)
+    .output(TrackQualityAnalysisOutput)
+    .mutation(async ({ ctx, input }) => {
+      const access = input.tripId ? await editableTripTrack(input.tripId, ctx.user) : null
+      const timeZone = access?.timeZone ?? input.timeZone
+      const bounds = calendarDayBounds(input.dayUtc, timeZone)
+      if (access)
+        assertTripTrackRange(access, bounds.from.getTime(), bounds.to.getTime() - 1)
+      if (input.startedAt < bounds.from.getTime() || input.endedAt >= bounds.to.getTime())
+        throw new TRPCError({ code: 'BAD_REQUEST', message: 'Участок относится к другому дню.' })
+      return analyzeTrackQuality(ctx.user.id, access?.ownerId ?? ctx.user.id, { ...input, timeZone })
+    }),
   correctActivities: protectedProcedure.input(CorrectionBatchSchema).output(z.object({ success: z.boolean() })).mutation(async ({ input, ctx }) => {
     if (!input.tripId)
       return saveCorrectionBatch(ctx.user.id, input)
@@ -114,6 +146,7 @@ export const trackingProcedures = {
       ownerId: z.string().optional(),
       timeZone: z.string().optional(),
       points: z.array(PointOutputSchema),
+      rawPoints: z.array(PointOutputSchema).optional(),
       corrections: z.array(CorrectionOutputSchema),
       segments: z.array(SegmentOutputSchema),
     }))
@@ -126,18 +159,21 @@ export const trackingProcedures = {
     }),
 
   getTripDay: publicProcedure
-    .input(GetTrackDayInputSchema.extend({ tripId: z.string().uuid(), shareSlug: z.string().optional() }))
-    .output(z.object({ ownerId: z.string().optional(), timeZone: z.string().optional(), points: z.array(PointOutputSchema), corrections: z.array(CorrectionOutputSchema), segments: z.array(SegmentOutputSchema), canEdit: z.boolean() }))
+    .input(GetTripTrackDayInput)
+    .output(z.object({ ownerId: z.string().optional(), timeZone: z.string().optional(), points: z.array(PointOutputSchema), rawPoints: z.array(PointOutputSchema).optional(), corrections: z.array(CorrectionOutputSchema), segments: z.array(SegmentOutputSchema), canEdit: z.boolean() }))
     .query(async ({ input, ctx }) => {
-      const access = await tripTrackAccess(input.tripId, ctx.user, input.shareSlug || ctx.c?.req.header('x-share-slug'))
-      const start = Date.parse(`${input.dayUtc}T00:00:00Z`)
-      if (!Number.isFinite(start) || new Date(start).toISOString().slice(0, 10) !== input.dayUtc)
-        throw new TRPCError({ code: 'BAD_REQUEST', message: 'Некорректная дата' })
-      const bounds = calendarDayBounds(input.dayUtc, access.timeZone)
-      assertTripTrackRange(access, bounds.from.getTime(), bounds.to.getTime() - 1)
+      const access = await getTripDayAccess(input, ctx.user, ctx.c?.req.header('x-share-slug'))
       const data = await trackingService.getDay(access.ownerId, { ...input, timeZone: access.timeZone })
       // History is editable metadata; public viewers only need effective points and segments.
       return { ...data, corrections: access.canEdit ? data.corrections : [], canEdit: access.canEdit }
+    }),
+
+  getTripDaySummary: publicProcedure
+    .input(GetTripTrackDayInput)
+    .output(z.object({ summary: DaySummarySchema, timeZone: z.string() }))
+    .query(async ({ input, ctx }) => {
+      const access = await getTripDayAccess(input, ctx.user, ctx.c?.req.header('x-share-slug'))
+      return trackingService.getDaySummary(access.ownerId, { ...input, timeZone: access.timeZone })
     }),
 
   /** Сводки за последние N дней (по умолчанию 14) для страницы «Активность». */

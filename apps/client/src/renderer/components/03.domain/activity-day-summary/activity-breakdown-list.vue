@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import type { ActivityBreakdownItem } from '../models/types'
+import type { ActivityBreakdownItem } from './types'
 import { Icon } from '@iconify/vue'
 import { computed } from 'vue'
-import { ACTIVITY_COLORS, ACTIVITY_ICONS, ACTIVITY_LABELS } from '../models/constants'
+import { ACTIVITY_COLORS, ACTIVITY_ICONS, ACTIVITY_LABELS } from './constants'
 
 interface Props {
   activities: ActivityBreakdownItem[]

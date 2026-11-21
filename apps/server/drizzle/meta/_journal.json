@@ -204,6 +204,13 @@
       "when": 1794931073889,
       "tag": "0028_gps_sampling_interval",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1795261374480,
+      "tag": "0029_track_geometry_corrections",
+      "breakpoints": true
     }
   ]
 }

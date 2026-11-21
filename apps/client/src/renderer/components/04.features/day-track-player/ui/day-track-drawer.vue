@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { ImageViewerImage } from '~/components/01.kit/kit-image-viewer'
+import type { DaySummary } from '~/components/03.domain/activity-day-summary/types'
 import type { Memory } from '~/shared/types/models/memory'
 import { Icon } from '@iconify/vue'
 import { useEventListener, useScrollLock } from '@vueuse/core'
@@ -8,6 +9,7 @@ import { isTopModal, useDialogHistory } from '~/components/01.kit/kit-dialog-wit
 import DayTrackPlayer from './day-track-player.vue'
 
 interface Props {
+  daySummaries?: DaySummary[]
   timeZone?: string
   tripId?: string
   open?: boolean
@@ -94,6 +96,7 @@ useEventListener(typeof window !== 'undefined' ? window : null, 'keydown', (e: K
             ref="player"
             class="track-player-embedded"
             :day-utc="dayUtc"
+            :day-summaries="daySummaries"
             :trip-id="tripId"
             :time-zone="timeZone"
             :mode="mode"

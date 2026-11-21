@@ -1,0 +1,1 @@
+ALTER TABLE "track_activity_corrections" ADD COLUMN "geometry_action" text;

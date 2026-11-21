@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { DaySummary } from '../models/types'
+import type { DaySummary } from './types'
 import { Icon } from '@iconify/vue'
 import { computed } from 'vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
@@ -8,6 +8,7 @@ import ActivityProgressBar from './activity-progress-bar.vue'
 
 interface Props {
   summary: DaySummary
+  loading?: boolean
   isToday?: boolean
   isLiveRecording?: boolean
   formatDay: (dayUtc: string) => string
@@ -31,23 +32,29 @@ const formattedDateSubtitle = computed(() => {
 
   const d = new Date(`${props.summary.dayUtc}T12:00:00Z`)
 
-  return d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })
+  return d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', timeZone: 'UTC' })
 })
 
 function handleClick() {
-  emit('openMap', props.summary.dayUtc)
+  if (!props.loading)
+    emit('openMap', props.summary.dayUtc)
 }
 </script>
 
 <template>
   <article
     class="activity-day-card"
-    :class="{ 'is-today': props.isToday }"
-    tabindex="0"
-    role="button"
+    :class="{ 'is-today': props.isToday, 'is-interactive': !props.loading, 'is-loading': props.loading }"
+    :tabindex="props.loading ? undefined : 0"
+    :role="props.loading ? undefined : 'button'"
     @click="handleClick"
     @keydown.enter="handleClick"
   >
+    <div v-if="props.loading" class="day-loading" role="status">
+      <Icon icon="mdi:loading" aria-hidden="true" />
+      Загрузка карты…
+    </div>
+
     <header class="day-head">
       <div class="day-title-group">
         <h2 class="day-title">
@@ -93,7 +100,7 @@ function handleClick() {
         </div>
       </div>
 
-      <div class="map-action">
+      <div v-if="!props.loading" class="map-action">
         <KitBtn
           variant="tonal"
           size="xs"
@@ -135,13 +142,15 @@ function handleClick() {
   display: flex;
   flex-direction: column;
   gap: var(--p-s);
-  cursor: pointer;
-  outline: none;
+  &.is-interactive {
+    cursor: pointer;
+    outline: none;
+  }
   transition:
     border-color 0.2s ease,
     box-shadow 0.2s ease;
 
-  &:hover {
+  &.is-interactive:hover {
     border-color: var(--border-primary-color);
     box-shadow: var(--s-m);
 
@@ -165,11 +174,23 @@ function handleClick() {
     );
     box-shadow: 0 0 0 1px rgba(var(--fg-accent-color-rgb, 255, 136, 86), 0.15);
 
-    &:hover {
+    &.is-interactive:hover {
       border-color: var(--fg-accent-color);
       box-shadow:
         0 0 0 1px var(--fg-accent-color),
         var(--s-m);
+    }
+  }
+
+  .day-loading {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--fg-secondary-color);
+    font-size: 0.78rem;
+
+    svg {
+      animation: summary-spin 1s linear infinite;
     }
   }
 
@@ -337,6 +358,66 @@ function handleClick() {
         }
       }
     }
+  }
+}
+
+.activity-day-card.is-loading {
+  background-color: var(--bg-secondary-color);
+
+  .day-totals-row {
+    display: block;
+    padding-inline: 10px;
+  }
+
+  .totals-stats-group {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .totals-stat {
+    gap: 6px;
+  }
+
+  .stat-divider {
+    display: none;
+  }
+
+  @container (max-width: 350px) {
+    .totals-stat .stat-icon-wrapper {
+      width: 28px;
+      height: 28px;
+    }
+
+    .totals-stat .stat-content .stat-value {
+      font-size: 0.95rem;
+    }
+
+    :deep(.activity-row) {
+      padding-inline: 2px;
+      column-gap: 6px;
+    }
+
+    :deep(.activity-lead) {
+      gap: 4px;
+    }
+
+    :deep(.activity-distance),
+    :deep(.activity-duration) {
+      min-width: 0;
+    }
+  }
+}
+
+@keyframes summary-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .activity-day-card .day-loading svg {
+    animation: none;
   }
 }
 

@@ -6,6 +6,7 @@ import type { DayData } from '../models/types'
 import {
   annotateTrackPoints,
   applyActivityCorrections,
+  applyTrackGeometryCorrections,
   prepareTrack,
   processDayTrack,
 } from '@limiteddissolve/track-processing'
@@ -33,12 +34,14 @@ export function createTrackPreviewTask() {
       auto = processDayTrack(raw)
     },
     calculate(corrections: ActivityCorrection[]): DayData {
-      const segments = applyActivityCorrections(auto, corrections, raw)
+      const effective = applyTrackGeometryCorrections(raw, corrections)
+      const segments = applyActivityCorrections(effective === raw ? auto : processDayTrack(effective), corrections, effective)
+      const displayPoints: DayData['points'] = effective === raw ? prepared : prepareTrack(effective)
 
       const preview: DayData = {
         ...base,
         corrections,
-        points: annotateTrackPoints(prepared.map(p => ({
+        points: annotateTrackPoints(displayPoints.map(p => ({
           ...p,
           activity: p.recordedActivity ?? p.activity,
         })), segments, corrections),

@@ -7,7 +7,15 @@ import { createMemoryHistory, createRouter, createWebHashHistory, createWebHisto
 import { useDialogHistory, waitForDialogHistory } from '../src/renderer/components/01.kit/kit-dialog-with-close/composables/use-dialog-history'
 import Player from '../src/renderer/components/04.features/day-track-player/ui/day-track-player.vue'
 
-const api = vi.hoisted(() => ({ getDay: vi.fn(), correctActivities: vi.fn(), closePopup: vi.fn(), mapOptions: null as unknown as UseDayTrackMapOptions }))
+const api = vi.hoisted(() => ({
+  getDay: vi.fn(),
+  getTripDay: vi.fn(),
+  getTripDaySummary: vi.fn(),
+  correctActivities: vi.fn(),
+  analyzeQualityIssue: vi.fn(),
+  closePopup: vi.fn(),
+  mapOptions: null as unknown as UseDayTrackMapOptions,
+}))
 vi.mock('../src/renderer/components/04.features/day-track-player/lib/track-preview-client', async () => {
   const { createTrackPreviewTask } = await import('../src/renderer/components/04.features/day-track-player/lib/track-preview-task')
 
@@ -82,12 +90,12 @@ const points: DayPoint[] = Array.from({ length: 100 }, (_, i) => ({
 }))
 const data: DayData = { points, segments: [], corrections: [] }
 const choice = { sessionId: 'test-session', startedAt: start, endedAt: start + 400000, activity: 'vehicle' }
-async function setup(history = createMemoryHistory()) {
+async function setup(history = createMemoryHistory(), props: Partial<InstanceType<typeof Player>['$props']> = {}) {
   const router = createRouter({ history, routes: [{ path: '/', component: { render: () => null } }] })
   await router.push('/')
   await router.isReady()
   const wrapper = mount(Player, {
-    props: { dayUtc: '2026-11-12', mode: 'memories' },
+    props: { dayUtc: '2026-11-12', mode: 'memories', ...props },
     global: {
       provide: { [matchedRouteKey as symbol]: computed(() => router.currentRoute.value.matched[0]) },
       plugins: [router],
@@ -96,10 +104,10 @@ async function setup(history = createMemoryHistory()) {
         DayTrackBeacon: true,
         DayTrackPointPopup: true,
         DayTrackPhotoPopup: true,
-        DayTrackOverlayState: defineComponent({ name: 'DayTrackOverlayState', props: ['isLoading'], render: () => null }),
+        DayTrackOverlayState: defineComponent({ name: 'DayTrackOverlayState', props: ['isLoading', 'summary', 'summaryTimeZone'], render: () => null }),
         DayTrackEmpty: true,
         DayTrackActivityEditor: defineComponent({ name: 'Editor', props: ['visible', 'stageCorrection', 'removeCorrection'], emits: ['update:visible'], render: () => null }),
-        DayTrackPlaybackPanel: defineComponent({ name: 'DayTrackPlaybackPanel', props: { t: Number, speedMultiplier: Number }, setup: (_, { slots }) => () => h('div', { 'data-testid': 'playback-panel' }, slots['draft-actions']?.()) }),
+        DayTrackPlaybackPanel: defineComponent({ name: 'DayTrackPlaybackPanel', props: { t: Number, speedMultiplier: Number }, setup: (_, { slots }) => () => h('div', { 'data-testid': 'playback-panel' }, [slots.quality?.({ close: () => {} }), slots['draft-actions']?.()]) }),
         KitBtn: defineComponent({ setup: (_, { slots, attrs }) => () => h('button', attrs, slots.default?.()) }),
       },
     },
@@ -115,8 +123,99 @@ beforeEach(() => {
   api.closePopup.mockReset()
   api.getDay.mockReset().mockImplementation(async () => structuredClone(data))
   api.correctActivities.mockReset().mockResolvedValue({ success: true })
+  api.analyzeQualityIssue.mockReset()
+  api.getTripDay.mockReset()
+  api.getTripDaySummary.mockReset()
 })
+describe('day summary while loading the route', () => {
+  const summary = {
+    dayUtc: '2026-11-12',
+    totalDistanceM: 6000,
+    totalDurationMs: 600_000,
+    byActivity: [{ activity: 'rail' as const, distanceM: 6000, durationMs: 600_000, segmentCount: 1 }],
+    firstPointTs: start,
+    lastPointTs: start + 600_000,
+    hasData: true,
+  }
+
+  it('reuses the activity summary immediately', async () => {
+    const pendingDay = Promise.withResolvers<DayData>()
+    api.getDay.mockReturnValueOnce(pendingDay.promise)
+    const wrapper = await setup(undefined, { daySummaries: [summary], timeZone: 'UTC' })
+    const overlay = wrapper.getComponent({ name: 'DayTrackOverlayState' })
+
+    expect(overlay.props('isLoading')).toBe(true)
+    expect(overlay.props('summary')).toEqual(summary)
+    expect(api.getTripDaySummary).not.toHaveBeenCalled()
+    pendingDay.resolve(structuredClone(data))
+    await flushPromises()
+    expect(overlay.props('isLoading')).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('displays the trip summary without waiting for the full track', async () => {
+    const pendingDay = Promise.withResolvers<DayData>()
+    api.getTripDay.mockReturnValueOnce(pendingDay.promise)
+    api.getTripDaySummary.mockResolvedValueOnce({ summary, timeZone: 'Asia/Taipei' })
+    const wrapper = await setup(undefined, { tripId: 'test-trip' })
+    const overlay = wrapper.getComponent({ name: 'DayTrackOverlayState' })
+
+    expect(overlay.props('isLoading')).toBe(true)
+    expect(overlay.props('summary')).toEqual(summary)
+    expect(overlay.props('summaryTimeZone')).toBe('Asia/Taipei')
+    expect(api.getTripDaySummary).toHaveBeenCalledWith('test-trip', summary.dayUtc, undefined)
+    pendingDay.resolve(structuredClone(data))
+    await flushPromises()
+    expect(overlay.props('isLoading')).toBe(false)
+    wrapper.unmount()
+  })
+})
+
 describe('batch correction player', () => {
+  it('stages an AI GPS fix for map comparison and only saves after confirmation', async () => {
+    const gpsPoints = points.map((point, index) => index === 10
+      ? { ...point, lng: point.lng + 0.0015, accuracy: 60 }
+      : point)
+
+    api.getDay.mockImplementation(async () => structuredClone({ ...data, points: gpsPoints }))
+    api.analyzeQualityIssue.mockResolvedValue({ action: 'exclude-spike', reason: 'Одиночный скачок.', affectedFixes: 1 })
+    const wrapper = await setup()
+
+    try {
+      const quality = wrapper.getComponent({ name: 'DayTrackQuality' })
+      const issue = quality.props('quality').issues[0]
+
+      await quality.props('analyze')(issue)
+      expect(api.analyzeQualityIssue).toHaveBeenCalledWith(expect.objectContaining({
+        dayUtc: '2026-11-12',
+        sessionId: issue.sessionId,
+        startedAt: issue.startedAt,
+        endedAt: issue.endedAt,
+      }))
+      await quality.props('preview')(issue, 'exclude-spike')
+      await flushPromises()
+      expect(api.correctActivities).not.toHaveBeenCalled()
+      expect(api.mapOptions.dayData.value?.corrections).toEqual([expect.objectContaining({ geometryAction: 'exclude-spike' })])
+      expect(api.mapOptions.dayData.value?.rawPoints?.[10].lng).toBe(gpsPoints[10].lng)
+      await button(wrapper, 'До правок').trigger('click')
+      expect(api.mapOptions.dayData.value?.corrections).toEqual([])
+      expect(button(wrapper, 'После правок').exists()).toBe(true)
+      await button(wrapper, 'После правок').trigger('click')
+      await button(wrapper, 'Применить').trigger('click')
+      await flushPromises()
+      expect(api.correctActivities).toHaveBeenCalledWith(expect.objectContaining({
+        additions: [expect.objectContaining({
+          geometryAction: 'exclude-spike',
+          startedAt: issue.startedAt,
+          endedAt: issue.endedAt,
+        })],
+      }))
+    }
+    finally {
+      wrapper.unmount()
+    }
+  })
+
   it('refreshes silently and defers queue results while the correction editor is open', async () => {
     const wrapper = await setup()
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })

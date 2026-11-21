@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { DaySummary } from '../models/types'
-import ActivityDayCard from './activity-day-card.vue'
+import ActivityDayCard from '~/components/03.domain/activity-day-summary/activity-day-card.vue'
 
 interface Props {
   days: DaySummary[]

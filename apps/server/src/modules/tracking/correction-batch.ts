@@ -1,8 +1,8 @@
-import { calendarDayBounds } from '@limiteddissolve/track-processing'
+import { calendarDayBounds, inspectTrackGeometry, trackGeometryActions } from '@limiteddissolve/track-processing'
 import { TRPCError } from '@trpc/server'
 import { db } from 'db'
 import { trackActivityCorrections, trackPoints } from 'db/schema'
-import { and, eq, gte, inArray, lte, sql } from 'drizzle-orm'
+import { and, eq, gte, inArray, isNotNull, lte, sql } from 'drizzle-orm'
 import { z } from 'zod'
 import { TrackActivityTypeSchema, TrackingTimeZoneSchema } from './tracking.schemas'
 
@@ -13,7 +13,8 @@ export const CorrectionDraftSchema = z.object({
   endedAt: z.number().int().positive().max(8_640_000_000_000_000),
   activity: TrackActivityTypeSchema,
   point: z.boolean().optional(),
-}).refine(c => (c.endedAt > c.startedAt || (c.point && c.endedAt === c.startedAt)) && c.endedAt - c.startedAt <= 26 * 3600_000, 'Некорректный интервал')
+  geometryAction: z.enum(trackGeometryActions).nullable().optional(),
+}).refine(c => (c.endedAt > c.startedAt || (c.point && c.endedAt === c.startedAt)) && c.endedAt - c.startedAt <= (c.geometryAction ? 120_000 : 26 * 3600_000), 'Некорректный интервал')
 export const CorrectionBatchSchema = z.object({
   tripId: z.string().uuid().optional(),
   dayUtc: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
@@ -41,13 +42,33 @@ export async function saveCorrectionBatch(userId: string, input: z.infer<typeof 
         throw new TRPCError({ code: 'BAD_REQUEST', message: 'Все исправления должны относиться к выбранному дню' })
       const [existing] = await tx.select().from(trackActivityCorrections).where(eq(trackActivityCorrections.id, correction.id))
       if (existing) {
-        if (existing.userId !== userId || existing.sessionId !== correction.sessionId || existing.startedAt.getTime() !== correction.startedAt || existing.endedAt.getTime() !== correction.endedAt || existing.activity !== correction.activity)
+        if (existing.userId !== userId || existing.sessionId !== correction.sessionId || existing.startedAt.getTime() !== correction.startedAt || existing.endedAt.getTime() !== correction.endedAt || existing.activity !== correction.activity || (existing.geometryAction ?? null) !== (correction.geometryAction ?? null))
           throw new TRPCError({ code: 'CONFLICT', message: 'Исправление с таким ID уже существует' })
         continue
       }
       const [point] = await tx.select({ id: trackPoints.id }).from(trackPoints).where(and(eq(trackPoints.userId, userId), eq(trackPoints.sessionId, correction.sessionId), gte(trackPoints.tsUtc, new Date(correction.startedAt)), lte(trackPoints.tsUtc, new Date(correction.endedAt)))).limit(1)
       if (!point)
         throw new TRPCError({ code: 'BAD_REQUEST', message: 'В интервале нет GPS-точек этой записи' })
+      if (correction.geometryAction) {
+        const context = await tx.select().from(trackPoints).where(and(
+          eq(trackPoints.userId, userId),
+          eq(trackPoints.sessionId, correction.sessionId),
+          gte(trackPoints.tsUtc, new Date(Math.max(from, correction.startedAt - 30_000))),
+          lte(trackPoints.tsUtc, new Date(Math.min(until - 1, correction.endedAt + 30_000))),
+        )).orderBy(trackPoints.tsUtc)
+        const result = inspectTrackGeometry(context.map(p => ({ ...p, tsUtc: p.tsUtc.getTime() })), correction.startedAt, correction.endedAt)
+        if (result?.action !== correction.geometryAction)
+          throw new TRPCError({ code: 'CONFLICT', message: 'Точки участка изменились. Проверьте участок ещё раз.' })
+        const overlapping = await tx.select({ id: trackActivityCorrections.id }).from(trackActivityCorrections).where(and(
+          eq(trackActivityCorrections.userId, userId),
+          eq(trackActivityCorrections.sessionId, correction.sessionId),
+          isNotNull(trackActivityCorrections.geometryAction),
+          lte(trackActivityCorrections.startedAt, new Date(correction.endedAt)),
+          gte(trackActivityCorrections.endedAt, new Date(correction.startedAt)),
+        ))
+        if (overlapping.some(entry => !input.removals.includes(entry.id)))
+          throw new TRPCError({ code: 'CONFLICT', message: 'Для этого участка уже сохранена правка GPS.' })
+      }
       await tx.insert(trackActivityCorrections).values({ ...correction, userId, startedAt: new Date(correction.startedAt), endedAt: new Date(correction.endedAt), createdAt: new Date(time++) })
     }
     if (input.removals.length)

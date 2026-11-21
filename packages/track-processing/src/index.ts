@@ -1528,5 +1528,7 @@ function dominantReco(points: TrackPoint[]): RecoHint {
   return deviceReco(points)
 }
 
+export * from './geometry-corrections'
 export * from './quality'
+
 export * from './stays'

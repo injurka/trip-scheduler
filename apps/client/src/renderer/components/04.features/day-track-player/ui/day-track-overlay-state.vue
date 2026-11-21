@@ -1,9 +1,15 @@
 <script setup lang="ts">
+import type { DaySummary } from '~/components/03.domain/activity-day-summary/types'
 import { Icon } from '@iconify/vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
+import ActivityDayCard from '~/components/03.domain/activity-day-summary/activity-day-card.vue'
+import { formatActivityDay, formatActivityDistance, formatActivityDuration, formatActivityTime } from '~/components/03.domain/activity-day-summary/format'
 
 interface Props {
   isLoading: boolean
+  summary?: DaySummary
+  summaryTimeZone?: string
+  summaryIsToday?: boolean
   loadError: string | null
   selectedDay: string
 }
@@ -18,8 +24,19 @@ const emit = defineEmits<{
 <template>
   <!-- Оверлей загрузки -->
   <div v-if="isLoading" class="memories-overlay">
-    <div class="overlay-card">
-      <Icon icon="mdi:loading" class="spin overlay-icon" />
+    <div v-if="summary?.hasData" class="summary-scroll">
+      <ActivityDayCard
+        :summary="summary"
+        :is-today="summaryIsToday"
+        :format-day="day => formatActivityDay(day, !!summaryIsToday)"
+        :format-distance="formatActivityDistance"
+        :format-duration="formatActivityDuration"
+        :format-time="ts => formatActivityTime(ts, summaryTimeZone)"
+        loading
+      />
+    </div>
+    <div v-else class="overlay-card" role="status">
+      <Icon icon="mdi:loading" class="spin overlay-icon" aria-hidden="true" />
       <span>Загрузка данных дня…</span>
     </div>
   </div>
@@ -69,8 +86,25 @@ const emit = defineEmits<{
   }
 }
 
+.summary-scroll {
+  container-type: inline-size;
+  width: min(100% - 24px, 520px);
+  max-height: calc(100% - 136px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 2px;
+  border-radius: var(--r-m);
+  box-shadow: var(--s-l);
+}
+
 .spin {
   animation: spin 1s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spin {
+    animation: none;
+  }
 }
 
 @keyframes spin {
