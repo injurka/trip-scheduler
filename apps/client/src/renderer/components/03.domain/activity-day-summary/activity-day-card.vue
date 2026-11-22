@@ -50,10 +50,7 @@ function handleClick() {
     @click="handleClick"
     @keydown.enter="handleClick"
   >
-    <div v-if="props.loading" class="day-loading" role="status">
-      <Icon icon="mdi:loading" aria-hidden="true" />
-      Загрузка карты…
-    </div>
+    <slot v-if="props.loading" name="loading" />
 
     <header class="day-head">
       <div class="day-title-group">
@@ -179,18 +176,6 @@ function handleClick() {
       box-shadow:
         0 0 0 1px var(--fg-accent-color),
         var(--s-m);
-    }
-  }
-
-  .day-loading {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    color: var(--fg-secondary-color);
-    font-size: 0.78rem;
-
-    svg {
-      animation: summary-spin 1s linear infinite;
     }
   }
 
@@ -406,18 +391,6 @@ function handleClick() {
     :deep(.activity-duration) {
       min-width: 0;
     }
-  }
-}
-
-@keyframes summary-spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .activity-day-card .day-loading svg {
-    animation: none;
   }
 }
 

@@ -121,15 +121,27 @@ it('previews day proposals together and keeps declined or pending sections for m
   wrapper.unmount()
 })
 
-it('stages a selected noisy fix for reversible manual exclusion', async () => {
-  const rawPoints = trackPoints([8, 65, 8], [0, 0.0004, 0.00001])
-  const preview = vi.fn().mockResolvedValue(undefined)
+it('selects points without recalculation and previews the entire selection once', async () => {
+  const rawPoints = trackPoints([8, 65, 65, 8], [0, 0.00022, 0.00027, 0.00001])
+  const previewBatch = vi.fn().mockResolvedValue(undefined)
   const wrapper = mount(Quality, {
-    props: { quality: recordingQuality(rawPoints), rawPoints, preview },
+    props: { quality: recordingQuality(rawPoints), rawPoints, previewBatch },
     global: { stubs: { KitBtn: { template: '<button><slot /></button>' } } },
   })
+
   await wrapper.findAll('button').find(button => button.text() === 'Точки участка')!.trigger('click')
-  await wrapper.findAll('button').find(button => button.text() === 'Исключить из маршрута')!.trigger('click')
-  expect(preview).toHaveBeenCalledWith(expect.objectContaining({ startedAt: 6000, endedAt: 6000 }), 'exclude-manual')
+  const checkboxes = wrapper.findAll('input[type="checkbox"]')
+
+  expect(checkboxes).toHaveLength(2)
+  await checkboxes[0].setValue(true)
+  expect(previewBatch).not.toHaveBeenCalled()
+  await wrapper.findAll('button').find(button => button.text() === 'Выбрать все')!.trigger('click')
+  expect(checkboxes.every(checkbox => (checkbox.element as HTMLInputElement).checked)).toBe(true)
+  expect(previewBatch).not.toHaveBeenCalled()
+  await wrapper.findAll('button').find(button => button.text() === 'Предпросмотр · 2')!.trigger('click')
+  expect(previewBatch).toHaveBeenCalledExactlyOnceWith([
+    { issue: expect.objectContaining({ startedAt: 6000, endedAt: 6000 }), action: 'exclude-manual' },
+    { issue: expect.objectContaining({ startedAt: 11000, endedAt: 11000 }), action: 'exclude-manual' },
+  ])
   wrapper.unmount()
 })

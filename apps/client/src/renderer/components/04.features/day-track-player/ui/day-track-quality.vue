@@ -49,6 +49,7 @@ const maxReviewDurationMs = 120_000
 const issueLimit = ref(30)
 const selectedGroup = ref<ReviewGroup>()
 const manualIssue = shallowRef<TrackQualityIssue>()
+const selectedPointIds = ref<string[]>([])
 const batchError = ref('')
 const selectedIssue = shallowRef<TrackQualityIssue>()
 const busy = ref(false)
@@ -131,6 +132,14 @@ const manualPoints = computed(() => {
     && !correctionFor(issueAtPoint(issue, point)))
 })
 
+const manualSelectionLimit = computed(() => Math.min(manualPoints.value.length, Math.max(0, props.batchCapacity ?? 200)))
+const selectedManualPoints = computed(() => manualPoints.value.filter(point => selectedPointIds.value.includes(point.clientPointId)))
+
+watch(manualIssue, () => {
+  selectedPointIds.value = []
+  batchError.value = ''
+})
+
 watch(activeGroup, () => {
   issueLimit.value = 30
   manualIssue.value = undefined
@@ -171,15 +180,28 @@ function issueKey(issue: TrackQualityIssue) {
 function issueAtPoint(issue: TrackQualityIssue, point: DayPoint): TrackQualityIssue {
   return { ...issue, startedAt: point.tsUtc, endedAt: point.tsUtc, points: 1 }
 }
-async function previewDay() {
-  if (!props.previewBatch || !batchProposals.value.length || busy.value)
+function toggleAllManualPoints() {
+  selectedPointIds.value = selectedManualPoints.value.length === manualSelectionLimit.value
+    ? []
+    : manualPoints.value.slice(0, manualSelectionLimit.value).map(point => point.clientPointId)
+}
+function previewManualPoints(issue: TrackQualityIssue) {
+  const points = selectedManualPoints.value
+
+  if (points.length > manualSelectionLimit.value)
+    return
+
+  return previewProposals(points.map(point => ({ issue: issueAtPoint(issue, point), action: 'exclude-manual' })))
+}
+async function previewProposals(proposals: QualityProposal[]) {
+  if (!props.previewBatch || !proposals.length || busy.value)
     return
 
   busy.value = true
   batchError.value = ''
 
   try {
-    await props.previewBatch(batchProposals.value)
+    await props.previewBatch(proposals)
   }
   catch (error) {
     batchError.value = error instanceof Error ? error.message : 'Не удалось подготовить правки.'
@@ -294,11 +316,11 @@ function time(ts: number, timeZone?: string) {
         size="sm"
         variant="tonal"
         :disabled="busy || !batchProposals.length"
-        @click="previewDay"
+        @click="previewProposals(batchProposals)"
       >
         Предпросмотр правок за день · {{ batchProposals.length }}
       </KitBtn>
-      <p v-if="batchError" role="alert">
+      <p v-if="batchError && !manualIssue" role="alert">
         {{ batchError }}
       </p>
     </div>
@@ -367,7 +389,7 @@ function time(ts: number, timeZone?: string) {
           </KitBtn>
           <p>{{ actionLabels[action] }}</p>
         </div>
-        <template v-if="preview && group === 'manual' && issue.kind === 'accuracy' && (!correction || correction.geometryAction === 'exclude-manual')">
+        <template v-if="previewBatch && group === 'manual' && issue.kind === 'accuracy' && (!correction || correction.geometryAction === 'exclude-manual')">
           <KitBtn
             size="sm"
             variant="text"
@@ -376,24 +398,49 @@ function time(ts: number, timeZone?: string) {
           >
             Точки участка
           </KitBtn>
-          <ul v-if="manualIssue === issue" class="quality-manual-points">
-            <li v-for="point in manualPoints" :key="point.clientPointId" class="quality-row-actions">
-              <KitBtn size="sm" variant="text" @click="emit('seek', issueAtPoint(issue, point))">
-                {{ time(point.tsUtc, timeZone) }} · {{ Math.round(point.accuracy ?? 0) }} м
+          <div v-if="manualIssue === issue" class="quality-point-picker">
+            <div v-if="manualPoints.length" class="quality-point-controls">
+              <KitBtn
+                size="xs"
+                variant="text"
+                :disabled="busy || !manualSelectionLimit"
+                @click="toggleAllManualPoints"
+              >
+                {{ manualSelectionLimit && selectedManualPoints.length === manualSelectionLimit ? 'Снять выбор' : manualSelectionLimit < manualPoints.length ? `Выбрать до ${manualSelectionLimit}` : 'Выбрать все' }}
               </KitBtn>
               <KitBtn
-                size="sm"
-                variant="text"
-                :disabled="busy"
-                @click="previewSuggestion(issue, 'exclude-manual', issueAtPoint(issue, point))"
+                size="xs"
+                variant="tonal"
+                :disabled="busy || !selectedManualPoints.length || selectedManualPoints.length > manualSelectionLimit"
+                @click="previewManualPoints(issue)"
               >
-                Исключить из маршрута
+                Предпросмотр · {{ selectedManualPoints.length }}
               </KitBtn>
-            </li>
-            <li v-if="!manualPoints.length">
-              Нет отдельных синхронизированных точек для исключения.
-            </li>
-          </ul>
+              <p v-if="manualSelectionLimit < manualPoints.length">
+                В текущий черновик можно добавить {{ manualSelectionLimit }} точек.
+              </p>
+              <p v-if="batchError" role="alert">
+                {{ batchError }}
+              </p>
+            </div>
+            <ul v-if="manualPoints.length" class="quality-manual-points">
+              <li v-for="point in manualPoints" :key="point.clientPointId">
+                <label class="quality-point-option">
+                  <input
+                    v-model="selectedPointIds"
+                    type="checkbox"
+                    :value="point.clientPointId"
+                    :disabled="busy || (!selectedPointIds.includes(point.clientPointId) && selectedManualPoints.length >= manualSelectionLimit)"
+                  >
+                  <span>{{ time(point.tsUtc, timeZone) }}</span>
+                  <span class="quality-issue-time">{{ Math.round(point.accuracy ?? 0) }} м</span>
+                </label>
+              </li>
+            </ul>
+            <p v-else>
+              Нет синхронизированных точек для исключения.
+            </p>
+          </div>
         </template>
         <div v-if="selectedIssue === issue || (!correction && suggestion)" class="quality-suggestion">
           <p v-if="selectedIssue === issue && busy && !suggestion" role="status">
@@ -458,9 +505,59 @@ dd {
   align-items: center;
   gap: 6px;
 }
+.quality-point-picker {
+  margin: 4px 0 8px;
+  border: 1px solid var(--border-secondary-color);
+  border-radius: var(--r-s);
+}
+
+.quality-point-controls {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px;
+  padding: 6px 8px;
+  border-radius: var(--r-s) var(--r-s) 0 0;
+  background: var(--bg-secondary-color);
+
+  p {
+    flex-basis: 100%;
+  }
+}
+
 .quality-manual-points {
+  margin: 0;
   padding: 0;
   list-style: none;
+
+  li {
+    border-top: 1px solid var(--border-secondary-color);
+  }
+}
+
+.quality-point-option {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 10px;
+  min-height: 40px;
+  padding: 4px 12px;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+
+  input {
+    width: 16px;
+    height: 16px;
+    margin: 0;
+    accent-color: var(--fg-accent-color);
+  }
+
+  &:has(input:checked) {
+    background: color-mix(in srgb, var(--fg-accent-color) 8%, transparent);
+  }
 }
 
 .quality-review-reason {

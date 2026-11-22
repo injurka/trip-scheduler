@@ -4,6 +4,7 @@ import { Icon } from '@iconify/vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import ActivityDayCard from '~/components/03.domain/activity-day-summary/activity-day-card.vue'
 import { formatActivityDay, formatActivityDistance, formatActivityDuration, formatActivityTime } from '~/components/03.domain/activity-day-summary/format'
+import DayTrackLoadingIndicator from './day-track-loading-indicator.vue'
 
 interface Props {
   isLoading: boolean
@@ -33,11 +34,14 @@ const emit = defineEmits<{
         :format-duration="formatActivityDuration"
         :format-time="ts => formatActivityTime(ts, summaryTimeZone)"
         loading
-      />
+      >
+        <template #loading>
+          <DayTrackLoadingIndicator />
+        </template>
+      </ActivityDayCard>
     </div>
-    <div v-else class="overlay-card" role="status">
-      <Icon icon="mdi:loading" class="spin overlay-icon" aria-hidden="true" />
-      <span>Загрузка данных дня…</span>
+    <div v-else class="overlay-card is-loading">
+      <DayTrackLoadingIndicator />
     </div>
   </div>
 
@@ -79,6 +83,11 @@ const emit = defineEmits<{
       font-size: 1.5rem;
     }
 
+    &.is-loading {
+      width: min(100% - 24px, 280px);
+      padding: 12px;
+    }
+
     &.is-error {
       color: #ef5350;
       flex-direction: column;
@@ -95,24 +104,5 @@ const emit = defineEmits<{
   padding: 2px;
   border-radius: var(--r-m);
   box-shadow: var(--s-l);
-}
-
-.spin {
-  animation: spin 1s linear infinite;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .spin {
-    animation: none;
-  }
-}
-
-@keyframes spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
 }
 </style>

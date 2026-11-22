@@ -866,6 +866,16 @@ useEventListener(window, 'beforeunload', (event: BeforeUnloadEvent) => {
             >
               Сбросить правки
             </KitBtn>
+            <KitBtn
+              v-if="latestGpsDraft && drafts.count.value > 1 && !committed"
+              size="sm"
+              variant="text"
+              color="secondary"
+              :disabled="applying || drafts.processing.value"
+              @click="discardGpsDraft"
+            >
+              Отменить последнюю правку GPS
+            </KitBtn>
           </div>
           <p v-if="exportStatus" role="status">
             {{ exportStatus }}
@@ -877,39 +887,32 @@ useEventListener(window, 'beforeunload', (event: BeforeUnloadEvent) => {
       </template>
       <template #draft-actions>
         <div v-if="drafts.count.value" class="draft-toolbar" :aria-busy="applying">
-          <span role="status">{{ committed ? 'Сохранено' : `Изменений: ${drafts.count.value}` }}</span>
-          <template v-if="latestGpsDraft && !committed">
+          <div class="draft-toolbar-row">
+            <span role="status">{{ committed ? 'Сохранено' : `Правок: ${drafts.count.value}` }}</span>
+            <template v-if="latestGpsDraft && !committed">
+              <KitBtn
+                size="xs"
+                variant="text"
+                color="secondary"
+                :disabled="applying || drafts.processing.value || showOriginal"
+                :aria-label="showBeforeGpsDraft ? 'Показать после правок' : 'Показать до правок'"
+                @click="showBeforeGpsDraft = !showBeforeGpsDraft"
+              >
+                {{ showBeforeGpsDraft ? 'После' : 'До' }}
+              </KitBtn>
+            </template>
             <KitBtn
-              size="sm"
+              size="xs"
               variant="text"
-              color="secondary"
-              :disabled="applying || drafts.processing.value || showOriginal"
-              @click="showBeforeGpsDraft = !showBeforeGpsDraft"
+              :disabled="applying"
+              @click="discardDrafts"
             >
-              {{ showBeforeGpsDraft ? 'После правок' : 'До правок' }}
+              Отменить
             </KitBtn>
-            <KitBtn
-              v-if="drafts.count.value > 1"
-              size="sm"
-              variant="text"
-              color="secondary"
-              :disabled="applying || drafts.processing.value"
-              @click="discardGpsDraft"
-            >
-              Отменить правку GPS
+            <KitBtn size="xs" :disabled="applying" @click="applyDrafts">
+              {{ applying ? 'Применяем…' : committed ? 'Загрузить' : 'Применить' }}
             </KitBtn>
-          </template>
-          <KitBtn
-            size="sm"
-            variant="text"
-            :disabled="applying"
-            @click="discardDrafts"
-          >
-            Отменить
-          </KitBtn>
-          <KitBtn size="sm" :disabled="applying" @click="applyDrafts">
-            {{ applying ? 'Применяем…' : committed ? 'Загрузить' : 'Применить' }}
-          </KitBtn>
+          </div>
           <p v-if="draftError" class="draft-error" role="alert">
             {{ draftError }}
           </p>
@@ -921,7 +924,6 @@ useEventListener(window, 'beforeunload', (event: BeforeUnloadEvent) => {
       v-model:visible="isQualityReviewOpen"
       title="Проблемные участки"
       :persistent="drafts.processing.value"
-      fullscreenable
     >
       <DayTrackQuality
         v-if="isQualityReviewOpen"
@@ -1032,18 +1034,25 @@ useEventListener(window, 'beforeunload', (event: BeforeUnloadEvent) => {
 }
 
 .draft-toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 6px;
-  flex-wrap: wrap;
   border-bottom: 1px solid var(--border-secondary-color);
   padding-bottom: 8px;
   margin-bottom: 8px;
 }
-.draft-toolbar > span {
-  margin-right: auto;
-  font-size: 0.8rem;
+.draft-toolbar-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+
+  > span {
+    flex: 1;
+    font-size: 0.75rem;
+  }
+
+  :deep(.kit-btn) {
+    min-height: 36px;
+    padding-inline: 6px;
+  }
 }
 .draft-error {
   width: 100%;
