@@ -8,7 +8,7 @@ function route(sessionId = 'one', start = Date.parse('2026-11-11T10:00:00Z')): T
 
 describe('trip tracking statistics', () => {
   it('handles empty tracks without invented achievements', () => {
-    expect(summarizeTripTrack([], [])).toEqual({ distanceM: { walk: 0, bike: 0, vehicle: 0, rail: 0, metro: 0, ship: 0, plane: 0, cable_car: 0, unknown: 0 }, movingDurationMs: 0, longestDay: null, trackedDays: 0 })
+    expect(summarizeTripTrack([], [])).toEqual({ distanceM: { walk: 0, bike: 0, vehicle: 0, rail: 0, metro: 0, ship: 0, plane: 0, cable_car: 0, moto: 0, unknown: 0 }, movingDurationMs: 0, longestDay: null, trackedDays: 0 })
   })
   it('measures walking and keeps manual changes', () => {
     const points = route()
@@ -19,7 +19,7 @@ describe('trip tracking statistics', () => {
     expect(corrected.distanceM.walk).toBe(0)
     expect(corrected.distanceM.vehicle).toBeCloseTo(auto.distanceM.walk)
   })
-  it.each([['metro', 'ship'], ['plane', 'cable_car']] as const)('counts %s and %s distances separately', (early, late) => {
+  it.each([['metro', 'ship'], ['plane', 'cable_car'], ['moto', 'ship']] as const)('counts %s and %s distances separately', (early, late) => {
     const metro = route('subway')
     const ship = route('ferry', Date.parse('2026-11-11T10:20:00Z'))
     const corrected = summarizeTripTrack([...metro, ...ship], [

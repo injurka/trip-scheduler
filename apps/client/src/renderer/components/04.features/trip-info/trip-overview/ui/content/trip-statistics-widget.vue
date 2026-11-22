@@ -29,6 +29,7 @@ const modes = [
   { key: 'ship', label: 'Судно', icon: 'mdi:ferry', color: '#008f89' },
   { key: 'plane', label: 'Самолёт', icon: 'mdi:airplane', color: '#a7548d' },
   { key: 'cable_car', label: 'Канатная дорога', icon: 'mdi:gondola', color: '#9b631e' },
+  { key: 'moto', label: 'Мото', icon: 'mdi:motorbike', color: '#d04a71' },
   { key: 'unknown', label: 'Не определено', icon: 'mdi:map-marker-question-outline', color: '#92918f' },
 ] as const
 

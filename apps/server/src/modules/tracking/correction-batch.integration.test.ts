@@ -34,7 +34,7 @@ describe.skipIf(!process.env.CORRECTION_BATCH_TEST_DATABASE_URL)('correction bat
 
       const dayInput = { dayUtc: batch.dayUtc, timeZone: 'UTC' }
       await saveCorrectionBatch(owner.id, { ...dayInput, additions: [], removals: [last.id] })
-      for (const [firstActivity, lastActivity] of [['metro', 'ship'], ['plane', 'cable_car']] as const) {
+      for (const [firstActivity, lastActivity] of [['metro', 'ship'], ['plane', 'cable_car'], ['moto', 'ship']] as const) {
         const early = { ...first, id: crypto.randomUUID(), endedAt: from + 15_000, activity: firstActivity }
         const late = { ...first, id: crypto.randomUUID(), startedAt: from + 15_000, activity: lastActivity }
         await saveCorrectionBatch(owner.id, { ...dayInput, additions: [early, late], removals: [] })

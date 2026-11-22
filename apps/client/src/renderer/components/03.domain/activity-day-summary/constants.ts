@@ -10,6 +10,7 @@ export const ACTIVITY_LABELS: Record<ActivityType, string> = {
   ship: 'Судно',
   plane: 'Самолёт',
   cable_car: 'Канатная дорога',
+  moto: 'Мото',
   unknown: 'Другое',
 }
 
@@ -23,6 +24,7 @@ export const ACTIVITY_ICONS: Record<ActivityType, string> = {
   ship: 'mdi:ferry',
   plane: 'mdi:airplane',
   cable_car: 'mdi:gondola',
+  moto: 'mdi:motorbike',
   unknown: 'mdi:help-circle-outline',
 }
 
@@ -36,5 +38,6 @@ export const ACTIVITY_COLORS: Record<ActivityType, string> = {
   ship: '#008f89',
   plane: '#a7548d',
   cable_car: '#9b631e',
+  moto: '#d04a71',
   unknown: '#78909c',
 }

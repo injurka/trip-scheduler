@@ -1,0 +1,1 @@
+ALTER TYPE "public"."track_activity_type" ADD VALUE 'moto';

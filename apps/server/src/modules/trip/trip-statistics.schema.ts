@@ -23,6 +23,7 @@ export const TripStatisticsSchema = z.object({
     ship: z.number().default(0),
     plane: z.number().default(0),
     cable_car: z.number().default(0),
+    moto: z.number().default(0),
     unknown: z.number(),
   }),
   movingDurationMs: z.number(),

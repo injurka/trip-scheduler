@@ -23,6 +23,7 @@ const activityColors: Record<TrackActivityType, string> = {
   ship: '#008f89',
   plane: '#a7548d',
   cable_car: '#9b631e',
+  moto: '#d04a71',
   still: '#64748b',
   unknown: '#eab308',
 }

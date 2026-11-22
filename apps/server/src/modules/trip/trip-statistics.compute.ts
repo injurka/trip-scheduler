@@ -6,7 +6,7 @@ type Correction = Parameters<typeof applyActivityCorrections>[1][number]
 
 /** Match the day player: split UTC days, preserve sessions and apply manual corrections. */
 export function summarizeTripTrack(points: TrackPoint[], corrections: Correction[]) {
-  const distanceM: TripStatistics['distanceM'] = { walk: 0, bike: 0, vehicle: 0, rail: 0, metro: 0, ship: 0, plane: 0, cable_car: 0, unknown: 0 }
+  const distanceM: TripStatistics['distanceM'] = { walk: 0, bike: 0, vehicle: 0, rail: 0, metro: 0, ship: 0, plane: 0, cable_car: 0, moto: 0, unknown: 0 }
   const days = new Map<string, TrackPoint[]>()
   for (const point of points) {
     const date = new Date(point.tsUtc).toISOString().slice(0, 10)

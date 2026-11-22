@@ -23,7 +23,7 @@ describe('point corrections and overlapping history', () => {
     expect(annotateTrackPoints([points[0]], result, corrections)[0].activity).toBe('vehicle')
     expect(result[0]?.activity).toBe('vehicle')
   })
-  it.each(['metro', 'ship', 'plane', 'cable_car'] as const)('keeps %s manual and preserves GPS gaps', (activity) => {
+  it.each(['metro', 'ship', 'plane', 'cable_car', 'moto'] as const)('keeps %s manual and preserves GPS gaps', (activity) => {
     const resumed = points.map(point => ({ ...point, tsUtc: point.tsUtc + 1_200_000, lng: point.lng + 0.001 }))
     const raw = [...points, ...resumed]
     const recorded = processDayTrack(raw)
