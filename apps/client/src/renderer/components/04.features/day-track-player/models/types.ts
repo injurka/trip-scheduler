@@ -109,6 +109,10 @@ export const ACTIVITY_COLORS: Record<ActivityType, string> = {
   bike: '#ff9800',
   vehicle: '#2196f3',
   rail: '#9c27b0',
+  metro: '#7959d5',
+  ship: '#008f89',
+  plane: '#a7548d',
+  cable_car: '#9b631e',
   unknown: '#607d8b',
 }
 
@@ -118,6 +122,10 @@ export const ACTIVITY_LABELS: Record<ActivityType, string> = {
   bike: 'Велосипед',
   vehicle: 'Авто',
   rail: 'Поезд',
+  metro: 'Метро',
+  ship: 'Судно',
+  plane: 'Самолёт',
+  cable_car: 'Канатная дорога',
   unknown: 'Неизвестно',
 }
 
@@ -127,6 +135,10 @@ export const ACTIVITY_ICONS: Record<ActivityType, string> = {
   bike: 'mdi:bike',
   vehicle: 'mdi:car-outline',
   rail: 'mdi:train',
+  metro: 'mdi:subway-variant',
+  ship: 'mdi:ferry',
+  plane: 'mdi:airplane',
+  cable_car: 'mdi:gondola',
   unknown: 'mdi:crosshairs-question',
 }
 

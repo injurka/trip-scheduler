@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { RouterOutput } from '~/shared/types/trpc'
 import { Icon } from '@iconify/vue'
+import { isRecordedTrackActivity } from '@limiteddissolve/track-processing'
 import { computed, ref, watch } from 'vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
 import { trpc } from '~/shared/services/trpc/trpc.service'
@@ -24,9 +25,14 @@ const modes = [
   { key: 'bike', label: 'Велосипед', icon: 'mdi:bike', color: '#3c9aaf' },
   { key: 'vehicle', label: 'Автотранспорт', icon: 'mdi:car-outline', color: '#df7449' },
   { key: 'rail', label: 'Поезд', icon: 'mdi:train', color: '#9275ba' },
+  { key: 'metro', label: 'Метро', icon: 'mdi:subway-variant', color: '#7959d5' },
+  { key: 'ship', label: 'Судно', icon: 'mdi:ferry', color: '#008f89' },
+  { key: 'plane', label: 'Самолёт', icon: 'mdi:airplane', color: '#a7548d' },
+  { key: 'cable_car', label: 'Канатная дорога', icon: 'mdi:gondola', color: '#9b631e' },
   { key: 'unknown', label: 'Не определено', icon: 'mdi:map-marker-question-outline', color: '#92918f' },
 ] as const
 
+const visibleModes = computed(() => modes.filter(({ key }) => isRecordedTrackActivity(key) || (data.value?.distanceM[key] ?? 0) > 0))
 const totalM = computed(() => Object.values(data.value?.distanceM ?? {}).reduce((a, b) => a + b, 0))
 const details = computed(() => data.value
   ? [
@@ -125,7 +131,7 @@ const date = (value: string) => new Date(`${value}T12:00:00Z`).toLocaleDateStrin
       </div>
       <div class="route-stats">
         <div
-          v-for="mode in modes"
+          v-for="mode in visibleModes"
           :key="mode.key"
           class="mode"
           :style="{ '--mode-color': mode.color }"

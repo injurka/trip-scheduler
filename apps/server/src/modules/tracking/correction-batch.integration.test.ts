@@ -31,6 +31,22 @@ describe.skipIf(!process.env.CORRECTION_BATCH_TEST_DATABASE_URL)('correction bat
       await saveCorrectionBatch(owner.id, { ...batch, additions: [], removals: [first.id] })
       await saveCorrectionBatch(owner.id, { ...batch, additions: [], removals: [first.id] })
       expect(await db.select().from(trackActivityCorrections).where(eq(trackActivityCorrections.userId, owner.id))).toHaveLength(1)
+
+      const dayInput = { dayUtc: batch.dayUtc, timeZone: 'UTC' }
+      await saveCorrectionBatch(owner.id, { ...dayInput, additions: [], removals: [last.id] })
+      for (const [firstActivity, lastActivity] of [['metro', 'ship'], ['plane', 'cable_car']] as const) {
+        const early = { ...first, id: crypto.randomUUID(), endedAt: from + 15_000, activity: firstActivity }
+        const late = { ...first, id: crypto.randomUUID(), startedAt: from + 15_000, activity: lastActivity }
+        await saveCorrectionBatch(owner.id, { ...dayInput, additions: [early, late], removals: [] })
+        const corrected = await trackingService.getDay(owner.id, dayInput)
+        expect(corrected.segments.map(s => s.activity)).toEqual([firstActivity, lastActivity])
+        expect(corrected.points.map(p => p.activity)).toEqual([firstActivity, firstActivity, lastActivity, lastActivity])
+        expect(corrected.points.every(p => p.recordedActivity === 'unknown')).toBe(true)
+        const { summary } = await trackingService.getDaySummary(owner.id, dayInput)
+        expect(summary.byActivity.map(item => [item.activity, item.durationMs])).toEqual([[firstActivity, 15_000], [lastActivity, 15_000]])
+        await saveCorrectionBatch(owner.id, { ...dayInput, additions: [], removals: [early.id, late.id] })
+        expect((await trackingService.getDay(owner.id, dayInput)).segments.some(s => s.activity === firstActivity || s.activity === lastActivity)).toBe(false)
+      }
     }
     finally {
       await db.delete(users).where(eq(users.id, owner.id))

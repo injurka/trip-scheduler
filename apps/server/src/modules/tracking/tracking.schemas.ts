@@ -1,7 +1,8 @@
-import { isTimeZone } from '@limiteddissolve/track-processing'
+import { isTimeZone, recordedTrackActivities, trackActivities } from '@limiteddissolve/track-processing'
 import { z } from 'zod'
 
-export const TrackActivityTypeSchema = z.enum(['still', 'walk', 'bike', 'vehicle', 'rail', 'unknown'])
+export const TrackActivityTypeSchema = z.enum(trackActivities)
+const RecordedTrackActivitySchema = z.enum(recordedTrackActivities)
 
 export const TrackPointInputSchema = z.object({
   samplingIntervalMs: z.number().int().min(1000).max(60000).optional(),
@@ -14,10 +15,10 @@ export const TrackPointInputSchema = z.object({
   accuracy: z.number().nullable().optional(),
   speed: z.number().nullable().optional(),
   bearing: z.number().nullable().optional(),
-  activity: TrackActivityTypeSchema.default('unknown'),
+  activity: RecordedTrackActivitySchema.default('unknown'),
   activityConfidence: z.number().min(0).max(100).default(0),
   /** Сырой сигнал системного Activity Recognition: null — устройство его не сообщило. */
-  deviceActivity: TrackActivityTypeSchema.nullable().optional(),
+  deviceActivity: RecordedTrackActivitySchema.nullable().optional(),
   deviceActivityConfidence: z.number().min(0).max(100).nullable().optional(),
 })
 

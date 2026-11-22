@@ -1,3 +1,4 @@
+import type { TrackActivityType } from '@limiteddissolve/track-processing'
 import type { GetTrackDayInput, IngestBatchInput } from './tracking.schemas'
 import { annotateTrackPoints, applyActivityCorrections, applyTrackGeometryCorrections, calendarDay, calendarDayBounds, processDayTrack } from '@limiteddissolve/track-processing'
 import { TRPCError } from '@trpc/server'
@@ -9,7 +10,7 @@ import { measureDbQuery } from '~/lib/db-monitoring'
 import { saveCorrectionBatch } from './correction-batch'
 
 /** Активность в терминах пакета @limiteddissolve/track-processing. */
-type TrackActivity = 'still' | 'walk' | 'bike' | 'vehicle' | 'rail' | 'unknown'
+type TrackActivity = TrackActivityType
 
 /** Строка track_points в объёме, который нужен пост-обработке дня. */
 interface ReprocessSourceRow {

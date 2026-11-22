@@ -14,7 +14,17 @@ export const TripStatisticsSchema = z.object({
   plannedActivities: z.number(),
   plannedPlaces: z.number(),
   trackedDays: z.number(),
-  distanceM: z.record(z.enum(['walk', 'bike', 'vehicle', 'rail', 'unknown']), z.number()),
+  distanceM: z.object({
+    walk: z.number(),
+    bike: z.number(),
+    vehicle: z.number(),
+    rail: z.number(),
+    metro: z.number().default(0),
+    ship: z.number().default(0),
+    plane: z.number().default(0),
+    cable_car: z.number().default(0),
+    unknown: z.number(),
+  }),
   movingDurationMs: z.number(),
   longestDay: z.object({ date: z.string(), distanceM: z.number() }).nullable(),
 })

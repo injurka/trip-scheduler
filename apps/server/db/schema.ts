@@ -1,6 +1,7 @@
 /* eslint-disable ts/no-use-before-define */
 import type { AnyPgColumn } from 'drizzle-orm/pg-core'
 import type { ActivitySection, CityWeatherData, DayMetaInfo, PostElementContent, PostStatsDetail } from './schema.type'
+import { trackActivities } from '@limiteddissolve/track-processing'
 import { relations, sql } from 'drizzle-orm'
 import {
   bigint,
@@ -975,7 +976,7 @@ export const postLikesRelations = relations(postLikes, ({ one }) => ({
   }),
 }))
 
-export const trackActivityTypeEnum = pgEnum('track_activity_type', ['still', 'walk', 'bike', 'vehicle', 'rail', 'unknown'])
+export const trackActivityTypeEnum = pgEnum('track_activity_type', trackActivities)
 
 /** Сырые GPS-точки, выгружаемые батчами с мобильного клиента. */
 export const trackPoints = pgTable('track_points', {

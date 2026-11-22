@@ -27,7 +27,14 @@ export interface TrackPoint {
   deviceActivityConfidence?: number | null
 }
 
-export type TrackActivityType = 'still' | 'walk' | 'bike' | 'vehicle' | 'rail' | 'unknown'
+export const recordedTrackActivities = ['still', 'walk', 'bike', 'vehicle', 'rail', 'unknown'] as const
+export const trackActivities = [...recordedTrackActivities, 'metro', 'ship', 'plane', 'cable_car'] as const
+type RecordedTrackActivity = typeof recordedTrackActivities[number]
+export type TrackActivityType = typeof trackActivities[number]
+
+export function isRecordedTrackActivity(activity: TrackActivityType): activity is RecordedTrackActivity {
+  return (recordedTrackActivities as readonly TrackActivityType[]).includes(activity)
+}
 
 /** Короткий алиас для потребителей на клиенте. */
 export type ActivityType = TrackActivityType
@@ -962,7 +969,7 @@ export function classifySegment(points: TrackPoint[], recoHint: RecoHint = 'unkn
   const kinematic = kinematicVotes(f)
   const rail = railScoreOf(f)
 
-  const scores: Record<TrackActivityType, number> = {
+  const scores: Record<RecordedTrackActivity, number> = {
     still: kinematic.still,
     walk: kinematic.walk,
     bike: kinematic.bike,
@@ -976,8 +983,8 @@ export function classifySegment(points: TrackPoint[], recoHint: RecoHint = 'unkn
     // Recognition видит акселерометр — сильный prior; rail он всегда зовёт vehicle.
     // Вес prior пропорционален доле подтверждающих точек: одиночная «велосипедная»
     // точка в окне покоя больше не переворачивает классификацию всего окна.
-    const boost: Record<TrackActivityType, number> = { still: 1.5, walk: 1.5, bike: 1.4, vehicle: 1.4, rail: 0, unknown: 0 }
-    const target: TrackActivityType = hint.activity === 'vehicle' && rail > 0.6 ? 'rail' : hint.activity
+    const boost: Record<RecordedTrackActivity, number> = { still: 1.5, walk: 1.5, bike: 1.4, vehicle: 1.4, rail: 0, unknown: 0 }
+    const target: RecordedTrackActivity = hint.activity === 'vehicle' && rail > 0.6 ? 'rail' : hint.activity
     const w = hint.share
     // Ходьба и велосипед — единственная пара, которую кинематика принципиально не
     // различает: 5 км/ч бывает и пешком, и на велосипеде. Акселерометр их различает,
@@ -1016,10 +1023,10 @@ export function classifySegment(points: TrackPoint[], recoHint: RecoHint = 'unkn
   return { points, activity: finalType, confidence, features: f }
 }
 
-function isCompatibleActivityHint(activity: TrackActivityType, f: WindowFeatures): boolean {
+function isCompatibleActivityHint(activity: TrackActivityType, f: WindowFeatures): activity is RecordedTrackActivity {
   if (activity === 'walk' && incompatibleWithWalking(f))
     return false
-  if (activity === 'unknown' || activity === 'rail')
+  if (activity === 'unknown' || activity === 'rail' || !isRecordedTrackActivity(activity))
     return false
   if (!f.movementCredible)
     return activity === 'still'
@@ -1322,7 +1329,7 @@ function processMovingTrack(raw: TrackPoint[]): TrackSegment[] {
   }
 
   // 3. RDP-упрощение геометрии сегментов с сохранением точных кинематических признаков (дистанция, длительность)
-  const eps: Record<TrackActivityType, number> = { still: 5, walk: 3, bike: 5, vehicle: 7, rail: 15, unknown: 5 }
+  const eps: Record<TrackActivityType, number> = { still: 5, walk: 3, bike: 5, vehicle: 7, rail: 15, metro: 7, ship: 7, plane: 15, cable_car: 7, unknown: 5 }
   for (const seg of classifiedSegments) {
     seg.points = rdpSimplify(seg.points, eps[seg.activity])
   }
@@ -1505,7 +1512,7 @@ export function deviceReco(points: TrackPoint[]): RecoHint {
     const conf = p.deviceActivityConfidence ?? 0
     // Ниже порога сигнал не учитываем: Google охотно отдаёт «unknown» и однотипные
     // перескоки с уверенностью 30-45, и они не должны перевешивать геометрию.
-    if (!act || act === 'unknown' || conf < DEVICE_ACTIVITY_MIN_CONFIDENCE)
+    if (!act || act === 'unknown' || !isRecordedTrackActivity(act) || conf < DEVICE_ACTIVITY_MIN_CONFIDENCE)
       continue
     weights.set(act, (weights.get(act) ?? 0) + conf)
     total += conf

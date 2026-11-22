@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { ActivityBreakdownItem } from './types'
 import { Icon } from '@iconify/vue'
+import { isRecordedTrackActivity } from '@limiteddissolve/track-processing'
 import { computed } from 'vue'
 import { ACTIVITY_COLORS, ACTIVITY_ICONS, ACTIVITY_LABELS } from './constants'
 
@@ -13,7 +14,7 @@ interface Props {
 const props = defineProps<Props>()
 
 const visibleActivities = computed(() => {
-  return props.activities.filter(item => item.distanceM > 0 || item.durationMs > 60_000)
+  return props.activities.filter(item => item.distanceM > 0 || item.durationMs > 60_000 || !isRecordedTrackActivity(item.activity))
 })
 
 const totalDistance = computed(() => {

@@ -1,4 +1,5 @@
 import type { TrackPoint } from './geotrack-client'
+import { isRecordedTrackActivity } from '@limiteddissolve/track-processing'
 import { isAppOnline } from '~/shared/lib/connectivity'
 import { trpc } from '~/shared/services/trpc/trpc.service'
 import { useAuthStore } from '~/shared/store/auth.store'
@@ -51,10 +52,10 @@ function toTrackingInput(point: TrackPoint) {
     accuracy: normalizeFiniteValue(point.accuracy, false),
     speed: normalizeFiniteValue(point.speed, false),
     bearing: bearing == null ? null : (((bearing % 360) + 360) % 360),
-    activity: point.activity,
+    activity: isRecordedTrackActivity(point.activity) ? point.activity : 'unknown',
     activityConfidence: normalizeConfidence(point.activityConfidence),
     // Preserve device activity evidence separately from GPS classification.
-    deviceActivity: point.deviceActivity ?? null,
+    deviceActivity: point.deviceActivity && isRecordedTrackActivity(point.deviceActivity) ? point.deviceActivity : null,
     deviceActivityConfidence: deviceConfidence == null
       ? null
       : Math.round(Math.min(100, Math.max(0, deviceConfidence))),

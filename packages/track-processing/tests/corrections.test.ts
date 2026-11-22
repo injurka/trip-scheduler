@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { annotateTrackPoints, applyActivityCorrections, processDayTrack } from '../src/index'
+import { annotateTrackPoints, applyActivityCorrections, classifySegment, processDayTrack } from '../src/index'
 
 const points = [0, 10000, 20000].map(tsUtc => ({ clientPointId: String(tsUtc), altitude: null, bearing: null, activityConfidence: 0, sessionId: 's', tsUtc, lat: 25, lng: 121 + tsUtc / 1e8, accuracy: 5, speed: 1, activity: 'walk' as const }))
 const correction = (id: string, start: number, end: number, activity: 'bike' | 'vehicle', createdAt: number) => ({ id, sessionId: 's', startedAt: start, endedAt: end, activity, createdAt })
@@ -23,6 +23,18 @@ describe('point corrections and overlapping history', () => {
     expect(annotateTrackPoints([points[0]], result, corrections)[0].activity).toBe('vehicle')
     expect(result[0]?.activity).toBe('vehicle')
   })
+  it.each(['metro', 'ship', 'plane', 'cable_car'] as const)('keeps %s manual and preserves GPS gaps', (activity) => {
+    const resumed = points.map(point => ({ ...point, tsUtc: point.tsUtc + 1_200_000, lng: point.lng + 0.001 }))
+    const raw = [...points, ...resumed]
+    const recorded = processDayTrack(raw)
+    const edits = [{ id: 'manual', sessionId: 's', startedAt: 0, endedAt: 1_220_000, activity, createdAt: 1 }]
+    const corrected = applyActivityCorrections(recorded, edits, raw)
+
+    expect(classifySegment(points, activity).activity).not.toBe(activity)
+    expect(corrected.map(segment => segment.activity)).toEqual([activity, activity])
+    expect(corrected.map(segment => segment.points.map(point => point.tsUtc))).toEqual(recorded.map(segment => segment.points.map(point => point.tsUtc)))
+  })
+
   it('uses newest corrections on overlaps and restores previous labels when undone', () => {
     const old = correction('a', 0, 20000, 'bike', 1)
     const latest = correction('b', 10000, 20000, 'vehicle', 2)

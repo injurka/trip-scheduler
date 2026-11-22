@@ -101,6 +101,15 @@ it('converts local Samara time to UTC for the correct session', async () => {
   wrapper.unmount()
 })
 
+it.each([['Метро', 'metro'], ['Судно', 'ship'], ['Самолёт', 'plane'], ['Канатная дорога', 'cable_car']])('offers %s as a manual activity', async (label, activity) => {
+  const wrapper = mount(ActivityEditor, wrapperOptions)
+  await wrapper.setProps({ visible: true })
+  await wrapper.findAll('[role=radio]').find(button => button.text() === label)!.trigger('click')
+  await wrapper.get('form').trigger('submit')
+  await vi.waitFor(() => expect(api.stage).toHaveBeenCalledWith(expect.objectContaining({ activity })))
+  wrapper.unmount()
+})
+
 it('stages cancellation of a saved correction without a server request', async () => {
   const wrapper = mount(ActivityEditor, wrapperOptions)
   await wrapper.setProps({ visible: true })
