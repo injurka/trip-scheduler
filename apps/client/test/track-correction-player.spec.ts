@@ -334,7 +334,13 @@ describe('batch correction player', () => {
     expect(api.correctActivities).not.toHaveBeenCalled()
     expect(api.getDay).toHaveBeenCalledTimes(1)
     api.mapOptions.t.value = start + 170000
+    const reload = Promise.withResolvers<DayData>()
+    api.getDay.mockReturnValueOnce(reload.promise)
     await button(wrapper, 'Применить').trigger('click')
+    await flushPromises()
+    expect(wrapper.getComponent({ name: 'DayTrackOverlayState' }).props('isLoading')).toBe(true)
+    expect(wrapper.find('[data-testid="playback-panel"]').exists()).toBe(false)
+    reload.resolve(structuredClone(data))
     await flushPromises()
     expect(api.correctActivities).toHaveBeenCalledTimes(1)
     expect(api.correctActivities.mock.calls[0][0].additions).toHaveLength(2)
@@ -342,6 +348,7 @@ describe('batch correction player', () => {
     expect(api.closePopup).toHaveBeenCalledTimes(3)
     expect(api.mapOptions.t.value).toBe(start + 170000)
     expect(wrapper.find('.draft-toolbar').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="playback-panel"]').exists()).toBe(true)
     wrapper.unmount()
   })
   it('retains edits after a failed save and retries the same IDs', async () => {

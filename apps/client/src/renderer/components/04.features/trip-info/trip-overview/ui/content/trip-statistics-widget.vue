@@ -30,6 +30,7 @@ const modes = [
   { key: 'plane', label: 'Самолёт', icon: 'mdi:airplane', color: '#a7548d' },
   { key: 'cable_car', label: 'Канатная дорога', icon: 'mdi:gondola', color: '#9b631e' },
   { key: 'moto', label: 'Мото', icon: 'mdi:motorbike', color: '#d04a71' },
+  { key: 'bus', label: 'Автобус', icon: 'mdi:bus', color: '#527bce' },
   { key: 'unknown', label: 'Не определено', icon: 'mdi:map-marker-question-outline', color: '#92918f' },
 ] as const
 

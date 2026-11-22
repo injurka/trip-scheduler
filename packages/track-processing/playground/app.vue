@@ -341,6 +341,7 @@ const activityColors: Record<TrackActivityType, string> = {
   plane: '#a7548d',
   cable_car: '#9b631e',
   moto: '#d04a71',
+  bus: '#527bce',
   still: '#64748b',
   unknown: '#eab308',
 }
@@ -355,6 +356,7 @@ const activityNames: Record<TrackActivityType, string> = {
   plane: 'Самолёт',
   cable_car: 'Канатная дорога',
   moto: 'Мото',
+  bus: 'Автобус',
   still: 'Стоянка',
   unknown: 'Неизвестно',
 }

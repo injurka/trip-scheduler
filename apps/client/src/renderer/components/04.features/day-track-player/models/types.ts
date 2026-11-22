@@ -114,6 +114,7 @@ export const ACTIVITY_COLORS: Record<ActivityType, string> = {
   plane: '#a7548d',
   cable_car: '#9b631e',
   moto: '#d04a71',
+  bus: '#527bce',
   unknown: '#607d8b',
 }
 
@@ -128,6 +129,7 @@ export const ACTIVITY_LABELS: Record<ActivityType, string> = {
   plane: 'Самолёт',
   cable_car: 'Канатная дорога',
   moto: 'Мото',
+  bus: 'Автобус',
   unknown: 'Неизвестно',
 }
 
@@ -142,6 +144,7 @@ export const ACTIVITY_ICONS: Record<ActivityType, string> = {
   plane: 'mdi:airplane',
   cable_car: 'mdi:gondola',
   moto: 'mdi:motorbike',
+  bus: 'mdi:bus',
   unknown: 'mdi:crosshairs-question',
 }
 

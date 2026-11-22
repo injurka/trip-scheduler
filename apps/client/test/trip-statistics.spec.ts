@@ -1,5 +1,6 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import ActivityBreakdownList from '../src/renderer/components/03.domain/activity-day-summary/activity-breakdown-list.vue'
 import Widget from '../src/renderer/components/04.features/trip-info/trip-overview/ui/content/trip-statistics-widget.vue'
 
 vi.mock('@iconify/vue', () => ({ Icon: { template: '<svg />' } }))
@@ -84,4 +85,21 @@ describe('trip statistics widget', () => {
     expect(wrapper.find('.highlights').exists()).toBe(true)
     wrapper.unmount()
   })
+})
+
+it('shows movement from 100 metres and keeps elapsed rest visible', () => {
+  const wrapper = mount(ActivityBreakdownList, {
+    props: {
+      activities: [
+        { activity: 'unknown', distanceM: 65, durationMs: 120_000, segmentCount: 1 },
+        { activity: 'bike', distanceM: 15, durationMs: 15_000, segmentCount: 1 },
+        { activity: 'bus', distanceM: 100, durationMs: 60_000, segmentCount: 1 },
+        { activity: 'still', distanceM: 0, durationMs: 600_000, segmentCount: 1 },
+      ],
+      formatDistance: meters => String(meters),
+      formatDuration: ms => String(ms),
+    },
+  })
+  expect(wrapper.findAll('.activity-name').map(item => item.text())).toEqual(['Автобус', 'Покой'])
+  wrapper.unmount()
 })

@@ -28,7 +28,7 @@ export interface TrackPoint {
 }
 
 export const recordedTrackActivities = ['still', 'walk', 'bike', 'vehicle', 'rail', 'unknown'] as const
-export const trackActivities = [...recordedTrackActivities, 'metro', 'ship', 'plane', 'cable_car', 'moto'] as const
+export const trackActivities = [...recordedTrackActivities, 'metro', 'ship', 'plane', 'cable_car', 'moto', 'bus'] as const
 type RecordedTrackActivity = typeof recordedTrackActivities[number]
 export type TrackActivityType = typeof trackActivities[number]
 
@@ -1329,7 +1329,7 @@ function processMovingTrack(raw: TrackPoint[]): TrackSegment[] {
   }
 
   // 3. RDP-упрощение геометрии сегментов с сохранением точных кинематических признаков (дистанция, длительность)
-  const eps: Record<TrackActivityType, number> = { still: 5, walk: 3, bike: 5, vehicle: 7, rail: 15, metro: 7, ship: 7, plane: 15, cable_car: 7, moto: 7, unknown: 5 }
+  const eps: Record<TrackActivityType, number> = { still: 5, walk: 3, bike: 5, vehicle: 7, rail: 15, metro: 7, ship: 7, plane: 15, cable_car: 7, moto: 7, bus: 7, unknown: 5 }
   for (const seg of classifiedSegments) {
     seg.points = rdpSimplify(seg.points, eps[seg.activity])
   }

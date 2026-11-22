@@ -101,7 +101,7 @@ it('converts local Samara time to UTC for the correct session', async () => {
   wrapper.unmount()
 })
 
-it.each([['Метро', 'metro'], ['Судно', 'ship'], ['Самолёт', 'plane'], ['Канатная дорога', 'cable_car'], ['Мото', 'moto']])('offers %s as a manual activity', async (label, activity) => {
+it.each([['Метро', 'metro'], ['Судно', 'ship'], ['Самолёт', 'plane'], ['Канатная дорога', 'cable_car'], ['Мото', 'moto'], ['Автобус', 'bus']])('offers %s as a manual activity', async (label, activity) => {
   const wrapper = mount(ActivityEditor, wrapperOptions)
   await wrapper.setProps({ visible: true })
   await wrapper.findAll('[role=radio]').find(button => button.text() === label)!.trigger('click')

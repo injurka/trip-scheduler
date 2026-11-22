@@ -794,7 +794,7 @@ useEventListener(window, 'beforeunload', (event: BeforeUnloadEvent) => {
     <!-- Нижняя панель плеера: только для дней с GPS-треком. В день из одних
          воспоминаний таймлайн пуст («--:--», выключенный ползунок) и бесполезен -->
     <DayTrackPlaybackPanel
-      v-if="isPlaybackPanelVisible && (renderSegments.length > 0 || totalPointsCount > 0)"
+      v-if="!isLoading && isPlaybackPanelVisible && (renderSegments.length > 0 || totalPointsCount > 0)"
       :id="playbackPanelId"
       v-model:route-visibility="routeVisibility"
       v-model:trail-minutes="trailMinutes"
