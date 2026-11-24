@@ -46,4 +46,23 @@ class GpsSyncEngineTest {
         assertEquals(3000L, GpsSamplingPolicy.interval(false, "still", 90, 600000))
         assertEquals(30000L, GpsSamplingPolicy.interval(true, "still", 90, 120000))
     }
+    @Test fun dropsAndAcknowledgesFixesExceedingMaxAccuracyWithoutSendingToServer() {
+        val confirmed = mutableSetOf<String>()
+        val valid = point(id = "point-valid").put("acc", 15.0)
+        val noisy = point(id = "point-noisy-175m").put("acc", 175.0)
+        var sentIds = emptyList<String>()
+        val engine = GpsSyncEngine(
+            { if (confirmed.isEmpty()) listOf(valid, noisy) else emptyList() },
+            { _, ids -> confirmed.addAll(ids) },
+            { "A" },
+            { _, body ->
+                val arr = body.getJSONArray("points")
+                sentIds = (0 until arr.length()).map { arr.getJSONObject(it).getString("clientPointId") }
+                JSONObject().put("accepted", JSONArray(sentIds))
+            }
+        )
+        assertEquals(2, engine.run(config()))
+        assertEquals(listOf("point-valid"), sentIds)
+        assertEquals(setOf("point-valid", "point-noisy-175m"), confirmed)
+    }
 }

@@ -9,6 +9,7 @@ import { AppRouteNames } from '~/shared/constants/routes'
 import { trackingService } from '~/shared/services/database/tracking.service'
 import { deleteStoredPoint } from '~/shared/services/tracking/geotrack-client'
 import {
+  MAX_ACCURACY_M,
   prepareTrack,
 } from '~/shared/services/tracking/track-processing'
 import { trackingOwner } from '~/shared/services/tracking/tracking-owner'
@@ -104,10 +105,18 @@ export function useDayTrackData(options: UseDayTrackDataOptions = {}) {
 
     return true
   }
+  function hasAcceptablePointAccuracy(point: DayPoint): boolean {
+    return Number.isFinite(point.lat)
+      && Number.isFinite(point.lng)
+      && Math.abs(point.lat) <= 90
+      && Math.abs(point.lng) <= 180
+      && Number.isFinite(point.tsUtc)
+      && (point.accuracy == null || (Number.isFinite(point.accuracy) && point.accuracy >= 0 && point.accuracy <= MAX_ACCURACY_M))
+  }
   function prepareResponse(res: DayData) {
     if (Array.isArray(res.points) && !res.preparedRenderSegments) {
-      res.rawPoints ??= res.points
-      const source = res.points.map((p: DayPoint) => ({ ...p, altitude: p.altitude ?? null, bearing: p.bearing ?? null, activityConfidence: p.activityConfidence ?? 0 }))
+      res.rawPoints = (res.rawPoints ?? res.points).filter(hasAcceptablePointAccuracy)
+      const source = res.points.filter(hasAcceptablePointAccuracy).map((p: DayPoint) => ({ ...p, altitude: p.altitude ?? null, bearing: p.bearing ?? null, activityConfidence: p.activityConfidence ?? 0 }))
       res.points = prepareTrack(source)
     }
   }

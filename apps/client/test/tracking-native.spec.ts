@@ -96,3 +96,15 @@ it('shows a notice for preserved unowned native records', async () => {
     : originalInvoke(command, args))
   expect((await geotrack.status()).legacyQueuePreserved).toBe(true)
 })
+
+it('filters out native local points with accuracy worse than MAX_ACCURACY_M', async () => {
+  const originalInvoke = mocks.invoke.getMockImplementation()!
+  mocks.invoke.mockImplementation(async (command: string, args: unknown) => command === 'tracking_get_local_points'
+    ? [
+        ...positions,
+        { ...positions[0]!, clientPointId: 'native-noisy-175', accuracy: 175 },
+      ]
+    : originalInvoke(command, args))
+  const local = await geotrack.localPoints(0, Date.now() + 10_000)
+  expect(local.map(p => p.clientPointId)).toEqual(['native-point-0001'])
+})

@@ -52,6 +52,8 @@ class TrackingService : Service() {
     @Volatile private var recordingGeneration = 0L
     @Volatile private var lastFixElapsedMs: Long? = null
     @Volatile private var notificationAccuracy: Float? = null
+    @Volatile private var lastAcceptedLocation: Location? = null
+    @Volatile private var consecutiveRejectedCount = 0
     private val notificationHandler = Handler(Looper.getMainLooper())
     private val notificationRefresh = object : Runnable {
         override fun run() {
@@ -66,6 +68,10 @@ class TrackingService : Service() {
     companion object {
         const val CHANNEL_ID = "tripscheduler_tracking_channel"
         const val NOTIFICATION_ID = 90210
+        const val MAX_ACCURACY_M = 65f
+
+        fun hasAcceptableAccuracy(location: Location): Boolean =
+            !location.hasAccuracy() || (location.accuracy.isFinite() && location.accuracy >= 0f && location.accuracy <= MAX_ACCURACY_M)
         const val ACTION_START = "ru.tripscheduler.tracking.START"
         const val ACTION_STOP = "ru.tripscheduler.tracking.STOP"
         private const val ACTION_NOTIFICATION_DISMISSED = "ru.tripscheduler.tracking.NOTIFICATION_DISMISSED"
@@ -632,12 +638,49 @@ class TrackingService : Service() {
         }
     }
 
+    private fun shouldRejectLocation(location: Location): Boolean {
+        if (!location.latitude.isFinite() || !location.longitude.isFinite() ||
+            kotlin.math.abs(location.latitude) > 90.0 || kotlin.math.abs(location.longitude) > 180.0
+        ) return true
+        if (!hasAcceptableAccuracy(location)) return true
+
+        val prev = lastAcceptedLocation ?: return false
+        if (location.time <= prev.time) return true
+
+        val distance = prev.distanceTo(location)
+        val dtMs = location.time - prev.time
+        if (distance < 1f && dtMs < 800L) return true
+
+        val curAcc = if (location.hasAccuracy()) location.accuracy else 25f
+        val prevAcc = if (prev.hasAccuracy()) prev.accuracy else 25f
+        val uncertaintyM = maxOf(2.5f, maxOf(curAcc, prevAcc))
+        if (distance > uncertaintyM) {
+            val dtSec = (dtMs / 1000.0).coerceAtLeast(0.1)
+            val speedKmh = (distance / dtSec) * 3.6
+            if (speedKmh > 1250.0 || (dtSec < 90.0 && speedKmh > 380.0)) {
+                consecutiveRejectedCount++
+                if (consecutiveRejectedCount >= 3) {
+                    lastAcceptedLocation = null
+                    consecutiveRejectedCount = 0
+                }
+                return true
+            }
+        }
+        consecutiveRejectedCount = 0
+        return false
+    }
+
     private fun handleLocation(location: Location, recordingOwner: String?, recordingSession: String?) {
         if (!isRunning && !isStarting) return
         notificationHandler.post { refreshSampling() }
         val firstFix = lastFixElapsedMs == null
         lastFixElapsedMs = location.elapsedRealtimeNanos / 1_000_000L
         notificationAccuracy = if (location.hasAccuracy()) location.accuracy else null
+        if (shouldRejectLocation(location)) {
+            if (firstFix) notificationHandler.post { updateTrackingNotification() }
+            return
+        }
+        lastAcceptedLocation = location
 
         // 0. Приклеиваем к точке текущее состояние Activity Recognition: без него
         //    классификация видит только координаты и на плохом приёме путает покой с движением.
@@ -683,6 +726,8 @@ class TrackingService : Service() {
         isRunning = false
         lastFixElapsedMs = null
         notificationAccuracy = null
+        lastAcceptedLocation = null
+        consecutiveRejectedCount = 0
         onStateChanged?.invoke(false)
 
         stopActivityRecognition()

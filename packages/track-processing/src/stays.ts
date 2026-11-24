@@ -122,9 +122,13 @@ export function smoothMovingPoints(points: DisplayTrackPoint[]): DisplayTrackPoi
     }
     const dt = Math.max(0.1, (p.tsUtc - prev.tsUtc) / 1000)
     const d = haversineM(prev.lat, prev.lng, p.lat, p.lng)
-    variance += Math.max(4, (p.speed ?? d / dt) ** 2) * dt * dt
-    const noise = Math.max(3, p.accuracy ?? 25) ** 2
-    const gain = Math.max(0.35, variance / (variance + noise))
+    const accuracy = Math.max(3, p.accuracy ?? 25)
+    const isLowAccuracy = accuracy > 35
+    const processSpeed = isLowAccuracy ? Math.min(p.speed ?? d / dt, 12) : (p.speed ?? d / dt)
+    variance += Math.max(4, processSpeed ** 2) * dt * dt
+    const noise = accuracy ** 2
+    const minGain = isLowAccuracy ? 0.12 : 0.35
+    const gain = Math.max(minGain, variance / (variance + noise))
     variance *= 1 - gain
     const next = { ...p, lat: prev.lat + gain * (p.lat - prev.lat), lng: prev.lng + gain * (p.lng - prev.lng) }
     filtered.push(next)

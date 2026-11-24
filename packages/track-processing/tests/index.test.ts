@@ -541,6 +541,21 @@ describe('регресс: далёкие невалидные точки', () =>
     expect(filtered.some(p => p.accuracy === 120)).toBe(false)
     expect(filtered.length).toBe(9)
   })
+
+  it('отсекает одиночный боковой выброс с неточной погрешностью (~56м) между точными якорями', () => {
+    const bike = bikeTrack().slice(0, 20)
+    const spiked = [...bike]
+    const victim = bike[10]
+    // Отскок на ~75м в сторону с заявленной точностью 56м (раньше detourFloorM = 6 * 56 = 336м не давал его удалить)
+    spiked[10] = {
+      ...victim,
+      lat: victim.lat + 75 * METER_LAT,
+      accuracy: 56,
+    }
+    const filtered = filterGpsOutliers(spiked)
+    expect(filtered.some(p => p.clientPointId === victim.clientPointId)).toBe(false)
+    expect(filtered.length).toBe(19)
+  })
 })
 
 describe('регресс: группировка точек в маршруте', () => {

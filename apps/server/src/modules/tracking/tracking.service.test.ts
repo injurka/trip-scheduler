@@ -77,6 +77,15 @@ it('acknowledges persisted IDs again on a retry', async () => {
   expect(first.accepted).toEqual(['point-0001', 'point-0002'])
   expect(retry).toEqual(first)
 })
+it('drops points with accuracy worse than MAX_ACCURACY_M while acknowledging their IDs', async () => {
+  confirmed = [{ clientPointId: 'point-0001' }]
+  const batch = [
+    points[0],
+    { ...points[1], clientPointId: 'point-noisy-175', accuracy: 175 },
+  ]
+  const res = await trackingService.ingestBatch('user', { points: batch })
+  expect(res).toEqual({ accepted: ['point-noisy-175', 'point-0001'], rejectedCount: 0 })
+})
 it('does not acknowledge IDs missing from user-owned rows', async () => {
   confirmed = [{ clientPointId: 'point-0001' }]
   expect(await trackingService.ingestBatch('user', { points })).toEqual({ accepted: ['point-0001'], rejectedCount: 1 })

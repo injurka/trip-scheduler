@@ -39,8 +39,20 @@ internal class GpsSyncEngine(
             if (Thread.currentThread().isInterrupted || currentOwner() != owner) return count
             val points = read(owner)
             if (points.isEmpty()) return count
-            val normalized = points.map { p ->
+            val (acceptable, inaccurate) = points.partition { p ->
                 require(p.getString("ownerId") == owner) { "GPS owner mismatch" }
+                !p.has("acc") || p.optDouble("acc", -1.0).let { it.isFinite() && it >= 0.0 && it <= TrackingService.MAX_ACCURACY_M }
+            }
+            if (inaccurate.isNotEmpty()) {
+                val droppedIds = inaccurate.map { it.getString("clientPointId") }.toSet()
+                acknowledge(owner, droppedIds)
+                count += droppedIds.size
+            }
+            if (acceptable.isEmpty()) {
+                if (points.size < 500) return count
+                return@repeat
+            }
+            val normalized = acceptable.map { p ->
                 JSONObject().put("clientPointId", p.getString("clientPointId")).put("sessionId", p.getString("sessionId"))
                     .put("samplingIntervalMs", p.optLong("samplingIntervalMs", 3000L))
                     .put("tsUtc", p.getLong("time")).put("lat", p.getDouble("lat")).put("lng", p.getDouble("lng"))
@@ -52,10 +64,10 @@ internal class GpsSyncEngine(
             val result = send(config, JSONObject().put("syncToken", config.getString("syncToken")).put("ownerId", owner).put("points", JSONArray(normalized)))
             if (currentOwner() != owner || Thread.currentThread().isInterrupted) return count
             val accepted = result.getJSONArray("accepted")
-            val ids = (0 until accepted.length()).map { accepted.getString(it) }.toSet().intersect(points.map { it.getString("clientPointId") }.toSet())
+            val ids = (0 until accepted.length()).map { accepted.getString(it) }.toSet().intersect(acceptable.map { it.getString("clientPointId") }.toSet())
             acknowledge(owner, ids)
             count += ids.size
-            check(ids.size == points.size) { "Сервер подтвердил часть точек GPS; остальные сохранены" }
+            check(ids.size == acceptable.size) { "Сервер подтвердил часть точек GPS; остальные сохранены" }
             if (points.size < 500) return count
         }
         return count

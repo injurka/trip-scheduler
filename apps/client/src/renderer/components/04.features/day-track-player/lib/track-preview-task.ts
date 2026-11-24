@@ -7,6 +7,7 @@ import {
   annotateTrackPoints,
   applyActivityCorrections,
   applyTrackGeometryCorrections,
+  MAX_ACCURACY_M,
   prepareTrack,
   processDayTrack,
 } from '@limiteddissolve/track-processing'
@@ -22,13 +23,16 @@ export function createTrackPreviewTask() {
   return {
     initialize(data: DayData) {
       base = data
-      raw = (base.rawPoints ?? base.points).map(p => ({
-        ...p,
-        activity: p.recordedActivity ?? p.activity,
-        altitude: p.altitude ?? null,
-        bearing: p.bearing ?? null,
-        activityConfidence: p.activityConfidence ?? 0,
-      }))
+      raw = (base.rawPoints ?? base.points)
+        .filter(p => Number.isFinite(p.lat) && Number.isFinite(p.lng) && Math.abs(p.lat) <= 90 && Math.abs(p.lng) <= 180 && Number.isFinite(p.tsUtc)
+          && (p.accuracy == null || (Number.isFinite(p.accuracy) && p.accuracy >= 0 && p.accuracy <= MAX_ACCURACY_M)))
+        .map(p => ({
+          ...p,
+          activity: p.recordedActivity ?? p.activity,
+          altitude: p.altitude ?? null,
+          bearing: p.bearing ?? null,
+          activityConfidence: p.activityConfidence ?? 0,
+        }))
 
       prepared = prepareTrack(raw)
       auto = processDayTrack(raw)

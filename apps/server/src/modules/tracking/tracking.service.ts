@@ -1,6 +1,6 @@
 import type { TrackActivityType } from '@limiteddissolve/track-processing'
 import type { GetTrackDayInput, IngestBatchInput } from './tracking.schemas'
-import { annotateTrackPoints, applyActivityCorrections, applyTrackGeometryCorrections, calendarDay, calendarDayBounds, processDayTrack } from '@limiteddissolve/track-processing'
+import { annotateTrackPoints, applyActivityCorrections, applyTrackGeometryCorrections, calendarDay, calendarDayBounds, MAX_ACCURACY_M, processDayTrack } from '@limiteddissolve/track-processing'
 import { TRPCError } from '@trpc/server'
 import { db } from 'db'
 import { trackActivityCorrections, trackPoints, trackSegments } from 'db/schema'
@@ -117,7 +117,14 @@ export const trackingService = {
   async ingestBatch(userId: string, input: IngestBatchInput, options: { materializeSegments?: boolean } = {}) {
     if (input.ownerId && input.ownerId !== userId)
       throw new TRPCError({ code: 'FORBIDDEN', message: 'GPS-очередь принадлежит другому аккаунту' })
-    const rows = input.points.map(p => ({
+    const accepted: string[] = []
+    const validPoints = input.points.filter((p) => {
+      const validAccuracy = p.accuracy == null || (Number.isFinite(p.accuracy) && p.accuracy >= 0 && p.accuracy <= MAX_ACCURACY_M)
+      if (!validAccuracy)
+        accepted.push(p.clientPointId)
+      return validAccuracy
+    })
+    const rows = validPoints.map(p => ({
       samplingIntervalMs: p.samplingIntervalMs ?? null,
       clientPointId: p.clientPointId,
       userId,
@@ -139,7 +146,6 @@ export const trackingService = {
         : Math.round(Math.min(100, Math.max(0, p.deviceActivityConfidence))),
     }))
 
-    const accepted: string[] = []
     const CHUNK = 500
     for (let i = 0; i < rows.length; i += CHUNK) {
       const chunk = rows.slice(i, i + CHUNK)
@@ -154,7 +160,7 @@ export const trackingService = {
     // Reads process current raw data; native backlog batches need not reclassify an
     // entire growing session after every 500 points.
     if (options.materializeSegments === false)
-      return { accepted, rejectedCount: rows.length - accepted.length }
+      return { accepted, rejectedCount: input.points.length - accepted.length }
 
     // Автоматическая генерация сегментов для поступивших сессий
     try {
@@ -187,7 +193,7 @@ export const trackingService = {
       console.warn('[Tracking] Ошибка авто-генерации сегментов при ингесте:', e)
     }
 
-    return { accepted, rejectedCount: rows.length - accepted.length }
+    return { accepted, rejectedCount: input.points.length - accepted.length }
   },
 
   /** Точки календарного дня для «Воспоминаний дня». */

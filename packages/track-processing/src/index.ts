@@ -453,11 +453,20 @@ export function filterGpsOutliers<T extends { lat: number, lng: number, tsUtc: n
       const vAB = (dAB / dtAB) * 3.6
       const vBC = (dBC / dtBC) * 3.6
 
-      // Порог петли масштабируется погрешностью GPS: отскок на 30 м при точности ±25 м — это шум фикса,
-      // отскок на 300 м при точности ±8 м — реальный выброс, который надо убрать.
-      const detourFloorM = Math.max(60, 6 * movementUncertaintyM(A.accuracy, B.accuracy, 2.5, 1))
-      const isDetour = (dAB + dBC) > detourFloorM && (dAB + dBC) > 3 * Math.max(dAC, 12)
-      const isHighSpeed = vAB > outlierSpeedThreshold || vBC > outlierSpeedThreshold
+      // Порог петли масштабируется погрешностью опорных точек A и C (а не самого выброса B):
+      // если точка B имеет плохую точность (например, 50–65 м) между нормальными точками A и C,
+      // её собственная погрешность не должна раздувать порог до 300+ м и защищать выброс от удаления.
+      const anchorUncertaintyM = Math.min(25, movementUncertaintyM(A.accuracy, C.accuracy, 2.5, 1))
+      const isLowAccuracySpike = (B.accuracy ?? 0) > 35 && (B.accuracy ?? 0) > anchorUncertaintyM * 1.4
+      const detourFloorM = isLowAccuracySpike
+        ? Math.max(45, 4 * anchorUncertaintyM)
+        : Math.max(60, 6 * anchorUncertaintyM)
+      const detourRatio = isLowAccuracySpike ? 2.4 : 3
+      const speedThreshold = isLowAccuracySpike
+        ? Math.max(28, outlierSpeedThreshold * 0.55)
+        : outlierSpeedThreshold
+      const isDetour = (dAB + dBC) > detourFloorM && (dAB + dBC) > detourRatio * Math.max(dAC, 10)
+      const isHighSpeed = vAB > speedThreshold || vBC > speedThreshold
 
       if (isDetour && isHighSpeed) {
         keep[i] = false

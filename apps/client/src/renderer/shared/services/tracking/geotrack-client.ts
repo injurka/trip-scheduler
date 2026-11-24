@@ -2362,6 +2362,11 @@ export const geotrack = {
       if (position.ownerId !== owner || !position.timestamp)
         continue
 
+      const accuracy = getFiniteNumber(position.accuracy)
+
+      if (!hasValidCoordinates(position.latitude, position.longitude) || !hasAcceptableAccuracy(accuracy))
+        continue
+
       result.set(position.clientPointId, localPendingPoint(position))
     }
 

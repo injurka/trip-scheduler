@@ -175,6 +175,25 @@ describe('tracking regressions', () => {
     expect(state.dayData.value?.rawPoints?.find(p => p.tsUtc === start + 10000)?.localPending).toBe(true)
     scope.stop()
   })
+  it('filters out fixes exceeding MAX_ACCURACY_M (65m) from both points and rawPoints', async () => {
+    m.getDay.mockResolvedValue({
+      ownerId: 'account-A',
+      timeZone: 'UTC',
+      points: [
+        point(),
+        { ...point(start + 5000, 'session-A', 55.0015), accuracy: 175 },
+        point(start + 10000, 'session-A', 55.0001),
+      ],
+      segments: [],
+      corrections: [],
+    })
+    const scope = effectScope()
+    const state = scope.run(() => useDayTrackData())!
+    await flushPromises()
+    expect(state.dayData.value?.rawPoints?.map(p => p.accuracy)).toEqual([5, 5])
+    expect(state.dayData.value?.points.map(p => p.accuracy)).toEqual([5, 5])
+    scope.stop()
+  })
   it('shows durable local points offline and refuses local data for an unknown trip owner', async () => {
     m.getDay.mockRejectedValue(new Error('offline'))
     m.getLocal.mockResolvedValue([{ ...point(), localPending: true }])
