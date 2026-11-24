@@ -107,6 +107,28 @@ function center(wrapper: ReturnType<typeof mount>) {
 }
 
 describe('finance filters and reactive charts', () => {
+  it('toggles category expenses beside the full list without changing its filter', async () => {
+    const wrapper = shallowMount(FinancesSection, {
+      props: { section: { id: 'finance', type: 'finances', content: content() }, readonly: true },
+      global: { stubs: { FinancesDashboard: false } },
+    })
+    wrappers.push(wrapper)
+    const lists = () => wrapper.findAllComponents(TransactionsList)
+    const allExpenses = lists()[0].props('transactions')
+    const food = wrapper.findAll('.legend-item').find(item => item.text().includes('Еда'))!
+
+    await food.trigger('click')
+    expect(food.attributes('aria-expanded')).toBe('true')
+    expect(lists().map(list => list.props('title'))).toEqual(['Еда', undefined])
+    expect(lists()[0].props('transactions').map(tx => tx.categoryId)).toEqual(['food', 'food', 'food'])
+    expect(lists()[1].props('transactions')).toEqual(allExpenses)
+
+    await food.trigger('keydown', { key: 'Enter' })
+    expect(food.attributes('aria-expanded')).toBe('false')
+    expect(lists()).toHaveLength(1)
+    expect(lists()[0].props('transactions')).toEqual(allExpenses)
+  })
+
   it('cycles only / exclude / reset and recalculates the chart, center, list and daily amounts together', async () => {
     const { wrapper, state, emit } = renderHarness()
     expect(center(wrapper)).toBe('330₽')

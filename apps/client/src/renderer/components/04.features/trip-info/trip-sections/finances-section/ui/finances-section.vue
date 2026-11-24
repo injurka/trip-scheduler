@@ -59,8 +59,11 @@ const {
   saveSettings,
 } = useFinancesSection(props, emit)
 
+const selectedDashboardCategory = ref<string | null>(null)
 const transactionFormVisibleBeforeCategoryManager = ref(false)
 
+const dashboardCategory = computed(() => spendingByCategory.value.find(category => category.id === selectedDashboardCategory.value))
+const dashboardCategoryTransactions = computed(() => filteredTransactions.value.filter(tx => (tx.categoryId || 'cat-other') === dashboardCategory.value?.id))
 const hasActiveFilters = computed(() => {
   return statusFilter.value !== 'all'
     || typeFilter.value !== 'all'
@@ -328,6 +331,7 @@ function resetAllFilters() {
     </div>
 
     <FinancesDashboard
+      v-model:selected-category="selectedDashboardCategory"
       :main-currency="settings.mainCurrency"
       :spending-by-category="spendingByCategory"
       :spending-by-day="spendingByDay"
@@ -337,6 +341,21 @@ function resetAllFilters() {
       :spontaneous-total="spontaneousTotal"
       :filtered-total="filteredTotal"
       :status-filter="statusFilter"
+    />
+
+    <TransactionsList
+      v-if="dashboardCategory"
+      :key="dashboardCategory.id"
+      :title="dashboardCategory.name"
+      :transactions="dashboardCategoryTransactions"
+      :categories="categories"
+      :settings="settings"
+      :readonly="readonly"
+      :filtered-total="dashboardCategory.amount"
+      :status-filter="statusFilter"
+      @edit-transaction="openTransactionForm"
+      @delete-transaction="deleteTransaction"
+      @toggle-status="toggleTransactionStatus"
     />
 
     <TransactionsList

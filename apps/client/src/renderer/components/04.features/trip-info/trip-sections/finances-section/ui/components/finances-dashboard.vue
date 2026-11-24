@@ -33,6 +33,7 @@ interface Props {
 }
 
 const props = defineProps<Props>()
+const selectedCategory = defineModel<string | null>('selectedCategory', { default: null })
 
 const { format: formatCurrency } = useCurrencyFormatter()
 
@@ -289,6 +290,10 @@ watch(doughnutChartData, () => {
   hoveredIndex.value = null
 })
 
+function toggleCategoryDetails(id?: string) {
+  if (id)
+    selectedCategory.value = selectedCategory.value === id ? null : id
+}
 function getStatusValue(category: CategorySpendingItem, statusFilter: Props['statusFilter']): number {
   if (statusFilter === 'planned')
     return category.plannedAmount || category.amount
@@ -605,9 +610,15 @@ onMounted(() => {
         <ul class="legend-list">
           <li
             v-for="(cat, index) in spendingByCategory"
-            :key="cat.name"
+            :key="cat.id ?? cat.name"
             class="legend-item"
-            :class="{ 'is-active': hoveredIndex === index }"
+            :class="{ 'is-active': hoveredIndex === index || (cat.id != null && selectedCategory === cat.id) }"
+            :role="cat.id ? 'button' : undefined"
+            :tabindex="cat.id ? 0 : undefined"
+            :aria-expanded="cat.id ? selectedCategory === cat.id : undefined"
+            @click="toggleCategoryDetails(cat.id)"
+            @keydown.enter.prevent="toggleCategoryDetails(cat.id)"
+            @keydown.space.prevent="toggleCategoryDetails(cat.id)"
             @mouseenter="hoveredIndex = index"
             @mouseleave="hoveredIndex = null"
           >

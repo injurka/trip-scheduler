@@ -14,6 +14,7 @@ import { deriveImageVariants } from '~/shared/lib/url'
 import { useCurrencyFormatter } from '../../composables/use-currency-formatter'
 
 interface Props {
+  title?: string
   transactions: Transaction[]
   categories: Category[]
   settings: FinancesSettings
@@ -226,7 +227,7 @@ function handleTransactionAction(action: string, tx: Transaction) {
   <div class="transactions-wrapper">
     <header class="list-header">
       <div class="header-left">
-        <h3>Все траты</h3>
+        <h3>{{ title ?? 'Все траты' }}</h3>
         <span class="count-badge">{{ searchedTransactions.length }}</span>
       </div>
 
