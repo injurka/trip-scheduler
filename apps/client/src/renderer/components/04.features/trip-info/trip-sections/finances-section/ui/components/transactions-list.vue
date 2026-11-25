@@ -870,12 +870,11 @@ function handleTransactionAction(action: string, tx: Transaction) {
   }
 
   .item-amount {
-    justify-content: space-between;
     gap: 0.75rem;
     padding-left: calc(36px + 0.85rem);
 
-    .amount-group:has(+ .item-photos) {
-      margin-left: auto;
+    .amount-group {
+      margin-inline-end: auto;
     }
   }
 
