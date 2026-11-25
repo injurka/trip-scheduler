@@ -1,4 +1,4 @@
-import { calendarDayBounds, inspectTrackGeometry, trackGeometryActions, trackGeometryContextMs } from '@limiteddissolve/track-processing'
+import { calendarDayBounds, hasAcceptableTrackPointAccuracy, inspectTrackGeometry, trackGeometryActions, trackGeometryContextMs } from '@limiteddissolve/track-processing'
 import { TRPCError } from '@trpc/server'
 import { db } from 'db'
 import { trackActivityCorrections, trackPoints } from 'db/schema'
@@ -66,7 +66,7 @@ export async function saveCorrectionBatch(userId: string, input: z.infer<typeof 
             gte(trackPoints.tsUtc, new Date(Math.max(from, correction.startedAt - trackGeometryContextMs))),
             lte(trackPoints.tsUtc, new Date(Math.min(until - 1, correction.endedAt + trackGeometryContextMs))),
           )).orderBy(trackPoints.tsUtc)
-          const result = inspectTrackGeometry(context.map(p => ({ ...p, tsUtc: p.tsUtc.getTime() })), correction.startedAt, correction.endedAt)
+          const result = inspectTrackGeometry(context.filter(hasAcceptableTrackPointAccuracy).map(p => ({ ...p, tsUtc: p.tsUtc.getTime() })), correction.startedAt, correction.endedAt)
           if (result?.action !== correction.geometryAction)
             throw new TRPCError({ code: 'CONFLICT', message: 'Точки участка изменились. Проверьте участок ещё раз.' })
         }

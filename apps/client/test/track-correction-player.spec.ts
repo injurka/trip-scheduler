@@ -185,7 +185,7 @@ describe('batch correction player', () => {
     const wrapper = await setup()
 
     try {
-      await wrapper.findAll('button').find(b => b.text().startsWith('Нормализовать маршрут'))!.trigger('click')
+      await wrapper.findAll('button').find(b => b.text().startsWith('Проверить участки'))!.trigger('click')
       const quality = wrapper.findAllComponents({ name: 'DayTrackQuality' }).find(view => !view.props('summaryOnly'))!
       const issue = quality.props('quality').issues[0]
 
@@ -228,9 +228,9 @@ describe('batch correction player', () => {
     const wrapper = await setup()
 
     try {
-      await wrapper.findAll('button').find(b => b.text().startsWith('Нормализовать маршрут'))!.trigger('click')
+      await wrapper.findAll('button').find(b => b.text().startsWith('Проверить участки'))!.trigger('click')
       expect(wrapper.findAllComponents({ name: 'DayTrackQuality' })).toHaveLength(2)
-      await wrapper.findAll('button').find(b => b.text().startsWith('Предпросмотр правок за день'))!.trigger('click')
+      await wrapper.findAll('button').find(b => b.text().includes('Предпросмотр правок'))!.trigger('click')
       await flushPromises()
       expect(wrapper.findAllComponents({ name: 'DayTrackQuality' })).toHaveLength(1)
       expect(api.correctActivities).not.toHaveBeenCalled()
@@ -254,7 +254,7 @@ describe('batch correction player', () => {
     const wrapper = await setup()
 
     try {
-      await wrapper.findAll('button').find(b => b.text().startsWith('Нормализовать маршрут'))!.trigger('click')
+      await wrapper.findAll('button').find(b => b.text().startsWith('Журнал'))!.trigger('click')
       await wrapper.get('.quality-issue-link').trigger('click')
       expect(api.mapOptions.gapConnection?.value).toEqual([[last.lng, last.lat], [after.lng, after.lat]])
       expect(wrapper.text()).toContain('путь между замерами неизвестен')

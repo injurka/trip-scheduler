@@ -221,6 +221,11 @@ export const ASSUMED_ACCURACY_M = 25
 /** Максимальная заявленная точность фикса (м): хуже — точка не сохраняется вообще. */
 export const MAX_ACCURACY_M = 65
 
+export function hasAcceptableTrackPointAccuracy(point: { accuracy?: number | null }): boolean {
+  return point.accuracy == null
+    || (Number.isFinite(point.accuracy) && point.accuracy >= 0 && point.accuracy <= MAX_ACCURACY_M)
+}
+
 /**
  * Порог неотличимости смещения от шума GPS. Устройство с точностью ±acc метров даёт
  * разброс координат того же порядка, поэтому смещение меньше этого порога — не движение,

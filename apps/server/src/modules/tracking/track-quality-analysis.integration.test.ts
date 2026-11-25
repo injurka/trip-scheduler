@@ -85,7 +85,7 @@ describe.skipIf(!process.env.CORRECTION_BATCH_TEST_DATABASE_URL)('AI track geome
       expect((await getDay()).points).toHaveLength(3)
 
       const movingSession = crypto.randomUUID()
-      const movingTrack = [[5, 0, 0, 29], [12, 25, 65, 85], [27, 100, -60, 85], [42, 170, 64, 85], [55, 230, 0, 32]]
+      const movingTrack = [[5, 0, 0, 29], [12, 25, 45, 60], [27, 100, -45, 60], [42, 170, 44, 60], [55, 230, 0, 32]]
         .map(([second, along, across, accuracy]) => ({
           userId: owner.id,
           sessionId: movingSession,

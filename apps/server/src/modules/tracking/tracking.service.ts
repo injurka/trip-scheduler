@@ -1,6 +1,6 @@
 import type { TrackActivityType } from '@limiteddissolve/track-processing'
 import type { GetTrackDayInput, IngestBatchInput } from './tracking.schemas'
-import { annotateTrackPoints, applyActivityCorrections, applyTrackGeometryCorrections, calendarDay, calendarDayBounds, MAX_ACCURACY_M, processDayTrack } from '@limiteddissolve/track-processing'
+import { annotateTrackPoints, applyActivityCorrections, applyTrackGeometryCorrections, calendarDay, calendarDayBounds, hasAcceptableTrackPointAccuracy, MAX_ACCURACY_M, processDayTrack } from '@limiteddissolve/track-processing'
 import { TRPCError } from '@trpc/server'
 import { db } from 'db'
 import { trackActivityCorrections, trackPoints, trackSegments } from 'db/schema'
@@ -65,7 +65,7 @@ async function processRecordedDay(userId: string, input: GetTrackDayInput) {
     .from(trackPoints)
     .where(and(eq(trackPoints.userId, userId), gte(trackPoints.tsUtc, from), lt(trackPoints.tsUtc, to)))
     .orderBy(trackPoints.tsUtc))
-  const raw = points.map(p => ({ ...p, tsUtc: p.tsUtc.getTime() }))
+  const raw = points.filter(hasAcceptableTrackPointAccuracy).map(p => ({ ...p, tsUtc: p.tsUtc.getTime() }))
   // Compute from original measurements on read: historical days immediately use the current algorithm.
   const corrections = await getCorrections(userId, from, to)
   const effective = applyTrackGeometryCorrections(raw, corrections)

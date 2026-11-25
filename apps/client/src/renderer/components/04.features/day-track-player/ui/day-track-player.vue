@@ -26,6 +26,7 @@ import { useDayTrackPlayback } from '../composables/use-day-track-playback'
 import { useDayTrackTimezone } from '../composables/use-day-track-timezone'
 import { useTrackCorrectionDrafts } from '../composables/use-track-correction-drafts'
 import { originalTrackView, saveTrackGpx } from '../lib/track-export'
+import { readQualityResultsCache, writeQualityResultsCache } from '../lib/track-quality-cache'
 import { upperTimeIndex } from '../lib/track-time-window'
 import DayTrackActivityEditor from './day-track-activity-editor.vue'
 import DayTrackBeacon from './day-track-beacon.vue'
@@ -58,6 +59,7 @@ interface Props {
   memories?: Memory[]
   galleryImages?: ImageViewerImage[]
 }
+type AnalyzeResultMap = Record<string, Awaited<ReturnType<typeof trackingService.analyzeQualityIssue>>>
 
 const props = withDefaults(defineProps<Props>(), {
   mode: 'track',
@@ -84,7 +86,7 @@ const showOriginal = ref(false)
 const showBeforeGpsDraft = ref(false)
 const isActivityEditorOpen = ref(false)
 const isQualityReviewOpen = ref(false)
-const qualityReviewResults = ref<Record<string, Awaited<ReturnType<typeof trackingService.analyzeQualityIssue>>>>({})
+const qualityReviewResults = ref<AnalyzeResultMap>({})
 const gapConnection = ref<[[number, number], [number, number]]>()
 const applying = ref(false)
 const exporting = ref(false)
@@ -105,6 +107,7 @@ const isPlaybackPanelVisible = ref(true)
 const routeVisibility = ref<RouteVisibility>('full')
 const trailMinutes = ref(15)
 const activityEditorTime = ref(0)
+let lastOwnerId = ''
 
 const latestGpsDraft = computed(() => drafts.additions.value.findLast(c => c.geometryAction))
 
@@ -256,16 +259,33 @@ const viewerImages = computed<ImageViewerImage[]>(() => {
   }))
 })
 
-watch(sourceDayData, () => {
+watch(sourceDayData, (next) => {
   drafts.clear()
-  qualityReviewResults.value = {}
   gapConnection.value = undefined
+  const owner = next?.ownerId ?? ''
+
+  if (lastOwnerId && owner && owner !== lastOwnerId)
+    qualityReviewResults.value = {}
+
+  if (owner)
+    lastOwnerId = owner
 }, { flush: 'sync' })
 watch(playback.isPlaying, (playing) => {
   if (playing)
     gapConnection.value = undefined
 })
-watch(selectedDay, closeQualityReview)
+watch(selectedDay, (day) => {
+  closeQualityReview()
+  qualityReviewResults.value = readQualityResultsCache(authStore.user?.id, props.tripId, day)
+}, { immediate: true, flush: 'sync' })
+watch(qualityReviewResults, (val) => {
+  writeQualityResultsCache(
+    authStore.user?.id,
+    props.tripId,
+    selectedDay.value,
+    val,
+  )
+})
 watch(latestGpsDraft, () => {
   showBeforeGpsDraft.value = false
 }, { flush: 'sync' })
@@ -402,25 +422,50 @@ function choicesFromProposal(proposal: QualityProposal): CorrectionChoice[] {
 
   return choices
 }
+function collectValidProposalChoices(proposals: QualityProposal[]) {
+  const choices: CorrectionChoice[] = []
+  let firstIssue: TrackQualityIssue | undefined
+  let lastError: unknown
+
+  for (const proposal of proposals) {
+    try {
+      const built = choicesFromProposal(proposal)
+
+      if (built.length) {
+        choices.push(...built)
+        firstIssue ??= proposal.issue
+      }
+    }
+    catch (err) {
+      lastError = err
+    }
+  }
+
+  return { choices, firstIssue, lastError }
+}
 async function previewQualityCorrections(proposals: QualityProposal[]) {
   if (!canEditTrack.value || !authStore.isAuthenticated)
     throw new Error('Редактирование трека недоступно.')
 
-  const [first] = proposals
-
-  if (!first)
+  if (!proposals.length)
     return
 
-  const choices = proposals.flatMap(choicesFromProposal)
+  const { choices, firstIssue, lastError } = collectValidProposalChoices(proposals)
 
-  if (!choices.length)
+  if (!choices.length) {
+    if (lastError)
+      throw lastError
+
     return
+  }
 
   await stageCorrections(choices)
   viewMode.value = 'route'
   routeVisibility.value = 'full'
   await nextTick()
-  seekQualityIssue(first.issue, closeQualityReview)
+
+  if (firstIssue)
+    seekQualityIssue(firstIssue, closeQualityReview)
 }
 async function discardGpsDraft() {
   if (!latestGpsDraft.value)
@@ -870,9 +915,12 @@ useEventListener(window, 'beforeunload', (event: BeforeUnloadEvent) => {
     >
       <template #quality="{ close }">
         <DayTrackQuality
+          v-model:results="qualityReviewResults"
           :quality="quality"
           :raw-points="sourceDayData?.rawPoints"
           :corrections="qualityCorrections"
+          :is-live-day="selectedDay === todayUtc"
+          :draft-count="drafts.count.value"
           summary-only
           @review="openQualityReview(close)"
         >
@@ -959,7 +1007,7 @@ useEventListener(window, 'beforeunload', (event: BeforeUnloadEvent) => {
 
     <KitDialogWithClose
       v-model:visible="isQualityReviewOpen"
-      title="Нормализация маршрута"
+      title="Проверка маршрута"
       :persistent="drafts.processing.value"
     >
       <DayTrackQuality
@@ -970,6 +1018,8 @@ useEventListener(window, 'beforeunload', (event: BeforeUnloadEvent) => {
         :raw-points="sourceDayData?.rawPoints"
         :time-zone="dayData?.timeZone"
         :corrections="qualityCorrections"
+        :is-live-day="selectedDay === todayUtc"
+        :draft-count="drafts.count.value"
         :analyze="canEditTrack && authStore.isAuthenticated ? analyzeQualityIssue : undefined"
         :preview="canEditTrack && authStore.isAuthenticated ? (issue, action) => previewQualityCorrections([{ issue, action }]) : undefined"
         :preview-batch="canEditTrack && authStore.isAuthenticated ? previewQualityCorrections : undefined"

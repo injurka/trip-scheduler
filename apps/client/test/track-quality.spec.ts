@@ -1,3 +1,4 @@
+import type { QualityAnalysis } from '../src/renderer/components/04.features/day-track-player/ui/day-track-quality.vue'
 import { recordingQuality } from '@limiteddissolve/track-processing'
 import { flushPromises, mount } from '@vue/test-utils'
 import { expect, it, vi } from 'vitest'
@@ -109,7 +110,7 @@ it('runs smart AI normalization across complex sections and stages outlier exclu
     global: { stubs: { KitBtn: { template: '<button><slot /></button>' } } },
   })
 
-  const smartBtn = wrapper.findAll('button').find(button => button.text().includes('Нормализовать с ИИ'))!
+  const smartBtn = wrapper.findAll('button').find(button => button.text().includes('Проверить все с ИИ'))!
   expect(smartBtn).toBeDefined()
   await smartBtn.trigger('click')
   await flushPromises()
@@ -125,5 +126,61 @@ it('runs smart AI normalization across complex sections and stages outlier exclu
     }),
   ])
   expect(wrapper.text()).toContain('Дождитесь синхронизации точек с сервером')
+  wrapper.unmount()
+})
+
+it('defers live tail sections on an active trip day and stops nagging once glitches are resolved', async () => {
+  const now = Date.now()
+  const morning = trackPoints([8, 58, 56, 54, 8], [0, 0.0006, 0.0012, 0.0015, 0.002]).map((p, i) => ({
+    ...p,
+    sessionId: 'morning',
+    tsUtc: now - 3 * 3600_000 + i * 5000,
+    lat: i === 2 ? 0.0005 : 0,
+    activity: 'unknown' as const,
+    deviceActivity: null,
+    deviceActivityConfidence: null,
+  }))
+  const liveTail = trackPoints([8, 60, 8], [0.01, 0.0114, 0.01002]).map((p, i) => ({
+    ...p,
+    sessionId: 'live',
+    tsUtc: now - 20_000 + i * 5000,
+  }))
+  const rawPoints = [...morning, ...liveTail]
+  const analyze = vi.fn().mockResolvedValue({
+    action: null,
+    suggestedActivity: null,
+    reason: 'Точки согласуются с маршрутом.',
+    affectedFixes: 0,
+  })
+  const results: Record<string, QualityAnalysis> = {}
+  const wrapper = mount(Quality, {
+    props: {
+      'quality': recordingQuality(rawPoints),
+      rawPoints,
+      analyze,
+      'isLiveDay': true,
+      results,
+      'onUpdate:results': (next: Record<string, QualityAnalysis>) => wrapper.setProps({ results: next }),
+      'timeZone': 'UTC',
+    },
+    global: { stubs: { KitBtn: { template: '<button><slot /></button>' } } },
+  })
+
+  expect(wrapper.text()).toContain('Идёт запись…')
+  const smartBtn = wrapper.findAll('button').find(button => button.text().includes('Проверить все с ИИ'))!
+  await smartBtn.trigger('click')
+  await flushPromises()
+
+  // Live tail issue is skipped; only the completed morning issue is sent to AI
+  expect(analyze).toHaveBeenCalledOnce()
+  expect(analyze).toHaveBeenCalledWith(expect.objectContaining({ sessionId: 'morning' }))
+  expect(wrapper.text()).toContain('Проверка завершена')
+
+  // Once only resolved morning sections remain (plus any pauses), summary stops nagging
+  const pauseAfter = { ...morning.at(-1)!, tsUtc: morning.at(-1)!.tsUtc + 120_000, lng: 0.005, clientPointId: 'after-pause' }
+  const settledPoints = [...morning, pauseAfter]
+  await wrapper.setProps({ isLiveDay: false, rawPoints: settledPoints, quality: recordingQuality(settledPoints), summaryOnly: true })
+  expect(wrapper.text()).toContain('Спорных участков, требующих правки, нет.')
+  expect(wrapper.text()).not.toContain('Проверить участки')
   wrapper.unmount()
 })

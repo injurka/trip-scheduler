@@ -27,18 +27,22 @@ export interface QualityProposal {
   excludedTimestamps?: number[]
   suggestedActivity?: ActivityType | null
 }
-type IssueFilter = 'all' | 'ready' | 'ai' | 'gaps'
+type IssueFilter = 'todo' | 'done' | 'gaps'
+type BadgeVariant = 'is-applied' | 'is-clean' | 'is-ready' | 'is-live'
 interface EnrichedIssueItem {
   issue: TrackQualityIssue
   category: 'glitch' | 'activity' | 'gap'
   correction?: ActivityCorrection
   pendingSync: boolean
+  recordingNow: boolean
   tooLong: boolean
+  resolved: boolean
   autoAction?: TrackGeometryAction
   suggestion?: QualityAnalysis
   effectiveProposal?: QualityProposal
-  maxAccuracyM?: number
-  gapDistanceM?: number
+  metaDetail: string
+  badge?: string
+  badgeClass?: BadgeVariant
   title: string
   subtitle: string
 }
@@ -48,10 +52,22 @@ interface Props {
   rawPoints?: DayPoint[]
   timeZone?: string
   corrections?: ActivityCorrection[]
+  isLiveDay?: boolean
+  draftCount?: number
   analyze?: (issue: TrackQualityIssue) => Promise<QualityAnalysis>
   preview?: (issue: TrackQualityIssue, action: TrackGeometryAction) => Promise<void>
   previewBatch?: (proposals: QualityProposal[]) => Promise<void>
   batchCapacity?: number
+}
+interface SubtitleContext {
+  hasGeomCorrection: boolean
+  hasAnyCorrection: boolean
+  pendingSync: boolean
+  recordingNow: boolean
+  tooLong: boolean
+  suggestion?: QualityAnalysis
+  autoAction?: TrackGeometryAction
+  isUnknownActivityIssue: boolean
 }
 
 const props = defineProps<Props>()
@@ -64,21 +80,22 @@ const actionLabels: Record<TrackGeometryAction, string> = {
   'smooth-drift': 'Выровнять зигзаг маршрута',
   'exclude-manual': 'Исключить точки-выбросы',
 }
-const maxReviewDurationMs = 300_000
-const issueLimit = ref(30)
-const selectedFilter = ref<IssueFilter>('all')
-const selectedIssue = shallowRef<TrackQualityIssue>()
-const busy = ref(false)
-const batchAiProgress = ref<{ done: number, total: number } | null>(null)
-const batchAiSummary = ref('')
-const analysisError = ref('')
-const batchError = ref('')
 const autoActionTitles: Record<TrackGeometryAction, string> = {
   'exclude-spike': 'Скачок GPS в сторону',
   'collapse-drift': 'Ложный разброс на стоянке',
   'smooth-drift': 'Зигзаг при слабом сигнале',
   'exclude-manual': 'Точки-выбросы GPS',
 }
+const maxReviewDurationMs = 300_000
+const liveRecordingRecentWindowMs = 5 * 60_000
+const issueLimit = ref(30)
+const selectedFilter = ref<IssueFilter>('todo')
+const selectedIssue = shallowRef<TrackQualityIssue>()
+const busy = ref(false)
+const batchAiProgress = ref<{ done: number, total: number } | null>(null)
+const batchAiSummary = ref('')
+const analysisError = ref('')
+const batchError = ref('')
 
 const pointsBySession = computed(() => {
   const sessions = new Map<string, DayPoint[]>()
@@ -94,6 +111,22 @@ const pointsBySession = computed(() => {
 
   return sessions
 })
+const liveRecordingCutoffTs = computed(() => {
+  if (!props.isLiveDay || !props.rawPoints?.length)
+    return 0
+
+  let latestTs = 0
+
+  for (const p of props.rawPoints) {
+    if (p.tsUtc > latestTs)
+      latestTs = p.tsUtc
+  }
+
+  if (Date.now() - latestTs > liveRecordingRecentWindowMs)
+    return 0
+
+  return latestTs - trackGeometryContextMs
+})
 const groupedAccuracyAndGapIssues = computed(() => {
   const groups: TrackQualityIssue[] = []
   const lastBySession = new Map<string, TrackQualityIssue>()
@@ -101,10 +134,9 @@ const groupedAccuracyAndGapIssues = computed(() => {
   for (const issue of props.quality.issues) {
     const previous = lastBySession.get(issue.sessionId)
 
-    if (issue.kind === 'accuracy' && previous?.kind === 'accuracy'
-      && issue.startedAt - previous.endedAt <= 20_000 && issue.endedAt - previous.startedAt <= maxReviewDurationMs) {
-      previous.endedAt = Math.max(previous.endedAt, issue.endedAt)
-      previous.points += issue.points
+    if (canMergeAccuracyIssues(issue, previous)) {
+      previous!.endedAt = Math.max(previous!.endedAt, issue.endedAt)
+      previous!.points += issue.points
     }
     else {
       const group = { ...issue }
@@ -151,12 +183,18 @@ const enrichedIssues = computed<EnrichedIssueItem[]>(() => {
 })
 const inaccurateGroupsCount = computed(() =>
   enrichedIssues.value.filter(item => item.category === 'glitch').length)
+const unresolvedItems = computed(() =>
+  enrichedIssues.value.filter(item => item.category !== 'gap' && !item.resolved))
+const resolvedItems = computed(() =>
+  enrichedIssues.value.filter(item => item.category !== 'gap' && item.resolved))
+const gapItems = computed(() =>
+  enrichedIssues.value.filter(item => item.category === 'gap'))
 const readyProposals = computed<QualityProposal[]>(() => {
   const cap = Math.max(0, props.batchCapacity ?? 200)
   const list: QualityProposal[] = []
   let used = 0
 
-  for (const item of enrichedIssues.value) {
+  for (const item of unresolvedItems.value) {
     const proposal = item.effectiveProposal
     const weight = proposal ? proposalWeight(proposal) : 0
 
@@ -169,42 +207,33 @@ const readyProposals = computed<QualityProposal[]>(() => {
   return list
 })
 const aiEligibleItems = computed(() =>
-  enrichedIssues.value.filter(item =>
-    item.category !== 'gap'
-    && !item.correction
-    && !item.pendingSync
-    && !item.tooLong
-    && !results.value[issueKey(item.issue)]))
-const filters = computed(() => {
-  const all = enrichedIssues.value.length
-  const ready = enrichedIssues.value.filter(i => i.effectiveProposal).length
-  const ai = aiEligibleItems.value.length
-  const gaps = enrichedIssues.value.filter(i => i.category === 'gap').length
+  unresolvedItems.value.filter(canItemUseAi))
+const filters = computed(() => ([
+  { id: 'todo' as const, label: 'К проверке', count: unresolvedItems.value.length },
+  { id: 'done' as const, label: 'Проверено', count: resolvedItems.value.length },
+  { id: 'gaps' as const, label: 'Паузы', count: gapItems.value.length },
+]).filter(tab => tab.count > 0))
+const activeFilter = computed<IssueFilter>(() => {
+  if (filters.value.some(f => f.id === selectedFilter.value))
+    return selectedFilter.value
 
-  return ([
-    { id: 'all' as const, label: 'Все', count: all },
-    { id: 'ready' as const, label: 'Готовы к правке', count: ready },
-    { id: 'ai' as const, label: 'Проверить с ИИ', count: ai },
-    { id: 'gaps' as const, label: 'Разрывы', count: gaps },
-  ]).filter(tab => tab.id === 'all' ? all > 0 : tab.count > 0)
+  return filters.value[0]?.id ?? 'todo'
 })
-const activeFilter = computed<IssueFilter>(() =>
-  filters.value.some(f => f.id === selectedFilter.value) ? selectedFilter.value : 'all')
 const filteredIssues = computed(() => {
-  const list = enrichedIssues.value
-
-  if (activeFilter.value === 'ready')
-    return list.filter(i => i.effectiveProposal)
-
-  if (activeFilter.value === 'ai')
-    return list.filter(i => i.category !== 'gap' && !i.correction && !i.pendingSync && !i.tooLong && !results.value[issueKey(i.issue)])
+  if (activeFilter.value === 'done')
+    return resolvedItems.value
 
   if (activeFilter.value === 'gaps')
-    return list.filter(i => i.category === 'gap')
+    return gapItems.value
 
-  return list
+  return unresolvedItems.value
 })
 const visibleIssues = computed(() => filteredIssues.value.slice(0, issueLimit.value))
+const showActionBar = computed(() =>
+  Boolean(batchAiProgress.value
+    || batchAiSummary.value
+    || batchError.value
+    || (activeFilter.value === 'todo' && ((props.analyze && aiEligibleItems.value.length) || (props.previewBatch && readyProposals.value.length)))))
 
 watch(activeFilter, () => {
   issueLimit.value = 30
@@ -215,6 +244,12 @@ watch(enrichedIssues, () => {
   batchError.value = ''
 })
 
+function canMergeAccuracyIssues(issue: TrackQualityIssue, previous: TrackQualityIssue | undefined): boolean {
+  return issue.kind === 'accuracy'
+    && previous?.kind === 'accuracy'
+    && issue.startedAt - previous.endedAt <= 20_000
+    && issue.endedAt - previous.startedAt <= maxReviewDurationMs
+}
 function isUnknownRunPoint(p: DayPoint | undefined): boolean {
   return Boolean(p && p.activity === 'unknown' && p.activitySource !== 'manual')
 }
@@ -261,86 +296,134 @@ function collectSessionUnknownRuns(sessionId: string, pts: DayPoint[], existing:
       continue
     }
 
-    if (runStart >= 0) {
-      const candidate = buildUnknownRunIssue(
-        sessionId,
-        pts[runStart]!,
-        pts[i - 1]!,
-        i - runStart,
-        existing,
-      )
+    if (runStart < 0)
+      continue
 
-      if (candidate)
-        found.push(candidate)
+    const candidate = buildUnknownRunIssue(
+      sessionId,
+      pts[runStart]!,
+      pts[i - 1]!,
+      i - runStart,
+      existing,
+    )
 
-      runStart = -1
-    }
+    if (candidate)
+      found.push(candidate)
+
+    runStart = -1
   }
 
   return found
 }
 function enrichPauseIssue(issue: TrackQualityIssue, sessionPts: DayPoint[], hasRaw: boolean): EnrichedIssueItem | null {
-  let gapDistanceM: number | undefined
+  let gapDist: number | undefined
 
   if (hasRaw) {
-    const fromPt = sessionPts.find(p => p.tsUtc === issue.startedAt)
-    const toPt = sessionPts.find(p => p.tsUtc === issue.endedAt)
+    const pFrom = sessionPts.find(p => p.tsUtc === issue.startedAt)
+    const pTo = sessionPts.find(p => p.tsUtc === issue.endedAt)
 
-    if (fromPt && toPt) {
-      gapDistanceM = Math.round(haversineM(
-        fromPt.lat,
-        fromPt.lng,
-        toPt.lat,
-        toPt.lng,
+    if (pFrom && pTo) {
+      gapDist = Math.round(haversineM(
+        pFrom.lat,
+        pFrom.lng,
+        pTo.lat,
+        pTo.lng,
       ))
 
-      if (gapDistanceM <= 45)
+      if (gapDist <= 45)
         return null
     }
   }
+
+  const durText = duration(issue.endedAt - issue.startedAt)
+  const metaDetail = gapDist !== undefined ? `${durText} · ${formatMeters(gapDist)}` : durText
 
   return {
     issue,
     category: 'gap',
     pendingSync: false,
+    recordingNow: false,
     tooLong: false,
-    gapDistanceM,
-    title: gapDistanceM ? `Разрыв сигнала · ~${formatMeters(gapDistanceM)}` : 'Пауза в записи',
-    subtitle: 'Сигнал временно отсутствовал во время перемещения. Нажмите, чтобы показать участок пунктиром на карте.',
+    resolved: false,
+    metaDetail,
+    title: 'Пауза в записи',
+    subtitle: gapDist !== undefined
+      ? `Смещение ${formatMeters(gapDist)} за ${durText} без промежуточных точек — путь между замерами неизвестен.`
+      : `Пауза ${durText} без промежуточных точек — путь между замерами неизвестен.`,
   }
 }
 function describeGlitchTitle(isUnknownActivityIssue: boolean, autoAction?: TrackGeometryAction): string {
   if (isUnknownActivityIssue)
-    return 'Не определён транспорт'
+    return 'Неясен тип транспорта'
 
-  return autoAction ? autoActionTitles[autoAction] : 'Сбой точности GPS'
+  if (autoAction)
+    return autoActionTitles[autoAction]
+
+  return 'Спорный участок GPS'
 }
-function describeGlitchSubtitle(options: {
-  hasGeomCorrection: boolean
-  pendingSync: boolean
-  tooLong: boolean
-  suggestion?: QualityAnalysis
-  autoAction?: TrackGeometryAction
-  isUnknownActivityIssue: boolean
-}): string {
-  if (options.hasGeomCorrection)
-    return 'Для этого участка уже применена правка маршрута.'
+function describeBlockedSubtitle(options: SubtitleContext): string | undefined {
+  if (options.hasGeomCorrection || options.hasAnyCorrection)
+    return 'Правка для этого участка применена.'
 
   if (options.pendingSync)
     return 'Дождитесь синхронизации точек с сервером для проверки участка.'
 
+  if (options.recordingNow)
+    return 'Участок ещё записывается в реальном времени — проверка станет доступна через пару минут.'
+
   if (options.tooLong)
-    return 'Длинный участок слабого сигнала — проверьте его визуально на карте.'
+    return 'Участок длиннее 5 минут — при необходимости поправьте его вручную в редакторе движения.'
+
+  return undefined
+}
+function describeAutoActionSubtitle(autoAction: TrackGeometryAction): string {
+  if (autoAction === 'exclude-spike')
+    return 'Резкий выброс координат в сторону между точными замерами.'
+
+  if (autoAction === 'collapse-drift')
+    return 'Хаотичный разброс точек во время остановки при слабом сигнале.'
+
+  return 'Точки со сниженной точностью отклоняются от линии движения.'
+}
+function describeGlitchSubtitle(options: SubtitleContext): string {
+  const blockedText = describeBlockedSubtitle(options)
+
+  if (blockedText)
+    return blockedText
 
   if (options.suggestion)
     return options.suggestion.reason
 
   if (options.autoAction)
-    return `${actionLabels[options.autoAction]} — можно сразу сравнить До и После на карте или перепроверить с ИИ.`
+    return describeAutoActionSubtitle(options.autoAction)
 
   return options.isUnknownActivityIssue
-    ? 'Автоматика не смогла уверенно определить способ передвижения. ИИ проверит скорость и соседние сегменты.'
-    : 'Сложная траектория при сниженной точности спутников. Проверьте участок с ИИ, чтобы точечно убрать выбросы.'
+    ? 'Тип передвижения не определён автоматически — ИИ уточнит его по скорости и соседним сегментам.'
+    : 'Траектория при слабом сигнале спутников — проверьте с ИИ, чтобы убрать выбросы.'
+}
+function resolveBadge(options: {
+  hasCorrection: boolean
+  suggestion?: QualityAnalysis
+  effectiveProposal?: QualityProposal
+  pendingSync: boolean
+  recordingNow: boolean
+}): { badge?: string, badgeClass?: BadgeVariant } {
+  if (options.hasCorrection)
+    return { badge: 'Исправлено', badgeClass: 'is-applied' }
+
+  if (options.pendingSync)
+    return { badge: 'Синхронизация…', badgeClass: 'is-live' }
+
+  if (options.recordingNow)
+    return { badge: 'Идёт запись…', badgeClass: 'is-live' }
+
+  if (options.effectiveProposal)
+    return { badge: 'Готово', badgeClass: 'is-ready' }
+
+  if (options.suggestion)
+    return { badge: 'В норме', badgeClass: 'is-clean' }
+
+  return {}
 }
 function maxIssueAccuracy(context: DayPoint[], issue: TrackQualityIssue): number | undefined {
   let maxAcc = 0
@@ -351,6 +434,17 @@ function maxIssueAccuracy(context: DayPoint[], issue: TrackQualityIssue): number
   }
 
   return maxAcc > 0 ? maxAcc : undefined
+}
+function formatGlitchMeta(pointsCount: number, maxAcc?: number): string {
+  const parts: string[] = []
+
+  if (pointsCount > 0)
+    parts.push(`${pointsCount} точ.`)
+
+  if (maxAcc)
+    parts.push(`±${maxAcc} м`)
+
+  return parts.join(' · ')
 }
 function detectAutoGeometryAction(context: DayPoint[], issue: TrackQualityIssue, enabled: boolean): TrackGeometryAction | undefined {
   return enabled ? inspectTrackGeometry(context, issue.startedAt, issue.endedAt)?.action : undefined
@@ -363,13 +457,14 @@ function shouldSkipCoherentGlitch(
 ): boolean {
   return !isUnknownActivityIssue && hasRaw && hasCoherentTrackGeometry(context, issue.startedAt, issue.endedAt)
 }
-function canAutoInspectGlitch(
-  pendingSync: boolean,
-  tooLong: boolean,
-  hasRaw: boolean,
-  isUnknownActivityIssue: boolean,
-): boolean {
-  return !pendingSync && !tooLong && hasRaw && !isUnknownActivityIssue
+function isIssueBlocked(pendingSync: boolean, recordingNow: boolean, tooLong: boolean): boolean {
+  return pendingSync || recordingNow || tooLong
+}
+function computeIssueResolved(savedCorr: ActivityCorrection | undefined, suggestion: QualityAnalysis | undefined, effectiveProposal: QualityProposal | undefined): boolean {
+  if (savedCorr)
+    return true
+
+  return Boolean(suggestion && !effectiveProposal)
 }
 function enrichGlitchOrActivityIssue(
   issue: TrackQualityIssue,
@@ -391,15 +486,12 @@ function enrichGlitchOrActivityIssue(
   }
 
   const pendingSync = context.some(p => p.localPending)
+  const recordingNow = liveRecordingCutoffTs.value > 0 && issue.endedAt >= liveRecordingCutoffTs.value
   const tooLong = issue.endedAt - issue.startedAt > maxReviewDurationMs
-  const blocked = pendingSync || tooLong
+  const blocked = isIssueBlocked(pendingSync, recordingNow, tooLong)
   const geomCorrection = geometryCorrectionFor(issue)
-  const autoAction = detectAutoGeometryAction(context, issue, canAutoInspectGlitch(
-    pendingSync,
-    tooLong,
-    hasRaw,
-    isUnknownActivityIssue,
-  ))
+  const savedCorr = geomCorrection ?? correctionFor(issue)
+  const autoAction = detectAutoGeometryAction(context, issue, !blocked && hasRaw && !isUnknownActivityIssue)
   const suggestion = results.value[issueKey(issue)]
   const effectiveProposal = blocked
     ? undefined
@@ -407,23 +499,37 @@ function enrichGlitchOrActivityIssue(
         issue,
         autoAction,
         suggestion,
-        Boolean(geomCorrection),
+        Boolean(savedCorr),
       )
+  const resolved = computeIssueResolved(savedCorr, suggestion, effectiveProposal)
+  const maxAcc = maxIssueAccuracy(context, issue)
+  const badgeInfo = resolveBadge({
+    hasCorrection: Boolean(savedCorr),
+    suggestion,
+    effectiveProposal,
+    pendingSync,
+    recordingNow,
+  })
 
   return {
     issue,
     category: isUnknownActivityIssue ? 'activity' : 'glitch',
-    correction: geomCorrection ?? correctionFor(issue),
+    correction: savedCorr,
     pendingSync,
+    recordingNow,
     tooLong,
+    resolved,
     autoAction,
     suggestion,
     effectiveProposal,
-    maxAccuracyM: maxIssueAccuracy(context, issue),
+    metaDetail: formatGlitchMeta(issue.points, maxAcc),
+    ...badgeInfo,
     title: describeGlitchTitle(isUnknownActivityIssue, autoAction),
     subtitle: describeGlitchSubtitle({
       hasGeomCorrection: Boolean(geomCorrection),
+      hasAnyCorrection: Boolean(savedCorr),
       pendingSync,
+      recordingNow,
       tooLong,
       suggestion,
       autoAction,
@@ -432,11 +538,24 @@ function enrichGlitchOrActivityIssue(
   }
 }
 function compareEnrichedIssues(a: EnrichedIssueItem, b: EnrichedIssueItem): number {
-  const score = (item: EnrichedIssueItem) => item.effectiveProposal ? 3 : item.category !== 'gap' ? 2 : 1
+  const rank = (item: EnrichedIssueItem) => item.effectiveProposal ? 3 : !item.resolved && item.category !== 'gap' ? 2 : 1
 
-  return score(b) - score(a)
-    || (b.issue.endedAt - b.issue.startedAt) - (a.issue.endedAt - a.issue.startedAt)
+  return rank(b) - rank(a)
     || a.issue.startedAt - b.issue.startedAt
+}
+function canItemUseAi(item: EnrichedIssueItem): boolean {
+  return item.category !== 'gap'
+    && !item.resolved
+    && !item.pendingSync
+    && !item.recordingNow
+    && !item.tooLong
+    && !results.value[issueKey(item.issue)]
+}
+function hasRowAction(item: EnrichedIssueItem): boolean {
+  if (item.effectiveProposal && (props.preview || props.previewBatch))
+    return true
+
+  return Boolean(props.analyze && canItemUseAi(item))
 }
 function proposalWeight(proposal: QualityProposal): number {
   const geomWeight = proposal.action === 'exclude-manual'
@@ -481,9 +600,9 @@ function buildEffectiveProposal(
   issue: TrackQualityIssue,
   autoAction: TrackGeometryAction | undefined,
   suggestion: QualityAnalysis | undefined,
-  hasGeomCorrection: boolean,
+  hasSavedCorrection: boolean,
 ): QualityProposal | undefined {
-  if (hasGeomCorrection)
+  if (hasSavedCorrection)
     return undefined
 
   if (suggestion)
@@ -511,7 +630,7 @@ function issueKey(issue: TrackQualityIssue) {
   return `${issue.sessionId}:${issue.kind}:${issue.startedAt}:${issue.endedAt}`
 }
 async function analyzeSingleIssue(item: EnrichedIssueItem) {
-  if (!props.analyze || busy.value || item.pendingSync || item.tooLong)
+  if (!props.analyze || busy.value || !canItemUseAi(item))
     return
 
   selectedIssue.value = item.issue
@@ -566,7 +685,7 @@ async function finishSmartAiNormalization(failed: number, total: number) {
     return
   }
 
-  batchAiSummary.value = 'ИИ проверил спорные участки: дополнительных искажений, требующих правки, не найдено.'
+  batchAiSummary.value = 'Проверка завершена: спорные участки согласуются с маршрутом, правки не нужны.'
 }
 async function runSmartAiNormalization() {
   if (!props.analyze || busy.value)
@@ -594,7 +713,7 @@ async function runSmartAiNormalization() {
     await finishSmartAiNormalization(failed, targets.length)
   }
   catch (error) {
-    batchError.value = error instanceof Error ? error.message : 'Не удалось выполнить ИИ-нормализацию.'
+    batchError.value = error instanceof Error ? error.message : 'Не удалось выполнить проверку с ИИ.'
   }
   finally {
     batchAiProgress.value = null
@@ -675,6 +794,11 @@ function time(ts: number, timeZone?: string) {
     second: '2-digit',
   })
 }
+function timeRange(issue: TrackQualityIssue, timeZone?: string) {
+  return issue.startedAt === issue.endedAt
+    ? time(issue.startedAt, timeZone)
+    : `${time(issue.startedAt, timeZone)}–${time(issue.endedAt, timeZone)}`
+}
 </script>
 
 <template>
@@ -705,59 +829,107 @@ function time(ts: number, timeZone?: string) {
       </div>
     </dl>
     <p>
-      Пауза — промежуток сверх обычной частоты записи (от 30–75 с); потеря GPS не подтверждена. Участки со сниженной точностью, которые ровно ложатся на маршрут, не требуют исправления.
+      Пауза — промежуток сверх обычной частоты записи (от 30–75 с); потеря GPS не подтверждена.
     </p>
+
     <KitBtn
-      v-if="enrichedIssues.length"
+      v-if="unresolvedItems.length"
       size="sm"
       variant="tonal"
+      color="primary"
+      class="quality-full-btn"
       @click="emit('review')"
     >
-      Нормализовать маршрут · {{ enrichedIssues.length }}
+      Проверить участки · {{ unresolvedItems.length }}
     </KitBtn>
+    <div v-else-if="(draftCount ?? 0) > 0" class="quality-summary-banner is-draft">
+      <span>Правки на предпросмотре ({{ draftCount }}) — нажмите «Применить» внизу карты.</span>
+      <KitBtn size="xs" variant="text" @click="emit('review')">
+        Список участков
+      </KitBtn>
+    </div>
+    <div v-else-if="enrichedIssues.length" class="quality-summary-banner is-clean">
+      <span>Спорных участков, требующих правки, нет.</span>
+      <KitBtn size="xs" variant="text" @click="emit('review')">
+        Журнал · {{ enrichedIssues.length }}
+      </KitBtn>
+    </div>
     <p v-else class="quality-clean-note">
-      Сбоев маршрута, требующих исправления, не обнаружено.
+      Маршрут записан без сбоев.
     </p>
+
     <slot />
   </section>
 
   <section v-else class="track-quality">
-    <div
-      v-if="(analyze && aiEligibleItems.length) || (previewBatch && readyProposals.length)"
-      class="quality-hero-card"
-    >
-      <div class="quality-hero-head">
-        <Icon icon="mdi:auto-fix" class="quality-hero-icon" />
-        <div class="quality-hero-text">
-          <strong>Умная нормализация маршрута</strong>
-          <p>
-            ИИ проанализирует сбойные участки, уберёт GPS-выбросы и уточнит вид транспорта. Перед сохранением вы сможете сравнить маршрут «До» и «После» прямо на карте.
-          </p>
+    <nav v-if="filters.length > 1" class="quality-segmented" aria-label="Разделы участков">
+      <button
+        v-for="tab in filters"
+        :key="tab.id"
+        type="button"
+        class="segmented-tab"
+        :class="{ 'is-active': tab.id === activeFilter }"
+        :aria-pressed="tab.id === activeFilter"
+        @click="selectedFilter = tab.id"
+      >
+        <span>{{ tab.label }}</span>
+        <span class="segmented-count">{{ tab.count }}</span>
+      </button>
+    </nav>
+
+    <div v-if="showActionBar" class="quality-action-bar">
+      <template v-if="batchAiProgress">
+        <div class="progress-header" role="status" aria-live="polite">
+          <span class="progress-title">
+            <span class="inline-spinner" aria-hidden="true" />
+            ИИ проверяет спорные участки…
+          </span>
+          <span class="progress-counter">{{ batchAiProgress.done }} / {{ batchAiProgress.total }}</span>
         </div>
-      </div>
+        <progress
+          class="quality-progress"
+          :value="batchAiProgress.done"
+          :max="batchAiProgress.total"
+        />
+      </template>
 
-      <div class="quality-hero-actions">
-        <KitBtn
-          v-if="analyze && aiEligibleItems.length"
-          size="sm"
-          color="primary"
-          :disabled="busy"
-          @click="runSmartAiNormalization"
-        >
-          <Icon icon="mdi:sparkles" />
-          {{ batchAiProgress ? `Проверяем с ИИ (${batchAiProgress.done}/${batchAiProgress.total})…` : `Нормализовать с ИИ · ${Math.min(12, aiEligibleItems.length)}` }}
-        </KitBtn>
+      <template v-else-if="activeFilter === 'todo' && ((analyze && aiEligibleItems.length) || (previewBatch && readyProposals.length))">
+        <p class="action-bar-caption">
+          <template v-if="analyze && aiEligibleItems.length">
+            ИИ проверит траекторию, отберёт GPS-выбросы и уточнит транспорт, затем покажет результат на карте.
+          </template>
+          <template v-else>
+            Найдено готовых правок: {{ readyProposals.length }}. Сравните маршрут «До» и «После» перед сохранением.
+          </template>
+        </p>
 
-        <KitBtn
-          v-if="previewBatch && readyProposals.length"
-          size="sm"
-          variant="tonal"
-          :disabled="busy"
-          @click="applyProposalsPreview(readyProposals)"
-        >
-          Предпросмотр правок за день · {{ readyProposals.length }}
-        </KitBtn>
-      </div>
+        <div class="action-bar-buttons">
+          <KitBtn
+            v-if="analyze && aiEligibleItems.length"
+            size="sm"
+            color="primary"
+            class="quality-full-btn"
+            :disabled="busy"
+            @click="runSmartAiNormalization"
+          >
+            <Icon icon="mdi:sparkles" />
+            Проверить все с ИИ · {{ Math.min(12, aiEligibleItems.length) }}
+          </KitBtn>
+
+          <KitBtn
+            v-if="previewBatch && readyProposals.length"
+            size="sm"
+            :variant="analyze && aiEligibleItems.length ? 'tonal' : 'solid'"
+            color="primary"
+            class="quality-full-btn"
+            :disabled="busy"
+            @click="applyProposalsPreview(readyProposals)"
+          >
+            <Icon icon="mdi:eye-check-outline" />
+            Предпросмотр правок · {{ readyProposals.length }}
+          </KitBtn>
+        </div>
+      </template>
 
       <p v-if="batchAiSummary" class="quality-hero-status" role="status">
         {{ batchAiSummary }}
@@ -767,23 +939,10 @@ function time(ts: number, timeZone?: string) {
       </p>
     </div>
 
-    <nav v-if="filters.length > 2" class="quality-tabs" aria-label="Фильтр участков">
-      <KitBtn
-        v-for="tab in filters"
-        :key="tab.id"
-        size="xs"
-        :variant="tab.id === activeFilter ? 'tonal' : 'text'"
-        :aria-pressed="tab.id === activeFilter"
-        @click="selectedFilter = tab.id"
-      >
-        {{ tab.label }} · {{ tab.count }}
-      </KitBtn>
-    </nav>
-
     <div v-if="!enrichedIssues.length" class="quality-empty-state">
       <Icon icon="mdi:check-circle-outline" class="empty-icon" />
       <strong>Маршрут в порядке</strong>
-      <p>Все записанные точки согласуются с траекторией движения. Правка не требуется.</p>
+      <p>Записанные точки согласуются с траекторией движения. Правка не требуется.</p>
     </div>
 
     <div v-else class="quality-issues">
@@ -791,6 +950,7 @@ function time(ts: number, timeZone?: string) {
         v-for="item in visibleIssues"
         :key="issueKey(item.issue)"
         class="quality-issue"
+        :class="{ 'is-ready': Boolean(item.effectiveProposal), 'is-resolved': item.resolved }"
       >
         <div class="quality-issue-header">
           <button
@@ -799,43 +959,34 @@ function time(ts: number, timeZone?: string) {
             title="Перейти к участку на карте"
             @click="emit('seek', item.issue)"
           >
-            <span class="quality-issue-title-row">
-              <Icon
-                :icon="item.category === 'gap' ? 'mdi:transit-connection-horizontal' : item.category === 'activity' ? 'mdi:help-rhombus-outline' : 'mdi:map-marker-alert-outline'"
-                class="issue-type-icon"
-              />
-              <strong>{{ item.title }}</strong>
-            </span>
             <span class="quality-issue-meta">
-              {{ time(item.issue.startedAt, timeZone) }}–{{ time(item.issue.endedAt, timeZone) }}
-              <template v-if="item.issue.points > 0"> · {{ item.issue.points }} точ.</template>
-              <template v-if="item.maxAccuracyM"> · до ±{{ item.maxAccuracyM }} м</template>
+              {{ timeRange(item.issue, timeZone) }}
+              <template v-if="item.metaDetail"> · {{ item.metaDetail }}</template>
             </span>
+            <strong class="quality-issue-title">{{ item.title }}</strong>
           </button>
 
-          <span v-if="item.correction" class="quality-status-chip is-applied">
-            Исправлено
-          </span>
-          <span v-else-if="item.suggestion" class="quality-status-chip is-ai">
-            Проверено ИИ
-          </span>
+          <div class="quality-issue-side">
+            <span v-if="item.badge" class="quality-status-chip" :class="item.badgeClass">
+              {{ item.badge }}
+            </span>
+            <button
+              type="button"
+              class="quality-seek-btn"
+              title="Показать на карте"
+              aria-label="Показать на карте"
+              @click="emit('seek', item.issue)"
+            >
+              <Icon icon="mdi:crosshairs-gps" />
+            </button>
+          </div>
         </div>
 
         <p class="quality-review-reason">
           {{ item.subtitle }}
         </p>
 
-        <div class="quality-row-actions">
-          <KitBtn
-            size="xs"
-            variant="text"
-            color="secondary"
-            @click="emit('seek', item.issue)"
-          >
-            <Icon icon="mdi:map-search-outline" />
-            Показать на карте
-          </KitBtn>
-
+        <div v-if="hasRowAction(item)" class="quality-row-actions">
           <KitBtn
             v-if="item.effectiveProposal && (preview || previewBatch)"
             size="xs"
@@ -844,12 +995,12 @@ function time(ts: number, timeZone?: string) {
             :disabled="busy"
             @click="applySingleItemPreview(item)"
           >
-            <Icon icon="mdi:eye-check-outline" />
+            <Icon icon="mdi:check" />
             {{ formatProposalSummary(item.effectiveProposal) }}
           </KitBtn>
 
           <KitBtn
-            v-if="analyze && item.category !== 'gap' && !item.correction && !item.suggestion && !item.pendingSync && !item.tooLong"
+            v-if="analyze && canItemUseAi(item)"
             variant="outlined"
             color="primary"
             size="xs"
@@ -858,7 +1009,7 @@ function time(ts: number, timeZone?: string) {
             @click="analyzeSingleIssue(item)"
           >
             <Icon icon="mdi:sparkles" />
-            {{ selectedIssue === item.issue && busy && !batchAiProgress ? 'Анализируем…' : 'Проверить с ИИ' }}
+            {{ selectedIssue === item.issue && busy && !batchAiProgress ? 'Проверяем…' : 'Проверить с ИИ' }}
           </KitBtn>
         </div>
 
@@ -871,6 +1022,7 @@ function time(ts: number, timeZone?: string) {
         v-if="issueLimit < filteredIssues.length"
         variant="text"
         size="sm"
+        class="quality-full-btn"
         @click="issueLimit += 30"
       >
         Показать ещё ({{ filteredIssues.length - issueLimit }})
@@ -882,19 +1034,19 @@ function time(ts: number, timeZone?: string) {
 <style scoped lang="scss">
 .track-quality {
   display: grid;
-  gap: 12px;
+  gap: 10px;
   font-size: 0.82rem;
 }
 
 p {
   margin: 0;
   color: var(--fg-secondary-color);
-  line-height: 1.45;
+  line-height: 1.42;
 }
 
 dl {
   display: grid;
-  gap: 8px;
+  gap: 7px;
   margin: 0;
 }
 
@@ -915,55 +1067,166 @@ dd {
   font-weight: 500;
 }
 
+.quality-full-btn {
+  width: 100%;
+  justify-content: center;
+}
+
 .quality-clean-note {
-  padding: 6px 10px;
+  padding: 7px 10px;
   border-radius: var(--r-s);
   background: var(--bg-tertiary-color);
   color: var(--fg-secondary-color);
   font-size: 0.78rem;
 }
 
-.quality-hero-card {
+.quality-summary-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 7px 10px;
+  border-radius: var(--r-s);
+  font-size: 0.78rem;
+  line-height: 1.35;
+
+  &.is-clean {
+    background: var(--bg-tertiary-color);
+    color: var(--fg-secondary-color);
+  }
+
+  &.is-draft {
+    background: color-mix(in srgb, var(--fg-accent-color) 10%, var(--bg-tertiary-color));
+    color: var(--fg-primary-color);
+  }
+}
+
+.quality-segmented {
   display: grid;
-  gap: 10px;
-  padding: 12px;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: 3px;
+  padding: 3px;
   border-radius: var(--r-m);
   background: var(--bg-tertiary-color);
   border: 1px solid var(--border-secondary-color);
 }
 
-.quality-hero-head {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-}
-
-.quality-hero-icon {
-  font-size: 1.35rem;
-  color: var(--fg-accent-color);
-  flex-shrink: 0;
-  margin-top: 1px;
-}
-
-.quality-hero-text {
-  display: grid;
-  gap: 3px;
-
-  strong {
-    font-size: 0.88rem;
-    color: var(--fg-primary-color);
-  }
-
-  p {
-    font-size: 0.78rem;
-  }
-}
-
-.quality-hero-actions {
-  display: flex;
-  flex-wrap: wrap;
+.segmented-tab {
+  display: inline-flex;
   align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-height: 32px;
+  padding: 4px 8px;
+  border: 0;
+  border-radius: calc(var(--r-m) - 3px);
+  background: transparent;
+  color: var(--fg-secondary-color);
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
+
+  &.is-active {
+    background: var(--bg-secondary-color);
+    color: var(--fg-primary-color);
+    font-weight: 600;
+    box-shadow: 0 1px 2px rgb(0 0 0 / 6%);
+  }
+}
+
+.segmented-count {
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.8;
+}
+
+.quality-action-bar {
+  display: grid;
   gap: 8px;
+  padding: 10px 12px;
+  border-radius: var(--r-m);
+  background: var(--bg-tertiary-color);
+  border: 1px solid var(--border-secondary-color);
+}
+
+.action-bar-caption {
+  font-size: 0.77rem;
+}
+
+.action-bar-buttons {
+  display: grid;
+  gap: 6px;
+}
+
+.progress-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 0.8rem;
+  color: var(--fg-primary-color);
+}
+
+.progress-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-weight: 500;
+}
+
+.progress-counter {
+  font-variant-numeric: tabular-nums;
+  font-size: 0.76rem;
+  color: var(--fg-secondary-color);
+}
+
+.quality-progress {
+  width: 100%;
+  height: 5px;
+  border: 0;
+  border-radius: var(--r-full);
+  overflow: hidden;
+  appearance: none;
+  background: var(--border-secondary-color);
+
+  &::-webkit-progress-bar {
+    background: var(--border-secondary-color);
+    border-radius: var(--r-full);
+  }
+
+  &::-webkit-progress-value {
+    background: var(--fg-accent-color);
+    border-radius: var(--r-full);
+    transition: width 0.2s ease;
+  }
+
+  &::-moz-progress-bar {
+    background: var(--fg-accent-color);
+    border-radius: var(--r-full);
+  }
+}
+
+.inline-spinner {
+  display: inline-block;
+  width: 13px;
+  height: 13px;
+  border: 2px solid var(--fg-accent-color);
+  border-right-color: transparent;
+  border-radius: 50%;
+  flex-shrink: 0;
+  animation: quality-spin 0.75s linear infinite;
+}
+
+@keyframes quality-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .quality-hero-status {
@@ -971,29 +1234,21 @@ dd {
   color: var(--fg-success-color, #16a34a);
 }
 
-.quality-tabs,
-.quality-row-actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
-}
-
 .quality-empty-state {
   display: grid;
   justify-items: center;
   text-align: center;
-  gap: 6px;
-  padding: 24px 12px;
+  gap: 5px;
+  padding: 22px 12px;
 
   .empty-icon {
-    font-size: 2rem;
+    font-size: 1.85rem;
     color: var(--fg-success-color, #16a34a);
   }
 
   strong {
     color: var(--fg-primary-color);
-    font-size: 0.92rem;
+    font-size: 0.9rem;
   }
 }
 
@@ -1009,11 +1264,18 @@ dd {
   border-radius: var(--r-m);
   border: 1px solid var(--border-secondary-color);
   background: var(--bg-secondary-color);
+
+  &.is-ready {
+    border-color: color-mix(in srgb, var(--fg-accent-color) 40%, var(--border-secondary-color));
+  }
+
+  &.is-resolved {
+    opacity: 0.88;
+  }
 }
 
 .quality-issue-header {
   display: flex;
-  flex-wrap: wrap;
   align-items: flex-start;
   justify-content: space-between;
   gap: 8px;
@@ -1022,6 +1284,7 @@ dd {
 .quality-issue-link {
   display: grid;
   gap: 2px;
+  min-width: 0;
   padding: 0;
   text-align: left;
   background: none;
@@ -1030,56 +1293,88 @@ dd {
   font: inherit;
   cursor: pointer;
 
-  &:hover strong {
+  &:hover .quality-issue-title {
     color: var(--fg-accent-color);
-    text-decoration: underline;
   }
-}
-
-.quality-issue-title-row {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-
-  strong {
-    font-size: 0.85rem;
-    font-weight: 600;
-  }
-}
-
-.issue-type-icon {
-  font-size: 1rem;
-  color: var(--fg-accent-color);
-  flex-shrink: 0;
 }
 
 .quality-issue-meta {
   color: var(--fg-secondary-color);
-  font-size: 0.76rem;
+  font-size: 0.74rem;
   font-variant-numeric: tabular-nums;
 }
 
+.quality-issue-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.quality-issue-side {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.quality-seek-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--border-secondary-color);
+  border-radius: var(--r-s);
+  background: var(--bg-tertiary-color);
+  color: var(--fg-secondary-color);
+  cursor: pointer;
+  font-size: 0.95rem;
+  transition:
+    color 0.15s ease,
+    border-color 0.15s ease;
+
+  &:hover {
+    color: var(--fg-accent-color);
+    border-color: var(--fg-accent-color);
+  }
+}
+
 .quality-status-chip {
-  padding: 2px 8px;
+  padding: 2px 7px;
   border-radius: var(--r-full);
-  font-size: 0.7rem;
+  font-size: 0.69rem;
   font-weight: 600;
   white-space: nowrap;
 
-  &.is-applied {
-    background: var(--bg-success-color);
-    color: var(--fg-success-color);
+  &.is-applied,
+  &.is-clean {
+    background: var(--bg-success-color, rgb(22 163 74 / 12%));
+    color: var(--fg-success-color, #16a34a);
   }
 
-  &.is-ai {
-    background: var(--bg-tertiary-color);
+  &.is-ready {
+    background: color-mix(in srgb, var(--fg-accent-color) 14%, transparent);
     color: var(--fg-accent-color);
+  }
+
+  &.is-live {
+    background: var(--bg-tertiary-color);
+    color: var(--fg-secondary-color);
     border: 1px solid var(--border-secondary-color);
   }
 }
 
 .quality-review-reason {
-  font-size: 0.79rem;
+  font-size: 0.78rem;
+}
+
+.quality-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding-top: 2px;
 }
 
 .quality-error-text {

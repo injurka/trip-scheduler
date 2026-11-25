@@ -1,4 +1,4 @@
-import { buildTrackIssueAiContext, calendarDayBounds, explainTrackGeometry, inspectTrackGeometry, trackGeometryActions, trackGeometryContextMs } from '@limiteddissolve/track-processing'
+import { buildTrackIssueAiContext, calendarDayBounds, explainTrackGeometry, hasAcceptableTrackPointAccuracy, inspectTrackGeometry, trackGeometryActions, trackGeometryContextMs } from '@limiteddissolve/track-processing'
 import { TRPCError } from '@trpc/server'
 import { db } from 'db'
 import { trackActivityCorrections, trackPoints } from 'db/schema'
@@ -75,7 +75,7 @@ export async function analyzeTrackQuality(userId: string, ownerId: string, input
     }
   }
 
-  const fixes = context.map(p => ({ ...p, tsUtc: p.tsUtc.getTime() }))
+  const fixes = context.filter(hasAcceptableTrackPointAccuracy).map(p => ({ ...p, tsUtc: p.tsUtc.getTime() }))
   const candidate = inspectTrackGeometry(fixes, startedAt, endedAt)
 
   if (candidate) {
