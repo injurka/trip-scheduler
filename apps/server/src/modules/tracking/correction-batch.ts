@@ -14,7 +14,7 @@ export const CorrectionDraftSchema = z.object({
   activity: TrackActivityTypeSchema,
   point: z.boolean().optional(),
   geometryAction: z.enum(trackGeometryActions).nullable().optional(),
-}).refine(c => (c.endedAt > c.startedAt || (c.point && c.endedAt === c.startedAt)) && c.endedAt - c.startedAt <= (c.geometryAction ? 120_000 : 26 * 3600_000), 'Некорректный интервал').refine(c => c.geometryAction !== 'exclude-manual' || c.startedAt === c.endedAt, 'Исключить можно только одну точку')
+}).refine(c => (c.endedAt > c.startedAt || (c.point && c.endedAt === c.startedAt)) && c.endedAt - c.startedAt <= (c.geometryAction ? 300_000 : 26 * 3600_000), 'Некорректный интервал').refine(c => c.geometryAction !== 'exclude-manual' || c.startedAt === c.endedAt, 'Исключить можно только одну точку')
 export const CorrectionBatchSchema = z.object({
   tripId: z.string().uuid().optional(),
   dayUtc: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),

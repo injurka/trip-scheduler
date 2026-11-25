@@ -2,6 +2,7 @@
 import type { TrackGeometryAction, TrackQualityIssue } from '@limiteddissolve/track-processing'
 import type { CorrectionChoice } from '../composables/use-track-correction-drafts'
 import type { DayPoint, RouteVisibility, TrackPhoto, ViewMode } from '../models/types'
+import type { QualityProposal } from './day-track-quality.vue'
 import type { ImageViewerImage } from '~/components/01.kit/kit-image-viewer'
 import type { DaySummary } from '~/components/03.domain/activity-day-summary/types'
 import type { Memory } from '~/shared/types/models/memory'
@@ -377,7 +378,31 @@ function validateAutomaticQualityChoice(points: DayPoint[], issue: TrackQualityI
   if (candidate?.action !== action)
     throw new Error('Замеры изменились. Проверьте участок ещё раз.')
 }
-async function previewQualityCorrections(proposals: { issue: TrackQualityIssue, action: TrackGeometryAction }[]) {
+function choicesFromProposal(proposal: QualityProposal): CorrectionChoice[] {
+  const choices: CorrectionChoice[] = []
+
+  if (proposal.action === 'exclude-manual' && proposal.excludedTimestamps?.length) {
+    for (const ts of proposal.excludedTimestamps) {
+      choices.push(qualityChoice({ ...proposal.issue, startedAt: ts, endedAt: ts, points: 1 }, 'exclude-manual'))
+    }
+  }
+  else if (proposal.action) {
+    choices.push(qualityChoice(proposal.issue, proposal.action))
+  }
+
+  if (proposal.suggestedActivity && proposal.suggestedActivity !== 'unknown') {
+    choices.push({
+      sessionId: proposal.issue.sessionId,
+      startedAt: proposal.issue.startedAt,
+      endedAt: proposal.issue.endedAt,
+      point: proposal.issue.startedAt === proposal.issue.endedAt,
+      activity: proposal.suggestedActivity,
+    })
+  }
+
+  return choices
+}
+async function previewQualityCorrections(proposals: QualityProposal[]) {
   if (!canEditTrack.value || !authStore.isAuthenticated)
     throw new Error('Редактирование трека недоступно.')
 
@@ -386,7 +411,12 @@ async function previewQualityCorrections(proposals: { issue: TrackQualityIssue, 
   if (!first)
     return
 
-  await stageCorrections(proposals.map(({ issue, action }) => qualityChoice(issue, action)))
+  const choices = proposals.flatMap(choicesFromProposal)
+
+  if (!choices.length)
+    return
+
+  await stageCorrections(choices)
   viewMode.value = 'route'
   routeVisibility.value = 'full'
   await nextTick()
@@ -641,7 +671,8 @@ useEventListener(window, 'beforeunload', (event: BeforeUnloadEvent) => {
       :located-photos-count="locatedPhotos.length"
       :unlocated-photos-count="unlocatedPhotos.length"
       :is-photos-visible="isPhotosVisible"
-      :has-track="renderSegments.length > 0 || totalPointsCount > 0"
+      :is-loading="isLoading"
+      :has-track="!isLoading && (renderSegments.length > 0 || totalPointsCount > 0)"
       :days="dayDates"
       :show-today-button="showTodayButton && mode !== 'memories'"
       :show-day-picker="mode !== 'memories'"
@@ -651,8 +682,12 @@ useEventListener(window, 'beforeunload', (event: BeforeUnloadEvent) => {
       @update:view-mode="viewMode = $event"
       @update:is-photos-visible="isPhotosVisible = $event"
     >
-      <template #map-controls>
+      <template
+        v-if="!isLoading && (renderSegments.length > 0 || totalPointsCount > 0 || dayData?.localPendingCount || dayData?.localError)"
+        #map-controls
+      >
         <button
+          v-if="renderSegments.length > 0 || totalPointsCount > 0"
           type="button"
           class="track-follow-btn"
           :aria-pressed="playback.isFollowCamera.value"
@@ -836,6 +871,8 @@ useEventListener(window, 'beforeunload', (event: BeforeUnloadEvent) => {
       <template #quality="{ close }">
         <DayTrackQuality
           :quality="quality"
+          :raw-points="sourceDayData?.rawPoints"
+          :corrections="qualityCorrections"
           summary-only
           @review="openQualityReview(close)"
         >
@@ -922,7 +959,7 @@ useEventListener(window, 'beforeunload', (event: BeforeUnloadEvent) => {
 
     <KitDialogWithClose
       v-model:visible="isQualityReviewOpen"
-      title="Проблемные участки"
+      title="Нормализация маршрута"
       :persistent="drafts.processing.value"
     >
       <DayTrackQuality

@@ -66,6 +66,22 @@ export function collapseStayPoints(points: TrackPoint[]): DisplayTrackPoint[] {
       start++
       continue
     }
+    // Fast inter-quantile span check: if >=85% of points lie within a circle of radius <= 35m,
+    // the [16%, 84%] coordinate span on each axis cannot exceed 70m.
+    const origin = window[0]
+    const scale = Math.max(0.01, Math.cos(origin.lat * Math.PI / 180))
+    const lowIdx = Math.floor(window.length * 0.16)
+    const highIdx = Math.min(window.length - 1, Math.ceil(window.length * 0.84))
+    const xsSorted = window.map(p => (p.lng - origin.lng) * 111_320 * scale).sort((a, b) => a - b)
+    if (xsSorted[highIdx] - xsSorted[lowIdx] > 72) {
+      start++
+      continue
+    }
+    const ysSorted = window.map(p => (p.lat - origin.lat) * 111_320).sort((a, b) => a - b)
+    if (ysSorted[highIdx] - ysSorted[lowIdx] > 72) {
+      start++
+      continue
+    }
     const anchor = center(window)
     const radius = Math.max(8, Math.min(35, median(window.map(p => p.accuracy ?? 25)) * 1.5))
     const distances = window.map(p => haversineM(anchor.lat, anchor.lng, p.lat, p.lng))

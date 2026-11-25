@@ -74,6 +74,15 @@ async function processRecordedDay(userId: string, input: GetTrackDayInput) {
 }
 
 const pendingTrackDays = new Map<string, ReturnType<typeof processRecordedDay>>()
+const daySummaryCache = new Map<string, { signature: string, summary: ReturnType<typeof summarizeTrackDay> }>()
+
+function invalidateUserSummaryCache(userId: string) {
+  const prefix = `${userId}:`
+  for (const key of daySummaryCache.keys()) {
+    if (key.startsWith(prefix))
+      daySummaryCache.delete(key)
+  }
+}
 
 function processedDay(userId: string, input: GetTrackDayInput) {
   const key = JSON.stringify([userId, input.dayUtc, input.timeZone])
@@ -157,9 +166,9 @@ export const trackingService = {
       accepted.push(...confirmed.map(row => row.clientPointId))
     }
 
-    // Reads process current raw data; native backlog batches need not reclassify an
-    // entire growing session after every 500 points.
-    if (options.materializeSegments === false)
+    // Reads process current raw data on demand; avoid reclassifying an entire multi-day
+    // session and rewriting unused track_segments on every ingested batch unless explicitly requested.
+    if (options.materializeSegments !== true)
       return { accepted, rejectedCount: input.points.length - accepted.length }
 
     // Автоматическая генерация сегментов для поступивших сессий
@@ -289,32 +298,99 @@ export const trackingService = {
 
   /**
    * Сводки подвижности по дням (последние N календарных дней) для страницы «Активность».
-   * Считается по сегментам (пост-обработка), fallback — по сырым точкам.
+   * Использует предвычисленные границы дней (без вызовов Intl на каждой точке) и кеширует
+   * рассчитанные исторические дни по отпечатку точек и правок.
    */
   async getSummaries(userId: string, days: number, timeZone = 'UTC') {
     const today = calendarDay(Date.now(), timeZone)
-    const start = new Date(`${today}T12:00:00Z`)
-    start.setUTCDate(start.getUTCDate() - days + 1)
-    const from = calendarDayBounds(start.toISOString().slice(0, 10), timeZone).from
-    const to = calendarDayBounds(today, timeZone).to
-
-    const rawPoints = await measureDbQuery('track_points', 'select', async () => db.select()
-      .from(trackPoints)
-      .where(and(eq(trackPoints.userId, userId), gte(trackPoints.tsUtc, from), lt(trackPoints.tsUtc, to)))
-      .orderBy(trackPoints.tsUtc))
-    const corrections = await getCorrections(userId, from, to)
-    const daysOfPoints = new Map<string, typeof rawPoints>()
-    for (const p of rawPoints) {
-      const day = calendarDay(p.tsUtc.getTime(), timeZone)
-      const list = daysOfPoints.get(day) ?? []
-      list.push(p)
-      daysOfPoints.set(day, list)
+    const dayRanges: Array<{ dayUtc: string, fromMs: number, toMs: number }> = []
+    for (let offset = days - 1; offset >= 0; offset--) {
+      const d = new Date(`${today}T12:00:00Z`)
+      d.setUTCDate(d.getUTCDate() - offset)
+      const dayUtc = d.toISOString().slice(0, 10)
+      const bounds = calendarDayBounds(dayUtc, timeZone)
+      dayRanges.push({ dayUtc, fromMs: bounds.from.getTime(), toMs: bounds.to.getTime() })
     }
+    const from = new Date(dayRanges[0]!.fromMs)
+    const to = new Date(dayRanges.at(-1)!.toMs)
+
+    const [rawPoints, corrections] = await Promise.all([
+      measureDbQuery('track_points', 'select', async () => db.select({
+        clientPointId: trackPoints.clientPointId,
+        sessionId: trackPoints.sessionId,
+        tsUtc: trackPoints.tsUtc,
+        lat: trackPoints.lat,
+        lng: trackPoints.lng,
+        accuracy: trackPoints.accuracy,
+        speed: trackPoints.speed,
+        activity: trackPoints.activity,
+        deviceActivity: trackPoints.deviceActivity,
+        deviceActivityConfidence: trackPoints.deviceActivityConfidence,
+      })
+        .from(trackPoints)
+        .where(and(eq(trackPoints.userId, userId), gte(trackPoints.tsUtc, from), lt(trackPoints.tsUtc, to)))
+        .orderBy(trackPoints.tsUtc)),
+      getCorrections(userId, from, to),
+    ])
+
+    const daysOfPoints = new Map<string, typeof rawPoints>()
+    let rangeIdx = 0
+    for (const p of rawPoints) {
+      if (p.accuracy != null && (!Number.isFinite(p.accuracy) || p.accuracy < 0 || p.accuracy > MAX_ACCURACY_M))
+        continue
+      const ts = p.tsUtc.getTime()
+      while (rangeIdx < dayRanges.length - 1 && ts >= dayRanges[rangeIdx]!.toMs)
+        rangeIdx++
+      const currentRange = dayRanges[rangeIdx]
+      const day = (currentRange && ts >= currentRange.fromMs && ts < currentRange.toMs)
+        ? currentRange.dayUtc
+        : calendarDay(ts, timeZone)
+      let list = daysOfPoints.get(day)
+      if (!list) {
+        list = []
+        daysOfPoints.set(day, list)
+      }
+      list.push(p)
+    }
+
+    const rangeByDay = new Map(dayRanges.map(r => [r.dayUtc, r]))
     return Array.from(daysOfPoints, ([day, points]) => {
-      const raw = points.map(p => ({ ...p, tsUtc: p.tsUtc.getTime() }))
-      const effective = applyTrackGeometryCorrections(raw, corrections)
-      const segments = applyActivityCorrections(processDayTrack(effective), corrections, effective)
-      return summarizeTrackDay(day, raw, segments)
+      const range = rangeByDay.get(day) ?? (() => {
+        const b = calendarDayBounds(day, timeZone)
+        return { dayUtc: day, fromMs: b.from.getTime(), toMs: b.to.getTime() }
+      })()
+      const dayCorrections = corrections.filter(c => c.startedAt < range.toMs && c.endedAt >= range.fromMs)
+      const corrSig = dayCorrections.map(c => `${c.id}:${c.startedAt}:${c.endedAt}:${c.activity}:${c.geometryAction ?? ''}`).join('|')
+      const first = points[0]!
+      const last = points.at(-1)!
+      const mid = points[points.length >> 1]!
+      const signature = `${points.length}:${first.tsUtc.getTime()}:${first.lat}:${first.lng}:${mid.tsUtc.getTime()}:${last.tsUtc.getTime()}:${last.lat}:${last.lng}:${corrSig}`
+      const cacheKey = `${userId}:${timeZone}:${day}`
+      const cached = daySummaryCache.get(cacheKey)
+      if (cached && cached.signature === signature) {
+        daySummaryCache.delete(cacheKey)
+        daySummaryCache.set(cacheKey, cached)
+        return cached.summary
+      }
+
+      const raw = points.map(p => ({
+        ...p,
+        tsUtc: p.tsUtc.getTime(),
+        altitude: null,
+        bearing: null,
+        activityConfidence: 0,
+      }))
+      const effective = applyTrackGeometryCorrections(raw, dayCorrections)
+      const segments = applyActivityCorrections(processDayTrack(effective), dayCorrections, effective)
+      const summary = summarizeTrackDay(day, raw, segments)
+
+      if (daySummaryCache.size >= 2000) {
+        const oldestKey = daySummaryCache.keys().next().value
+        if (oldestKey)
+          daySummaryCache.delete(oldestKey)
+      }
+      daySummaryCache.set(cacheKey, { signature, summary })
+      return summary
     }).sort((a, b) => b.dayUtc.localeCompare(a.dayUtc))
   },
 
@@ -360,38 +436,7 @@ export const trackingService = {
         eq(trackPoints.clientPointId, clientPointId),
       ))
 
-    let reprocessedSegments = 0
-    if (target.sessionId) {
-      const remaining = await db
-        .select({
-          tsUtc: trackPoints.tsUtc,
-          lat: trackPoints.lat,
-          lng: trackPoints.lng,
-          speed: trackPoints.speed,
-          accuracy: trackPoints.accuracy,
-          activity: trackPoints.activity,
-          deviceActivity: trackPoints.deviceActivity,
-          deviceActivityConfidence: trackPoints.deviceActivityConfidence,
-        })
-        .from(trackPoints)
-        .where(and(
-          eq(trackPoints.userId, userId),
-          eq(trackPoints.sessionId, target.sessionId),
-        ))
-        .orderBy(trackPoints.tsUtc)
-
-      if (remaining.length >= 2) {
-        const res = await trackingService.reprocessDay(userId, target.sessionId, remaining.map(toReprocessPoint))
-        reprocessedSegments = res.segments
-      }
-      else {
-        await db.delete(trackSegments).where(and(
-          eq(trackSegments.userId, userId),
-          eq(trackSegments.sessionId, target.sessionId),
-        ))
-      }
-    }
-
-    return { success: true, clientPointId, reprocessedSegments }
+    invalidateUserSummaryCache(userId)
+    return { success: true, clientPointId, reprocessedSegments: 0 }
   },
 }

@@ -31,7 +31,10 @@ export const trpc = createTRPCProxyClient<AppRouter>({
         || (op.direction === 'down' && op.result instanceof Error),
     }),
     splitLink({
-      condition: op => op.path === 'tracking.getTripDaySummary',
+      condition: op => op.path === 'tracking.getTripDaySummary'
+        || op.path === 'tracking.getSummaries'
+        || op.path === 'tracking.getDay'
+        || op.path === 'tracking.getTripDay',
       true: httpLink(httpOptions),
       false: httpBatchLink(httpOptions),
     }),

@@ -14,6 +14,7 @@ interface Props {
   viewMode: ViewMode
   totalPointsCount: number
   displayPointsCount: number
+  isLoading?: boolean
   /** Есть ли у дня GPS-трек: без него переключатели «Маршрут / Исходные точки» бессмысленны */
   hasTrack?: boolean
   /** Даты дней поездки: навигация и календарь ограничиваются ими, если список задан */
@@ -27,6 +28,7 @@ interface Props {
 }
 
 const props = withDefaults(defineProps<Props>(), {
+  isLoading: false,
   hasTrack: true,
   days: () => [],
   showTodayButton: true,
@@ -156,7 +158,7 @@ function parseDay(day?: string): CalendarDate | undefined {
       </button>
     </div>
 
-    <div class="map-toolbar">
+    <div v-if="!isLoading" class="map-toolbar">
       <div class="top-actions">
         <!-- Переключатель режима: Маршрут / Точки Безье (только когда трек есть) -->
         <div v-if="hasTrack" class="view-mode-tabs">
@@ -207,7 +209,7 @@ function parseDay(day?: string): CalendarDate | undefined {
 
         <slot name="top-actions" />
       </div>
-      <div v-if="$slots['map-controls']" class="map-controls">
+      <div v-if="!isLoading && $slots['map-controls']" class="map-controls">
         <slot name="map-controls" />
       </div>
     </div>

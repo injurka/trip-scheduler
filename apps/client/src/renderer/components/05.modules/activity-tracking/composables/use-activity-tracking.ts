@@ -1,18 +1,75 @@
 import type { DaySummary } from '../models/types'
+import { useEventListener } from '@vueuse/core'
 import { computed, onMounted, ref } from 'vue'
 import { formatActivityDay, formatActivityDistance, formatActivityDuration, formatActivityTime } from '~/components/03.domain/activity-day-summary/format'
 import { useCalendarDay } from '~/shared/composables/use-calendar-day'
+import { trackingOwner, trackingStorageKey } from '~/shared/services/tracking/tracking-owner'
 import { trpc } from '~/shared/services/trpc/trpc.service'
+
+const SUMMARIES_CACHE_PREFIX = 'tripscheduler_activity_summaries'
+const memorySummariesCache = new Map<string, DaySummary[]>()
+
+function readCachedSummaries(owner: string | null, days: number, timeZone: string): DaySummary[] | null {
+  if (!owner)
+    return null
+
+  const key = `${trackingStorageKey(SUMMARIES_CACHE_PREFIX, owner)}:${timeZone}:${days}`
+  const inMemory = memorySummariesCache.get(key)
+
+  if (inMemory)
+    return inMemory
+
+  try {
+    const raw = localStorage.getItem(key)
+
+    if (!raw)
+      return null
+
+    const parsed = JSON.parse(raw)
+
+    if (Array.isArray(parsed)) {
+      memorySummariesCache.set(key, parsed)
+
+      return parsed as DaySummary[]
+    }
+  }
+  catch {
+    // ignore storage errors
+  }
+
+  return null
+}
+
+function writeCachedSummaries(
+  owner: string | null,
+  days: number,
+  timeZone: string,
+  items: DaySummary[],
+) {
+  if (!owner)
+    return
+
+  const key = `${trackingStorageKey(SUMMARIES_CACHE_PREFIX, owner)}:${timeZone}:${days}`
+  memorySummariesCache.set(key, items)
+
+  try {
+    localStorage.setItem(key, JSON.stringify(items))
+  }
+  catch {
+    // ignore quota errors
+  }
+}
 
 export function useActivityTracking() {
   const selectedDays = ref<number>(14)
-  const isLoading = ref<boolean>(true)
-  const isRefreshing = ref<boolean>(false)
-  const loadError = ref<string | null>(null)
-  const summaries = ref<DaySummary[]>([])
-
   const timeZone = new Intl.DateTimeFormat().resolvedOptions().timeZone
   const todayUtc = useCalendarDay(timeZone)
+
+  const initialCached = readCachedSummaries(trackingOwner(), selectedDays.value, timeZone)
+  const isLoading = ref<boolean>(initialCached === null)
+  const isRefreshing = ref<boolean>(false)
+  const loadError = ref<string | null>(null)
+  const summaries = ref<DaySummary[]>(initialCached ?? [])
 
   const overallDistanceM = computed(() =>
     summaries.value.reduce((sum, s) => sum + s.totalDistanceM, 0))
@@ -43,14 +100,22 @@ export function useActivityTracking() {
 
     loadError.value = null
     const reqId = ++activeRequestId
+    const owner = trackingOwner()
+    const requestedDays = selectedDays.value
 
     try {
-      const res = await (trpc).tracking.getSummaries.query({ days: selectedDays.value, timeZone })
+      const res = await (trpc).tracking.getSummaries.query({ days: requestedDays, timeZone })
 
-      if (reqId !== activeRequestId)
+      if (reqId !== activeRequestId || owner !== trackingOwner())
         return
 
       summaries.value = res.summaries
+      writeCachedSummaries(
+        owner,
+        requestedDays,
+        timeZone,
+        res.summaries,
+      )
     }
     catch (e) {
       if (reqId !== activeRequestId)
@@ -75,6 +140,11 @@ export function useActivityTracking() {
       return
 
     selectedDays.value = days
+    const cached = readCachedSummaries(trackingOwner(), days, timeZone)
+
+    if (cached)
+      summaries.value = cached
+
     await loadSummaries({ isSilent: summaries.value.length > 0 })
   }
 
@@ -100,8 +170,15 @@ export function useActivityTracking() {
     isPlayerOpen.value = false
   }
 
-  onMounted(() => {
+  useEventListener(window, 'tracking-owner-changed', () => {
+    const cached = readCachedSummaries(trackingOwner(), selectedDays.value, timeZone)
+    summaries.value = cached ?? []
+    isLoading.value = cached === null
     void loadSummaries()
+  })
+
+  onMounted(() => {
+    void loadSummaries({ isSilent: summaries.value.length > 0 })
   })
 
   return {

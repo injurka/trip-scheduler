@@ -147,10 +147,12 @@ describe('day summary while loading the route', () => {
 
     expect(overlay.props('isLoading')).toBe(true)
     expect(overlay.props('summary')).toEqual(summary)
+    expect(wrapper.find('[aria-label="Слежение за текущей точкой"]').exists()).toBe(false)
     expect(api.getTripDaySummary).not.toHaveBeenCalled()
     pendingDay.resolve(structuredClone(data))
     await flushPromises()
     expect(overlay.props('isLoading')).toBe(false)
+    expect(wrapper.find('[aria-label="Слежение за текущей точкой"]').exists()).toBe(true)
     wrapper.unmount()
   })
 
@@ -183,7 +185,7 @@ describe('batch correction player', () => {
     const wrapper = await setup()
 
     try {
-      await wrapper.findAll('button').find(b => b.text().startsWith('Разобрать участки'))!.trigger('click')
+      await wrapper.findAll('button').find(b => b.text().startsWith('Нормализовать маршрут'))!.trigger('click')
       const quality = wrapper.findAllComponents({ name: 'DayTrackQuality' }).find(view => !view.props('summaryOnly'))!
       const issue = quality.props('quality').issues[0]
 
@@ -226,7 +228,7 @@ describe('batch correction player', () => {
     const wrapper = await setup()
 
     try {
-      await wrapper.findAll('button').find(b => b.text().startsWith('Разобрать участки'))!.trigger('click')
+      await wrapper.findAll('button').find(b => b.text().startsWith('Нормализовать маршрут'))!.trigger('click')
       expect(wrapper.findAllComponents({ name: 'DayTrackQuality' })).toHaveLength(2)
       await wrapper.findAll('button').find(b => b.text().startsWith('Предпросмотр правок за день'))!.trigger('click')
       await flushPromises()
@@ -252,7 +254,7 @@ describe('batch correction player', () => {
     const wrapper = await setup()
 
     try {
-      await wrapper.findAll('button').find(b => b.text().startsWith('Разобрать участки'))!.trigger('click')
+      await wrapper.findAll('button').find(b => b.text().startsWith('Нормализовать маршрут'))!.trigger('click')
       await wrapper.get('.quality-issue-link').trigger('click')
       expect(api.mapOptions.gapConnection?.value).toEqual([[last.lng, last.lat], [after.lng, after.lat]])
       expect(wrapper.text()).toContain('путь между замерами неизвестен')
