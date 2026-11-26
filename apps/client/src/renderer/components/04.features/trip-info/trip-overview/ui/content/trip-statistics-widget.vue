@@ -34,7 +34,9 @@ const modes = [
   { key: 'unknown', label: 'Не определено', icon: 'mdi:map-marker-question-outline', color: '#92918f' },
 ] as const
 
-const visibleModes = computed(() => modes.filter(({ key }) => isRecordedTrackActivity(key) || (data.value?.distanceM[key] ?? 0) > 0))
+const visibleModes = computed(() => modes
+  .filter(({ key }) => isRecordedTrackActivity(key) || (data.value?.distanceM[key] ?? 0) > 0)
+  .map(mode => ({ ...mode, speed: mode.key === 'unknown' ? undefined : data.value?.speedByActivity?.[mode.key] })))
 const totalM = computed(() => Object.values(data.value?.distanceM ?? {}).reduce((a, b) => a + b, 0))
 const details = computed(() => data.value
   ? [
@@ -96,6 +98,7 @@ async function refresh() {
 }
 const number = (n: number) => n.toLocaleString('ru-RU')
 const km = (m: number) => (m / 1000).toLocaleString('ru-RU', { maximumFractionDigits: 1 })
+const formatSpeed = (kmh: number) => kmh.toLocaleString('ru-RU', { maximumFractionDigits: 1 })
 const share = (distance: number) => (totalM.value ? distance / totalM.value * 100 : 0).toLocaleString('ru-RU', { maximumFractionDigits: 1 })
 const date = (value: string) => new Date(`${value}T12:00:00Z`).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', timeZone: 'UTC' })
 </script>
@@ -146,8 +149,25 @@ const date = (value: string) => new Date(`${value}T12:00:00Z`).toLocaleDateStrin
           <div class="bar" aria-hidden="true">
             <i :style="{ width: `${totalM ? (data.distanceM[mode.key] ?? 0) / totalM * 100 : 0}%`, background: mode.color }" />
           </div>
+          <div v-if="mode.speed" class="mode-speed">
+            <span>Типичная скорость</span>
+            <b>{{ formatSpeed(mode.speed.medianKmh) }} км/ч</b>
+            <span>Диапазон {{ formatSpeed(mode.speed.p25Kmh) }}–{{ formatSpeed(mode.speed.p75Kmh) }} км/ч</span>
+          </div>
+          <div
+            v-else-if="data.speedByActivity && mode.key !== 'unknown' && data.distanceM[mode.key] > 0"
+            class="mode-speed"
+          >
+            <span>Недостаточно замеров для скорости</span>
+          </div>
         </div>
       </div>
+      <p v-if="visibleModes.some(mode => mode.speed)" class="note">
+        Диапазон охватывает центральные 50% скоростей по времени движения. Учитываются участки с точными GPS-замерами.
+      </p>
+      <p v-else-if="canEdit && data.trackedDays && !data.speedByActivity" class="note">
+        Обновите данные, чтобы рассчитать скорость по записанным трекам.
+      </p>
       <p v-if="!data.trackedDays" class="note">
         Пока нет загруженных GPS-треков за даты поездки. Нулевые расстояния не означают, что вы не двигались.
       </p>
@@ -318,6 +338,18 @@ footer,
   display: block;
   height: 100%;
   border-radius: inherit;
+}
+.mode-speed {
+  display: grid;
+  gap: 3px;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: var(--fg-secondary-color);
+}
+.mode-speed b {
+  color: var(--fg-primary-color);
+  font-size: 0.95rem;
+  font-variant-numeric: tabular-nums;
 }
 .mode:last-child {
   grid-column: 1 / -1;

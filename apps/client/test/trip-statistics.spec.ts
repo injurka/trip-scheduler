@@ -85,6 +85,25 @@ describe('trip statistics widget', () => {
     expect(wrapper.find('.highlights').exists()).toBe(true)
     wrapper.unmount()
   })
+
+  it('shows formatted speed by activity after refreshing a saved snapshot', async () => {
+    const previous = { ...saved, trackedDays: 1, distanceM: { ...saved.distanceM, walk: 2000, metro: 1000 } }
+    api.query.mockResolvedValue(previous)
+    api.mutate.mockResolvedValue({ ...previous, speedByActivity: { walk: { medianKmh: 4.8, p25Kmh: 4.2, p75Kmh: 5.3 } } })
+    const wrapper = mount(Widget, { props })
+    await flushPromises()
+    expect(wrapper.text()).toContain('Обновите данные, чтобы рассчитать скорость')
+    await wrapper.get('button').trigger('click')
+    await flushPromises()
+    const modes = wrapper.findAll('.mode')
+    const walk = modes.find(mode => mode.text().includes('Пешком'))
+    expect(walk?.text()).toContain('4,8 км/ч')
+    expect(walk?.text()).toContain('Диапазон 4,2–5,3 км/ч')
+    const metro = modes.find(mode => mode.text().includes('Метро'))
+    expect(metro?.text()).toContain('Недостаточно замеров для скорости')
+    expect(wrapper.findAll('.mode-speed')).toHaveLength(2)
+    wrapper.unmount()
+  })
 })
 
 it('shows movement from 100 metres and keeps elapsed rest visible', () => {

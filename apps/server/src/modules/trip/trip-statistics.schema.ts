@@ -1,4 +1,12 @@
+import { trackActivities } from '@limiteddissolve/track-processing'
 import { z } from 'zod'
+
+const speedActivity = z.enum(trackActivities).exclude(['still', 'unknown'])
+const activitySpeed = z.object({
+  medianKmh: z.number().positive(),
+  p25Kmh: z.number().positive(),
+  p75Kmh: z.number().positive(),
+})
 
 export const TripStatisticsSchema = z.object({
   version: z.literal(1),
@@ -27,6 +35,7 @@ export const TripStatisticsSchema = z.object({
     bus: z.number().default(0),
     unknown: z.number(),
   }),
+  speedByActivity: z.partialRecord(speedActivity, activitySpeed).optional(),
   movingDurationMs: z.number(),
   longestDay: z.object({ date: z.string(), distanceM: z.number() }).nullable(),
 })

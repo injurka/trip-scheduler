@@ -1105,9 +1105,7 @@ export function railScoreOf(f: WindowFeatures): number {
   return Math.min(1, s)
 }
 
-/**
- * Пост-обработка дня: фильтр → разбиение на плечи → классификация без дублирования точек → RDP.
- */
+/** Clean the recorded fixes and collapse stops before classification. */
 export function prepareTrack(raw: TrackPoint[]): DisplayTrackPoint[] {
   const sessions = new Map<string, TrackPoint[]>()
   for (const p of raw) {
@@ -1129,7 +1127,11 @@ export function prepareTrack(raw: TrackPoint[]): DisplayTrackPoint[] {
 }
 
 export function processDayTrack(raw: TrackPoint[]): TrackSegment[] {
-  const prepared = prepareTrack(raw)
+  return processPreparedTrack(prepareTrack(raw))
+}
+
+/** Classify a prepared track and simplify its geometry for display. */
+export function processPreparedTrack(prepared: readonly DisplayTrackPoint[]): TrackSegment[] {
   const result: TrackSegment[] = []
   let run: DisplayTrackPoint[] = []
   const flush = () => {

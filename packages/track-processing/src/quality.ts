@@ -16,6 +16,11 @@ export interface TrackQualityIssue {
   points: number
 }
 
+export function recordingGapThresholdMs(previous: Pick<TrackQualityPoint, 'samplingIntervalMs'>) {
+  const interval = previous.samplingIntervalMs ?? 3000
+  return Math.max(30_000, interval * 2 + 15_000)
+}
+
 /** Durations use measured edges within one session, never time between recordings. */
 export function recordingQuality(points: readonly TrackQualityPoint[], corrections: readonly { id: string }[] = []) {
   const bySession = new Map<string, TrackQualityPoint[]>()
@@ -39,7 +44,7 @@ export function recordingQuality(points: readonly TrackQualityPoint[], correctio
       const point = sorted[i]
       const previous = sorted[i - 1]
       const gap = previous ? point.tsUtc - previous.tsUtc : 0
-      if (gap > Math.max(30_000, (previous?.samplingIntervalMs ?? 3000) > 3000 ? (previous!.samplingIntervalMs! * 2 + 15000) : 30_000)) {
+      if (previous && gap > recordingGapThresholdMs(previous)) {
         gapCount++
         gapDurationMs += gap
         issues.push({ kind: 'pause', sessionId, startedAt: previous.tsUtc, endedAt: point.tsUtc, points: 0 })
