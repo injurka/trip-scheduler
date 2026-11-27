@@ -2,9 +2,11 @@ import type { tripImagePlacementEnum } from '../../db/schema'
 import type { DocumentMetadata, TripDocument } from '~/models/image'
 import { and, eq, inArray } from 'drizzle-orm'
 import { measureDbQuery } from '~/lib/db-monitoring'
-import { db } from '../../db'
+import { createTRPCError } from '~/lib/trpc'
 
-import { highlights, tripImages, trips } from '../../db/schema'
+import { parseDocumentFolders } from '~/modules/trip-section/document-folders'
+import { db } from '../../db'
+import { highlights, tripImages, trips, tripSections } from '../../db/schema'
 
 type Placement = (typeof tripImagePlacementEnum.enumValues)[number]
 
@@ -131,25 +133,32 @@ export const imageRepository = {
     metadata: ImageMetadata,
     mediaType?: 'image' | 'video',
   ) {
-    const [newImage] = await db
-      .insert(tripImages)
-      .values({
-        tripId,
-        url,
-        originalName,
-        mediaType: mediaType || 'image',
-        placement,
-        sizeBytes,
-        takenAt: metadata.takenAt,
-        latitude: metadata.latitude,
-        longitude: metadata.longitude,
-        width: metadata.width,
-        height: metadata.height,
-        variants: metadata.variants,
-        metadata: metadata.metadata,
+    const values = {
+      tripId,
+      url,
+      originalName,
+      mediaType: mediaType || 'image' as const,
+      placement,
+      sizeBytes,
+      takenAt: metadata.takenAt,
+      latitude: metadata.latitude,
+      longitude: metadata.longitude,
+      width: metadata.width,
+      height: metadata.height,
+      variants: metadata.variants,
+      metadata: metadata.metadata,
+    }
+    if (placement === 'documents') {
+      return db.transaction(async (tx) => {
+        const sections = await tx.select().from(tripSections).where(and(eq(tripSections.tripId, tripId), eq(tripSections.type, 'documents'))).orderBy(tripSections.id).for('update')
+        const folderId = parseDocumentMetadata(metadata.metadata).folderId
+        if (folderId && !sections.some(section => parseDocumentFolders(section.content).folders.some(f => f.id === folderId)))
+          throw createTRPCError('BAD_REQUEST', 'Папка загрузки не найдена в этом путешествии.')
+        const [created] = await tx.insert(tripImages).values(values).returning()
+        return created
       })
-      .returning()
-
+    }
+    const [newImage] = await db.insert(tripImages).values(values).returning()
     return newImage
   },
 
@@ -263,20 +272,16 @@ export const imageRepository = {
     if (!current)
       return null
 
-    const currentMetadata = isRecord(current.metadata) ? current.metadata : {}
-    const mergedMetadata: Record<string, unknown> = {
-      ...currentMetadata,
-      ...newMetadata,
-    }
-
-    const [updated] = await db.update(tripImages)
-      .set({ metadata: mergedMetadata })
-      .where(eq(tripImages.id, id))
-      .returning()
-
-    if (!updated)
-      return null
-
-    return toTripDocument(updated)
+    return db.transaction(async (tx) => {
+      const sections = await tx.select().from(tripSections).where(and(eq(tripSections.tripId, current.tripId), eq(tripSections.type, 'documents'))).orderBy(tripSections.id).for('update')
+      if (newMetadata.folderId && !sections.some(section => parseDocumentFolders(section.content).folders.some(f => f.id === newMetadata.folderId)))
+        throw createTRPCError('BAD_REQUEST', 'Папка больше не существует в этом путешествии.')
+      const [fresh] = await tx.select().from(tripImages).where(eq(tripImages.id, id)).for('update')
+      if (!fresh)
+        return null
+      const mergedMetadata = { ...(isRecord(fresh.metadata) ? fresh.metadata : {}), ...newMetadata }
+      const [updated] = await tx.update(tripImages).set({ metadata: mergedMetadata }).where(eq(tripImages.id, id)).returning()
+      return updated ? toTripDocument(updated) : null
+    })
   },
 }

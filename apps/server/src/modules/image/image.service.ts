@@ -5,8 +5,10 @@ import type { DocumentMetadata } from '~/models/image'
 import type { EntityType } from '~/models/image-upload'
 import type { ImageMetadata } from '~/repositories/image.repository'
 import { createTRPCError } from '~/lib/trpc'
+import { parseDocumentFolders } from '~/modules/trip-section/document-folders'
 import { imageRepository } from '~/repositories/image.repository'
 import { postRepository } from '~/repositories/post.repository'
+import { tripSectionRepository } from '~/repositories/trip-section.repository'
 import { tripRepository } from '~/repositories/trip.repository'
 import { deleteFileWithVariants } from '~/services/file-storage.service'
 import { quotaService } from '~/services/quota.service'
@@ -159,6 +161,11 @@ export const imageService = {
       throw createTRPCError('FORBIDDEN', 'Нет прав для редактирования')
     }
 
+    if (newMetadata.folderId) {
+      const sections = await tripSectionRepository.findDocumentSections(image.tripId)
+      if (!sections.some(section => parseDocumentFolders(section.content).folders.some(f => f.id === newMetadata.folderId)))
+        throw createTRPCError('BAD_REQUEST', 'Папка не найдена в этом путешествии.')
+    }
     const updated = await imageRepository.updateDocumentMeta(id, newMetadata)
     if (!updated) {
       throw createTRPCError('INTERNAL_SERVER_ERROR', 'Не удалось обновить файл')

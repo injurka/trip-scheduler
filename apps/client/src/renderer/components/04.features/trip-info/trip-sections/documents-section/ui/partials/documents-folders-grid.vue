@@ -71,6 +71,11 @@ function handleAddFolder() {
         v-for="folder in visibleFolders"
         :key="folder.id"
         class="folder-card"
+        role="button"
+        tabindex="0"
+        :aria-label="`Открыть папку ${folder.name}`"
+        @keydown.enter.self="emit('selectFolder', folder.id)"
+        @keydown.space.prevent.self="emit('selectFolder', folder.id)"
         @click="emit('selectFolder', folder.id)"
       >
         <div class="folder-icon-wrapper">

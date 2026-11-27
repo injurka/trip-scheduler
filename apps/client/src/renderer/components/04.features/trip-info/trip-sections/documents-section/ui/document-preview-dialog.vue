@@ -17,6 +17,7 @@ import { formatBytes, getFileTypeInfo } from '../constants'
 import DocumentPdfViewer from './document-pdf-viewer.vue'
 
 interface Props {
+  inline?: boolean
   visible: boolean
   document: DocumentFile | null
 }
@@ -76,6 +77,7 @@ const dropdownActions = computed<KitDropdownItem<string>[]>(() => {
 
 watch(() => props.document, async (doc) => {
   textContent.value = null
+  isTextLoading.value = false
 
   if (doc && isText.value)
     await loadDocumentText(doc)
@@ -111,13 +113,17 @@ async function loadDocumentText(doc: DocumentFile) {
   isTextLoading.value = true
 
   try {
-    textContent.value = await loadTextContent(resolveApiUrl(doc.url))
+    const text = await loadTextContent(resolveApiUrl(doc.url))
+
+    if (props.document?.id === doc.id && props.document.url === doc.url)
+      textContent.value = text
   }
   catch (error) {
     console.warn('Failed to load text content:', error)
   }
   finally {
-    isTextLoading.value = false
+    if (props.document?.id === doc.id && props.document.url === doc.url)
+      isTextLoading.value = false
   }
 }
 
@@ -226,7 +232,8 @@ function handleActionSelect(action: string) {
 </script>
 
 <template>
-  <KitDialogWithClose
+  <component
+    :is="inline ? 'section' : KitDialogWithClose"
     :visible="visible"
     title="Просмотр документа"
     icon="mdi:file-eye-outline"
@@ -309,7 +316,7 @@ function handleActionSelect(action: string) {
         </div>
       </div>
     </div>
-  </KitDialogWithClose>
+  </component>
 </template>
 
 <style scoped lang="scss">
