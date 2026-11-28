@@ -4,6 +4,8 @@ import { Icon } from '@iconify/vue'
 import { folderPath } from '@injurka/type-utils'
 import { useStorage } from '@vueuse/core'
 import { computed, ref, watch } from 'vue'
+import { KitBtn } from '~/components/01.kit/kit-btn'
+import { KitInput } from '~/components/01.kit/kit-input'
 
 interface Props { folders: DocumentFolder[], documents: DocumentFile[], currentFolderId: string | null, selectedDocumentId?: string, readonly: boolean, storageKey: string }
 
@@ -24,11 +26,16 @@ const creating = ref(false)
 const editName = ref('')
 const parentId = ref('')
 
+const searchTerm = computed(() => query.value.trim().toLocaleLowerCase())
 const selectedFolder = computed(() => props.folders.find(f => f.id === props.currentFolderId))
+const foldersWithChildren = computed(() => new Set([
+  ...props.folders.map(folder => folder.parentId),
+  ...props.documents.map(document => document.folderId),
+]))
 const rows = computed(() => {
   const result: Array<{ key: string, depth: number, folder?: DocumentFolder, document?: DocumentFile }> = []
   const visited = new Set<string>()
-  const needle = query.value.trim().toLocaleLowerCase()
+  const needle = searchTerm.value
   const matching = new Set<string>()
 
   if (needle) {
@@ -68,11 +75,27 @@ watch(() => props.currentFolderId, (id) => {
   expanded.value = [...new Set([...expanded.value, ...folderPath(props.folders, id).map(f => f.id)])]
 }, { immediate: true })
 
-function toggle(id: string) {
-  expanded.value = expanded.value.includes(id) ? expanded.value.filter(value => value !== id) : [...expanded.value, id]
+function selectFolder(id: string | null) {
+  if (id !== null && foldersWithChildren.value.has(id)) {
+    const isOpen = expanded.value.includes(id)
+
+    if (!isOpen)
+      expanded.value = [...expanded.value, id]
+    else if (!searchTerm.value && id === props.currentFolderId)
+      expanded.value = expanded.value.filter(value => value !== id)
+  }
+
+  query.value = ''
+  emit('selectFolder', id)
 }
 function create() {
   if (newName.value.trim()) {
+    const id = props.currentFolderId
+
+    if (id && !expanded.value.includes(id))
+      expanded.value = [...expanded.value, id]
+
+    query.value = ''
     emit('createFolder', newName.value.trim())
     newName.value = ''
     creating.value = false
@@ -86,26 +109,26 @@ function save() {
 
 <template>
   <nav class="documents-tree" aria-label="Папки и файлы документов">
-    <div class="tree-tools">
-      <button type="button" :aria-current="currentFolderId === null ? 'location' : undefined" @click="emit('selectFolder', null)">
-        <Icon icon="mdi:folder-home-outline" />Все документы
-      </button>
-      <button
+    <div class="tree-tools" role="search" aria-label="Поиск по дереву документов">
+      <KitInput
+        v-model="query"
+        type="search"
+        icon="mdi:magnify"
+        aria-label="Найти папку или файл"
+        placeholder="Папка или файл"
+      />
+      <KitBtn
         v-if="!readonly"
-        type="button"
+        variant="outlined"
+        color="secondary"
+        size="sm"
+        icon="mdi:folder-plus-outline"
         aria-label="Создать папку в текущей папке"
+        title="Создать папку"
+        :aria-expanded="creating"
         @click="creating = !creating"
-      >
-        <Icon icon="mdi:folder-plus-outline" />
-      </button>
+      />
     </div>
-    <input
-      v-model="query"
-      class="tree-search"
-      type="search"
-      aria-label="Найти папку или файл"
-      placeholder="Найти папку или файл"
-    >
     <form v-if="creating && !readonly" class="tree-create" @submit.prevent="create">
       <input
         v-model="newName"
@@ -118,98 +141,174 @@ function save() {
         Создать
       </button>
     </form>
-    <ul class="tree-list">
-      <li
-        v-for="row in rows"
-        :key="row.key"
-        :style="{ paddingLeft: `${Math.min(row.depth, 12) * 12}px` }"
-        class="tree-row"
-      >
-        <template v-if="row.folder">
+    <div class="tree-body">
+      <ul class="tree-list">
+        <li>
           <button
             type="button"
-            class="tree-expand"
-            :aria-expanded="!!query || expanded.includes(row.key)"
-            :aria-label="`Раскрыть папку ${row.folder.name}`"
-            @click="toggle(row.key)"
+            class="tree-entry tree-root"
+            :aria-current="currentFolderId === null ? 'location' : undefined"
+            @click="selectFolder(null)"
           >
-            <Icon :icon="expanded.includes(row.key) || query ? 'mdi:chevron-down' : 'mdi:chevron-right'" />
+            <Icon icon="mdi:folder-home-outline" class="entry-icon" />
+            <span>Все документы</span>
           </button>
-          <button
-            type="button"
-            class="tree-entry"
-            :aria-current="currentFolderId === row.key ? 'location' : undefined"
-            @click="emit('selectFolder', row.key)"
-          >
-            <Icon icon="mdi:folder-outline" /><span>{{ row.folder.name }}</span>
-          </button>
-        </template>
-        <button
-          v-else-if="row.document"
-          type="button"
-          class="tree-entry tree-file"
-          :aria-current="selectedDocumentId === row.key ? 'true' : undefined"
-          @click="emit('selectDocument', row.document)"
+        </li>
+        <li
+          v-for="row in rows"
+          :key="row.key"
+          :data-depth="Math.min(row.depth, 6)"
+          class="tree-row"
         >
-          <Icon icon="mdi:file-document-outline" /><span>{{ row.document.title || row.document.originalName }}</span>
+          <button
+            v-if="row.folder"
+            type="button"
+            class="tree-entry tree-folder"
+            :aria-expanded="foldersWithChildren.has(row.key) ? !!searchTerm || expanded.includes(row.key) : undefined"
+            :aria-current="currentFolderId === row.key ? 'location' : undefined"
+            @click="selectFolder(row.key)"
+          >
+            <span class="tree-disclosure" aria-hidden="true">
+              <Icon
+                v-if="foldersWithChildren.has(row.key)"
+                :icon="searchTerm || expanded.includes(row.key) ? 'mdi:chevron-down' : 'mdi:chevron-right'"
+              />
+            </span>
+            <Icon :icon="searchTerm || expanded.includes(row.key) ? 'mdi:folder-open-outline' : 'mdi:folder-outline'" class="entry-icon" />
+            <span>{{ row.folder.name }}</span>
+          </button>
+          <button
+            v-else-if="row.document"
+            type="button"
+            class="tree-entry tree-file"
+            :aria-current="selectedDocumentId === row.key ? 'true' : undefined"
+            @click="emit('selectDocument', row.document)"
+          >
+            <Icon icon="mdi:file-document-outline" class="entry-icon" />
+            <span>{{ row.document.title || row.document.originalName }}</span>
+          </button>
+        </li>
+      </ul>
+      <p v-if="!rows.length" class="tree-hint">
+        {{ searchTerm ? 'Ничего не найдено' : 'Здесь появятся папки и файлы' }}
+      </p>
+      <details v-if="selectedFolder && !readonly" class="folder-settings">
+        <summary>Управление папкой</summary>
+        <form @submit.prevent="save">
+          <label>Название<input v-model="editName" required maxlength="200"></label>
+          <label>Родительская папка<select v-model="parentId"><option value="">Корень</option><option v-for="folder in destinations" :key="folder.id" :value="folder.id">{{ folder.path }}</option></select></label>
+          <button type="submit">
+            Сохранить
+          </button>
+        </form>
+        <button type="button" class="tree-delete" @click="emit('deleteFolder', selectedFolder.id)">
+          Удалить папку
         </button>
-      </li>
-    </ul>
-    <p v-if="!rows.length" class="tree-hint">
-      {{ query ? 'Ничего не найдено' : 'Здесь появятся папки и файлы' }}
-    </p>
-    <details v-if="selectedFolder && !readonly" class="folder-settings">
-      <summary>Управление папкой</summary>
-      <form @submit.prevent="save">
-        <label>Название<input v-model="editName" required maxlength="200"></label>
-        <label>Родительская папка<select v-model="parentId"><option value="">Корень</option><option v-for="folder in destinations" :key="folder.id" :value="folder.id">{{ folder.path }}</option></select></label>
-        <button type="submit">
-          Сохранить
-        </button>
-      </form>
-      <button type="button" class="tree-delete" @click="emit('deleteFolder', selectedFolder.id)">
-        Удалить папку
-      </button>
-    </details>
+      </details>
+    </div>
   </nav>
 </template>
 
 <style scoped lang="scss">
 .documents-tree {
   display: flex;
+  flex: 1;
   flex-direction: column;
   gap: 8px;
   min-width: 0;
+  min-height: 0;
   font-size: 0.875rem;
 }
-.tree-tools {
+.tree-tools,
+.tree-create {
   display: flex;
-  justify-content: space-between;
-  gap: 4px;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
 }
-button {
+.tree-tools > * {
+  min-width: 0;
+}
+.tree-tools .kit-btn {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+}
+.tree-body {
+  overflow: auto;
+  overscroll-behavior: contain;
+  min-height: 0;
+  scrollbar-width: thin;
+}
+.tree-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+@for $depth from 1 through 6 {
+  .tree-row[data-depth='#{$depth}'] {
+    padding-inline-start: $depth * 12px;
+  }
+}
+.tree-entry,
+.folder-settings button,
+.tree-create button {
   border: 0;
   background: transparent;
   color: var(--fg-primary-color);
   cursor: pointer;
   border-radius: var(--r-s);
-  min-height: 40px;
+  min-height: 36px;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   padding: 6px 8px;
-  text-align: left;
+  text-align: start;
 }
-button:hover {
-  background: var(--bg-tertiary-color);
+.tree-entry {
+  width: 100%;
+  font-size: 0.875rem;
+  line-height: 1.35;
+}
+.tree-entry:hover,
+.folder-settings button:hover,
+.tree-create button:hover {
+  background: var(--bg-hover-color);
 }
 button:focus-visible,
 summary:focus-visible {
   outline: 2px solid var(--fg-accent-color);
+  outline-offset: -2px;
 }
-button[aria-current] {
+.tree-entry[aria-current] {
+  background: color-mix(in srgb, var(--fg-accent-color) 9%, transparent);
+  font-weight: 600;
+}
+.tree-entry[aria-current] .entry-icon {
   color: var(--fg-accent-color);
-  background: color-mix(in srgb, var(--fg-accent-color) 10%, transparent);
+}
+.tree-entry span {
+  overflow-wrap: anywhere;
+}
+.entry-icon {
+  flex: 0 0 17px;
+  font-size: 17px;
+  color: var(--fg-secondary-color);
+}
+.tree-root {
+  margin-bottom: 4px;
+}
+.tree-folder {
+  gap: 6px;
+}
+.tree-disclosure {
+  flex: 0 0 16px;
+  display: grid;
+  place-items: center;
+  color: var(--fg-secondary-color);
+}
+.tree-file {
+  padding-inline-start: 30px;
 }
 input,
 select {
@@ -222,45 +321,20 @@ select {
   padding: 8px;
   background: var(--bg-primary-color);
   color: var(--fg-primary-color);
-  font-size: 16px;
-}
-.tree-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-.tree-row {
-  display: flex;
-  align-items: flex-start;
-  min-width: 0;
-}
-.tree-expand {
-  flex: 0 0 32px;
-  padding: 8px 4px;
-}
-.tree-entry {
-  flex: 1;
-  min-width: 0;
-}
-.tree-entry span {
-  overflow-wrap: anywhere;
-}
-.tree-entry svg {
-  flex-shrink: 0;
-}
-.tree-file {
-  margin-left: 32px;
+  font-size: 1rem;
 }
 .tree-hint {
+  padding-inline: 8px;
   color: var(--fg-secondary-color);
 }
 .folder-settings {
   border-top: 1px solid var(--border-secondary-color);
-  padding-top: 8px;
+  margin-top: 8px;
 }
 .folder-settings summary {
   cursor: pointer;
-  min-height: 40px;
+  padding: 10px 8px;
+  color: var(--fg-secondary-color);
 }
 .folder-settings form,
 .folder-settings label {
@@ -268,13 +342,11 @@ select {
   flex-direction: column;
   gap: 6px;
 }
-.tree-delete {
+.folder-settings .tree-delete {
   color: var(--fg-error-color);
 }
-@media (max-width: 599px) {
-  button,
-  input,
-  select {
+@media (max-width: 959px) {
+  .tree-entry {
     min-height: 44px;
   }
 }

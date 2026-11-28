@@ -23,6 +23,7 @@ export function useDocumentFolders(
   selectedCategory: Ref<DocumentCategory>,
   onlyFavorites: Ref<boolean>,
   updateDocument: (doc: DocumentFile) => Promise<void>,
+  deferFolderNavigation?: Readonly<Ref<boolean>>,
 ) {
   const confirm = useConfirm()
   const toast = useToast()
@@ -164,6 +165,17 @@ export function useDocumentFolders(
       return
 
     currentFolderId.value = folderId
+
+    if (!deferFolderNavigation?.value)
+      syncFolderRoute()
+  }
+
+  function syncFolderRoute() {
+    const folderId = currentFolderId.value
+
+    if ((route.query.folder ?? null) === folderId)
+      return
+
     const query = { ...route.query }
 
     if (folderId) {
@@ -189,5 +201,6 @@ export function useDocumentFolders(
     updateFolder,
     renameFolder,
     setCurrentFolder,
+    syncFolderRoute,
   }
 }

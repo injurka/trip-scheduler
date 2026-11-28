@@ -3,9 +3,10 @@ import type { DocumentFile, DocumentsSectionContent } from '../models/types'
 import { Icon } from '@iconify/vue'
 import { folderPath } from '@injurka/type-utils'
 import { useDropZone, useFileDialog } from '@vueuse/core'
-import { DialogTitle } from 'reka-ui'
+import { DialogDescription, DialogTitle, VisuallyHidden } from 'reka-ui'
 import { computed, ref, watch } from 'vue'
 import { KitBtn } from '~/components/01.kit/kit-btn'
+import { waitForDialogHistory } from '~/components/01.kit/kit-dialog-with-close/composables/use-dialog-history'
 import { KitDrawer } from '~/components/01.kit/kit-drawer'
 import { KitImageViewer, useImageViewer } from '~/components/01.kit/kit-image-viewer'
 import { ErrorPlaceholder } from '~/components/02.shared/error-placeholder'
@@ -39,6 +40,15 @@ interface Props {
 
 const props = defineProps<Props>()
 const emit = defineEmits(['updateSection'])
+
+const imageViewer = useImageViewer()
+const { open: openFileDialog, onChange: onFileChange, reset: resetFileDialog } = useFileDialog({
+  multiple: true,
+})
+const { isOnline } = useConnectivity()
+const offlineStore = useOfflineStore()
+
+const treeOpen = ref(false)
 
 const {
   isUploading,
@@ -74,23 +84,15 @@ const {
   deleteSelectedDocs,
   moveSelectedDocs,
   setCurrentFolder,
+  syncFolderRoute,
   currentFolderId,
   currentFolder,
   folders,
   documents,
   isAddingFolder,
   resetFilters,
-} = useDocumentsSection(props, emit)
-// Просмотрщик картинок KitImageViewer
-const imageViewer = useImageViewer()
-// Загрузка через системный диалог выбора файлов
-const { open: openFileDialog, onChange: onFileChange, reset: resetFileDialog } = useFileDialog({
-  multiple: true,
-})
-const { isOnline } = useConnectivity()
-const offlineStore = useOfflineStore()
+} = useDocumentsSection(props, emit, treeOpen)
 
-const treeOpen = ref(false)
 const sidebarVisible = ref(true)
 const activeDocument = ref<DocumentFile | null>(null)
 const dropZoneRef = ref<HTMLElement>()
@@ -141,11 +143,24 @@ watch(documents, (docs) => {
   if (activeDocument.value)
     activeDocument.value = docs.find(d => d.id === activeDocument.value?.id) ?? null
 })
+watch(treeOpen, async (open, _, onCleanup) => {
+  if (open)
+    return
+
+  let cancelled = false
+  onCleanup(() => {
+    cancelled = true
+  })
+  // Keep the drawer's history entry on top while browsing folders.
+  await waitForDialogHistory()
+
+  if (!cancelled)
+    syncFolderRoute()
+})
 
 function selectTreeFolder(id: string | null) {
   setCurrentFolder(id)
   activeDocument.value = null
-  treeOpen.value = false
 }
 function selectTreeDocument(doc: DocumentFile) {
   setCurrentFolder(doc.folderId)
@@ -198,13 +213,6 @@ onFileChange((files) => {
   />
 
   <div v-else class="documents-section">
-    <div class="explorer-toggle">
-      <KitBtn variant="text" icon="mdi:file-tree-outline" @click="treeOpen = true">
-        Папки и файлы
-      </KitBtn><KitBtn class="desktop-tree-toggle" variant="text" @click="sidebarVisible = !sidebarVisible">
-        {{ sidebarVisible ? 'Скрыть панель' : 'Показать панель' }}
-      </KitBtn>
-    </div>
     <!-- 1. ХЕДЕР НАВИГАЦИИ И ДЕЙСТВИЙ -->
     <DocumentsHeader
       :breadcrumbs="breadcrumbs"
@@ -215,11 +223,39 @@ onFileChange((files) => {
       :readonly="readonly"
       :is-uploading="isUploading"
       :upload-progress="uploadProgress"
-      @select-crumb="setCurrentFolder"
+      @select-crumb="selectTreeFolder"
       @toggle-selection-mode="isSelectionMode = !isSelectionMode"
       @add-folder="isAddingFolder = true"
       @open-upload="openFileDialog()"
-    />
+    >
+      <template #navigation>
+        <KitBtn
+          class="mobile-tree-toggle"
+          variant="tonal"
+          color="secondary"
+          size="sm"
+          icon="mdi:folder-open-outline"
+          aria-label="Папки и файлы"
+          aria-haspopup="dialog"
+          :aria-expanded="treeOpen"
+          @click="treeOpen = true"
+        >
+          Папки
+        </KitBtn>
+        <KitBtn
+          class="desktop-tree-toggle"
+          variant="text"
+          color="secondary"
+          size="sm"
+          icon="mdi:file-tree-outline"
+          aria-label="Дерево папок и файлов"
+          :aria-pressed="sidebarVisible"
+          @click="sidebarVisible = !sidebarVisible"
+        >
+          Папки
+        </KitBtn>
+      </template>
+    </DocumentsHeader>
 
     <!-- 2. ТУЛБАР ФИЛЬТРОВ И ПОИСКА -->
     <DocumentsToolbar
@@ -314,7 +350,6 @@ onFileChange((files) => {
           </div>
 
           <template v-else>
-            <!-- БЛОК ПАПОК (Только в корне и без поисковых фильтров) -->
             <DocumentsFoldersGrid
               v-if="visibleFolders.length > 0 || isAddingFolder"
               :folders="folders"
@@ -332,9 +367,9 @@ onFileChange((files) => {
             <!-- БЛОК ДОКУМЕНТОВ -->
             <div class="docs-block">
               <DocumentsViewBar
+                v-if="filteredDocuments.length > 0 || visibleFolders.length === 0"
                 v-model:sort-option="sortOption"
                 v-model:view-mode="viewMode"
-                :current-folder="currentFolder"
                 :count="filteredDocuments.length"
                 :sort-options="sortOptions"
               />
@@ -382,7 +417,7 @@ onFileChange((files) => {
               </div>
 
               <!-- Папка пуста -->
-              <div v-else-if="currentFolderId" class="empty-folder-state">
+              <div v-else-if="currentFolderId && visibleFolders.length === 0" class="empty-folder-state">
                 <Icon
                   icon="mdi:folder-open-outline"
                   width="48"
@@ -420,12 +455,16 @@ onFileChange((files) => {
   <KitDrawer
     v-model:open="treeOpen"
     side="left"
-    width="320px"
+    width="min(360px, calc(100% - 24px))"
     class="documents-tree-drawer"
+    focus-content-on-open
   >
     <DialogTitle class="tree-drawer-title">
       Папки и файлы
     </DialogTitle>
+    <DialogDescription as-child>
+      <VisuallyHidden>Выберите папку, чтобы раскрыть её, или файл, чтобы открыть его.</VisuallyHidden>
+    </DialogDescription>
     <div class="tree-drawer-content">
       <DocumentsTree
         :folders="folders"
@@ -587,10 +626,11 @@ onFileChange((files) => {
   grid-template-columns: minmax(0, 1fr);
 }
 .documents-sidebar {
+  display: flex;
   position: sticky;
   top: calc(var(--safe-area-inset-top, 0px) + 72px);
   max-height: 75dvh;
-  overflow: auto;
+  overflow: hidden;
   padding: 8px;
   background: var(--bg-secondary-color);
   border: 1px solid var(--border-secondary-color);
@@ -615,22 +655,29 @@ onFileChange((files) => {
   max-height: 75dvh;
   object-fit: contain;
 }
-.explorer-toggle {
-  display: flex;
-  gap: 8px;
-}
-.explorer-toggle > :first-child {
+.mobile-tree-toggle {
   display: none;
+}
+:global(.documents-tree-drawer.drawer--left) {
+  max-width: 100%;
+}
+:global(.documents-tree-drawer.drawer--left > .close-button) {
+  top: calc(4px + var(--safe-area-inset-top, env(safe-area-inset-top, 0px)));
+  right: 8px;
+  width: 44px;
+  height: 44px;
 }
 .tree-drawer-title {
   margin: 0;
-  padding: 16px 56px 16px 16px;
-  font-size: 1.1rem;
+  padding: 16px 52px 16px 16px;
+  font-size: 1rem;
+  line-height: 1.25;
 }
 .tree-drawer-content {
-  padding: 0 12px 16px;
+  display: flex;
+  flex: 1;
+  padding: 0 12px 12px;
   min-height: 0;
-  overflow-y: auto;
 }
 @media (max-width: 959px) {
   .documents-workspace {
@@ -640,8 +687,9 @@ onFileChange((files) => {
   .desktop-tree-toggle {
     display: none;
   }
-  .explorer-toggle > :first-child {
+  .mobile-tree-toggle {
     display: inline-flex;
+    min-height: 44px;
   }
 }
 </style>

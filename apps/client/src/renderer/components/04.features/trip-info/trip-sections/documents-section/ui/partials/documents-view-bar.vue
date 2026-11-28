@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { DocumentFolder, DocumentSortOption, DocumentViewMode } from '../../models/types'
+import type { DocumentSortOption, DocumentViewMode } from '../../models/types'
 import { Icon } from '@iconify/vue'
 import { KitDropdown } from '~/components/01.kit/kit-dropdown'
 import { KitTooltip } from '~/components/01.kit/kit-tooltip'
@@ -11,7 +11,6 @@ interface SortOption {
 }
 
 interface Props {
-  currentFolder: DocumentFolder | null
   count: number
   sortOption: DocumentSortOption
   sortOptions: SortOption[]
@@ -33,11 +32,8 @@ const currentSortLabel = computed(() => {
 <template>
   <div class="docs-header-bar">
     <div class="section-subtitle">
-      <Icon icon="mdi:file-document-multiple-outline" width="16" height="16" />
-      <span>
-        {{ currentFolder ? `Файлы в «${currentFolder.name}»` : 'Все документы' }}
-        ({{ count }})
-      </span>
+      <span>Файлы</span>
+      <span class="section-count">{{ count }}</span>
     </div>
 
     <!-- Контролы отображения над списком файлов -->
@@ -117,11 +113,14 @@ const currentSortLabel = computed(() => {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   font-weight: 600;
+  color: var(--fg-primary-color);
+}
+.section-count {
   color: var(--fg-secondary-color);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+  font-size: 0.75rem;
+  font-weight: 500;
 }
 
 .docs-view-controls {

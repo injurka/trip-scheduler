@@ -25,7 +25,7 @@ beforeEach(() => {
   error.mockClear()
   localStorage.clear()
 })
-async function setup(readonly = false, fail = false) {
+async function setup(readonly = false, fail = false, deferFolderNavigation = ref(false)) {
   const router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/', component: { render: () => null } }] })
   await router.push('/?folder=b')
   await router.isReady()
@@ -46,6 +46,7 @@ async function setup(readonly = false, fail = false) {
         ref('all'),
         ref(false),
         update,
+        deferFolderNavigation,
       )
 
       return () => h('div')
@@ -58,6 +59,7 @@ async function setup(readonly = false, fail = false) {
     wrapper,
     emit,
     update,
+    router,
   }
 }
 it('creates nested folders and gives complete breadcrumbs', async () => {
@@ -115,5 +117,51 @@ it('opens ancestors, searches nested files and keeps selection accessible', asyn
   await wrapper.findAll('button').find(b => b.text().includes('Билет.pdf'))!.trigger('click')
   expect(wrapper.emitted('selectDocument')?.[0]).toEqual([file])
   await flushPromises()
+  wrapper.unmount()
+})
+
+it('opens and collapses a folder by clicking the folder row', async () => {
+  const wrapper = mount(Tree, {
+    props: {
+      folders,
+      documents: [file],
+      currentFolderId: null,
+      readonly: true,
+      storageKey: 's',
+    },
+  })
+  const asia = wrapper.get('.tree-folder')
+  expect(asia.attributes('aria-expanded')).toBe('false')
+  expect(wrapper.text()).not.toContain('Тайвань')
+  await asia.trigger('click')
+  expect(wrapper.emitted('selectFolder')?.at(-1)).toEqual(['a'])
+  await wrapper.setProps({ currentFolderId: 'a' })
+  expect(asia.attributes('aria-expanded')).toBe('true')
+  expect(wrapper.text()).toContain('Тайвань')
+  await asia.trigger('click')
+  expect(asia.attributes('aria-expanded')).toBe('false')
+  expect(wrapper.text()).not.toContain('Тайвань')
+  await wrapper.get('input[type=search]').setValue('Тайвань')
+  const taiwan = wrapper.findAll('.tree-folder').find(button => button.text() === 'Тайвань')!
+  await taiwan.trigger('click')
+  await wrapper.setProps({ currentFolderId: 'b' })
+  expect(wrapper.get<HTMLInputElement>('input[type=search]').element.value).toBe('')
+  expect(wrapper.text()).toContain('Билет.pdf')
+  wrapper.unmount()
+})
+
+it('changes the current folder without pushing a route until the drawer can close', async () => {
+  const drawerOpen = ref(true)
+  const { api, router, wrapper } = await setup(false, false, drawerOpen)
+  api.setCurrentFolder('a')
+  expect(api.currentFolderId.value).toBe('a')
+  expect(router.currentRoute.value.query.folder).toBe('b')
+  api.setCurrentFolder('c')
+  expect(api.currentFolderId.value).toBe('c')
+  expect(router.currentRoute.value.query.folder).toBe('b')
+  drawerOpen.value = false
+  api.syncFolderRoute()
+  await flushPromises()
+  expect(router.currentRoute.value.query.folder).toBe('c')
   wrapper.unmount()
 })

@@ -38,241 +38,180 @@ const emit = defineEmits<{
 <template>
   <header class="section-header">
     <div class="header-left">
-      <!-- Кнопка назад к корню, если мы внутри папки -->
-      <button
-        v-if="breadcrumbs.length > 1"
-        class="back-btn"
-        title="На уровень выше"
-        aria-label="На уровень выше"
-        @click="emit('selectCrumb', breadcrumbs[breadcrumbs.length - 2]?.id ?? null)"
-      >
-        <Icon icon="mdi:arrow-left" width="18" height="18" />
-      </button>
-
-      <div class="breadcrumbs">
-        <template v-for="(crumb, index) in breadcrumbs" :key="crumb.id || 'root'">
-          <button
-            class="crumb"
-            :class="{ 'is-active': index === breadcrumbs.length - 1 }"
-            :aria-current="index === breadcrumbs.length - 1 ? 'location' : undefined"
-            :title="crumb.name"
-            @click="emit('selectCrumb', crumb.id)"
-          >
-            <Icon v-if="index === 0" icon="mdi:folder-home-outline" class="crumb-icon" />
-            <Icon v-else icon="mdi:folder" class="crumb-icon" />
-            <span class="crumb-text">{{ crumb.name }}</span>
-          </button>
-          <Icon v-if="index < breadcrumbs.length - 1" icon="mdi:chevron-right" class="crumb-separator" />
-        </template>
-      </div>
-
-      <!-- Краткая сводка -->
-      <div v-if="hasDocuments" class="docs-summary-badge">
-        <span>{{ totalStats.count }} файлов</span>
-        <span class="dot">•</span>
-        <span>{{ formatBytes(totalStats.sizeBytes) }}</span>
-      </div>
+      <nav class="breadcrumbs" aria-label="Путь к папке">
+        <div v-if="breadcrumbs.length > 1" class="crumb-ancestors">
+          <template v-for="crumb in breadcrumbs.slice(0, -1)" :key="crumb.id ?? 'root'">
+            <KitBtn
+              variant="text"
+              color="secondary"
+              size="sm"
+              :icon="crumb.id === null ? 'mdi:folder-home-outline' : undefined"
+              :aria-label="crumb.name"
+              :title="crumb.name"
+              @click="emit('selectCrumb', crumb.id)"
+            >
+              <span v-if="crumb.id !== null" class="ancestor-name">{{ crumb.name }}</span>
+            </KitBtn>
+            <Icon icon="mdi:chevron-right" class="crumb-separator" />
+          </template>
+        </div>
+        <span class="crumb-current" aria-current="location" :title="breadcrumbs.at(-1)?.name">
+          {{ breadcrumbs.at(-1)?.name }}
+        </span>
+      </nav>
+      <slot name="navigation" />
     </div>
 
-    <div class="header-right">
-      <!-- Кнопка режима мультивыбора -->
-      <button
-        v-if="!readonly && hasDocuments"
-        class="mode-btn"
-        :class="{ 'is-active': isSelectionMode }"
-        :title="isSelectionMode ? 'Выйти из режима выбора' : 'Выбрать несколько файлов'"
-        @click="emit('toggleSelectionMode')"
-      >
-        <Icon icon="mdi:checkbox-multiple-marked-outline" width="18" height="18" />
-      </button>
+    <div v-if="hasDocuments || !readonly" class="header-meta">
+      <div v-if="hasDocuments" class="docs-summary">
+        {{ totalStats.count }} файлов <span aria-hidden="true">·</span> {{ formatBytes(totalStats.sizeBytes) }}
+      </div>
 
-      <!-- Кнопка Новая папка (только в корне) -->
-      <KitBtn
-        v-if="!readonly && canAddFolder"
-        variant="outlined"
-        icon="mdi:folder-plus-outline"
-        size="sm"
-        @click="emit('addFolder')"
-      >
-        <span class="btn-text">Папка</span>
-      </KitBtn>
+      <div v-if="!readonly" class="header-right">
+        <!-- Кнопка режима мультивыбора -->
+        <button
+          v-if="hasDocuments"
+          type="button"
+          class="mode-btn"
+          :aria-pressed="isSelectionMode"
+          :class="{ 'is-active': isSelectionMode }"
+          aria-label="Выбрать несколько файлов"
+          title="Выбрать несколько файлов"
+          @click="emit('toggleSelectionMode')"
+        >
+          <Icon icon="mdi:checkbox-multiple-marked-outline" width="18" height="18" />
+        </button>
 
-      <!-- Кнопка Загрузить файлы -->
-      <KitBtn
-        v-if="!readonly"
-        icon="mdi:cloud-upload-outline"
-        size="sm"
-        :loading="isUploading"
-        @click="emit('openUpload')"
-      >
-        <span class="btn-text">Загрузить</span>
-      </KitBtn>
+        <KitBtn
+          v-if="canAddFolder"
+          variant="outlined"
+          icon="mdi:folder-plus-outline"
+          aria-label="Создать папку"
+          size="sm"
+          @click="emit('addFolder')"
+        >
+          <span class="btn-text">Папка</span>
+        </KitBtn>
+
+        <!-- Кнопка Загрузить файлы -->
+        <KitBtn
+          icon="mdi:cloud-upload-outline"
+          aria-label="Загрузить файлы"
+          size="sm"
+          :loading="isUploading"
+          @click="emit('openUpload')"
+        >
+          <span class="btn-text">Загрузить</span>
+        </KitBtn>
+      </div>
     </div>
   </header>
 </template>
 
 <style scoped lang="scss">
+.section-header,
+.header-left,
+.header-meta,
+.header-right,
+.breadcrumbs,
+.crumb-ancestors {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
 .section-header {
-  display: flex;
-  align-items: center;
+  flex-wrap: wrap;
   justify-content: space-between;
-  gap: 12px;
-  flex-wrap: wrap;
-  min-height: 40px;
+  gap: 4px 16px;
 }
-
 .header-left {
-  display: flex;
-  align-items: center;
-  gap: 10px;
+  flex: 1 1 220px;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 44px;
+}
+.header-left > :slotted(.kit-btn) {
+  flex-shrink: 0;
+}
+.breadcrumbs {
+  gap: 4px;
+}
+.crumb-ancestors {
+  gap: 2px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.crumb-ancestors > * {
+  flex-shrink: 0;
+}
+.ancestor-name,
+.crumb-current {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ancestor-name {
+  max-width: 110px;
+}
+.crumb-separator {
+  color: var(--fg-secondary-color);
+  font-size: 1rem;
+}
+.crumb-current {
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+.crumb-ancestors + .crumb-current {
+  flex-shrink: 0;
+  max-width: 65%;
+}
+.header-meta {
+  justify-content: space-between;
+  gap: 8px;
   flex-wrap: wrap;
 }
-
-.back-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  border-radius: var(--r-s);
+.docs-summary {
+  display: flex;
+  gap: 5px;
+  align-items: baseline;
+  font-size: 0.78rem;
+  color: var(--fg-secondary-color);
+}
+.header-right {
+  margin-inline-start: auto;
+  gap: 6px;
+}
+.mode-btn {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: var(--r-2xs);
   border: 1px solid var(--border-secondary-color);
   background-color: var(--bg-secondary-color);
   color: var(--fg-secondary-color);
   cursor: pointer;
-  transition: all 0.2s ease;
 
-  &:hover {
-    color: var(--fg-primary-color);
-    border-color: var(--border-primary-color);
+  &:hover,
+  &[aria-pressed='true'] {
+    color: var(--fg-accent-color);
     background-color: var(--bg-hover-color);
   }
 }
-
-.breadcrumbs {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  background-color: var(--bg-secondary-color);
-  border: 1px solid var(--border-secondary-color);
-  border-radius: var(--r-m);
-  padding: 3px;
-
-  .crumb {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 4px 8px;
-    border-radius: var(--r-s);
-    border: none;
-    background: transparent;
-    color: var(--fg-secondary-color);
-    font-size: 0.85rem;
-    font-weight: 500;
-    cursor: pointer;
-    transition:
-      color 0.15s ease,
-      background-color 0.15s ease;
-
-    &:hover {
-      color: var(--fg-primary-color);
-      background-color: var(--bg-hover-color);
-    }
-
-    &.is-active {
-      color: var(--fg-primary-color);
-      background-color: var(--bg-primary-color);
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
-      cursor: default;
-    }
+@media (max-width: 599px) {
+  .header-meta {
+    flex-basis: 100%;
   }
-
-  .crumb-icon {
-    font-size: 1rem;
-    opacity: 0.8;
-  }
-
-  .crumb-separator {
-    color: var(--fg-tertiary-color);
-    font-size: 0.85rem;
+  .mode-btn,
+  .header-right .kit-btn {
+    min-width: 44px;
+    min-height: 44px;
   }
 }
-
-.docs-summary-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 3px 8px;
-  border-radius: 20px;
-  background-color: var(--bg-secondary-color);
-  border: 1px solid var(--border-secondary-color);
-  font-size: 0.78rem;
-  color: var(--fg-tertiary-color);
-  font-weight: 500;
-
-  .dot {
-    opacity: 0.5;
+@media (max-width: 480px) {
+  .btn-text {
+    display: none;
   }
-}
-
-.header-right {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-
-  .mode-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 34px;
-    height: 32px;
-    border-radius: var(--r-s);
-    border: 1px solid var(--border-secondary-color);
-    background-color: var(--bg-secondary-color);
-    color: var(--fg-secondary-color);
-    cursor: pointer;
-    transition: all 0.2s ease;
-
-    &:hover {
-      color: var(--fg-primary-color);
-      background-color: var(--bg-hover-color);
-    }
-
-    &.is-active {
-      color: var(--fg-accent-color);
-      border-color: var(--fg-accent-color);
-      background-color: rgba(var(--fg-accent-color-rgb), 0.1);
-    }
-  }
-
-  @media (max-width: 480px) {
-    .btn-text {
-      display: none;
-    }
-  }
-}
-.header-left {
-  min-width: 0;
-  max-width: 100%;
-}
-.breadcrumbs {
-  flex: 1;
-  min-width: 0;
-  max-width: 100%;
-  box-sizing: border-box;
-  overflow-x: auto;
-}
-.breadcrumbs .crumb {
-  flex-shrink: 0;
-  min-height: 44px;
-  max-width: 240px;
-}
-.crumb-text {
-  overflow-wrap: anywhere;
-  text-align: left;
-}
-.back-btn {
-  flex-shrink: 0;
-  width: 44px;
-  height: 44px;
 }
 </style>

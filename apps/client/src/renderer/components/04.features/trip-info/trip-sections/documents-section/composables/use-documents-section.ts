@@ -1,3 +1,4 @@
+import type { Ref } from 'vue'
 import type {
   DocumentCategory,
   DocumentFile,
@@ -23,7 +24,7 @@ interface UseDocumentsSectionProps {
   readonly: boolean
 }
 
-export function useDocumentsSection(props: UseDocumentsSectionProps, emit: (event: 'updateSection', payload: unknown) => void) {
+export function useDocumentsSection(props: UseDocumentsSectionProps, emit: (event: 'updateSection', payload: unknown) => void, deferFolderNavigation: Readonly<Ref<boolean>>) {
   const confirm = useConfirm()
   const toast = useToast()
   const offlineStore = useOfflineStore()
@@ -179,6 +180,7 @@ export function useDocumentsSection(props: UseDocumentsSectionProps, emit: (even
     ref('all'),
     ref(false),
     updateDocument,
+    deferFolderNavigation,
   )
 
   async function moveDocument(doc: DocumentFile, targetFolderId: string | null) {
@@ -260,6 +262,7 @@ export function useDocumentsSection(props: UseDocumentsSectionProps, emit: (even
     updateFolder: foldersModule.updateFolder,
     renameFolder: foldersModule.renameFolder,
     setCurrentFolder: foldersModule.setCurrentFolder,
+    syncFolderRoute: foldersModule.syncFolderRoute,
 
     // Фильтры, поиск, сортировка
     searchQuery: filtersModule.searchQuery,

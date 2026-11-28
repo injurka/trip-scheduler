@@ -14,6 +14,7 @@ interface Props {
   side?: 'left' | 'right' | 'top' | 'bottom'
   class?: string
   width?: string
+  focusContentOnOpen?: boolean
 }
 
 defineOptions({
@@ -29,8 +30,13 @@ const dialogId = useId()
 
 let returnFocus: HTMLElement | null = null
 
-function handleOpenAutoFocus() {
+function handleOpenAutoFocus(event: Event) {
   returnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null
+
+  if (props.focusContentOnOpen && event.currentTarget instanceof HTMLElement) {
+    event.preventDefault()
+    event.currentTarget.focus({ preventScroll: true })
+  }
 }
 function handleCloseAutoFocus(event: Event) {
   event.preventDefault()
